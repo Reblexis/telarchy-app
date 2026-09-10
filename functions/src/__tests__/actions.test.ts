@@ -101,6 +101,16 @@ async function seedFloors() {
       visibility: 'private',
       createdAt: T('2026-08-02'),
     },
+    // A public floor a machine runs, hidden from the log by default.
+    {
+      id: 'ws-snake',
+      name: 'Snake',
+      slug: 'snake',
+      createdBy: 'seed',
+      visibility: 'public',
+      logHidden: true,
+      createdAt: T('2026-08-02'),
+    },
   ]);
   await db.insert(authUser).values([
     {
@@ -633,7 +643,10 @@ describe('the log answers anonymously and names its vocabulary', () => {
       expect(k.description).toBeTruthy();
     }
     // The vocabulary lists public floors and only those.
-    expect(body.workspaces).toEqual([{ slug: 'telarchy', name: 'Telarchy' }]);
+    expect(body.workspaces).toEqual([
+      { slug: 'telarchy', name: 'Telarchy', hidden: false },
+      { slug: 'snake', name: 'Snake', hidden: true },
+    ]);
     expect(body.next).toBeNull();
   });
 
@@ -810,6 +823,10 @@ describe('every kind the doc names renders', () => {
     await seedEverything();
     const { rows } = await rowsOf('?kinds=workspace');
     expect(rows.map(r => r.id)).toEqual(['workspace:ws-telarchy']);
+    expect((await rowsOf('?kinds=workspace&floors=all')).rows.map(r => r.id)).toEqual([
+      'workspace:ws-snake',
+      'workspace:ws-telarchy',
+    ]);
     expect(rows[0].text).toBe('the floor Telarchy opened');
     expect(rows[0].href).toBe('/telarchy');
   });
@@ -893,6 +910,78 @@ describe('a row outlives the thing it points at', () => {
   });
 });
 
+describe('an automated floor is hidden by default', () => {
+  async function seedSnakeTrade() {
+    await seedEverything();
+    await db
+      .insert(metrics)
+      .values([{ id: 'm-snake', workspaceId: 'ws-snake', name: 'Length', value: 4, formula: '0', marketRangeMax: 50 }]);
+    await db.insert(markets).values([
+      {
+        id: 'mkt-snake',
+        workspaceId: 'ws-snake',
+        metricId: 'm-snake',
+        metricName: 'Length',
+        targetDate: '2026-09',
+        rangeMin: 0,
+        rangeMax: 50,
+        shares: [0, 0] as [number, number],
+        liquidity: 100,
+        pool: initialPool(100),
+        active: true,
+        resolved: false,
+        voided: false,
+      },
+    ]);
+    await db.insert(trades).values([
+      {
+        id: 't-snake',
+        workspaceId: 'ws-snake',
+        agentId: 'a3',
+        marketId: 'mkt-snake',
+        direction: 'higher',
+        shares: 1,
+        cost: 1,
+        kind: 'trade',
+        createdAt: T('2026-09-01T10:00:00Z'),
+      },
+    ]);
+  }
+
+  it('leaves the hidden floor out unless asked for by name or with floors=all', async () => {
+    await seedSnakeTrade();
+    const byDefault = (await rowsOf('?limit=200')).rows;
+    expect(byDefault.some(r => r.workspace?.slug === 'snake')).toBe(false);
+    expect(byDefault.some(r => r.id === 'trade:t-buy')).toBe(true);
+    const byName = (await rowsOf('?workspace=snake')).rows;
+    expect(byName.map(r => r.id)).toContain('trade:t-snake');
+    for (const r of byName) expect(r.workspace?.slug).toBe('snake');
+    const all = (await rowsOf('?floors=all&limit=200')).rows;
+    expect(all.some(r => r.id === 'trade:t-snake')).toBe(true);
+    expect(all.some(r => r.id === 'trade:t-buy')).toBe(true);
+    // A participant filter still shows their rows on the hidden floor: the
+    // question was about them, not the floor.
+    expect((await rowsOf('?participant=a3&limit=200')).rows.some(r => r.id === 'trade:t-snake')).toBe(true);
+  });
+
+  it('floors takes only "all"', async () => {
+    await seedFloors();
+    const bad = await request(app).get('/api/data-room/actions?floors=some');
+    expect(bad.status).toBe(400);
+    expect(bad.body.error).toMatch(/floors/);
+  });
+
+  it('Otto and the brief get the default view too', async () => {
+    await seedSnakeTrade();
+    const text = await actionsTool().run({});
+    // The vocabulary names the hidden floor; no row on it is listed.
+    expect(text).toContain('snake (hidden by default');
+    expect(text).not.toMatch(/trade\s+a3\s+snake\s/);
+    const shown = await actionsTool().run({ floors: 'all' });
+    expect(shown).toMatch(/trade\s+a3\s+snake\s/);
+  });
+});
+
 describe('nothing private leaks', () => {
   it('a private floor contributes nothing under any kind', async () => {
     await seedEverything();
@@ -902,7 +991,7 @@ describe('nothing private leaks', () => {
     expect(blob).not.toContain('secret');
     expect(blob).not.toContain('private');
     expect(blob).not.toContain('t-private');
-    expect(ws.map(w => w.slug)).toEqual(['telarchy']);
+    expect(ws.map(w => w.slug)).toEqual(['telarchy', 'snake']);
   });
 
   it('no email, no external handle, no payout detail anywhere in the response', async () => {

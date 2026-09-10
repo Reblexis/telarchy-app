@@ -25,6 +25,7 @@ import {
 import { allowLedgerAdmin } from '../lib/ledger-admin';
 import { assertNotInRunningSeason } from '../lib/market-freeze';
 import { getOwnerHandles, resolveOwnerSegment, resolveWorkspaceOwnerAgentId } from '../lib/participants';
+import { isPlatformAuthorized } from '../lib/platform-admin';
 import { restrictedToMembers } from '../lib/public-read';
 import { uniqueSlugForOwner } from '../lib/slug';
 import { MIN_LIQUIDITY_CONTRIBUTION, parseVisibility } from '../lib/validation';
@@ -393,6 +394,7 @@ workspacesRouter.put(
     const hasMaxPendingKey = Object.prototype.hasOwnProperty.call(req.body, 'maxPendingProposalsPerParticipant');
     const hasDecisionDaysKey = Object.prototype.hasOwnProperty.call(req.body, 'decisionMinutes');
     const hasMutedKey = Object.prototype.hasOwnProperty.call(req.body, 'notificationsMuted');
+    const hasLogHiddenKey = Object.prototype.hasOwnProperty.call(req.body, 'logHidden');
     const touchesLifecycleFields =
       hasAutoFundKey ||
       hasCreditsKey ||
@@ -584,6 +586,32 @@ workspacesRouter.put(
         return;
       }
       update.notificationsMuted = muted;
+    }
+
+    // Hidden from the public actions log by default (docs/data-room.md, "An
+    // automated floor is hidden by default"). A platform admin's call, not
+    // the owner's: the log's promise is that every public action is on it,
+    // and an owner taking their own floor off it would break that promise
+    // for everyone reading the floor.
+    if (hasLogHiddenKey) {
+      const hidden = req.body.logHidden;
+      if (typeof hidden !== 'boolean') {
+        res.status(400).json({ error: 'logHidden must be a boolean' });
+        return;
+      }
+      const byAgent = req.auth!.agentId
+        ? (
+            await db
+              .select({ platformAdmin: agents.platformAdmin })
+              .from(agents)
+              .where(eq(agents.id, req.auth!.agentId))
+          )[0]?.platformAdmin === true
+        : false;
+      if (!byAgent && !(await isPlatformAuthorized(req))) {
+        res.status(403).json({ error: 'Only a platform admin can hide a floor from the actions log' });
+        return;
+      }
+      update.logHidden = hidden;
     }
 
     if (hasSpamPenaltyKey) {

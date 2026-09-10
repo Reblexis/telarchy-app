@@ -69,7 +69,7 @@ export interface ActionRow {
 export interface ActionsPage {
   generatedAt: string;
   kinds: ActionKind[];
-  workspaces: Array<{ slug: string; name: string }>;
+  workspaces: Array<{ slug: string; name: string; hidden: boolean }>;
   rows: ActionRow[];
   next: string | null;
 }
@@ -82,6 +82,8 @@ export interface ActionsQuery {
   before?: Date;
   cursor?: string;
   limit?: number;
+  /** 'all' includes floors hidden by default. */
+  floors?: 'all';
 }
 
 export const DEFAULT_LIMIT = 50;
@@ -128,6 +130,11 @@ export function parseActionsQuery(q: Record<string, unknown>): ActionsQuery {
     out.limit = Math.min(n, MAX_LIMIT);
   }
   out.cursor = str('cursor');
+  const floors = str('floors');
+  if (floors !== undefined) {
+    if (floors !== 'all') throw new AppError('floors: the only value is "all" (include floors hidden by default)', 400);
+    out.floors = 'all';
+  }
   return out;
 }
 
@@ -188,10 +195,10 @@ interface RawRow {
 export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
   const limit = query.limit ?? DEFAULT_LIMIT;
   const publicFloors = await db
-    .select({ id: workspaces.id, slug: workspaces.slug, name: workspaces.name })
+    .select({ id: workspaces.id, slug: workspaces.slug, name: workspaces.name, hidden: workspaces.logHidden })
     .from(workspaces)
     .where(eq(workspaces.visibility, 'public'))
-    .orderBy(workspaces.name);
+    .orderBy(workspaces.logHidden, workspaces.name);
   const floorById = new Map(publicFloors.map(w => [w.id, { slug: w.slug ?? w.id, name: w.name }]));
 
   let workspaceId: string | undefined;
@@ -218,16 +225,23 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
 
   const vocabulary = {
     kinds: [...KINDS],
-    workspaces: publicFloors.map(w => ({ slug: w.slug ?? w.id, name: w.name })),
+    workspaces: publicFloors.map(w => ({ slug: w.slug ?? w.id, name: w.name, hidden: w.hidden })),
   };
 
-  if (publicFloors.length === 0 && kinds.every(k => k !== 'join' && k !== 'link')) {
+  // A floor hidden by default (docs/data-room.md, "An automated floor is
+  // hidden by default") is left out unless the reader asked for it by name,
+  // asked for every floor, or asked about a participant, whose actions are
+  // theirs wherever they took them.
+  const visibleFloors =
+    query.floors === 'all' || workspaceId || actorId ? publicFloors : publicFloors.filter(w => !w.hidden);
+
+  if (visibleFloors.length === 0 && kinds.every(k => k !== 'join' && k !== 'link')) {
     return { generatedAt: new Date().toISOString(), ...vocabulary, rows: [], next: null };
   }
 
-  const publicIds = publicFloors.length
+  const publicIds = visibleFloors.length
     ? sql`(${sql.join(
-        publicFloors.map(w => sql`${w.id}`),
+        visibleFloors.map(w => sql`${w.id}`),
         sql`, `,
       )})`
     : sql`(NULL)`;
@@ -768,9 +782,9 @@ export function renderActionsText(page: ActionsPage): string {
   const lines = page.rows.map(r =>
     [r.at.replace(/\.\d{3}Z$/, 'Z'), r.kind, r.actor?.handle ?? '-', r.workspace?.slug ?? '-', r.text].join('  '),
   );
-  const head = `Telarchy's public actions log (telarchy.com/data-room), ${page.rows.length} rows newest first, generated ${page.generatedAt}. The same list with filters: GET /api/data-room/actions?kinds=&workspace=&participant=&after=&before=&limit=&cursor=.`;
+  const head = `Telarchy's public actions log (telarchy.com/data-room), ${page.rows.length} rows newest first, generated ${page.generatedAt}. The same list with filters: GET /api/data-room/actions?kinds=&workspace=&participant=&after=&before=&limit=&cursor=&floors=all.`;
   const kinds = `Kinds: ${page.kinds.map(k => `${k.id} (${k.description})`).join('; ')}`;
-  const floors = `Public floors: ${page.workspaces.map(w => w.slug).join(', ') || 'none'}`;
+  const floors = `Public floors: ${page.workspaces.map(w => (w.hidden ? `${w.slug} (hidden by default; ask for it by name or with floors=all)` : w.slug)).join(', ') || 'none'}`;
   const tail = page.next ? `More: cursor=${page.next}` : 'End of the log.';
   return [head, kinds, floors, '', ...lines, '', tail].join('\n');
 }
@@ -806,6 +820,10 @@ export function actionsTool() {
             before: { type: 'string', description: 'ISO instant; rows strictly before it.' },
             limit: { type: 'number', description: 'Rows, default 50, at most 200.' },
             cursor: { type: 'string', description: 'The cursor a previous read ended with.' },
+            floors: {
+              type: 'string',
+              description: '"all" to include floors hidden by default (machine-run floors such as the snake).',
+            },
           },
         },
       },

@@ -236,7 +236,7 @@ export function DataRoomPage() {
                 <option value="">Every floor</option>
                 {(vocab?.workspaces ?? []).map(w => (
                   <option key={w.slug} value={w.slug}>
-                    {w.name}
+                    {w.hidden ? `${w.name} (hidden by default)` : w.name}
                   </option>
                 ))}
               </select>
