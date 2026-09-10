@@ -51,16 +51,14 @@ describe('the spawn lock row', () => {
       voided: false,
       proposalId: null,
     });
-    await db
-      .insert(proposals)
-      .values({
-        id: 'prop-lk',
-        workspaceId: WS,
-        proposedBy: 'agent-lk',
-        title: 'x',
-        description: '',
-        status: 'pending',
-      });
+    await db.insert(proposals).values({
+      id: 'prop-lk',
+      workspaceId: WS,
+      proposedBy: 'agent-lk',
+      title: 'x',
+      description: '',
+      status: 'pending',
+    });
     const ids = await createConditionalMarkets('prop-lk', WS);
     expect(ids).toHaveLength(2);
     expect(await lockRows()).toEqual([]);
@@ -70,16 +68,14 @@ describe('the spawn lock row', () => {
     // No metrics, no baseline: the spawn still runs its lock protocol and
     // must not leave the row behind. Forced by a proposal whose workspace
     // has nothing to spawn on and a strict subsidy nobody can pay.
-    await db
-      .insert(proposals)
-      .values({
-        id: 'prop-lk-2',
-        workspaceId: WS,
-        proposedBy: 'agent-lk',
-        title: 'x',
-        description: '',
-        status: 'pending',
-      });
+    await db.insert(proposals).values({
+      id: 'prop-lk-2',
+      workspaceId: WS,
+      proposedBy: 'agent-lk',
+      title: 'x',
+      description: '',
+      status: 'pending',
+    });
     await createConditionalMarkets('prop-lk-2', WS).catch(() => undefined);
     expect(await lockRows()).toEqual([]);
   });
