@@ -466,6 +466,14 @@ export async function buildHomePayload(
  * cached, so the next caller rebuilds.
  */
 const HOME_PAYLOAD_TTL_MS = 15_000;
+
+/**
+ * How many decided proposals the contractor rail scores, newest first, on
+ * top of every pending one (docs/ui-conventions.md, "Top contractors"). The
+ * rail is rebuilt on every floor poll and home build, so its reads are
+ * bounded here rather than by how many proposals a workspace has approved.
+ */
+export const CONTRACTOR_DECIDED_WINDOW = 200;
 let homeCache: { payload: HomePayload; builtAt: number } | null = null;
 let homeInFlight: Promise<HomePayload> | null = null;
 
@@ -1044,52 +1052,62 @@ async function buildFloorPayload(ws: PublicWs) {
     // posted, not on dollars collected (owner direction 2026-08-14): a job
     // posted minutes ago counts the moment anyone prices it. Live jobs are
     // pending + approved; a declined job's forecast was about an action
-    // nobody will take, so it scores nothing. Scored over every live job in
-    // the workspace, not just the 40 the ballot ships.
-    const liveJobs = await db
-      .select({
-        id: proposals.id,
-        proposedBy: proposals.proposedBy,
-        status: proposals.status,
-        askUsd: proposals.askUsd,
-        number: proposals.number,
-        decidedPricing: proposals.decidedPricing,
-      })
+    // nobody will take, so it scores nothing. Scored over every PENDING job
+    // in the workspace plus the CONTRACTOR_DECIDED_WINDOW most recently
+    // posted approved ones (docs/ui-conventions.md, "Top contractors"):
+    // this runs on every floor poll and every home build, and a workspace
+    // that approves 1,440 proposals a day made it read all of them, and
+    // their books, every fifteen seconds (telarchy umbrella,
+    // notes/snake-load-audit-2026-09-10.md, item 2).
+    const jobColumns = {
+      id: proposals.id,
+      proposedBy: proposals.proposedBy,
+      status: proposals.status,
+      askUsd: proposals.askUsd,
+      number: proposals.number,
+      decidedPricing: proposals.decidedPricing,
+    };
+    const pendingJobs = await db
+      .select(jobColumns)
       .from(proposals)
-      .where(and(eq(proposals.workspaceId, workspaceId), inArray(proposals.status, ['pending', 'approved'])));
-    const liveJobIds = liveJobs.map(j => j.id);
-    // Voided branch markets are kept for a DECIDED proposal and dropped for a
-    // pending one, the same rule the ballot follows.
+      .where(and(eq(proposals.workspaceId, workspaceId), eq(proposals.status, 'pending')));
+    const decidedJobs = await db
+      .select(jobColumns)
+      .from(proposals)
+      .where(and(eq(proposals.workspaceId, workspaceId), eq(proposals.status, 'approved')))
+      .orderBy(desc(proposals.createdAt))
+      .limit(CONTRACTOR_DECIDED_WINDOW);
+    const liveJobs = [...pendingJobs, ...decidedJobs];
+    // A decided proposal is scored on proposals.decidedPricing (the pair as
+    // recorded when the owner ruled, owner ruling 2026-09-04), so its books
+    // are not read at all. Only a PENDING proposal's live pair is, and by a
+    // join on its status rather than a list of its ids, so no statement here
+    // grows with the number of proposals.
     //
-    // A decided proposal is scored on proposals.decidedPricing, not on these
-    // books; its markets are still read so the row can count them. A PENDING
-    // proposal's voided pairs are
-    // something else: a retired horizon, or a generation spawned during a
-    // bug. Counting those made the contractor rail read -48 and -108.21 on
-    // the Telarchy floor (owner report 2026-08-15) long after the live pairs
-    // had been re-created at zero impact, because the largest-magnitude
-    // horizon was a dead market nobody can trade.
-    const liveJobMarkets = liveJobIds.length
-      ? await db
-          .select({
-            proposalId: markets.proposalId,
-            branch: markets.branch,
-            metricId: markets.metricId,
-            targetDate: markets.targetDate,
-            shares: markets.shares,
-            liquidity: markets.liquidity,
-            rangeMin: markets.rangeMin,
-            rangeMax: markets.rangeMax,
-            voided: markets.voided,
-          })
-          .from(markets)
-          .where(and(eq(markets.workspaceId, workspaceId), inArray(markets.proposalId, liveJobIds)))
-      : [];
-    const pendingJobIds = new Set(liveJobs.filter(j => j.status === 'pending').map(j => j.id));
+    // A pending proposal's voided pairs are dropped, the same rule the
+    // ballot follows: they are a retired horizon, or a generation spawned
+    // during a bug. Counting those made the contractor rail read -48 and
+    // -108.21 on the Telarchy floor (owner report 2026-08-15) long after the
+    // live pairs had been re-created at zero impact, because the
+    // largest-magnitude horizon was a dead market nobody can trade.
+    const liveJobMarkets = await db
+      .select({
+        proposalId: markets.proposalId,
+        branch: markets.branch,
+        metricId: markets.metricId,
+        targetDate: markets.targetDate,
+        shares: markets.shares,
+        liquidity: markets.liquidity,
+        rangeMin: markets.rangeMin,
+        rangeMax: markets.rangeMax,
+        voided: markets.voided,
+      })
+      .from(markets)
+      .innerJoin(proposals, and(eq(proposals.id, markets.proposalId), eq(proposals.workspaceId, markets.workspaceId)))
+      .where(and(eq(markets.workspaceId, workspaceId), eq(proposals.status, 'pending'), eq(markets.voided, false)));
     const pairsByJob = new Map<string, Map<string, ContractorJobPair>>();
     for (const m of liveJobMarkets) {
       if (!m.proposalId || !m.branch) continue;
-      if (m.voided && pendingJobIds.has(m.proposalId)) continue;
       const c = consensus((m.shares as [number, number]) || [0, 0], m.liquidity, m.rangeMin, m.rangeMax) ?? null;
       const groups = pairsByJob.get(m.proposalId) ?? new Map<string, ContractorJobPair>();
       const key = `${m.metricId}|${m.targetDate}`;
