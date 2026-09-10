@@ -797,7 +797,7 @@ export interface ActionRow {
 export interface ActionsPage {
   generatedAt: string;
   kinds: Array<{ id: string; label: string; description: string }>;
-  workspaces: Array<{ slug: string; name: string }>;
+  workspaces: Array<{ slug: string; name: string; hidden: boolean }>;
   rows: ActionRow[];
   next: string | null;
 }
@@ -805,7 +805,7 @@ export interface ActionsPage {
 /** The filters the page and the endpoint share (docs/data-room.md,
  *  "Filtering"): every one is a query parameter, and an absent one is absent. */
 export type ActionsParams = Partial<
-  Record<'kinds' | 'workspace' | 'participant' | 'after' | 'before' | 'limit' | 'cursor', string>
+  Record<'kinds' | 'workspace' | 'participant' | 'after' | 'before' | 'limit' | 'cursor' | 'floors', string>
 >;
 
 /** The endpoint's query string for a set of filters, which is also the

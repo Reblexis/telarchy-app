@@ -145,6 +145,11 @@ export const workspaces = pgTable('workspaces', {
    *  mail everyone about each. False by default; the check is the single
    *  choke point in services/notifications.ts. */
   notificationsMuted: boolean('notifications_muted').notNull().default(false),
+  /** Left out of the public actions log unless asked for by name or with
+   *  floors=all (docs/data-room.md, "An automated floor is hidden by
+   *  default"): a machine-run floor would otherwise be the whole front page.
+   *  Set by a platform admin through the settings route. */
+  logHidden: boolean('log_hidden').notNull().default(false),
 });
 
 /**

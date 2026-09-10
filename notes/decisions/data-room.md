@@ -104,3 +104,14 @@ the audit is the rule: every row a covered table holds for a public floor
 or a participant is a row on the log, and what is left out is named in the
 doc. After the fix the per-kind counts on production matched the tables
 exactly.
+
+## 2026-09-10 (night) - the snake is hidden by default
+
+Published with every floor on the log, the front page was the Snake floor
+top to bottom: four proposals a minute, each funded and decided. Put to
+Viktor with two options (hide the snake by default, or hide every
+platform-operated floor); he chose: "yes hide snake by default". Decided as
+a floor property, `logHidden`, set by a platform admin through the settings
+route, rather than a page filter, so the page URL stays clean and the API
+default matches it. `floors=all` shows everything; `workspace=snake` shows
+the snake.

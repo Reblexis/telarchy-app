@@ -64,6 +64,18 @@ what pins it.
 Removed proposals (spam, duplicates, test rows) are absent under every kind:
 an admin taking a row off the board is not a decision.
 
+**An automated floor is hidden by default.** A floor a machine runs (the
+snake: four proposals a minute, each funded and decided) would fill the
+unfiltered log with itself and bury every human action on the platform. So
+a floor carries a flag, `logHidden`, that a platform admin sets through the
+workspace settings route; the log leaves a hidden floor out unless the
+reader asks for it by name (`workspace=<its slug>`) or asks for every floor
+(`floors=all`). Nothing is dropped, only unasked-for: the rows are there
+under the floor's own filter, and the floor still appears in the log's
+vocabulary marked `hidden: true`, so the page's floor select can name it.
+The page's URL stays clean because this is the endpoint's default, not a
+filter the page holds. Record: notes/decisions/data-room.md.
+
 A kind is a row in this table, an entry in `KINDS` in
 `functions/src/services/actions.ts`, a sentence renderer, and a test that
 seeds one and reads it back. All four or none.
@@ -108,6 +120,7 @@ The same parameters on the page's URL and on the endpoint:
 | `before` | ISO instant; rows strictly before it |
 | `limit` | rows per page, default 50, at most 200 |
 | `cursor` | the `next` of the previous page |
+| `floors` | `all` to include floors hidden by default; anything else is a 400 |
 
 `telarchy.com/data-room?kinds=trade,decision&workspace=telarchy` and
 `GET /api/data-room/actions?kinds=trade,decision&workspace=telarchy` are the
@@ -134,7 +147,9 @@ origin like the rest of the data room (`lib/cors.ts`). It answers
 ```
 
 `kinds` and `workspaces` are the filter vocabulary, so a client builds its
-filter bar from the response rather than from a copy of this table.
+filter bar from the response rather than from a copy of this table; a
+workspace entry carries `hidden: true` when the floor is left out by
+default.
 
 `GET /api/data-room` stays, and is the room as a document: `{ schema: 2,
 generatedAt, doc: { updatedAt, sections }, actions }` where `sections` is
@@ -172,9 +187,10 @@ dark tokens whatever the visitor's theme, the wide column, mono labels,
 hairlines. Above the log: the title, one line saying what the log is, and the
 stamp (read live, generated when, the JSON link). Nothing else above it.
 
-**The filter bar** is one row: a chip per kind that toggles, a floor chip
-that opens the list of public floors, and, when a participant is set, a chip
-naming them with a clear. Every change rewrites the URL's query and refetches;
+**The filter bar** is one row: a chip per kind that toggles, a floor select
+listing the public floors (a floor hidden by default is listed last with
+"hidden by default" after its name, and picking it is what shows its rows),
+and, when a participant is set, a chip naming them with a clear. Every change rewrites the URL's query and refetches;
 the browser's back button therefore walks filters. A kind chip with nothing
 selected means every kind, which is what the page opens on.
 
