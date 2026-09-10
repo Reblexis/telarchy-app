@@ -63,13 +63,16 @@ const OWNERS_METRIC_NAMES = ['Outside owners deciding'];
 /** docs/metrics.md, "Profitable forecasters". */
 const FORECASTER_METRIC_NAMES = ['Profitable forecasters'];
 
+/** docs/metrics.md, "Active forecasters". */
+const ACTIVE_METRIC_NAMES = ['Active forecasters'];
+
 export interface SelfSyncReading {
   metricId: string;
   metricName: string;
   value: number;
   /** False when the number came back the same; the reading is still recorded. */
   changed: boolean;
-  source: 'weeklyActiveVerifiedTraders' | 'revenue30dUsd' | 'outsideOwnersDeciding' | 'profitableForecasters';
+  source: 'weeklyActiveVerifiedTraders' | 'revenue30dUsd' | 'outsideOwnersDeciding' | 'profitableForecasters' | 'activeForecasters';
 }
 
 export interface SelfSyncResult {
@@ -173,6 +176,11 @@ export async function syncSelfMetrics(): Promise<SelfSyncResult> {
       metric,
       value: stats.profitableForecasters,
       source: 'profitableForecasters' as const,
+    })),
+    ...matchMetrics(allMetrics, ACTIVE_METRIC_NAMES).map(metric => ({
+      metric,
+      value: stats.activeForecasters,
+      source: 'activeForecasters' as const,
     })),
   ];
 

@@ -11,6 +11,7 @@ import {
   workspaces,
 } from '../db/schema';
 import { loadSeasonMarked } from '../lib/board';
+import { allRecordProviders } from './recordProviders';
 import { ttlCache } from '../lib/ttl-cache';
 
 /**
@@ -55,6 +56,27 @@ export async function paidManifoldLinkAgents(agentIds: string[]): Promise<Set<st
     .select({ agentId: earnClaims.agentId })
     .from(earnClaims)
     .where(and(eq(earnClaims.key, MANIFOLD_PAID_KEY), inArray(earnClaims.agentId, agentIds)));
+  return new Set(rows.map(r => r.agentId));
+}
+
+/**
+ * The verified set for "Active forecasters" (docs/metrics.md): participants
+ * the platform PAID for a qualified forecasting record on ANY provider in
+ * the record-link registry (Manifold and Polymarket today). The keys come
+ * from the registry itself, so a provider added there joins this definition
+ * without a second list to forget; a sign-in earn (`link_oauth`) or a grant
+ * is not a record and never counts.
+ */
+export function paidRecordLinkKeys(): string[] {
+  return allRecordProviders().map(p => p.earnKey);
+}
+
+export async function paidRecordLinkAgents(agentIds: string[]): Promise<Set<string>> {
+  if (agentIds.length === 0) return new Set();
+  const rows = await db
+    .select({ agentId: earnClaims.agentId })
+    .from(earnClaims)
+    .where(and(inArray(earnClaims.key, paidRecordLinkKeys()), inArray(earnClaims.agentId, agentIds)));
   return new Set(rows.map(r => r.agentId));
 }
 
@@ -135,6 +157,75 @@ export async function outsideOwnersDeciding7d(): Promise<number> {
 
 /** Credits of profit a participant needs to count as a profitable forecaster. */
 export const PROFITABLE_FORECASTER_MIN_CREDITS = 100;
+
+/** Credits of net exposure a verified person needs in the trailing week to
+ *  count as an active forecaster (docs/metrics.md, "Active forecasters"). */
+export const ACTIVE_FORECASTER_MIN_CREDITS = 100;
+
+/**
+ * "Active forecasters" (docs/metrics.md): verified persons who put at least
+ * 100 credits of NET exposure into the markets over the trailing 7 days,
+ * counting the bots they fund as themselves, house excluded.
+ *
+ * Net, not absolute: `cost` is signed (sells negative), so a buy and its
+ * sell-back net to slippage and a round trip is not activity. Bots roll up
+ * to the person: a browser-registered bot to the participant whose auth user
+ * owns it, an agent-spawned bot to the agent that spawned it, and so on up
+ * the chain, so one person with ten bots is one head however the trades are
+ * split. Verified means paid for a record on any registry provider
+ * (`paidRecordLinkAgents`). A head that is house, or whose chain reaches the
+ * house, never counts. The definition and every rule it enforces are pinned
+ * in __tests__/active-forecasters.test.ts.
+ */
+export async function activeForecasters7d(now = new Date()): Promise<number> {
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const exposure = await db
+    .select({ id: trades.agentId, net: sql<number>`sum(${trades.cost})` })
+    .from(trades)
+    .where(and(gt(trades.createdAt, weekAgo), sql`${trades.createdAt} <= ${now}`, eq(trades.kind, 'trade')))
+    .groupBy(trades.agentId);
+  if (exposure.length === 0) return 0;
+
+  // Ownership links for every agent in the platform; the chain is short and
+  // the table is small, and a partial fetch would have to loop the database.
+  const links = await db
+    .select({
+      id: agents.id,
+      authUserId: agents.authUserId,
+      ownerUserId: agents.ownerUserId,
+      ownerAgentId: agents.ownerAgentId,
+      house: sql<boolean>`(${agents.platformAdmin} = true or ${agents.platformOperated} = true)`,
+    })
+    .from(agents);
+  const byId = new Map(links.map(l => [l.id, l]));
+  const byAuthUser = new Map(links.filter(l => l.authUserId).map(l => [l.authUserId as string, l.id]));
+
+  /** The verified person at the top of an agent's ownership chain, or null
+   *  when the chain ends in an orphan, a cycle, or the house. */
+  const headOf = (agentId: string): string | null => {
+    const seen = new Set<string>();
+    let cur: string | undefined = agentId;
+    while (cur && !seen.has(cur)) {
+      seen.add(cur);
+      const a = byId.get(cur);
+      if (!a || a.house) return null;
+      const next: string | undefined =
+        (a.ownerUserId ? byAuthUser.get(a.ownerUserId) : undefined) ?? a.ownerAgentId ?? undefined;
+      if (!next) return cur;
+      cur = next;
+    }
+    return null;
+  };
+
+  const perHead = new Map<string, number>();
+  for (const row of exposure) {
+    const head = headOf(row.id);
+    if (!head) continue;
+    perHead.set(head, (perHead.get(head) ?? 0) + Number(row.net));
+  }
+  const qualifying = [...perHead].filter(([, net]) => net >= ACTIVE_FORECASTER_MIN_CREDITS).map(([id]) => id);
+  return (await paidRecordLinkAgents(qualifying)).size;
+}
 
 /**
  * Credits a verified participant has to trade in the trailing week to count
@@ -228,6 +319,10 @@ export interface PlatformStats {
    *  credits of marked-to-market profit over the trailing 30 days' resolutions
    *  and every open market, house excluded. */
   profitableForecasters: number;
+  /** docs/metrics.md, "Active forecasters": verified persons (paid record on
+   *  any provider) with 100+ credits of net exposure in the trailing 7 days,
+   *  their bots counted as them, house excluded. */
+  activeForecasters: number;
   manifoldImportCount: number;
   /**
    * Money Telarchy itself was paid in the trailing 30 days, USD
@@ -280,6 +375,7 @@ async function computePlatformStats(): Promise<PlatformStats> {
   const weeklyActiveVerifiedTraders = (await paidManifoldLinkAgents(qualifying)).size;
   const outsideOwnersDeciding = await outsideOwnersDeciding7d();
   const profitableForecasters = await profitableForecasters30d();
+  const activeForecasters = await activeForecasters7d();
 
   let marketsActive = 0;
   let tradesThisWeek = 0;
@@ -337,6 +433,7 @@ async function computePlatformStats(): Promise<PlatformStats> {
     agentsActive: Number(agentCount.count),
     tradesThisWeek,
     weeklyActiveVerifiedTraders,
+    activeForecasters,
     outsideOwnersDeciding,
     profitableForecasters,
     manifoldImportCount,
