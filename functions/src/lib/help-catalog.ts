@@ -1019,7 +1019,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/data-room',
       auth: false,
       description:
-        "The data room as a document (telarchy.com/data-room): { schema: 2, generatedAt, doc: { updatedAt, sections: [{ id, title, markdown }] }, actions } where actions is the unfiltered first page of the public actions log in the shape GET /api/data-room/actions returns. Cached 30s, open to every origin, no key. Spec: docs/data-room.md.",
+        'The data room as a document (telarchy.com/data-room): { schema: 2, generatedAt, doc: { updatedAt, sections: [{ id, title, markdown }] }, actions } where actions is the unfiltered first page of the public actions log in the shape GET /api/data-room/actions returns. Cached 30s, open to every origin, no key. Spec: docs/data-room.md.',
     },
     {
       method: 'GET',

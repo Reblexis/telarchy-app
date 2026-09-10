@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { api, type ActionRow, type ActionsPage, type ActionsParams, actionsQueryString } from '../lib/api';
+import { type ActionRow, type ActionsPage, type ActionsParams, actionsQueryString, api } from '../lib/api';
 import { withBase } from '../lib/base-path';
 import { TopBar } from './TradePage';
 
@@ -271,10 +271,7 @@ export function DataRoomPage() {
               <h2 className="dr-day-rule">{dayLabel(d.rows[0].at)}</h2>
               <ol className="dr-rows">
                 {d.rows.map(r => (
-                  <li
-                    key={r.id}
-                    className={`dr-row dr-row--${r.kind}${newIds.has(r.id) ? ' is-new' : ''}`}
-                  >
+                  <li key={r.id} className={`dr-row dr-row--${r.kind}${newIds.has(r.id) ? ' is-new' : ''}`}>
                     <time className="dr-row-time" dateTime={r.at} title={r.at}>
                       {timeLabel(r.at)}
                     </time>

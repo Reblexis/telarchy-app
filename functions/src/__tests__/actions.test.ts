@@ -49,7 +49,7 @@ import { AppError } from '../lib/errors';
 import { toUnits } from '../lib/validation';
 import { dataRoomRouter } from '../routes/data-room';
 import { marketplaceRouter } from '../routes/marketplace';
-import { KINDS, actionsTool, buildActions, renderActionsText } from '../services/actions';
+import { actionsTool, buildActions, KINDS, renderActionsText } from '../services/actions';
 import { clearDataRoomCache } from '../services/data-room';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
@@ -77,20 +77,71 @@ beforeEach(async () => {
 
 async function seedFloors() {
   await db.insert(workspaces).values([
-    { id: PUB, name: 'Telarchy', slug: 'telarchy', createdBy: 'seed', visibility: 'public', createdAt: T('2026-08-01') },
-    { id: PRIV, name: 'Secret Co', slug: 'secret', createdBy: 'seed', visibility: 'private', createdAt: T('2026-08-02') },
+    {
+      id: PUB,
+      name: 'Telarchy',
+      slug: 'telarchy',
+      createdBy: 'seed',
+      visibility: 'public',
+      createdAt: T('2026-08-01'),
+    },
+    {
+      id: PRIV,
+      name: 'Secret Co',
+      slug: 'secret',
+      createdBy: 'seed',
+      visibility: 'private',
+      createdAt: T('2026-08-02'),
+    },
   ]);
   await db.insert(authUser).values([
-    { id: 'u1', name: 'Vire Person', email: 'vire@example.com', emailVerified: true, createdAt: T('2026-08-03'), updatedAt: T('2026-08-03') },
+    {
+      id: 'u1',
+      name: 'Vire Person',
+      email: 'vire@example.com',
+      emailVerified: true,
+      createdAt: T('2026-08-03'),
+      updatedAt: T('2026-08-03'),
+    },
   ]);
   await db.insert(agents).values([
-    { id: 'a1', apiKeyHash: 'h1', balance: toUnits(100), nickname: 'vire', authUserId: 'u1', createdAt: T('2026-08-03T10:00:00Z') },
-    { id: 'a2', apiKeyHash: 'h2', balance: toUnits(100), nickname: 'vire-bot', ownerAgentId: 'a1', createdAt: T('2026-08-04T10:00:00Z') },
+    {
+      id: 'a1',
+      apiKeyHash: 'h1',
+      balance: toUnits(100),
+      nickname: 'vire',
+      authUserId: 'u1',
+      createdAt: T('2026-08-03T10:00:00Z'),
+    },
+    {
+      id: 'a2',
+      apiKeyHash: 'h2',
+      balance: toUnits(100),
+      nickname: 'vire-bot',
+      ownerAgentId: 'a1',
+      createdAt: T('2026-08-04T10:00:00Z'),
+    },
     { id: 'a3', apiKeyHash: 'h3', balance: toUnits(100), createdAt: T('2026-08-05T10:00:00Z') },
   ]);
   await db.insert(metrics).values([
-    { id: 'm1', workspaceId: PUB, name: 'Active traders', value: 4, formula: '0', marketRangeMax: 50, createdAt: T('2026-08-06') },
-    { id: 'm9', workspaceId: PRIV, name: 'Secret number', value: 4, formula: '0', marketRangeMax: 50, createdAt: T('2026-08-06') },
+    {
+      id: 'm1',
+      workspaceId: PUB,
+      name: 'Active traders',
+      value: 4,
+      formula: '0',
+      marketRangeMax: 50,
+      createdAt: T('2026-08-06'),
+    },
+    {
+      id: 'm9',
+      workspaceId: PRIV,
+      name: 'Secret number',
+      value: 4,
+      formula: '0',
+      marketRangeMax: 50,
+      createdAt: T('2026-08-06'),
+    },
   ]);
   const book = (id: string, ws: string, extra: Record<string, unknown> = {}) => ({
     id,
@@ -112,8 +163,20 @@ async function seedFloors() {
   await db.insert(markets).values([
     book('mkt1', PUB),
     book('mkt-pair', PUB, { proposalId: 'p1', branch: 'approved', createdAt: T('2026-08-08') }),
-    book('mkt-done', PUB, { resolved: true, resolvedAt: T('2026-08-20'), actualValue: 7, active: false, createdAt: T('2026-08-01') }),
-    book('mkt-void', PUB, { resolved: true, resolvedAt: T('2026-08-21'), voided: true, active: false, createdAt: T('2026-08-01') }),
+    book('mkt-done', PUB, {
+      resolved: true,
+      resolvedAt: T('2026-08-20'),
+      actualValue: 7,
+      active: false,
+      createdAt: T('2026-08-01'),
+    }),
+    book('mkt-void', PUB, {
+      resolved: true,
+      resolvedAt: T('2026-08-21'),
+      voided: true,
+      active: false,
+      createdAt: T('2026-08-01'),
+    }),
     book('mkt9', PRIV),
   ]);
 }
@@ -122,47 +185,252 @@ async function seedFloors() {
 async function seedEverything() {
   await seedFloors();
   await db.insert(trades).values([
-    { id: 't-buy', workspaceId: PUB, agentId: 'a1', marketId: 'mkt1', direction: 'higher', shares: 10, cost: 40, kind: 'trade', consensusBefore: 4, consensusAfter: 5.2, createdAt: T('2026-08-10T09:00:00Z') },
-    { id: 't-sell', workspaceId: PUB, agentId: 'a1', marketId: 'mkt1', direction: 'higher', shares: -4, cost: -15, kind: 'trade', consensusBefore: 5.2, consensusAfter: 4.9, createdAt: T('2026-08-10T09:05:00Z') },
-    { id: 't-redeem', workspaceId: PUB, agentId: 'a1', marketId: 'mkt1', direction: 'lower', shares: -1, cost: 0, kind: 'redeem', createdAt: T('2026-08-10T09:06:00Z') },
-    { id: 't-private', workspaceId: PRIV, agentId: 'a1', marketId: 'mkt9', direction: 'higher', shares: 10, cost: 40, kind: 'trade', createdAt: T('2026-08-10T09:07:00Z') },
+    {
+      id: 't-buy',
+      workspaceId: PUB,
+      agentId: 'a1',
+      marketId: 'mkt1',
+      direction: 'higher',
+      shares: 10,
+      cost: 40,
+      kind: 'trade',
+      consensusBefore: 4,
+      consensusAfter: 5.2,
+      createdAt: T('2026-08-10T09:00:00Z'),
+    },
+    {
+      id: 't-sell',
+      workspaceId: PUB,
+      agentId: 'a1',
+      marketId: 'mkt1',
+      direction: 'higher',
+      shares: -4,
+      cost: -15,
+      kind: 'trade',
+      consensusBefore: 5.2,
+      consensusAfter: 4.9,
+      createdAt: T('2026-08-10T09:05:00Z'),
+    },
+    {
+      id: 't-redeem',
+      workspaceId: PUB,
+      agentId: 'a1',
+      marketId: 'mkt1',
+      direction: 'lower',
+      shares: -1,
+      cost: 0,
+      kind: 'redeem',
+      createdAt: T('2026-08-10T09:06:00Z'),
+    },
+    {
+      id: 't-private',
+      workspaceId: PRIV,
+      agentId: 'a1',
+      marketId: 'mkt9',
+      direction: 'higher',
+      shares: 10,
+      cost: 40,
+      kind: 'trade',
+      createdAt: T('2026-08-10T09:07:00Z'),
+    },
   ]);
   await db.insert(liquidityEvents).values([
-    { id: 'lq-init', workspaceId: PUB, marketId: 'mkt1', amount: 100, totalLiquidity: 100, type: 'initial', createdAt: T('2026-08-07') },
-    { id: 'lq-add', workspaceId: PUB, marketId: 'mkt1', amount: 250, totalLiquidity: 350, type: 'injection', agentId: 'a1', createdAt: T('2026-08-11T12:00:00Z') },
+    {
+      id: 'lq-init',
+      workspaceId: PUB,
+      marketId: 'mkt1',
+      amount: 100,
+      totalLiquidity: 100,
+      type: 'initial',
+      createdAt: T('2026-08-07'),
+    },
+    {
+      id: 'lq-add',
+      workspaceId: PUB,
+      marketId: 'mkt1',
+      amount: 250,
+      totalLiquidity: 350,
+      type: 'injection',
+      agentId: 'a1',
+      createdAt: T('2026-08-11T12:00:00Z'),
+    },
   ]);
   await db.insert(proposals).values([
-    { id: 'p1', workspaceId: PUB, proposedBy: 'a1', title: 'Open job', status: 'pending', askUsd: 50, number: 1, createdAt: T('2026-08-12') },
-    { id: 'p2', workspaceId: PUB, proposedBy: 'a1', title: 'Paid job', status: 'approved', askUsd: 100, number: 2, createdAt: T('2026-08-12'), resolvedAt: T('2026-08-13'), resolvedBy: 'a3', deliveryState: 'delivered', deliveredAt: T('2026-08-14'), deliveryNote: 'Shipped it' },
-    { id: 'p3', workspaceId: PUB, proposedBy: 'a2', title: 'Declined job', status: 'declined', askUsd: 250, number: 3, createdAt: T('2026-08-12'), resolvedAt: T('2026-08-15'), resolvedBy: 'a3', declineReason: 'Too expensive' },
-    { id: 'p4', workspaceId: PUB, proposedBy: 'a2', title: 'Lapsed job', status: 'lapsed', askUsd: 10, number: 4, createdAt: T('2026-08-12'), lapsedAt: T('2026-08-16') },
-    { id: 'p5', workspaceId: PUB, proposedBy: 'a2', title: 'Withdrawn job', status: 'withdrawn', askUsd: 10, number: 5, createdAt: T('2026-08-12'), closedAt: T('2026-08-17') },
-    { id: 'p6', workspaceId: PUB, proposedBy: 'a2', title: 'Spam row', status: 'removed', askUsd: 10, number: 6, createdAt: T('2026-08-12'), resolvedAt: T('2026-08-18') },
-    { id: 'p9', workspaceId: PRIV, proposedBy: 'a1', title: 'Private job', status: 'pending', askUsd: 10, number: 1, createdAt: T('2026-08-12') },
+    {
+      id: 'p1',
+      workspaceId: PUB,
+      proposedBy: 'a1',
+      title: 'Open job',
+      status: 'pending',
+      askUsd: 50,
+      number: 1,
+      createdAt: T('2026-08-12'),
+    },
+    {
+      id: 'p2',
+      workspaceId: PUB,
+      proposedBy: 'a1',
+      title: 'Paid job',
+      status: 'approved',
+      askUsd: 100,
+      number: 2,
+      createdAt: T('2026-08-12'),
+      resolvedAt: T('2026-08-13'),
+      resolvedBy: 'a3',
+      deliveryState: 'delivered',
+      deliveredAt: T('2026-08-14'),
+      deliveryNote: 'Shipped it',
+    },
+    {
+      id: 'p3',
+      workspaceId: PUB,
+      proposedBy: 'a2',
+      title: 'Declined job',
+      status: 'declined',
+      askUsd: 250,
+      number: 3,
+      createdAt: T('2026-08-12'),
+      resolvedAt: T('2026-08-15'),
+      resolvedBy: 'a3',
+      declineReason: 'Too expensive',
+    },
+    {
+      id: 'p4',
+      workspaceId: PUB,
+      proposedBy: 'a2',
+      title: 'Lapsed job',
+      status: 'lapsed',
+      askUsd: 10,
+      number: 4,
+      createdAt: T('2026-08-12'),
+      lapsedAt: T('2026-08-16'),
+    },
+    {
+      id: 'p5',
+      workspaceId: PUB,
+      proposedBy: 'a2',
+      title: 'Withdrawn job',
+      status: 'withdrawn',
+      askUsd: 10,
+      number: 5,
+      createdAt: T('2026-08-12'),
+      closedAt: T('2026-08-17'),
+    },
+    {
+      id: 'p6',
+      workspaceId: PUB,
+      proposedBy: 'a2',
+      title: 'Spam row',
+      status: 'removed',
+      askUsd: 10,
+      number: 6,
+      createdAt: T('2026-08-12'),
+      resolvedAt: T('2026-08-18'),
+    },
+    {
+      id: 'p9',
+      workspaceId: PRIV,
+      proposedBy: 'a1',
+      title: 'Private job',
+      status: 'pending',
+      askUsd: 10,
+      number: 1,
+      createdAt: T('2026-08-12'),
+    },
   ]);
   await db.insert(proposalRevisions).values([
-    { id: 'pr1', workspaceId: PUB, proposalId: 'p1', field: 'title', oldValue: 'Open jbo', newValue: 'Open job', changedBy: 'a1', createdAt: T('2026-08-12T13:00:00Z') },
+    {
+      id: 'pr1',
+      workspaceId: PUB,
+      proposalId: 'p1',
+      field: 'title',
+      oldValue: 'Open jbo',
+      newValue: 'Open job',
+      changedBy: 'a1',
+      createdAt: T('2026-08-12T13:00:00Z'),
+    },
   ]);
   await db.insert(proposalMessages).values([
-    { id: 'pm1', workspaceId: PUB, proposalId: 'p1', from: 'a3', content: 'Is this priced against the weekly book or the monthly one? Asking because the two differ by a lot right now and the title does not say.', createdAt: T('2026-08-12T14:00:00Z') },
-    { id: 'pm9', workspaceId: PRIV, proposalId: 'p9', from: 'a3', content: 'private comment', createdAt: T('2026-08-12T14:00:00Z') },
+    {
+      id: 'pm1',
+      workspaceId: PUB,
+      proposalId: 'p1',
+      from: 'a3',
+      content:
+        'Is this priced against the weekly book or the monthly one? Asking because the two differ by a lot right now and the title does not say.',
+      createdAt: T('2026-08-12T14:00:00Z'),
+    },
+    {
+      id: 'pm9',
+      workspaceId: PRIV,
+      proposalId: 'p9',
+      from: 'a3',
+      content: 'private comment',
+      createdAt: T('2026-08-12T14:00:00Z'),
+    },
   ]);
   await db.insert(marketMessages).values([
-    { id: 'mm1', workspaceId: PUB, marketId: 'mkt1', from: 'a1', content: 'Cheap at 4.', createdAt: T('2026-08-12T15:00:00Z') },
+    {
+      id: 'mm1',
+      workspaceId: PUB,
+      marketId: 'mkt1',
+      from: 'a1',
+      content: 'Cheap at 4.',
+      createdAt: T('2026-08-12T15:00:00Z'),
+    },
   ]);
   await db.insert(announcements).values([
-    { id: 'an1', workspaceId: PUB, body: 'We are live on the floor today.', publishedAt: T('2026-08-19T08:00:00Z'), editedAt: T('2026-08-19T09:00:00Z'), originalBody: 'We are live.', publishedBy: 'a3' },
+    {
+      id: 'an1',
+      workspaceId: PUB,
+      body: 'We are live on the floor today.',
+      publishedAt: T('2026-08-19T08:00:00Z'),
+      editedAt: T('2026-08-19T09:00:00Z'),
+      originalBody: 'We are live.',
+      publishedBy: 'a3',
+    },
     { id: 'an9', workspaceId: PRIV, body: 'Private news.', publishedAt: T('2026-08-19T08:00:00Z') },
   ]);
   await db.insert(updates).values([
-    { id: 'up1', workspaceId: PUB, metricName: 'Active traders', oldValue: 4, newValue: 6, description: 'hourly self-sync', timestamp: T('2026-08-22T10:00:00Z') },
-    { id: 'up9', workspaceId: PRIV, metricName: 'Secret number', oldValue: 4, newValue: 6, description: 'x', timestamp: T('2026-08-22T10:00:00Z') },
+    {
+      id: 'up1',
+      workspaceId: PUB,
+      metricName: 'Active traders',
+      oldValue: 4,
+      newValue: 6,
+      description: 'hourly self-sync',
+      timestamp: T('2026-08-22T10:00:00Z'),
+    },
+    {
+      id: 'up9',
+      workspaceId: PRIV,
+      metricName: 'Secret number',
+      oldValue: 4,
+      newValue: 6,
+      description: 'x',
+      timestamp: T('2026-08-22T10:00:00Z'),
+    },
   ]);
   await db.insert(metricDefinitionRevisions).values([
-    { id: 'md1', workspaceId: PUB, metricId: 'm1', field: 'description', oldValue: 'old words', newValue: 'new words', changedBy: 'a3', createdAt: T('2026-08-23T10:00:00Z') },
+    {
+      id: 'md1',
+      workspaceId: PUB,
+      metricId: 'm1',
+      field: 'description',
+      oldValue: 'old words',
+      newValue: 'new words',
+      changedBy: 'a3',
+      createdAt: T('2026-08-23T10:00:00Z'),
+    },
   ]);
   await db.insert(recordLinks).values([
-    { agentId: 'a1', provider: 'manifold', externalId: 'x1', handle: 'vire-on-manifold', linkedAt: T('2026-08-24T10:00:00Z') },
+    {
+      agentId: 'a1',
+      provider: 'manifold',
+      externalId: 'x1',
+      handle: 'vire-on-manifold',
+      linkedAt: T('2026-08-24T10:00:00Z'),
+    },
   ]);
 }
 
@@ -232,7 +500,15 @@ describe('every kind the doc names renders', () => {
     expect(buy.workspace).toEqual({ slug: 'telarchy', name: 'Telarchy' });
     expect(buy.text).toBe('bought 10 higher shares on Active traders (2026-09) for 40 cr, call 4 to 5.2');
     expect(buy.text).not.toMatch(/vire|Telarchy/);
-    expect(buy.detail).toMatchObject({ side: 'buy', direction: 'higher', shares: 10, cost: 40, callBefore: 4, callAfter: 5.2, marketId: 'mkt1' });
+    expect(buy.detail).toMatchObject({
+      side: 'buy',
+      direction: 'higher',
+      shares: 10,
+      cost: 40,
+      callBefore: 4,
+      callAfter: 5.2,
+      marketId: 'mkt1',
+    });
     expect(buy.href).toBe('/telarchy#market=mkt1&trade=t-buy');
     const sell = rows[0];
     expect(sell.text).toBe('sold 4 higher shares on Active traders (2026-09) for 15 cr, call 5.2 to 4.9');
@@ -259,7 +535,14 @@ describe('every kind the doc names renders', () => {
     const all = (await rowsOf('?limit=200')).rows;
     expect(all.some(r => r.text.includes('Spam row'))).toBe(false);
     const posted = all.filter(r => r.kind === 'proposal');
-    expect(posted.map(r => r.id).sort()).toEqual(['proposal:p1', 'proposal:p2', 'proposal:p3', 'proposal:p4', 'proposal:p5', 'proposal:pr1']);
+    expect(posted.map(r => r.id).sort()).toEqual([
+      'proposal:p1',
+      'proposal:p2',
+      'proposal:p3',
+      'proposal:p4',
+      'proposal:p5',
+      'proposal:pr1',
+    ]);
     expect(posted.find(r => r.id === 'proposal:p1')?.text).toBe('proposed "Open job" for $50');
     expect(posted.find(r => r.id === 'proposal:pr1')?.text).toBe('edited the title of "Open job"');
     const delivered = all.filter(r => r.kind === 'delivery');
@@ -310,7 +593,13 @@ describe('every kind the doc names renders', () => {
   it('a market opens, settles or is voided; a pair book is never its own row', async () => {
     await seedEverything();
     const { rows } = await rowsOf('?kinds=market');
-    expect(rows.map(r => r.id)).toEqual(['market:mkt-void:settled', 'market:mkt-done:settled', 'market:mkt1:open', 'market:mkt-void:open', 'market:mkt-done:open']);
+    expect(rows.map(r => r.id)).toEqual([
+      'market:mkt-void:settled',
+      'market:mkt-done:settled',
+      'market:mkt1:open',
+      'market:mkt-void:open',
+      'market:mkt-done:open',
+    ]);
     expect(rows.find(r => r.id === 'market:mkt-done:settled')?.text).toBe('Active traders (2026-09) settled at 7');
     expect(rows.find(r => r.id === 'market:mkt-void:settled')?.text).toBe('Active traders (2026-09) was voided');
     expect(rows.find(r => r.id === 'market:mkt1:open')?.text).toBe('a book opened on Active traders (2026-09)');
@@ -521,9 +810,9 @@ describe('the room as a document', () => {
   it("the platform's own floor hands an agent the latest page as its Data room document", async () => {
     await seedEverything();
     process.env.SELF_SYNC_WORKSPACE_ID = PUB;
-    await db.insert(permissionGroups).values([
-      { id: 'pg', workspaceId: PUB, name: 'Public', type: 'public', capabilities: ['read'] },
-    ]);
+    await db
+      .insert(permissionGroups)
+      .values([{ id: 'pg', workspaceId: PUB, name: 'Public', type: 'public', capabilities: ['read'] }]);
     const res = await request(app).get('/api/marketplace/telarchy/context');
     expect(res.status).toBe(200);
     const doc = res.body.documents.find((d: { name: string }) => d.name === 'Data room');
