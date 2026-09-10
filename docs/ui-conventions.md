@@ -450,11 +450,13 @@ find out:
 
 - **The metric strip** (`.pubws-strip`, `.pubws-strip--metric`) lists the
   floor's metrics, primary first, each tab (`.pubws-strip-tab`) the metric's
-  name and nothing else. A floor with one metric draws no strip at all,
-  because a strip of one is a label. With a PROPOSAL open the metric tabs do
-  carry a number, because then each one is a pair the proposal actually
-  prices and the number is that proposal's claim about it, not the metric's
-  own level.
+  name and nothing else, **in every view** (owner ask 2026-09-10, twice: "dont
+  show the values here as it doesnt make sense given that they arent
+  individual markets", then "but again donet show any numbers here" of the
+  proposal view). A metric is an axis, not a market: whatever number stands
+  under its name is really about the date selected on the strip below, and
+  reads as though it belonged to the metric. A floor with one metric draws no
+  strip at all, because a strip of one is a label.
 - **The date strip** (`.pubws-strip--date`) lists the selected metric's open
   dates soonest first, each tab the clock's name ("THIS WEEK", "THIS MONTH";
   `dateSegmentOf`) over that date's call. The settle day it used to carry
@@ -464,12 +466,13 @@ find out:
 - **A tab with no price prints a dash**, never a borrowed number: an
   unfunded book is a book nobody has priced, and a strip that invents a
   value for it is worse than one that admits it.
-- **A proposal pair with no liquidity reads "no liquidity", and its tab
-  cannot be pressed** (owner ask 2026-09-09). Nothing has been staked on
-  that cell, so there is no forecast to show and nothing to trade when you
-  arrive: a zero with a word under it was a prediction dressed up as a fact.
-  The word "untraded" is gone with it, on both strips; where there IS
-  liquidity the number stands on its own.
+- **A proposal pair with no liquidity cannot be pressed** (owner ask
+  2026-09-09). Nothing has been staked on that cell, so there is no forecast
+  to show and nothing to trade when you arrive: a zero with a word under it
+  was a prediction dressed up as a fact. On the date strip the tab reads "no
+  liquidity" where its number would be; on the metric strip, which prints no
+  numbers, it is quiet and dead, and says so on hover. The word "untraded" is
+  gone with it; where there IS liquidity the number stands on its own.
 - **The owner's two entries stay reachable.** "Manage metrics" and "Manage
   dates" are the last tab of their strip, in the accent, for a manager only;
   they open the same dialogs the chips' menus opened (the metrics dialog and
@@ -623,8 +626,7 @@ deadline, an ask, and a price, and it reads in that order:
   #28  A 500 dollar prize for the best open-source trading agent
   Viktor36 · $500 if approved · decides 15 Sept · 24,857 behind it
 
-  ACTIVE TRADERS   REVENUE        OUTSIDE OWNERS   FORECASTERS
-  +1.4             no liquidity   no liquidity     no liquidity
+  ACTIVE TRADERS   REVENUE   OUTSIDE OWNERS   FORECASTERS
   THIS WEEK        THIS MONTH
   ±0               +1.4
 
@@ -653,8 +655,9 @@ deadline, an ask, and a price, and it reads in that order:
   proposal IS belongs in "How this decides", below.
 - **The strips say what it moves.** With a proposal open, the metric strip
   and the date strip stop showing levels and show THIS proposal's impact on
-  each cell: `ACTIVE TRADERS +1.4  REVENUE ±$0 ...`, `THIS WEEK ±0
-  THIS MONTH +1.4`. They carry no leading label ("moves", "by"): the strips
+  each cell: `THIS WEEK ±0  THIS MONTH +1.4`. The metric strip prints no
+  number in any view (above), so the impacts ride the dates. They carry no
+  leading label ("moves", "by"): the strips
   are where they always are, and a word in front of each one captions
   something the reader is already looking at (owner ask 2026-09-09, "i dont
   like the moves and by texts remove those"). A proposal ships a pair for every cell of the grid
