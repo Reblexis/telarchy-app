@@ -104,6 +104,12 @@ export const workspaces = pgTable('workspaces', {
    *  (the "What is <name>?" section): free text, the owner's own words plus
    *  sources. Null = the floor shows its built-in default copy. */
   subjectAbout: text('subject_about'),
+  /** The owner's own picture of the thing the market steers, embedded on the
+   *  public floor as a sandboxed iframe directly above "What is <name>?"
+   *  (docs/ui-conventions.md, "The live view"; owner ask 2026-09-10 for the
+   *  Snake floor). https only, at most 500 characters. Null = no box. It is
+   *  the owner's content: the floor frames it and vouches for nothing in it. */
+  liveViewUrl: text('live_view_url'),
   /** When this workspace started running its number through Telarchy. The
    *  floor's actual-vs-forecast chart marks it with one dashed line, because a
    *  year of trajectory raises the question the number alone cannot answer:

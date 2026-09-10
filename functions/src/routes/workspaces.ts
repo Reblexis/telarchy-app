@@ -417,6 +417,7 @@ workspacesRouter.put(
       description,
       charter,
       subjectAbout,
+      liveViewUrl,
       telarchyStartedOn,
       autoFundNewMarkets,
       newMarketLiquidityCredits,
@@ -450,6 +451,38 @@ workspacesRouter.put(
         return;
       }
       update[key] = value.trim();
+    }
+
+    // The live view (docs/ui-conventions.md, "The live view"): the floor
+    // embeds this URL in a sandboxed iframe, so it is https or nothing. A
+    // javascript:, data: or http: value is refused rather than stored, and a
+    // refused value leaves whatever was set before in place. Plain `manage`,
+    // like the other identity fields.
+    if (liveViewUrl !== undefined) {
+      if (liveViewUrl === null || (typeof liveViewUrl === 'string' && liveViewUrl.trim().length === 0)) {
+        update.liveViewUrl = null;
+      } else {
+        if (typeof liveViewUrl !== 'string') {
+          res.status(400).json({ error: 'liveViewUrl must be an https URL or null' });
+          return;
+        }
+        const trimmed = liveViewUrl.trim();
+        if (trimmed.length > 500) {
+          res.status(400).json({ error: 'liveViewUrl must be at most 500 characters' });
+          return;
+        }
+        let parsed: URL | null = null;
+        try {
+          parsed = new URL(trimmed);
+        } catch {
+          parsed = null;
+        }
+        if (!parsed || parsed.protocol !== 'https:' || !parsed.hostname) {
+          res.status(400).json({ error: 'liveViewUrl must be an https URL or null' });
+          return;
+        }
+        update.liveViewUrl = trimmed;
+      }
     }
 
     // The one moment the floor's year chart marks. Plain `manage`, like the

@@ -6400,6 +6400,50 @@ textarea.jobform-line--desc {
   text-align: left;
 }
 
+/* The owner's live view (docs/ui-conventions.md, "The live view"): a 16:9
+   frame the width of the owner-prose column, so full width on a phone, with
+   one caption line under it. The caption is a one-liner but is set left
+   explicitly like every prose class on the floor. */
+.pubws-live {
+  margin-top: clamp(2.4rem, 6vh, 3.6rem);
+  text-align: left;
+}
+
+.pubws-live-box {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+
+.pubws-live-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.pubws-live-caption {
+  margin: 0.55rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+  text-align: left;
+}
+
+.pubws-live-caption a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.pubws-live-caption a:hover {
+  color: var(--accent);
+}
+
 /* The workspace's name at the top of the floor (owner direction 2026-08-18):
    the same tiny-uppercase register as section labels, so it names the page
    without competing with the instrument title. */

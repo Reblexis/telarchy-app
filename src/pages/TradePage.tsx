@@ -12,6 +12,7 @@ import { FloorAnnouncements } from '../components/FloorAnnouncements';
 import { FloorChat } from '../components/FloorChat';
 import { FloorChecklist } from '../components/FloorChecklist';
 import { FloorComments } from '../components/FloorComments';
+import { FloorLiveView } from '../components/FloorLiveView';
 import { FloorStandings, type ProposalTraderRow, SeasonAdvert, useCurrentSeason } from '../components/FloorRails';
 import { FloorStrip } from '../components/FloorStrip';
 import { Ghost, GhostRows, LoadingStatus } from '../components/Ghosts';
@@ -2904,6 +2905,12 @@ export function TradePage() {
             owner's own prose on purpose: the floor leads with its price, and
             the checklist is what the owner reads after seeing it. */}
           <FloorChecklist workspaceId={ws.workspaceId} canManage={canManage} />
+          {/* The owner's live view, directly above their own words about the
+            company (docs/ui-conventions.md, "The live view"). Here and not
+            over the chart because the floor leads with its price; this is
+            owner material, read after the market like the rest of this
+            column. Nothing when the workspace names no URL. */}
+          <FloorLiveView url={ws.liveViewUrl} name={ws.name} />
           <SubjectAbout
             workspaceId={ws.workspaceId}
             name={ws.name}

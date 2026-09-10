@@ -1185,6 +1185,9 @@ async function buildFloorPayload(ws: PublicWs) {
     description: ws.description,
     charter: ws.charter,
     subjectAbout: ws.subjectAbout ?? null,
+    // The owner's live view, framed on the floor above "What is <name>?";
+    // null means no box (docs/ui-conventions.md, "The live view").
+    liveViewUrl: ws.liveViewUrl ?? null,
     // The moment the floor's year chart marks, when the owner named one.
     telarchyStartedOn: ws.telarchyStartedOn ?? null,
     visibility: ws.visibility,

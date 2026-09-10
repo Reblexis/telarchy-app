@@ -36,6 +36,8 @@ const PROSE = [
   'pubws-gap',
   'pubws-propose-cost',
   'pubws-provenance',
+  // the live view's caption (docs/ui-conventions.md, "The live view")
+  'pubws-live-caption',
   'pubws-publish-sub',
   'doors-note',
   // the home board, /owners, /forecast, /for-agents

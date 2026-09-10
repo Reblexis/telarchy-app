@@ -2179,6 +2179,25 @@ external, new tab. A manager edits the text in place (the `SubjectAbout`
 editor pattern: hairlines, `jobform-line` textarea, ticket buttons). Its
 last line is the row that opens Otto (see "Otto").
 
+**The live view** (`FloorLiveView`) is the owner's own picture of the
+thing the market steers, embedded on the floor: a workspace whose setting
+`liveViewUrl` (PUT /api/workspaces/:id/settings, plain `manage`, https
+only, at most 500 characters, null to clear; served on the public floor
+payload as `liveViewUrl`) names a page gets that page rendered in a 16:9
+box in the owner-prose column, directly above "What is <name>?", and a
+floor whose setting is null renders nothing there and nothing else on the
+page moves. It sits there rather than over the chart because the floor
+leads with its price (the number, the chart, the two priced sides come
+first) and the live view is owner material, read after the market like the
+rest of that column. The box is the column's width, so full width on a
+phone. The embed is a sandboxed iframe: `sandbox="allow-scripts
+allow-same-origin"` and nothing more (no forms, no popups, no top
+navigation), `loading="lazy"`, `referrerpolicy="no-referrer"`. Under it,
+one left-aligned line in the muted meta style, "Live view, published by the
+owner", and a link that opens the URL in a new tab. It is the owner's
+content, not Telarchy's: the floor frames it and vouches for nothing inside
+it, and the app sets no Content-Security-Policy, so any https origin frames.
+
 ### The announcements page
 
 `AnnouncementsPage` (`/:slug/announcements`) is a poster head over a
