@@ -132,6 +132,12 @@ export const workspaces = pgTable('workspaces', {
    *  place so the previous build keeps serving through the deploy. */
   decisionMinutes: integer('decision_minutes').notNull().default(1440),
   decisionDays: integer('decision_days').notNull().default(7),
+  /** The owner's mute over every notification about this workspace, on every
+   *  channel (docs/vision.md, "A workspace can mute everything it would
+   *  send"): a floor deciding thousands of proposals a day would otherwise
+   *  mail everyone about each. False by default; the check is the single
+   *  choke point in services/notifications.ts. */
+  notificationsMuted: boolean('notifications_muted').notNull().default(false),
 });
 
 /**
