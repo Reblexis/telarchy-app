@@ -62,7 +62,14 @@ const MAY_COMPUTE_PROFIT = new Set([
  * positions.totalCost is gross buys by design and cannot answer it. Not the
  * board, and not a second copy of it.
  */
-const MAY_QUERY_BOARD = new Set(['lib/board.ts', 'services/markets.ts']);
+/*
+ * `services/platform-stats.ts` asks a third question with the same expression:
+ * a person's NET EXPOSURE over the trailing 7 days (docs/metrics.md, "Active
+ * forecasters"), what they put at risk this week, not what they are worth.
+ * Bounded by the window in its WHERE clause and grouped per agent, so it
+ * neither answers the board's question nor pulls the table into memory.
+ */
+const MAY_QUERY_BOARD = new Set(['lib/board.ts', 'services/markets.ts', 'services/platform-stats.ts']);
 
 /** Files permitted to compute a season score. */
 const MAY_SCORE_SEASON = new Set(['lib/seasons.ts']);
