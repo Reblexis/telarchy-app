@@ -298,3 +298,59 @@ describe('parseResetsEvery', () => {
     }
   });
 });
+
+describe('rolling minute horizons (docs/guides/time-preference.md, "+Nmin")', () => {
+  const AT = new Date('2026-09-10T20:04:30.000Z');
+
+  test('accepts +1min through +1440min and keeps the string as written', () => {
+    const tp = parseTimePreference({ enabled: false, customHorizons: ['+1min', '+5min', '+60min', '+1440min'] });
+    expect(tp).not.toBeInstanceOf(Error);
+    expect((tp as TimePreference).customHorizons).toEqual(['+1min', '+5min', '+60min', '+1440min']);
+  });
+
+  test('N IS AT LEAST ONE AND AT MOST 1440: +0min and +1441min are refused', () => {
+    expect(parseTimePreference({ enabled: false, customHorizons: ['+0min'] })).toBeInstanceOf(Error);
+    expect(parseTimePreference({ enabled: false, customHorizons: ['+1441min'] })).toBeInstanceOf(Error);
+    expect(parseTimePreference({ enabled: false, customHorizons: ['+99999999min'] })).toBeInstanceOf(Error);
+  });
+
+  test('a one-shot minute cell is accepted while it is ahead and pruned once it has passed', () => {
+    const ahead = parseTimePreference({ enabled: false, customHorizons: ['2099-01-01T00:00'] });
+    expect((ahead as TimePreference).customHorizons).toEqual(['2099-01-01T00:00']);
+    const past = parseTimePreference({ enabled: false, customHorizons: ['2020-01-01T00:00'] });
+    expect((past as TimePreference).customHorizons).toBeUndefined();
+    expect(parseTimePreference({ enabled: false, customHorizons: ['2099-01-01T00:60'] })).toBeInstanceOf(Error);
+  });
+
+  test('horizonCredits is keyed by the minute entry itself', () => {
+    const tp = parseTimePreference({
+      enabled: false,
+      customHorizons: ['+1min'],
+      horizonCredits: { '+1min': { book: 50, proposal: 10 }, '+1m': { book: 1 } },
+    }) as TimePreference;
+    expect(tp.horizonCredits).toEqual({ '+1min': { book: 50, proposal: 10 } });
+  });
+
+  test('resolves to the cells one, five and sixty minutes after the current minute', () => {
+    expect(resolveCustomHorizons(['+1min', '+5min', '+60min'], AT)).toEqual([
+      '2026-09-10T20:05',
+      '2026-09-10T20:09',
+      '2026-09-10T21:04',
+    ]);
+  });
+
+  test('+1m beside +1min is a month, and the set sorts by period end', () => {
+    expect(desiredMarketDates({ enabled: false, halfLife: 1, customHorizons: ['+1m', '+60min', '+1min'] }, AT)).toEqual(
+      ['2026-09-10T20:05', '2026-09-10T21:04', '2026-10'],
+    );
+  });
+
+  test('a minute cell that has passed is no longer desired', () => {
+    expect(resolveCustomHorizons(['2026-09-10T20:03', '2026-09-10T20:04', '2026-09-10T20:05'], AT)).toEqual([
+      '2026-09-10T20:04',
+      '2026-09-10T20:05',
+    ]);
+    expect(generatesMarkets({ enabled: false, halfLife: 1, customHorizons: ['2026-09-10T20:03'] }, AT)).toBe(false);
+    expect(generatesMarkets({ enabled: false, halfLife: 1, customHorizons: ['+1min'] }, AT)).toBe(true);
+  });
+});

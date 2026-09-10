@@ -36,6 +36,9 @@ export const EVERY_CHOICES: Array<{ id: Every; label: string }> = [
 
 /** The period a repeat starts with: the current one, or the next. */
 export const WHICH: Record<Exclude<Every, 'once'>, [string, string]> = {
+  // Minute horizons (+Nmin) are set through the API, not this form: the
+  // entry names how many minutes ahead, which the two-way picker cannot say.
+  minute: ['this minute', 'next minute'],
   hour: ['this hour', 'next hour'],
   day: ['today', 'tomorrow'],
   week: ['this week', 'next week'],
@@ -45,6 +48,7 @@ export const WHICH: Record<Exclude<Every, 'once'>, [string, string]> = {
 
 /** "the daily book", "each weekly proposal". */
 export const EVERY_ADJECTIVE: Record<Exclude<Every, 'once'>, string> = {
+  minute: 'minute',
   hour: 'hourly',
   day: 'daily',
   week: 'weekly',

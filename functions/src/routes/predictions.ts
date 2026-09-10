@@ -1121,9 +1121,10 @@ predictionsRouter.post(
       return;
     }
     if (!targetDate || !isValidDateFormat(targetDate)) {
-      res
-        .status(400)
-        .json({ error: 'targetDate must be YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD, or YYYY-MM-DDTHH (UTC hour)' });
+      res.status(400).json({
+        error:
+          'targetDate must be YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD, YYYY-MM-DDTHH (UTC hour), or YYYY-MM-DDTHH:MM (UTC minute)',
+      });
       return;
     }
 

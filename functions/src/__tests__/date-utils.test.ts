@@ -299,3 +299,83 @@ describe('week 53, the year-boundary case', () => {
     expect(toISOWeekString(new Date('2026-12-27T23:00:00Z'))).toBe('2026-W52');
   });
 });
+
+// ─── minute periods (docs/vision.md "Date granularity"; owner ask 2026-09-10,
+// a game that moves once a minute prices its length one, five and sixty
+// moves out) ───────────────────────────────────────────────────────────────
+
+describe('a minute cell YYYY-MM-DDTHH:MM is one minute long, UTC', () => {
+  test('is recognised as an absolute minute period', () => {
+    expect(isRelativeDate('2026-09-10T20:05')).toBe(false);
+    expect(isValidDateFormat('2026-09-10T20:05')).toBe(true);
+    expect(isValidCalendarDate('2026-09-10T20:05')).toBe(true);
+    expect(detectGranularity('2026-09-10T20:05')).toBe('minute');
+  });
+
+  test('an impossible minute or hour is refused', () => {
+    expect(isValidCalendarDate('2026-09-10T20:60')).toBe(false);
+    expect(isValidCalendarDate('2026-09-10T24:00')).toBe(false);
+    expect(isValidCalendarDate('2026-02-30T20:05')).toBe(false);
+    expect(isValidDateFormat('2026-09-10T20:05:00')).toBe(false);
+    expect(isValidDateFormat('2026-09-10T2005')).toBe(false);
+  });
+
+  test('starts at that minute and ends at the next one', () => {
+    expect(periodStartInstant('2026-09-10T20:05').toISOString()).toBe('2026-09-10T20:05:00.000Z');
+    expect(periodEndInstant('2026-09-10T20:05').toISOString()).toBe('2026-09-10T20:06:00.000Z');
+    expect(resolutionInstant('2026-09-10T20:05')).toBe('2026-09-10T20:06:00Z');
+    expect(endOfPeriod('2026-09-10T20:05')).toBe('2026-09-10');
+  });
+
+  test('the last minute of an hour ends on the next hour', () => {
+    expect(periodEndInstant('2026-09-10T20:59').toISOString()).toBe('2026-09-10T21:00:00.000Z');
+  });
+
+  test('the last minute of a day ends on the next day', () => {
+    expect(periodEndInstant('2026-09-10T23:59').toISOString()).toBe('2026-09-11T00:00:00.000Z');
+    expect(endOfPeriod('2026-09-10T23:59')).toBe('2026-09-10');
+  });
+
+  test('the last minute of a year ends on the next year', () => {
+    expect(periodStartInstant('2026-12-31T23:59').toISOString()).toBe('2026-12-31T23:59:00.000Z');
+    expect(periodEndInstant('2026-12-31T23:59').toISOString()).toBe('2027-01-01T00:00:00.000Z');
+  });
+});
+
+describe('+Nmin names the minute cell N minutes after the current one', () => {
+  const AT = new Date('2026-09-10T20:04:30.000Z');
+
+  test('is relative, of minute granularity', () => {
+    expect(isRelativeDate('+1min')).toBe(true);
+    expect(isRelativeDate('+60min')).toBe(true);
+    expect(detectGranularity('+5min')).toBe('minute');
+  });
+
+  test('+1min at 20:04:30 is the cell 20:05', () => {
+    expect(toAbsoluteDate('+1min', AT)).toBe('2026-09-10T20:05');
+  });
+
+  test('+5min is 20:09 and +60min is 21:04', () => {
+    expect(toAbsoluteDate('+5min', AT)).toBe('2026-09-10T20:09');
+    expect(toAbsoluteDate('+60min', AT)).toBe('2026-09-10T21:04');
+  });
+
+  test('crosses the hour, the day and the year', () => {
+    expect(toAbsoluteDate('+1min', new Date('2026-09-10T20:59:59.000Z'))).toBe('2026-09-10T21:00');
+    expect(toAbsoluteDate('+1min', new Date('2026-09-10T23:59:00.000Z'))).toBe('2026-09-11T00:00');
+    expect(toAbsoluteDate('+2min', new Date('2026-12-31T23:59:10.000Z'))).toBe('2027-01-01T00:01');
+    expect(toAbsoluteDate('+1440min', AT)).toBe('2026-09-11T20:04');
+  });
+
+  test('+1m is still a month, never a minute', () => {
+    expect(toAbsoluteDate('+1m', AT)).toBe('2026-10');
+    expect(detectGranularity('+1m')).toBe('month');
+    expect(toAbsoluteDate('+1min', AT)).not.toBe(toAbsoluteDate('+1m', AT));
+  });
+
+  test('+Nmi and +Nmins are not dates at all', () => {
+    expect(isRelativeDate('+1mi')).toBe(false);
+    expect(isRelativeDate('+1mins')).toBe(false);
+    expect(isRelativeDate('+min')).toBe(false);
+  });
+});

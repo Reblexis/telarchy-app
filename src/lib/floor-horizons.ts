@@ -120,7 +120,8 @@ export function settleDayOf(targetDate: string): string | null {
     sunday.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() + 6) % 7) + (Number(wk[2]) - 1) * 7 + 6);
     return fmt(sunday);
   }
-  const m = targetDate.match(/^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?$/);
+  // An hour or minute cell settles inside its own day.
+  const m = targetDate.match(/^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?(?:T\d{2}(?::\d{2})?)?$/);
   if (!m) return null;
   const year = Number(m[1]);
   const month = m[2] ? Number(m[2]) : 12;
@@ -146,6 +147,11 @@ export function horizonLabel(targetDate: string, now: Date = new Date()): string
     return targetDate === now.toISOString().slice(0, 10) ? 'today' : shortDay(targetDate);
   }
   if (/^\d{4}$/.test(targetDate)) return `end of ${targetDate}`;
+  // A minute cell reads as a clock time, an hour cell too: "20:05 UTC"
+  // (owner ask 2026-09-10, minute horizons on a floor that moves once a
+  // minute). The day is on the settle note beside it.
+  const clock = targetDate.match(/^\d{4}-\d{2}-\d{2}T(\d{2})(?::(\d{2}))?$/);
+  if (clock) return `${clock[1]}:${clock[2] ?? '00'} UTC`;
   const m = targetDate.match(/^(\d{4})-(\d{2})$/);
   if (m) {
     // December IS the year end: "end of 2026" is what the charter calls it,

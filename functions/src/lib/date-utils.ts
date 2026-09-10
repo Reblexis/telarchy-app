@@ -1,18 +1,22 @@
 /**
  * Parse and convert date strings with granularity support.
- * Supports: YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD, YYYY-MM-DDTHH (absolute)
- * and +Nh, +Nd, +Nw, +Nm, +Ny (relative).
- * Hour-granularity strings are always UTC.
+ * Supports: YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD, YYYY-MM-DDTHH, YYYY-MM-DDTHH:MM
+ * (absolute) and +Nmin, +Nh, +Nd, +Nw, +Nm, +Ny (relative; `m` is months,
+ * `min` is minutes). Hour- and minute-granularity strings are always UTC.
+ * A minute cell is one minute long: "2026-09-10T20:05" runs from 20:05:00
+ * up to, not including, 20:06:00 (docs/vision.md, "Date granularity").
  */
 
-export type DateGranularity = 'year' | 'month' | 'week' | 'day' | 'hour';
+export type DateGranularity = 'year' | 'month' | 'week' | 'day' | 'hour' | 'minute';
 
-const RELATIVE_DATE_RE = /^\+(\d+)(h|d|w|m|y)$/;
+// `min` before `m`, so "+5min" is five minutes and "+5m" stays five months.
+const RELATIVE_DATE_RE = /^\+(\d+)(min|h|d|w|m|y)$/;
 const ABS_YEAR_RE = /^\d{4}$/;
 const ABS_MONTH_RE = /^\d{4}-\d{2}$/;
 const ABS_WEEK_RE = /^\d{4}-W\d{2}$/;
 const ABS_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const ABS_HOUR_RE = /^\d{4}-\d{2}-\d{2}T\d{2}$/;
+const ABS_MINUTE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
 export function isRelativeDate(dateStr: string): boolean {
   return RELATIVE_DATE_RE.test(dateStr);
@@ -26,6 +30,7 @@ export function detectGranularity(dateStr: string): DateGranularity {
     const m = dateStr.match(RELATIVE_DATE_RE);
     if (m) {
       const u = m[2];
+      if (u === 'min') return 'minute';
       if (u === 'y') return 'year';
       if (u === 'm') return 'month';
       if (u === 'w') return 'week';
@@ -38,13 +43,16 @@ export function detectGranularity(dateStr: string): DateGranularity {
   if (ABS_WEEK_RE.test(dateStr)) return 'week';
   if (ABS_DAY_RE.test(dateStr)) return 'day';
   if (ABS_HOUR_RE.test(dateStr)) return 'hour';
+  if (ABS_MINUTE_RE.test(dateStr)) return 'minute';
   return 'day';
 }
 
 /**
  * Convert relative date to granularity-appropriate absolute format.
  * +1y -> "2027", +3m -> "2026-05", +2w -> "2026-W09", +14d -> "2026-03-01",
- * +6h -> "2026-03-01T14" (UTC hour)
+ * +6h -> "2026-03-01T14" (UTC hour), +1min -> "2026-03-01T14:05" (the minute
+ * cell that starts N minutes after the current one: at 20:04:30, +1min is
+ * 20:05, +5min is 20:09, +60min is 21:04)
  */
 export function toAbsoluteDate(dateStr: string, baseDate: Date = new Date()): string {
   if (!isRelativeDate(dateStr)) return dateStr;
@@ -53,7 +61,7 @@ export function toAbsoluteDate(dateStr: string, baseDate: Date = new Date()): st
   if (!match) return dateStr;
 
   const amount = parseInt(match[1], 10);
-  const unit = match[2] as 'h' | 'd' | 'w' | 'm' | 'y';
+  const unit = match[2] as 'min' | 'h' | 'd' | 'w' | 'm' | 'y';
   const d = new Date(baseDate);
 
   // All UTC. The result is read back through toISOString, which is UTC, so
@@ -61,6 +69,9 @@ export function toAbsoluteDate(dateStr: string, baseDate: Date = new Date()): st
   // the host's timezone: on TZ=America/New_York a base of 2026-03-08T00:30Z
   // is still 7 March locally, and +7d named 14 March instead of 15.
   switch (unit) {
+    case 'min':
+      d.setUTCMinutes(d.getUTCMinutes() + amount);
+      return d.toISOString().slice(0, 16);
     case 'h':
       d.setUTCHours(d.getUTCHours() + amount);
       return d.toISOString().slice(0, 13);
@@ -125,11 +136,12 @@ export function toISOWeekString(d: Date): string {
  * Return the last YYYY-MM-DD of the period.
  * "2026" -> "2026-12-31", "2026-05" -> "2026-05-31",
  * "2026-W07" -> Sunday of that ISO week, "2026-05-05" -> "2026-05-05",
- * "2026-05-05T14" -> "2026-05-05" (an hour period ends within its own day).
+ * "2026-05-05T14" -> "2026-05-05" (an hour period ends within its own day,
+ * and so does a minute period "2026-05-05T14:05").
  * Date-only resolution; for exact comparisons use `periodEndInstant`.
  */
 export function endOfPeriod(targetDate: string): string {
-  if (ABS_HOUR_RE.test(targetDate)) {
+  if (ABS_HOUR_RE.test(targetDate) || ABS_MINUTE_RE.test(targetDate)) {
     return targetDate.slice(0, 10);
   }
   if (ABS_YEAR_RE.test(targetDate)) {
@@ -161,13 +173,19 @@ export function endOfPeriod(targetDate: string): string {
 /**
  * The exclusive end of a target-date period as an exact UTC instant: the first
  * moment that is no longer inside the period. "2026-06" -> 2026-07-01T00:00Z,
- * "2026-05-05" -> 2026-05-06T00:00Z, "2026-05-05T14" -> 2026-05-05T15:00Z.
+ * "2026-05-05" -> 2026-05-06T00:00Z, "2026-05-05T14" -> 2026-05-05T15:00Z,
+ * "2026-05-05T14:05" -> 2026-05-05T14:06Z.
  *
  * This is the canonical comparison point for "has this period fully passed":
  * a market is resolvable, and a custom horizon expired, once
  * `periodEndInstant(targetDate) <= now`.
  */
 export function periodEndInstant(targetDate: string): Date {
+  if (ABS_MINUTE_RE.test(targetDate)) {
+    const d = new Date(`${targetDate}:00.000Z`);
+    d.setUTCMinutes(d.getUTCMinutes() + 1);
+    return d;
+  }
   if (ABS_HOUR_RE.test(targetDate)) {
     const d = new Date(`${targetDate}:00:00.000Z`);
     d.setUTCHours(d.getUTCHours() + 1);
@@ -191,6 +209,7 @@ export function periodEndInstant(targetDate: string): Date {
  * 2026-08-16).
  */
 export function periodStartInstant(targetDate: string): Date {
+  if (ABS_MINUTE_RE.test(targetDate)) return new Date(`${targetDate}:00.000Z`);
   if (ABS_HOUR_RE.test(targetDate)) return new Date(`${targetDate}:00:00.000Z`);
   if (ABS_YEAR_RE.test(targetDate)) return new Date(`${targetDate}-01-01T00:00:00.000Z`);
   if (ABS_MONTH_RE.test(targetDate)) return new Date(`${targetDate}-01T00:00:00.000Z`);
@@ -234,7 +253,8 @@ export function isValidDateFormat(dateStr: string): boolean {
     ABS_MONTH_RE.test(dateStr) ||
     ABS_WEEK_RE.test(dateStr) ||
     ABS_DAY_RE.test(dateStr) ||
-    ABS_HOUR_RE.test(dateStr)
+    ABS_HOUR_RE.test(dateStr) ||
+    ABS_MINUTE_RE.test(dateStr)
   );
 }
 
@@ -280,6 +300,10 @@ export function isValidCalendarDate(dateStr: string): boolean {
   if (ABS_HOUR_RE.test(dateStr)) {
     const hour = parseInt(dateStr.slice(11, 13), 10);
     return hour <= 23 && isValidCalendarDate(dateStr.slice(0, 10));
+  }
+  if (ABS_MINUTE_RE.test(dateStr)) {
+    const minute = parseInt(dateStr.slice(14, 16), 10);
+    return minute <= 59 && isValidCalendarDate(dateStr.slice(0, 13));
   }
   return false;
 }

@@ -895,7 +895,12 @@ payouts. Records: `notes/bug-hunt-2026-08-31.md`, P0-3.
 
   Hour-granularity markets (`YYYY-MM-DDTHH` target dates, `+Nh` custom
   horizons) need at least hourly resolution and rolling, so the managed
-  cadence is never coarser than hourly.
+  cadence is never coarser than hourly. Minute-granularity markets
+  (`YYYY-MM-DDTHH:MM`, `+Nmin`) are not served by the managed cadence at
+  all: the operator of such a floor calls
+  `POST /api/predictions/markets/refresh { "force": true }` and
+  `POST /api/predictions/resolve` once a minute with a manager key
+  (`docs/guides/time-preference.md`, "Pinning an exact date").
 - **Self-hosted instance**: nothing schedules itself. The operator triggers
   the same endpoints from crontab or any scheduler; `.env.example` ("Cron
   (self-hosted)") gives the daily template (`0 0 * * *` resolve, `10 0 * * *`
