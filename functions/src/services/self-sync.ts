@@ -72,7 +72,12 @@ export interface SelfSyncReading {
   value: number;
   /** False when the number came back the same; the reading is still recorded. */
   changed: boolean;
-  source: 'weeklyActiveVerifiedTraders' | 'revenue30dUsd' | 'outsideOwnersDeciding' | 'profitableForecasters' | 'activeForecasters';
+  source:
+    | 'weeklyActiveVerifiedTraders'
+    | 'revenue30dUsd'
+    | 'outsideOwnersDeciding'
+    | 'profitableForecasters'
+    | 'activeForecasters';
 }
 
 export interface SelfSyncResult {
