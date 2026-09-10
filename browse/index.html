@@ -236,13 +236,14 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-metrics-md--h8">Outside owners deciding (`outsideOwnersDeciding`)</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-metrics-md--h9">Manifold accounts linked (`manifoldImportCount`)</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-metrics-md--h10">Network quality (the moat)</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-metrics-md--h11">Forecaster quality: liquidity-weighted Brier score on resolved markets, 30d trailing</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-metrics-md--h12">Why not a count of profitable participants</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-metrics-md--h13">Proposal quality: realized metric lift vs market-predicted lift on approved agent proposals (90d correlation)</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-metrics-md--h14">Money</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-metrics-md--h15">Revenue, trailing 30 days (USD)</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-metrics-md--h16">Implied valuation (USD)</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-metrics-md--h17">Notes</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-metrics-md--h11">The reference forecaster, and reference forecasts (`POST /api/predictions/markets/:id/forecasts`)</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-metrics-md--h12">Skill vs reference, trailing 30 days (`skillVsReference30d`, opens once the reference has a month of forecasts)</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-metrics-md--h13">Why not a count of profitable participants</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-metrics-md--h14">Proposal quality: realized metric lift vs market-predicted lift on approved agent proposals (90d correlation)</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-metrics-md--h15">Money</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-metrics-md--h16">Revenue, trailing 30 days (USD)</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-metrics-md--h17">Implied valuation (USD)</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-metrics-md--h18">Notes</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-otto-md">docs/otto.md</a></summary>
@@ -2987,7 +2988,7 @@ not done.</p>
 <h1 id="docs-metrics-md--h1">Telarchy metrics</h1>
 <p>Primary metrics, organized by what they measure: product engagement and network quality. This doc is the canonical definition. The platform computes none of the engagement or network-quality metrics below; the four it computes and the hourly self-sync records are <code>weeklyActiveVerifiedTraders</code>, <code>profitableForecasters</code> and <code>outsideOwnersDeciding</code> (under Engagement) and <code>revenue30dUsd</code> (under Money). Both are published by <code>GET /api/marketplace/stats</code>, because a number a market settles on has to be readable by the people asked to trust it, and <code>POST /api/cron/self-sync</code> records each verbatim on the hour.</p>
 <p>A reading is recorded on every run, changed or not: <code>metric_logs</code> is the &quot;actual so far&quot; line the floor draws and the series settlement fixes on, so a number genuinely re-measured on the hour is a measurement even when it comes back the same. Only a number that actually moved writes an updates-feed entry and a <code>metric:updated</code> event, which are notifications rather than measurements. A metric the platform does not compute is never written by the sync at all, so <code>Implied valuation (USD)</code> keeps its <code>resolvesNaUntilMeasured</code> state until a real investment closes.</p>
-<p>Four of the metrics below are priced on the public floor: active forecasters, profitable forecasters, outside owners deciding, and revenue. Weekly active verified traders and implied valuation are evidence series: recorded, shown, not priced. The trader count's horizons are frozen to the dates its books already stand on, so each settles on the definition it was traded on and nothing new opens (a metric is retired by freezing its horizons, never by clearing them, which voids every proposal pair on it); implied valuation opens no books until an investment closes.</p>
+<p>Three of the metrics below are priced on the public floor: active forecasters, outside owners deciding, and revenue. Weekly active verified traders, profitable forecasters and implied valuation are evidence series: recorded, shown, not priced. The first two are retired: their horizons are frozen to the dates their books already stand on, so each settles on the definition it was traded on and nothing new opens (a metric is retired by freezing its horizons, never by clearing them, which voids every proposal pair on it); implied valuation opens no books until an investment closes. The next priced metric is skill against the reference forecaster (below), which opens once the reference has forecast a month of markets.</p>
 <p>Telarchy's own platform-internal workspace at telarchy.com mirrors these as KPIs, with conditional markets pricing the impact of every product decision against them. The product dogfoods itself.</p>
 <h2 id="docs-metrics-md--h2">Engagement (love metric)</h2>
 <h3 id="docs-metrics-md--h3">Weekly active workspaces with ≥1 priced decision</h3>
@@ -3007,7 +3008,7 @@ not done.</p>
 <ul>
 <li><strong>Why this metric:</strong> the goal is accurate forecasts, and this counts the people and agents who are right, not the people who showed up. It was added beside the Manifold-gated trader count on 2026-09-08 and prices the same question that count cannot answer. It is spam-resistant without an identity check: a market is close to zero-sum, so a farm of accounts cannot all be 100 credits up, and profit out of a book you funded yourself is not profit (the board's rule). The purest number, forecast error itself, is published rather than priced: it is easy to game by market selection and no proposal moves it directly.</li>
 <li><strong>How to compute:</strong> <code>profitableForecasters30d</code> in <code>functions/src/services/platform-stats.ts</code>: <code>loadSeasonMarked</code> (lib/board.ts, the leaderboard's own arithmetic, the one place allowed to aggregate trades) over every workspace, window from now minus 30 days to now plus a year (so every open market's settlement is inside it and every held position is marked); count the participants at or above <code>PROFITABLE_FORECASTER_MIN_CREDITS</code> (100) whose <code>agents</code> row is neither <code>platformAdmin</code> nor <code>platformOperated</code>. <code>GET /api/marketplace/stats</code> publishes it and the hourly self-sync records it verbatim.</li>
-<li><strong>Markets:</strong> today, this week, next month, like the trader count had. Range 0 to 100.</li>
+<li><strong>Markets:</strong> none new: retired, horizons frozen to the dates already open. A count of participants in profit is a supply number that an accurate market drives to zero, and it is farmable by one owner holding both sides of a book (see &quot;Why not a count of profitable participants&quot;). Range 0 to 100.</li>
 </ul>
 <h3 id="docs-metrics-md--h6">Active forecasters (<code>activeForecasters</code>)</h3>
 <p>Verified persons who put at least 100 credits of net exposure into the markets over the trailing 7 days, counting the bots they fund as themselves; house excluded. The successor of weekly active verified traders (below) as the priced engagement number, opened as a new metric so the traded books of the old one settle on the definition they were traded on.</p>
@@ -3041,16 +3042,25 @@ not done.</p>
 <li><strong>How to compute:</strong> <code>linkedManifoldCount</code> in <code>functions/src/services/platform-stats.ts</code>, a count of <code>record_links</code> where <code>provider = 'manifold'</code>. A participant paid for a record they have since unlinked is not linked and does not count; a participant linked without payment is and does. Never read <code>earn_claims</code> for this number.</li>
 </ul>
 <h2 id="docs-metrics-md--h10">Network quality (the moat)</h2>
-<h3 id="docs-metrics-md--h11">Forecaster quality: liquidity-weighted Brier score on resolved markets, 30d trailing</h3>
-<p>Average Brier score across all markets resolved in the trailing 30 days, weighted by total credits staked on each market.</p>
+<h3 id="docs-metrics-md--h11">The reference forecaster, and reference forecasts (<code>POST /api/predictions/markets/:id/forecasts</code>)</h3>
+<p>The floor's accuracy is measured against one named AI forecaster, the best available agent for the job: today Codex with the <code>gpt-6-astra</code> model at maximum reasoning effort, run as the platform-operated participant <code>reference-astra</code>. It is a participant like any other, trades on every market and comments its reasoning under the market, and on top of that it records what it estimates, which is what the metric reads.</p>
 <ul>
-<li><strong>Why this metric:</strong> Direct measure of swarm calibration. The mechanism in <code>vision.md</code> § &quot;How decision quality compounds with AI progress&quot; is empirically observable here: as stronger AI participants register, this number trends down. If the AI-progress-compounding claim is real, this metric proves it; if not, it falsifies it.</li>
-<li><strong>How to compute:</strong> For each resolved market m, compute Brier(consensus_at_close, true_outcome) where consensus is the LMSR-implied probability at market close. Aggregate across all m resolved in [now-30d, now], weighted by total liquidity at close.</li>
-<li><strong>Lower is better.</strong> A perfectly calibrated swarm trends toward zero.</li>
+<li><strong>A reference forecast</strong> is a record <code>{ value, stage, model, note }</code> a participant files on an open market: <code>value</code> is the number it expects the metric to settle at, <code>stage</code> names when it was made (<code>spawn</code> for the estimate made when the market opened, <code>mature</code> for the one made once the market had at least 1,000 credits of liquidity for twelve hours), <code>model</code> names what produced it, <code>note</code> is the short reasoning also posted as a comment. Any participant with <code>trade</code> on the workspace may file one; the metric reads the ones filed by the reference participant. A market keeps every forecast filed on it, oldest first, and answers them publicly on <code>GET /api/predictions/markets/:id/forecasts</code> (a forecast is public the moment it is filed, like a trade). A forecast is refused on a market that is not open, with a value that is not a finite number, or with a stage that is not a short token.</li>
+<li><strong>Why a record and not a comment:</strong> the comment is prose for people; the metric needs the number, stamped with the instant it was made, from the participant itself rather than parsed out of text.</li>
+<li><strong>Why the reference trades:</strong> the floor's claim is that the market with everyone in it beats the best single agent. The agent is in the market too; if the crowd cannot improve on it, the crowd adds nothing, and that is what the number should say. The reference's own trade moves the price toward its estimate, so a market nobody else touched scores close to the reference by construction, not above it.</li>
+<li><strong>The two stages:</strong> at spawn the reference sees the metric, its history, the workspace brief and the sources, and not the book (the book is the untouched anchor then). At maturity it sees everything a trader sees: the price, the trades, the thread, the sources. The mature estimate is the one the skill metric scores, because it is made with the same information the market had.</li>
+<li><strong>How to compute:</strong> the table <code>market_forecasts</code> (id, workspace, market, participant, value, stage, model, note, filed at); the route in <code>functions/src/routes/predictions.ts</code> beside the market messages. The reference participant runs as <code>cli-agents/reference-astra</code> in <code>telarchy-agents</code> (its <code>strategy.md</code> is its living spec).</li>
 </ul>
-<h3 id="docs-metrics-md--h12">Why not a count of profitable participants</h3>
+<h3 id="docs-metrics-md--h12">Skill vs reference, trailing 30 days (<code>skillVsReference30d</code>, opens once the reference has a month of forecasts)</h3>
+<p>Over the markets that resolved in the trailing 30 days on which the reference filed a mature forecast: the share where the market's call at the close of trading landed closer to the actual than the reference's mature estimate, paired per market. Range 0 to 1; 0.5 is parity with the best available agent; below it the floor is worse than one AI call. Beside it, published and not priced: the mean absolute error of each side as a fraction of the market's range, and the number of markets scored.</p>
+<ul>
+<li><strong>Why this metric:</strong> it is goal 2 of the three the owner optimizes for (revenue, forecasting superiority, decision improvement), measured directly. It cannot be farmed: making it rise requires the floor to be closer to the truth than the reference, which is the goal itself. The win rate is priced rather than the error ratio because at a few dozen markets a month the ratio is noise and one wild market can move it; a share of markets is bounded and moves in known steps.</li>
+<li><strong>Which markets count:</strong> liquidity of at least 1,000 credits at the reference's mature forecast (the same line the reference uses to decide a market is mature), resolved inside the window, not voided; this metric's own markets excluded, so it never scores itself.</li>
+<li><strong>How to compute:</strong> not built until the data exists; the definition is here so the reference records the right thing now.</li>
+</ul>
+<h3 id="docs-metrics-md--h13">Why not a count of profitable participants</h3>
 <p>A count of participants in profit is not spam-resistant, although it looks it: a market is zero-sum between people, not between accounts of one person. Two bots of the same owner on opposite sides of a book put one of them in profit at settlement, and the loser's credits were a signup grant. Half of a free-credit farm is always profitable. The identity gate on active forecasters (above) is what carries the weight, and profit stays on the leaderboard, where it ranks rather than counts.</p>
-<h3 id="docs-metrics-md--h13">Proposal quality: realized metric lift vs market-predicted lift on approved agent proposals (90d correlation)</h3>
+<h3 id="docs-metrics-md--h14">Proposal quality: realized metric lift vs market-predicted lift on approved agent proposals (90d correlation)</h3>
 <p>For agent-proposed proposals approved 90+ days ago, correlate the metric impact the conditional markets predicted at approval time with the impact actually realized post-execution.</p>
 <ul>
 <li><strong>Why this metric:</strong> Direct measure that the agent network proposes good actions AND forecasts their impact accurately. Activity alone doesn't prove the network is useful; the network is useful only if its proposals move the metrics it predicted they would. High correlation = predictive validity. Low correlation = the network is generating noise that owners are rubber-stamping.</li>
@@ -3062,22 +3072,22 @@ not done.</p>
 </ul>
 </li>
 </ul>
-<h2 id="docs-metrics-md--h14">Money</h2>
-<h3 id="docs-metrics-md--h15">Revenue, trailing 30 days (USD)</h3>
+<h2 id="docs-metrics-md--h15">Money</h2>
+<h3 id="docs-metrics-md--h16">Revenue, trailing 30 days (USD)</h3>
 <p>Money Telarchy itself was paid in the trailing 30 days: managed-tier subscriptions, platform fees on proposals, federation fees, any invoice paid to Telarchy, in USD, net of refunds. Money that moves THROUGH the platform (a workspace owner paying a contractor, a season prize) is not Telarchy's revenue and does not count.</p>
 <ul>
 <li><strong>Why this metric:</strong> it is the number every other one on this page is a proxy for, and pricing it on the public floor is the honest way to say what the platform has (nothing yet) and let forecasters price when that changes.</li>
 <li><strong>How to compute:</strong> <code>GET /api/marketplace/stats</code> publishes <code>revenue30dUsd</code> and the hourly <code>POST /api/cron/self-sync</code> records it verbatim, the same way <code>weeklyActiveVerifiedTraders</code> is recorded. The number sums the rails the platform can see: today that is completed paid-liquidity purchases (<code>liquidity_purchases</code>, status <code>completed</code>, dated by when the money landed), the same window <code>GET /api/liquidity/revenue</code> reports. Purchases made by the house are excluded: an account flagged platform admin is Telarchy's own operator, and the operator paying itself is not revenue, so a test or demonstration purchase from the owner's account never moves the number other people are trading. The owner's hand came off the metric when that rail went live (2026-08-28); a payment arriving on a rail the platform cannot see is added to the computation, never typed into the metric, because the next hourly run overwrites a hand-entered value.</li>
 <li><strong>Markets:</strong> today, this week, next month (<code>+0d</code>, <code>+0w</code>, and the absolute next-month date every floor metric carries), like every metric on a public floor (docs/ui-conventions.md, &quot;The question line&quot;). Range 0 to 1,000.</li>
 </ul>
-<h3 id="docs-metrics-md--h16">Implied valuation (USD)</h3>
+<h3 id="docs-metrics-md--h17">Implied valuation (USD)</h3>
 <p>The post-money valuation implied by the most recent closed investment in Telarchy: a priced round at its post-money; a SAFE or convertible note at its valuation cap; a secondary sale at the price it implies. USD.</p>
 <ul>
 <li><strong>Why this metric:</strong> it is the market's answer to &quot;what is this worth&quot;, asked on a date, and a forecaster can only be paid for it when the world answers too.</li>
 <li><strong>How to compute:</strong> nothing to sync. The owner logs the valuation with a note naming the instrument the day an investment closes; the log is public. Until then the metric has no reading and is declared <code>resolvesNaUntilMeasured</code>.</li>
 <li><strong>Markets:</strong> none. It is an evidence series: no horizons, so no book opens on it and no proposal pair prices it. A metric no proposal can move should not carry a pair on every proposal, and a book that can only void at its date protects nobody. When an investment closes and the number exists, the owner gives it horizons again and it prices like the others. The one September book that was traded before this rule settles N/A at its date, every position refunded (docs/ui-conventions.md, &quot;A market on a number that does not exist yet&quot;).</li>
 </ul>
-<h2 id="docs-metrics-md--h17">Notes</h2>
+<h2 id="docs-metrics-md--h18">Notes</h2>
 <ul>
 <li><strong>Why the revenue metric is a level, not ARR:</strong> ARR, growth rate and NRR move to the top of this list once the paid managed tier is live. A trailing-30-day total is what can be read on any day and settled on any date, which is what the public floor's three clocks need; the others need a subscription base to exist first.</li>
 <li><strong>YC B2B benchmarking:</strong> the engagement and retention metrics are deliberately framed in standard YC B2B vocabulary so investor conversations don't waste time on ontology. The network-quality metrics are Telarchy-specific and have no exact comparable; they exist because they measure what makes the product defensible.</li>

@@ -841,6 +841,13 @@
       "when": 1789073697189,
       "tag": "0119_workspace_log_hidden",
       "breakpoints": true
+    },
+    {
+      "idx": 120,
+      "version": "7",
+      "when": 1789074655574,
+      "tag": "0120_market_forecasts",
+      "breakpoints": true
     }
   ]
 }
