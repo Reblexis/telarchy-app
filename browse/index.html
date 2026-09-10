@@ -4961,7 +4961,16 @@ metric and the date are the sentence's ink. The company is named
 possessively even though the identity block already carries the name,
 because the sentence needs its subject (a deliberate relaxation of the
 2026-08-18 say-it-once rule, for grammar; the metric word still strips a
-leading copy of the company's name via <code>captionLabel</code>).</p>
+leading copy of the company's name via <code>captionLabel</code>). <strong>The metric word
+reads in sentence case</strong> (2026-09-10, of &quot;Telarchy's Active traders this
+month?&quot; live on every floor whose metric is stored capitalised): a stored
+name is a label, and a label dropped into the middle of a sentence keeps
+its capital only when it is an acronym (&quot;DAU&quot;, &quot;MRR&quot;) or starts with a
+proper noun the company's own name did not strip. <code>sentenceCase</code> in
+<code>lib/floor-horizons.ts</code> owns that rule, and every sentence that quotes a
+metric mid-line (the question, a proposal's question, the impact caption)
+goes through it; the ticket's subject starts its own line and keeps its
+capital.</p>
 </li>
 <li>
 <p><strong>The sentence's metric and date are cycle words</strong> (<code>.pubws-ask-word</code>,
@@ -5252,6 +5261,13 @@ the same string</strong>: the router's is basename-relative and says whether thi
 is the floor's own address, the address bar's carries the base, and writing
 the router's into <code>replaceState</code> walks a /beta reader onto the production
 build (<code>internal-links-ownership.test.ts</code> fails the suite on it now).</li>
+<li><strong>An address that names no proposal says so.</strong> <code>/telarchy/p/999</code> on a
+floor with no #999 renders the floor in its plain market view with one
+quiet line under the strips, &quot;No proposal #999 on this floor.&quot;, and the
+address bar back on the floor's own path (2026-09-10; it used to render
+the floor silently, so a stale or mistyped link looked like the proposal
+had simply never existed to be found). The line is the only thing that
+changes: nothing else on the page is about a proposal that is not there.</li>
 <li><strong>The card is the decision.</strong> Server-rendered from the same payload the
 floor reads, so it cannot drift: the floor's name, the proposal's title,
 the impact on the hero metric with its unit, the number it moves, the pool
@@ -5391,7 +5407,13 @@ the reader chooses which question they are asking. Two charts stacked cost
 1000px viewport, below the fold, which is the one thing a trading page may
 not do. The composed bet's ghost draws in whichever mode is on screen
 (<code>preview</code> on both components, one value from the ticket), and the mode is
-remembered for the session, not the page load.</p>
+remembered for the session, not the page load. <strong>A sale casts the same
+ghost</strong> (owner ask 2026-09-10: &quot;when selling it should also be shown on the
+graph where will it be moved.. just like when buying&quot;): with the sell panel
+open, the chart shows where the market's call lands if those shares are
+sold, moving with the size slider and clearing with Cancel, in the sold
+side's own colour, because selling Higher moves the call the way buying
+Lower does and the reader should see that before they press.</p>
 <p><strong>The chart's footer is where the counts live</strong> (revised 2026-09-09,
 moving them up from the tab row): one quiet row under the plot, the way
 every exchange labels a chart. The range chips stay in the chart's own

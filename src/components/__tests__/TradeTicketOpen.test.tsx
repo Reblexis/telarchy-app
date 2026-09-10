@@ -321,3 +321,50 @@ describe('the sell size is a size, not a direction', () => {
     expect(screen.getByText(/946\.4k cr, all you have/)).toBeTruthy();
   });
 });
+
+describe('a sale casts a ghost, like a buy', () => {
+  /**
+   * docs/ui-conventions.md, "The price and the chart", revised 2026-09-10:
+   * "when selling it should also be shown on the graph where will it be
+   * moved.. just like when buygin".
+   */
+  const held = { direction: 'higher' as const, shares: 40, totalCost: 25 };
+  const openSell = (c: HTMLElement) =>
+    fireEvent.click(within(c.querySelector('.ticket-pos-head') as HTMLElement).getByRole('button', { name: 'Sell' }));
+
+  test('opening the sell panel previews the landing of selling it all', () => {
+    const onPreview = vi.fn();
+    const { container } = render(<TradeTicket {...base} positions={[held]} manageMode onPreview={onPreview} />);
+    onPreview.mockClear();
+    openSell(container);
+    const last = onPreview.mock.calls.at(-1)?.[0];
+    expect(last).toEqual(expect.objectContaining({ direction: 'higher' }));
+    // Selling Higher pushes the call DOWN from where it stands.
+    expect(last.newProb).toBeLessThan(base.probability);
+  });
+
+  test('the ghost follows the size slider', () => {
+    const onPreview = vi.fn();
+    const { container } = render(<TradeTicket {...base} positions={[held]} manageMode onPreview={onPreview} />);
+    openSell(container);
+    const all = onPreview.mock.calls.at(-1)?.[0].newProb;
+    fireEvent.change(screen.getByLabelText('Shares of higher to sell'), { target: { value: '10' } });
+    const some = onPreview.mock.calls.at(-1)?.[0].newProb;
+    expect(some).toBeGreaterThan(all);
+    expect(some).toBeLessThan(base.probability);
+  });
+
+  test('cancel clears it, and a size of zero casts none', () => {
+    const onPreview = vi.fn();
+    const { container } = render(<TradeTicket {...base} positions={[held]} manageMode onPreview={onPreview} />);
+    openSell(container);
+    fireEvent.change(screen.getByLabelText('Shares of higher to sell'), { target: { value: '0' } });
+    expect(onPreview.mock.calls.at(-1)?.[0]).toBeNull();
+    fireEvent.change(screen.getByLabelText('Shares of higher to sell'), { target: { value: '20' } });
+    expect(onPreview.mock.calls.at(-1)?.[0]).not.toBeNull();
+    fireEvent.click(
+      within(container.querySelector('.ticket-pos-head') as HTMLElement).getByRole('button', { name: 'Cancel' }),
+    );
+    expect(onPreview.mock.calls.at(-1)?.[0]).toBeNull();
+  });
+});

@@ -1915,3 +1915,19 @@ floor's name but an (i) beside it, opening on hover, on focus and on a press
 to the name rather than being bleow it"). It sits OUTSIDE the h1 so the
 heading's accessible name stays the company's name, and the loading ghost
 draws the same shape so nothing shifts when the payload lands.
+
+**2026-09-10, after the publish: the sell ghost, and two things a stranger
+read wrong.** Viktor, of the Sell tab: "when selling it should also be shown
+on the graph where will it be moved.. just like when buygin". A sale now
+casts the same ghost a buy does, from `previewSellPrice` (the post-sale
+book's price, pinned to the server's `pHigher` in `amm-parity.test.ts`),
+moving with the size slider and clearing with Cancel. The buy ghost is
+gated to the Buy tab so the two never fight over the chart.
+
+Two defects noticed while checking the publish. "Telarchy's Active traders
+this month?" on every floor whose metric is stored capitalised: a stored
+name is a label, and `sentenceCase` now lowercases it mid-sentence unless
+it is an acronym or a listed proper noun. And `/telarchy/p/999` rendered the
+floor silently when no #999 existed; it now says "No proposal #999 on this
+floor." over the plain market view, with the selection cleared so the
+address bar returns to the floor's own path.

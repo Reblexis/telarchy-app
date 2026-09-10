@@ -458,3 +458,43 @@ describe('a newcomer can tell what a proposal is', () => {
     expect(cell).not.toMatch(/reported/i);
   });
 });
+
+describe('the address and the sentence read right for a stranger', () => {
+  const renderAt = (path: string) =>
+    render(
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/:slug" element={<TradePage />} />
+          <Route path="/:slug/p/:number" element={<TradePage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+  test('an address that names no proposal says so, and shows the plain floor', async () => {
+    const { container } = renderAt('/lookpilot/p/999');
+    await waitFor(() => expect(container.querySelector('.pubws-proposal-missing')).toBeTruthy());
+    expect(words(container.querySelector('.pubws-proposal-missing'))).toBe('No proposal #999 on this floor.');
+    expect(container.querySelector('.pubws-proposal-head')).toBeNull();
+    expect(container.querySelector('.pubws-instrument-ask')).toBeTruthy();
+  });
+
+  test('an address that names a real proposal says nothing of the sort', async () => {
+    const { container } = renderAt('/lookpilot/p/7');
+    await waitFor(() => expect(container.querySelector('.pubws-proposal-head')).toBeTruthy());
+    expect(container.querySelector('.pubws-proposal-missing')).toBeNull();
+  });
+
+  test('a capitalised metric name reads in sentence case inside the question', async () => {
+    const ws = h.grid();
+    for (const m of ws.markets) if (m.metricId === 'rev') m.metricName = 'Active traders';
+    for (const p of ws.proposals)
+      for (const pm of p.markets) if (pm.metricId === 'rev') pm.metricName = 'Active traders';
+    vi.mocked(api.getMarketplaceWorkspace).mockImplementation(async () => ws as never);
+    const { container } = renderAt('/lookpilot');
+    await waitFor(() => expect(container.querySelector('.pubws-instrument-ask')).toBeTruthy());
+    expect(words(container.querySelector('.pubws-instrument-ask'))).toMatch(/LookPilot's active traders/);
+    await openProposal(container);
+    expect(words(container.querySelector('.pubws-proposal-q'))).toMatch(/LookPilot's active traders/);
+    expect(words(container.querySelector('.pubws-impact-what'))).toMatch(/^active traders/i);
+  });
+});

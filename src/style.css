@@ -11508,6 +11508,15 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
    "A proposal is a decision with a price", revised 2026-09-10). The metric
    view's own serif, a register quieter than its headline, because the title
    above is this page's headline. */
+/* An address that names no proposal: one quiet line over the plain floor. */
+.pubws-proposal-missing {
+  margin: 0.9rem 0 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
 .pubws-proposal-q {
   margin: 1.1rem 0 0;
   font-family: 'Fraunces', ui-serif, Georgia, serif;

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useEarnAvailable } from '../hooks/useEarnAvailable';
-import { previewSell, previewTargetBet, previewTrade } from '../lib/amm';
+import { previewSell, previewSellPrice, previewTargetBet, previewTrade } from '../lib/amm';
 import type { LimitOrder } from '../lib/api';
 import { amountToSlider, SLIDER_STEPS, sliderToAmount } from '../lib/bet-slider';
 import { maxWinLabel } from '../lib/market-quote';
@@ -264,11 +264,27 @@ export function TradeTicket({
   })();
 
   useEffect(() => {
+    if (tab !== 'buy') return;
     // A resting order does not move the price today, so it casts no ghost.
     const show = composed && dir && !isLimit;
     onPreview?.(show ? { direction: dir, newProb: composed.newProb } : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dir, amountNum, probability, liquidity, isLimit, target, held?.direction, held?.shares]);
+  }, [tab, dir, amountNum, probability, liquidity, isLimit, target, held?.direction, held?.shares]);
+  // A sale casts the same ghost (docs/ui-conventions.md, "The price and the
+  // chart", 2026-09-10): where the call lands if the shares on the size
+  // slider are sold, in the sold side's colour. Nothing while the panel is
+  // closed or the size is zero.
+  useEffect(() => {
+    if (tab !== 'sell') return;
+    const pos = sellDir ? positions.find(p => p.direction === sellDir) : null;
+    const n = pos ? Math.min(pos.shares, Math.max(0, sellShares)) : 0;
+    onPreview?.(
+      pos && sellDir && n > 0
+        ? { direction: sellDir, newProb: previewSellPrice(probability, liquidity, sellDir, n) }
+        : null,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, sellDir, sellShares, probability, liquidity, positions]);
   // Clear the ghost when the ticket unmounts.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => () => onPreview?.(null), []);

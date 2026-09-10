@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { betTowardsValue, consensus, pHigher, sharesForBudget } from '../../../functions/src/lib/amm';
-import { previewSell, previewTargetBet, previewTrade } from '../amm';
+import { previewSell, previewSellPrice, previewTargetBet, previewTrade } from '../amm';
 
 /**
  * Preview / execution parity: the ticket's client-side previews against
@@ -225,5 +225,26 @@ describe('what the ticket actually receives survives the API rounding', () => {
     const server = serverBuy(book, held, 'lower', 25);
     const preview = previewTrade(rounded, B, 'lower', 25, held);
     expect(Math.abs(valueOf(preview.newProb) - valueOf(server.landedProb))).toBeLessThan(0.5);
+  });
+});
+
+describe('the sell ghost lands where the server would', () => {
+  // A sale takes shares OFF one side of the book; the landed price is the
+  // server's pHigher on that book. The ghost must draw exactly that.
+  test('selling higher lands on the post-sale book, and lower likewise', () => {
+    const book: Book = [40, 55];
+    const p = pHigher(book, B);
+    for (const [dir, after] of [
+      ['higher', [40, 55 - 12] as Book],
+      ['lower', [40 - 12, 55] as Book],
+    ] as const) {
+      expect(previewSellPrice(p, B, dir, 12)).toBeCloseTo(pHigher(after, B), 9);
+    }
+  });
+
+  test('selling nothing lands where the market already is', () => {
+    const book: Book = [40, 55];
+    const p = pHigher(book, B);
+    expect(previewSellPrice(p, B, 'higher', 0)).toBeCloseTo(p, 9);
   });
 });
