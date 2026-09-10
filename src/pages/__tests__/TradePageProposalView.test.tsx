@@ -436,4 +436,18 @@ describe('a newcomer can tell what a proposal is', () => {
     expect(words(container.querySelector('.pubws-world-cell--now'))).toMatch(/^last read/i);
     expect(words(container.querySelector('.pubws-world-cell--now'))).not.toMatch(/\bnow\b/i);
   });
+
+  test('the reading says WHEN it was read, in words that follow "last read"', async () => {
+    const ws = h.grid();
+    const at = new Date(Date.now() - 4 * 86_400_000).toISOString();
+    // The reading the cell prints is the last point of the horizon's history.
+    for (const h2 of ws.horizonHistories) (h2.points as unknown[]).push({ at, value: 7_000 });
+    vi.mocked(api.getMarketplaceWorkspace).mockImplementation(async () => ws as never);
+    const { container } = renderFloor();
+    await openProposal(container);
+    const cell = words(container.querySelector('.pubws-world-cell--now'));
+    // Never "4 days old" or "reported today" after the words "last read".
+    expect(cell).not.toMatch(/old/i);
+    expect(cell).not.toMatch(/reported/i);
+  });
 });

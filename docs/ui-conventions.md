@@ -700,7 +700,9 @@ deadline, an ask, and a price, and it reads in that order:
   on screen the unconditional market's line is labelled "$7,049 without it":
   the "now" cell beside it is the last logged READING, and the two were 8%
   apart under one word. The cell says "last read · 4 days ago" for the same
-  reason.
+  reason, worded to follow those two words rather than to stand alone
+  (`readingWhen`; the stat row's own `readingAge` says "4 days old" and
+  "reported today", which read as a second sentence after "last read").
 - **The world rides the verb.** "Bet Higher · if approved", on the button,
   never only in a toggle further up the page. A trader who has scrolled past
   the toggle cannot tell which world a verb belongs to, and the ticket in the

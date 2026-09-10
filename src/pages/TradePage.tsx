@@ -719,6 +719,19 @@ export function TradePage() {
     if (days === 1) return 'reported yesterday';
     return `${days} days old`;
   })();
+  /**
+   * The same age, worded to follow "last read" rather than to stand alone:
+   * the proposal view's cell says "last read · 4 days ago", where
+   * `readingAge`'s own words ("4 days old", "reported today") read as a
+   * second sentence (preview, 2026-09-10).
+   */
+  const readingWhen = (() => {
+    if (!lastReading?.at) return null;
+    const days = Math.floor((now.getTime() - new Date(lastReading.at).getTime()) / 86400000);
+    if (days <= 0) return 'today';
+    if (days === 1) return 'yesterday';
+    return `${days} days ago`;
+  })();
   // Stale means "taken before the period this market settles for", not "more
   // than three days old" (owner decision 2026-08-31). Three days was
   // meaningless twice over: an hourly market is stale within the hour, and a
@@ -1832,7 +1845,7 @@ export function TradePage() {
                             2026-09-10, when the chart's baseline said "now"
                             too, 8% away from it. */}
                           <span className="pubws-stat-what">
-                            {readingAge ? `last read \u00b7 ${readingAge}` : 'last read'}
+                            {readingWhen ? `last read \u00b7 ${readingWhen}` : 'last read'}
                           </span>
                           <span className="pubws-price">
                             {nowReading !== null ? `${unit}${formatValue(nowReading)}` : 'no reading yet'}
