@@ -1019,7 +1019,14 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/data-room',
       auth: false,
       description:
-        "Telarchy's own books (telarchy.com/data-room), prose and numbers in one anonymous read: { schema, generatedAt, doc: { updatedAt, sections: [{ id, title, markdown, blocks }] }, evidence: { pulse, market, traction, proposals, traffic, shipping } }. Every figure is computed at request time from the live tables except `shipping`, which is generated from git at deploy time and dated with builtAt. Cached 60s, open to every origin, no key. A term that cannot be computed is null, never zero. Window spend and profit retain the unrounded metric values; lapses are exact trade-expiry UTC dates, including today. Trading history fills quiet dates with zeros only within its trailing 120-day query through the computation instant (boundary dates can be partial); missing metric readings stay absent. Traffic counts distinct addresses after excluding known crawlers and scanner paths, not verified humans. Spec: docs/data-room.md.",
+        "The data room as a document (telarchy.com/data-room): { schema: 2, generatedAt, doc: { updatedAt, sections: [{ id, title, markdown }] }, actions } where actions is the unfiltered first page of the public actions log in the shape GET /api/data-room/actions returns. Cached 30s, open to every origin, no key. Spec: docs/data-room.md.",
+    },
+    {
+      method: 'GET',
+      path: '/api/data-room/actions',
+      auth: false,
+      description:
+        "The public actions log: every public action on Telarchy, newest first, assembled at read time from the live tables (never a second store). Query: kinds (comma list of trade, proposal, decision, delivery, comment, announcement, reading, metric, market, liquidity, join, link, workspace), workspace (a public floor's slug), participant (handle or id), after/before (ISO instants, strict), limit (default 50, max 200), cursor (the previous page's next). Returns { generatedAt, kinds: [{ id, label, description }], workspaces: [{ slug, name }], rows: [{ id, at, kind, workspace: { slug, name } | null, actor: { id, handle } | null, text, detail, href }], next }. text is one sentence that never restates the actor or the floor; detail is the structured version; href is the address on this site. Private floors contribute nothing; redemptions and removed proposals are never rows. An unknown kind, a non-public workspace, an unknown participant or a bad instant is a 400 naming the parameter. Open to every origin, no key. The same parameters on telarchy.com/data-room show the same list. Spec: docs/data-room.md.",
     },
     {
       method: 'GET',

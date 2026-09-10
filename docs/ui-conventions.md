@@ -2566,28 +2566,26 @@ a promise here.
 
 ## The data room
 
-`telarchy.com/data-room` (`DataRoomPage`, `.dr-*`) is the one page that fixes
-its own palette: it renders on the site's dark tokens whatever the visitor's
-theme is, because it is an instrument rather than a page about the product,
-and every drawing on it reads better on dark. It sets `data-theme="dark"` on
-its own root and takes the tokens that are already defined there; it does not
-invent a second palette. Everything else is the site's language, amber accent
+`telarchy.com/data-room` (`DataRoomPage`, `.dr-*`) is the public actions log
+and the one page that fixes its own palette: it renders on the site's dark
+tokens whatever the visitor's theme is, because it is an instrument rather
+than a page about the product. It sets `data-theme="dark"` on its own root
+and takes the tokens that are already defined there; it does not invent a
+second palette. Everything else is the site's language, amber accent
 included.
 
-It takes a wide 1180px column rather than the document's 760px, and the prose
-inside it stays capped near 68 characters so a paragraph is still a paragraph
-next to a full-width chart. It is one scrolling page with a sticky index of its
-own sections under the top bar, not a sidebar and not a route per section: a
-sidebar is the thing that was deleted, and a reader of a business document
-scrolls.
-
-Above the first section sit the strip (one tile per number a reader came for:
-figure, seven-day change, the same series drawn small) and the ticker (the
-dated things the owner did, newest first, on one line). Its figures follow the
-page rules exactly: tiny uppercase section labels, hairline rows with an amber
-rule behind a count, mono tabular numerals, and charts hand-rolled as inline
-SVG rather than a chart library. A number the feed refused to compute renders
-as "not published", never as zero. Spec: `docs/data-room.md`.
+It takes a wide 1180px column rather than the document's 760px. Under the
+masthead and the stamp sits one filter row: a mono chip per kind that
+toggles, the floor select, and the participant chip when one is set; every
+change rewrites the URL query, and the page holds no filter the URL does not
+show. The log is grouped by UTC day under a sticky mono rule in the accent,
+and a row is a four-column grid: the time in tabular mono, the kind as a
+coloured dot beside its uppercase name, the actor in bold as a filter button
+followed by the sentence as the link to the thing, and the floor as a mono
+filter button on the right. On a phone the time spans two lines with the
+kind and floor above the sentence. A kind's colour is never the only place
+its name appears. A row the minute's poll brought in is tinted in its kind's
+colour until the pointer moves. Spec: `docs/data-room.md`.
 
 ## The frontend never speaks HTTP directly
 

@@ -777,130 +777,41 @@ export interface PublicWorkspaceMarket {
   rangeMax: number;
 }
 
-/** The data room's feed (docs/data-room.md). One anonymous read carries the
- *  prose and every figure on the page, so the page cannot show a number the
- *  response does not carry. A term that could not be computed is null, never
- *  zero. */
-export type DataRoomBlock =
-  | 'pulse'
-  | 'funnel'
-  | 'window'
-  | 'rates'
-  | 'events'
-  | 'calendar'
-  | 'trading'
-  | 'traction'
-  | 'contracts'
-  | 'traffic'
-  | 'shipping';
+/** One row of the public actions log (docs/data-room.md, "A row"). */
+export interface ActionRow {
+  id: string;
+  at: string;
+  kind: string;
+  workspace: { slug: string; name: string } | null;
+  actor: { id: string; handle: string } | null;
+  text: string;
+  detail: Record<string, unknown>;
+  href: string;
+}
 
-export interface DataRoomFeed {
-  schema: number;
+/** One page of the log with its filter vocabulary. `next` is the cursor for
+ *  the page after, or null at the end. */
+export interface ActionsPage {
   generatedAt: string;
-  doc: {
-    updatedAt: string;
-    sections: Array<{
-      id: string;
-      title: string;
-      /** Which part of the page it belongs to (docs/data-room.md, "One page,
-       *  three parts"): the index groups the sections under it. */
-      part: string | null;
-      markdown: string;
-      blocks: DataRoomBlock[];
-    }>;
-  };
-  evidence: {
-    pulse: {
-      weeklyActiveVerifiedTraders: number;
-      participants: number;
-      openMarkets: number;
-      tradesThisWeek: number;
-      source: string;
-    };
-    /** The chain that ends in the floor's metric. It replaced the `market`
-     *  block on 2026-08-31: the page publishes no price and no settle date,
-     *  because a reader arriving from the floor already has both. */
-    funnel: {
-      steps: Array<{
-        id: string;
-        n: number;
-        /** Share of the step above. Null on the first step, and on any step
-         *  whose predecessor is zero: 0/0 is not published as a percentage. */
-        shareOfAbove: number | null;
-      }>;
-      /** The day the visit rollup starts, so the page can say the first
-       *  conversion is not a cohort. */
-      loadsSince: string | null;
-    };
-    /** The rows that already determine part of the next reading: one entry
-     *  per participant, per lapsing week, per undecided proposal, per payment.
-     *  Rows rather than counts, because a count throws the tail away
-     *  (docs/data-room.md, "The window is the rows behind the next reading"). */
-    window: {
-      at: string;
-      traders: { threshold: number; spend: number[]; lapses: string[] };
-      forecasters: { threshold: number; profit: number[] };
-      owners: { pending: Array<{ slug: string | null; title: string; decideBy: string | null }> };
-      revenue: { payments: Array<{ usd: number; status: string; at: string }> };
-    };
-    /** Every weekly reading of every number the platform records about
-     *  itself, oldest first. A week with no reading is null and never the
-     *  week before carried forward. */
-    rates: {
-      weeks: string[];
-      metrics: Array<{
-        name: string;
-        readings: Array<number | null>;
-        /** One point per day, the reading at the end of it: what the page
-         *  draws. A day nobody measured is absent, so the line breaks. */
-        daily: Array<{ at: string; value: number }>;
-      }>;
-    };
-    /** Dated context from Telarchy's own workspace; no causal effect is asserted. */
-    events: Array<{ at: string; kind: string; label: string }>;
-    /** The dates the platform already holds: books settling, proposals to be
-     *  decided, and the outreach list as stages with nobody named. */
-    calendar: {
-      dates: Array<{ at: string; kind: 'settles' | 'decides'; label: string }>;
-      outreach: { stages: string[] };
-    };
-    /** How busy the place is, day by day: the shape under the trader count. */
-    trading: { byDay: Array<{ day: string; trades: number; credits: number; traders: number }> };
-    traction: {
-      participants: number;
-      accounts: number;
-      verifiedParticipants: number;
-      trades: number;
-      creditsTraded: number;
-      openMarkets: number;
-      settledMarkets: number;
-      publicFloors: number;
-      signupsByDay: Array<{ day: string; signups: number }>;
-    };
-    contracts: {
-      proposed: number;
-      approved: number;
-      declined: number;
-      pending: number;
-      withdrawn: number;
-      approvedUsd: number;
-    };
-    traffic: {
-      byDay: Array<{ day: string; visits: number; uniques: number }>;
-      keptSince: string | null;
-      visits24h: number;
-      uniques24h: number;
-      visits7d: number;
-      uniques7d: number;
-      totalVisits: number;
-    };
-    shipping: {
-      days: Array<{ date: string; changes: number }>;
-      changes: Array<{ date: string; subject: string }>;
-      total: number;
-      builtAt: string;
-    };
-  };
+  kinds: Array<{ id: string; label: string; description: string }>;
+  workspaces: Array<{ slug: string; name: string }>;
+  rows: ActionRow[];
+  next: string | null;
+}
+
+/** The filters the page and the endpoint share (docs/data-room.md,
+ *  "Filtering"): every one is a query parameter, and an absent one is absent. */
+export type ActionsParams = Partial<
+  Record<'kinds' | 'workspace' | 'participant' | 'after' | 'before' | 'limit' | 'cursor', string>
+>;
+
+/** The endpoint's query string for a set of filters, which is also the
+ *  page's own query string: the two are the same list by construction. */
+export function actionsQueryString(params: ActionsParams): string {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v) qs.set(k, v);
+  const s = qs.toString();
+  return s ? `?${s}` : '';
 }
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -1932,9 +1843,10 @@ export const api = {
     return res.text();
   },
 
-  /** The data room's whole page, prose and figures, in one anonymous read.
-   *  The page renders this response and nothing else (docs/data-room.md). */
-  getDataRoom: (): Promise<DataRoomFeed> => request('/api/data-room'),
+  /** One page of the public actions log with the given filters. The page
+   *  renders this response and nothing else (docs/data-room.md). */
+  getActions: (params: ActionsParams = {}): Promise<ActionsPage> =>
+    request(`/api/data-room/actions${actionsQueryString(params)}`),
 
   /** Admin launch dashboard: floor visits, signups, waitlist. */
   getFloorStats: () => request('/api/admin/floor-stats'),

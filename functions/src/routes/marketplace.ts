@@ -31,7 +31,8 @@ import { AGENT_SIGNUP_CREDITS, SIGNUP_CREDITS } from '../lib/validation';
 import { wrap } from '../lib/wrap';
 import { authMiddleware, getAuthWorkspaceMemberships } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
-import { buildDataRoomFeed, dataRoomTool, renderDataRoomDocument } from '../services/data-room';
+import { actionsTool } from '../services/actions';
+import { buildDataRoomFeed, renderDataRoomDocument } from '../services/data-room';
 import { type ApiCallRecord, ottoApiTools } from '../services/otto-tools';
 import { linkedManifoldCount, platformStats } from '../services/platform-stats';
 import { marketPriceSeries } from '../services/predictions';
@@ -1500,7 +1501,7 @@ marketplaceRouter.get(
         {
           name: 'Data room',
           description:
-            "Telarchy's own books: what it is for, who is here, its traffic, what shipped, and what is planned.",
+            "Telarchy's public actions log: the latest page of every public action on the platform, with the filters an agent can read the rest through.",
           content: renderDataRoomDocument(feed),
           updatedAt: feed.generatedAt,
         },
@@ -1629,7 +1630,7 @@ marketplaceRouter.post(
       // an anonymous asker's Otto can read and cannot act, and a signed-in
       // asker's Otto can do what they can do and no more.
       const { answer, usage } = await askAboutWorkspace(renderContextIndex(context), turns, [
-        dataRoomTool(),
+        actionsTool(),
         // The web, on the same terms as the operator door has had since
         // 2026-08-24. It matters more here, not less: a visitor's question
         // about a competitor or a claim in a proposal is exactly the question
