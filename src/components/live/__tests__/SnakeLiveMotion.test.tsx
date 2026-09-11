@@ -200,6 +200,18 @@ describe('a countdown that runs out says what is happening', () => {
     expect(line.textContent).not.toMatch(/0:00/);
   });
 
+  test('a feed the page cannot see says so instead of claiming a ruling', async () => {
+    h.state.seconds = 2;
+    const { container } = board();
+    await settle(10);
+    h.state.hang = true;
+    // Ten seconds with no read: the countdown would be long past zero.
+    await settle(10_000);
+    const line = (container.querySelector('.snake-next') as HTMLElement).textContent ?? '';
+    expect(line).toMatch(/feed \d+s old/);
+    expect(line).not.toMatch(/deciding/);
+  });
+
   test('a second left still counts, and the clock never prints 0:00', async () => {
     h.state.seconds = 1;
     const { container } = board();

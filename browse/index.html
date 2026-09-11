@@ -6929,6 +6929,8 @@ leader's action in words: &quot;Next move: turn left in 0:31&quot; while the ste
 is open (the countdown from <code>next.seconds</code>, ticking by the second
 between polls, in <code>.snake-clock</code>), &quot;Next move: turn left, deciding&quot;
 from the moment that countdown would print 0:00 until the ruling lands
+(never over a stale read: a page that cannot see the feed says so
+instead, since it does not know that anything is being decided)
 (the service rules a moment after the step closes and opens the next a
 moment after that, and a line sitting on &quot;in 0:00&quot; for those seconds
 hides the one transition the page exists to show), &quot;Next move: turn
