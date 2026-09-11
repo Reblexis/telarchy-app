@@ -200,11 +200,16 @@ describe('a countdown that runs out says what is happening', () => {
     expect(line.textContent).not.toMatch(/0:00/);
   });
 
-  test('a second left still counts', async () => {
+  test('a second left still counts, and the clock never prints 0:00', async () => {
     h.state.seconds = 1;
     const { container } = board();
     await settle(10);
-    expect((container.querySelector('.snake-next') as HTMLElement).textContent).toMatch(/in 0:01/);
+    const line = () => (container.querySelector('.snake-next') as HTMLElement).textContent;
+    expect(line()).toMatch(/in 0:01/);
+    // A second later the last second is gone: "deciding", never "in 0:00".
+    await settle(1_100);
+    expect(line()).toMatch(/deciding/);
+    expect(line()).not.toMatch(/0:00/);
   });
 });
 

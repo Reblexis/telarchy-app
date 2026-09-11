@@ -627,11 +627,11 @@ export function SnakeLive({
     line = { text: 'Next move: continue forward (default)', cls: 'is-default' };
   } else if (next.decided) {
     line = { text: `Next move: ${ACTION_WORDS[next.action]}, decided`, cls: 'is-decided' };
-  } else if (seconds <= 0) {
+  } else if (seconds < 1) {
     /* The countdown ran out (2026-09-11): the ruling lands a moment later
        and the next step a moment after that, and a line sitting on "in
        0:00" for those ten seconds hides the one transition the page exists
-       to show. */
+       to show. Under a second, so the clock never prints 0:00 at all. */
     line = { text: `Next move: ${ACTION_WORDS[next.action]}, deciding`, cls: 'is-decided' };
   } else if (elapsed > STALE_S) {
     /* A feed read older than 8 seconds is said instead of a countdown the
