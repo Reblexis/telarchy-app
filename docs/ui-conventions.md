@@ -991,21 +991,17 @@ counting:
   confirm band with one "Choose <label>" per option.
 - **An option row names its options instead of Higher and Lower.** In
   their place the row carries one chip per option, in the proposer's
-  order, each its label and its impact **over the worst priced option**
-  on the cell on screen ("Turn left +0.4", "Turn right +0.1", "Continue
-  ±0"): the worst reads ±0 and every other chip says how far above it
-  that option stands. An unpriced option's chip reads "open", and while
-  fewer than two options are priced every chip reads "open". The leader's
-  chip wears the green; a tie at the top has no leader, so none does.
-  Pressing a chip opens that proposal with that option's world selected,
-  the same as pressing its cell on the proposal's own page (Viktor,
-  2026-09-11: "lets just shwo the different options and their impacts
-  instead of the higher /lower", "wehn clicked it goes to that proposal
-  witht he correspodnign branch open", "it should show impact of that
-  option minus the worst option of the ones presetn"). The baseline is the
-  worst option here and the next best in the hero: the row compares
-  options against each other, the hero states the leader's margin. A
-  two-branch row keeps Higher and Lower.
+  order, each its label and its own value on the cell on screen, the
+  option book's consensus as the metric prints it ("Turn left 3.5",
+  "Turn right 3.2", "Continue 3.1"), never a difference between options.
+  An unpriced option's chip reads "open". The leader's chip wears the
+  green; a tie at the top has no leader, so none does. Pressing a chip
+  opens that proposal with that option's world selected, the same as
+  pressing its cell on the proposal's own page (Viktor, 2026-09-11: "lets
+  just shwo the different options and their impacts instead of the higher
+  /lower", "wehn clicked it goes to that proposal witht he correspodnign
+  branch open", then "it hshould show just the absolvute value isntead not
+  some subtract result"). A two-branch row keeps Higher and Lower.
 - **A decided proposal with options** strikes through the price of every
   option cell but the chosen one, captioned "stakes refunded", and the
   ruling says which option was chosen.
