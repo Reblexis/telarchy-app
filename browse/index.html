@@ -6615,23 +6615,86 @@ estimates&quot;). Mono names with hairline underlines that warm to the accent;
 external, new tab. A manager edits the text in place (the <code>SubjectAbout</code>
 editor pattern: hairlines, <code>jobform-line</code> textarea, ticket buttons). Its
 last line is the row that opens Otto (see &quot;Otto&quot;).</p>
-<p><strong>The live view</strong> (<code>FloorLiveView</code>) is the owner's own picture of the
-thing the market steers, embedded on the floor: a workspace whose setting
-<code>liveViewUrl</code> (PUT /api/workspaces/:id/settings, plain <code>manage</code>, https
-only, at most 500 characters, null to clear; served on the public floor
-payload as <code>liveViewUrl</code>) names a page gets that page rendered in a 16:9
-box in the owner-prose column, directly above &quot;What is <name>?&quot;, and a
-floor whose setting is null renders nothing there and nothing else on the
-page moves. It sits there rather than over the chart because the floor
-leads with its price (the number, the chart, the two priced sides come
-first) and the live view is owner material, read after the market like the
-rest of that column. The box is the column's width, so full width on a
-phone. The embed is a sandboxed iframe: <code>sandbox=&quot;allow-scripts allow-same-origin&quot;</code> and nothing more (no forms, no popups, no top
-navigation), <code>loading=&quot;lazy&quot;</code>, <code>referrerpolicy=&quot;no-referrer&quot;</code>. Under it,
-one left-aligned line in the muted meta style, &quot;Live view, published by the
-owner&quot;, and a link that opens the URL in a new tab. It is the owner's
-content, not Telarchy's: the floor frames it and vouches for nothing inside
-it, and the app sets no Content-Security-Policy, so any https origin frames.</p>
+<p><strong>The live view is a segment of the chart slot</strong> (<code>LiveView</code>, revised
+2026-09-11). The owner's own picture of the thing the market steers is
+drawn natively on the floor, from the owner's feed, in the one chart's
+slot: a workspace whose setting <code>liveFeed</code> names a feed gets a third
+segment button in the chart's control row, LIVE, beside VALUE and CALL,
+and LIVE is the segment such a floor opens on (a mode remembered for the
+session still wins on a later load; a remembered LIVE on a floor with no
+feed falls back to VALUE). A floor whose <code>liveFeed</code> is null has two
+segments, exactly as before, and nothing else on the page moves. The
+owner asked for this in place of the framed page on another host (Viktor,
+2026-09-11: &quot;it should all be doable within the telarchy.com it should
+replace the snake.telarchy.com.. i dont like it being there separately&quot;;
+record in <code>notes/decisions/ui-conventions.md</code>).</p>
+<p>The setting is <code>liveFeed</code> on <code>PUT /api/workspaces/:id/settings</code>, plain
+<code>manage</code>: <code>{ kind, url }</code> or null to clear, where <code>kind</code> names the feed's
+shape from a short allow-list (today only <code>snake</code>) and <code>url</code> is the https
+origin the feed is served from, at most 500 characters. Anything else
+(http, an unknown kind, a bare string, a missing field) is 400 and leaves
+the stored value alone. It is served on the public floor payload as
+<code>liveFeed</code> (<code>{ kind, url }</code> or null). The older <code>liveViewUrl</code> (an https
+page framed in a sandboxed iframe above &quot;What is <name>?&quot;, <code>FloorLiveView</code>)
+is deprecated: it still works for a floor that has only it, and it renders
+nothing once <code>liveFeed</code> is set, so a floor never shows the game twice.</p>
+<p>The browser never reads the owner's host. The app proxies the feed on the
+marketplace router, public with no key, and the bodies are the upstream's
+JSON passed through with <code>cache-control: no-store</code> to the browser:</p>
+<ul>
+<li><code>GET /api/marketplace/:slug/live</code> is <code>${url}/state</code>, cached in memory for
+2 seconds per workspace with never more than one upstream fetch in
+flight per workspace, a 5-second upstream timeout, and a 502 JSON
+(<code>{ error }</code>) when the upstream fails, times out, or answers non-JSON.</li>
+<li><code>GET /api/marketplace/:slug/live/games</code> is <code>${url}/games</code>, cached 30
+seconds per workspace.</li>
+<li><code>GET /api/marketplace/:slug/live/history?game=&amp;from=&amp;limit=</code> is
+<code>${url}/history</code> with those three query fields passed through, cached
+30 seconds per workspace and query; <code>limit</code> is capped at 2000.</li>
+</ul>
+<p>A floor with no feed answers 404 on all three; a private floor 403.</p>
+<p><strong>The snake feed</strong> (<code>kind: &quot;snake&quot;</code>, <code>SnakeLive</code>) is the shape the
+telarchy-snake service publishes (its <code>docs/snake.md</code>, &quot;The feed&quot;).
+<code>/state</code> carries <code>game: { snake: [{x,y}] (head first), food: {x,y}, heading, length, step, deaths, complete, size, gameNumber }</code>, <code>grid</code> (the
+board's side in cells), <code>gameNumber</code>, <code>next: { action, direction, decided, seconds }</code>, <code>open: { step, decideAt, deadline, cells, directions: {forward,left,right}, proposals: {forward:{id,title,url},left,right}, quotes: {forward:{m1,m5,m60:{approved,declined}},left,right} }</code>,
+<code>recentDecisions[]</code>, <code>recentTrades[]</code> (newest first, <code>{ handle, action, cost, ... }</code>), <code>commentary</code>, <code>complete</code>, <code>nextGameAt</code>. <code>/games</code> is
+<code>{ games: [{ number, size, startedAt, endedAt|null, steps, bestLength, deaths }] }</code>; <code>/history</code> is <code>{ game: {number,size,startedAt,endedAt}, total, from, steps: [{ step, at, snake, food, heading, action, direction, undecided, impact:{forward,left,right}, length, deaths }] }</code>, each step the
+state after its move.</p>
+<p>What LIVE draws, top to bottom, in the chart's slot under the same control
+row (the segment toggle in the left cell, the metric caption centred):</p>
+<ol>
+<li><strong>The grid</strong> (<code>.snake-board</code>, an svg sized by <code>grid</code>): a near-black
+board with soft grid lines, one cell per square, the snake as one
+rounded green band along its cells with a lighter head and two dark
+eyes on the side it moves towards, the food a round red dot.</li>
+<li><strong>The next move</strong> (<code>.snake-next</code>), one line: the arrow of the compass
+direction and the action, &quot;→ Turn left&quot;, with the countdown from
+<code>next.seconds</code> as a clock beside it, &quot;0:31&quot;, in the accent while the
+step is open; once <code>next.decided</code> the clock reads &quot;decided&quot; and the
+line takes the snake's green.</li>
+<li><strong>Three tiles</strong> (<code>.snake-tiles</code>), Continue, Turn left, Turn right: the
+compass arrow, the name, and the 60-move impact (approved minus
+declined on <code>m60</code>, signed, one decimal, &quot;—&quot; while unreadable). The
+leader, the highest impact, carries the accent (<code>is-lead</code>). Each tile
+is a link to its proposal on this floor: <code>/&lt;slug&gt;/p/&lt;number&gt;</code> when the
+proposal's url ends in a number, else the url as given.</li>
+<li><strong>One status line</strong> (<code>.snake-status</code>): &quot;Length 7 · Game 1 · 12x12&quot;.</li>
+<li><strong>One quiet line</strong> (<code>.snake-quiet</code>, left-aligned): the newest trade
+(&quot;philipp-gl bet 5 on Turn left&quot;), else the commentary; never both.</li>
+</ol>
+<p>It polls <code>/live</code> every 2 seconds while the LIVE segment is on screen and
+the tab is visible, and stops when the segment is left or the tab hidden.</p>
+<p><strong>Replay</strong> sits under the live block (<code>.snake-replay</code>): a game picker
+(from <code>/live/games</code>, newest first, &quot;Game 3 · 12x12 · best 9&quot;), a thin
+scrubber (a range input over the game's <code>total</code> steps), play/pause, a
+speed (1x is one step per second, 10x), and a LIVE button that returns to
+realtime. Touching the scrubber or the picker leaves realtime: the view
+loads the history window around that step (<code>from</code>/<code>limit</code> 300, further
+windows fetched as the scrubber reaches them) and draws that step's snake
+and food on the same grid, with the step's own length and the action the
+market took in the status line. Play advances one step per tick at the
+chosen speed and pauses at the game's last recorded step. No library: the
+range input and a timer.</p>
 <h3 id="docs-ui-conventions-md--h39">The announcements page</h3>
 <p><code>AnnouncementsPage</code> (<code>/:slug/announcements</code>) is a poster head over a
 document body: the workspace name as a tiny uppercase back-link, the

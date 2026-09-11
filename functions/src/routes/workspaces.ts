@@ -23,6 +23,7 @@ import {
   workspaces,
 } from '../db/schema';
 import { allowLedgerAdmin } from '../lib/ledger-admin';
+import { parseLiveFeed } from '../lib/live-feed';
 import { assertNotInRunningSeason } from '../lib/market-freeze';
 import { getOwnerHandles, resolveOwnerSegment, resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { isPlatformAuthorized } from '../lib/platform-admin';
@@ -420,6 +421,7 @@ workspacesRouter.put(
       charter,
       subjectAbout,
       liveViewUrl,
+      liveFeed,
       telarchyStartedOn,
       autoFundNewMarkets,
       newMarketLiquidityCredits,
@@ -484,6 +486,23 @@ workspacesRouter.put(
           return;
         }
         update.liveViewUrl = trimmed;
+      }
+    }
+
+    // The live feed (docs/ui-conventions.md, "The live view is a segment of
+    // the chart slot"): { kind, url } from the allow-list, https only, or
+    // null. A refused value leaves whatever was set before in place. Plain
+    // `manage`, like the other identity fields. Supersedes liveViewUrl.
+    if (liveFeed !== undefined) {
+      if (liveFeed === null) {
+        update.liveFeed = null;
+      } else {
+        const parsed = parseLiveFeed(liveFeed);
+        if (!parsed.ok) {
+          res.status(400).json({ error: parsed.error });
+          return;
+        }
+        update.liveFeed = parsed.feed;
       }
     }
 

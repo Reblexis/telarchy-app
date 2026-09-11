@@ -11,6 +11,11 @@
  * no popups, no top navigation), loads lazily, and sends no referrer. The
  * server accepts https only, so the src is never a javascript: or data: URL.
  * Renders nothing when the URL is null, so a floor without one is untouched.
+ *
+ * DEPRECATED (2026-09-11): superseded by the LIVE segment of the chart slot
+ * (`LiveView`, the `liveFeed` setting). The floor passes null here once a
+ * feed is set, so the game is never shown twice; this stays for a floor that
+ * has only `liveViewUrl`.
  */
 export function FloorLiveView({ url, name }: { url: string | null | undefined; name: string }) {
   if (!url) return null;

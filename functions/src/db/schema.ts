@@ -110,6 +110,13 @@ export const workspaces = pgTable('workspaces', {
    *  Snake floor). https only, at most 500 characters. Null = no box. It is
    *  the owner's content: the floor frames it and vouches for nothing in it. */
   liveViewUrl: text('live_view_url'),
+  /** The owner's feed of the thing the market steers, drawn natively on the
+   *  floor's LIVE segment (docs/ui-conventions.md, "The live view is a segment
+   *  of the chart slot"): { kind, url } where kind names the feed's shape from
+   *  the allow-list in lib/live-feed.ts (today only "snake") and url is the
+   *  https origin the app proxies. Null = no LIVE segment. Supersedes
+   *  liveViewUrl, which is deprecated and hidden once this is set. */
+  liveFeed: jsonb('live_feed').$type<{ kind: string; url: string }>(),
   /** When this workspace started running its number through Telarchy. The
    *  floor's actual-vs-forecast chart marks it with one dashed line, because a
    *  year of trajectory raises the question the number alone cannot answer:

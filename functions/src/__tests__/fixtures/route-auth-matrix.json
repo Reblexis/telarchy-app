@@ -749,6 +749,21 @@
     "agent": 404,
     "master": 404
   },
+  "GET /api/marketplace/:workspaceId/live/games": {
+    "anon": 404,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/marketplace/:workspaceId/live/history": {
+    "anon": 404,
+    "agent": 404,
+    "master": 404
+  },
+  "GET /api/marketplace/:workspaceId/live": {
+    "anon": 404,
+    "agent": 404,
+    "master": 404
+  },
   "GET /api/marketplace/:workspaceId/market-activity": {
     "anon": 404,
     "agent": 404,

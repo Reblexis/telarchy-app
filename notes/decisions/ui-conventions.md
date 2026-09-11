@@ -1931,3 +1931,19 @@ it is an acronym or a listed proper noun. And `/telarchy/p/999` rendered the
 floor silently when no #999 existed; it now says "No proposal #999 on this
 floor." over the plain market view, with the selection cleared so the
 address bar returns to the floor's own path.
+
+**2026-09-11 (Viktor): the live view moves into the chart, as a segment.**
+Of the Snake floor's framed board (PR 249, `liveViewUrl`): "could the
+snake be also another tab next to call and value? it should show the
+snake current state realtime and be easily replayable", "it should also
+be somehow general if possible", and "actually it should all be doable
+within the telarchy.com it should replace the snake.telarchy.com.. i dont
+like it being there separately.. its weird." So the floor draws the game
+itself from the owner's feed: a `liveFeed` setting (`{ kind, url }`,
+kind from an allow-list so other feed shapes can follow), three public
+proxy routes on the marketplace router (the browser never reads the
+owner's host), a LIVE segment beside VALUE and CALL that is the default
+on such a floor, and a replay (game picker, scrubber, play, speed) under
+it. `liveViewUrl` is deprecated: it still frames a page for a floor that
+has only it, and hides once `liveFeed` is set. Spec in
+docs/ui-conventions.md, "The live view is a segment of the chart slot".

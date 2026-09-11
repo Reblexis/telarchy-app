@@ -17,6 +17,7 @@ import { Ghost, GhostRows, LoadingStatus } from '../components/Ghosts';
 import { ClockGlyph, CoinGlyph, DropGlyph, JobsBoard, PersonGlyph, poolOf, splitAsk } from '../components/JobsBoard';
 import { Linkified } from '../components/Linkified';
 import { Logo } from '../components/Logo';
+import { LiveView } from '../components/live/LiveView';
 import { ManifoldButton } from '../components/ManifoldButton';
 import { MarketChart } from '../components/MarketChart';
 import { MarketFacts, MarketMoney } from '../components/MarketFacts';
@@ -200,6 +201,8 @@ export function holdersOf(
     })
     .sort((a, b) => b.totalEarnings - a.totalEarnings);
 }
+
+type ChartMode = 'value' | 'call' | 'live';
 
 export function TradePage() {
   const params = useParams();
@@ -635,14 +638,15 @@ export function TradePage() {
      "The price and the chart", 2026-09-09). Two stacked charts cost 340px of
      the first screen and put the bet verbs below the fold. The mode is
      remembered for the session, not the page load. */
-  const [chartMode, setChartMode] = useState<'value' | 'call'>(() => {
+  const [chartMode, setChartMode] = useState<ChartMode>(() => {
     try {
-      return sessionStorage.getItem('floorChartMode') === 'call' ? 'call' : 'value';
+      const m = sessionStorage.getItem('floorChartMode');
+      return m === 'call' || m === 'live' ? m : 'value';
     } catch {
       return 'value';
     }
   });
-  const pickChartMode = useCallback((m: 'value' | 'call') => {
+  const pickChartMode = useCallback((m: ChartMode) => {
     setChartMode(m);
     try {
       sessionStorage.setItem('floorChartMode', m);
@@ -653,6 +657,19 @@ export function TradePage() {
   // Every minute, and every second while the selected proposal decides
   // within the hour (docs/ui-conventions.md, "The deadline is said ONCE").
   const tickMs = tickIntervalFor(ws?.proposals ?? [], now.getTime());
+  /* The live view is a segment of the chart slot (docs/ui-conventions.md,
+     2026-09-11): a floor with a feed opens on LIVE unless the session
+     remembers a mode; a remembered LIVE on a floor without a feed is VALUE. */
+  const liveFeed = ws?.liveFeed ?? null;
+  useEffect(() => {
+    if (!liveFeed) return;
+    try {
+      if (sessionStorage.getItem('floorChartMode') === null) setChartMode('live');
+    } catch {
+      setChartMode('live');
+    }
+  }, [liveFeed]);
+  const chartView: ChartMode = chartMode === 'live' && !liveFeed ? 'value' : chartMode;
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), tickMs);
     return () => clearInterval(id);
@@ -1247,20 +1264,30 @@ export function TradePage() {
     <span className="pubws-seg pubws-seg--chart" role="group" aria-label="Chart">
       <button
         type="button"
-        className={`pubws-seg-btn${chartMode === 'value' ? ' is-active' : ''}`}
-        aria-pressed={chartMode === 'value'}
+        className={`pubws-seg-btn${chartView === 'value' ? ' is-active' : ''}`}
+        aria-pressed={chartView === 'value'}
         onClick={() => pickChartMode('value')}
       >
         Value
       </button>
       <button
         type="button"
-        className={`pubws-seg-btn${chartMode === 'call' ? ' is-active' : ''}`}
-        aria-pressed={chartMode === 'call'}
+        className={`pubws-seg-btn${chartView === 'call' ? ' is-active' : ''}`}
+        aria-pressed={chartView === 'call'}
         onClick={() => pickChartMode('call')}
       >
         Call
       </button>
+      {liveFeed && (
+        <button
+          type="button"
+          className={`pubws-seg-btn${chartView === 'live' ? ' is-active' : ''}`}
+          aria-pressed={chartView === 'live'}
+          onClick={() => pickChartMode('live')}
+        >
+          Live
+        </button>
+      )}
     </span>
   );
   const chartOrders = useMemo(
@@ -2014,7 +2041,14 @@ export function TradePage() {
                     (caption-shaped), its left cell empty because the stats
                     are above, a legend naming the marks below. */}
                   <div className="pubws-numchart">
-                    {chartMode === 'value' ? (
+                    {chartView === 'live' && liveFeed ? (
+                      <LiveView
+                        kind={liveFeed.kind}
+                        slug={ws.slug ?? idOrSlug ?? ws.workspaceId}
+                        corner={chartModeToggle}
+                        center={<span className="pubws-chart-cap">{captionLabel(metricLabel, ws.name)}</span>}
+                      />
+                    ) : chartView === 'value' ? (
                       <NumberChart
                         points={hero.metricHistory}
                         markers={datesOf(horizons, hero.metricId).flatMap(d => {
@@ -2901,7 +2935,7 @@ export function TradePage() {
             over the chart because the floor leads with its price; this is
             owner material, read after the market like the rest of this
             column. Nothing when the workspace names no URL. */}
-          <FloorLiveView url={ws.liveViewUrl} name={ws.name} />
+          <FloorLiveView url={ws.liveFeed ? null : ws.liveViewUrl} name={ws.name} />
           <SubjectAbout
             workspaceId={ws.workspaceId}
             name={ws.name}

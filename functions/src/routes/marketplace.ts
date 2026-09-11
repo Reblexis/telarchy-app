@@ -23,6 +23,7 @@ import { type AskTurn, askAboutWorkspace, askEnabled } from '../lib/ask';
 import { type BaselineOrderKey, compareSoonestFirst, primaryOf } from '../lib/baseline-order';
 import { type ContractorEntry, type ContractorJobPair, computeContractors } from '../lib/contractors';
 import { periodEndInstant, periodStartInstant, resolutionInstant, settlesOn } from '../lib/date-utils';
+import { historyQuery, type LiveEndpoint, LiveFeedError, readLiveFeed } from '../lib/live-feed';
 import { branchIsShown } from '../lib/market-pairs';
 import { getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
 import { restrictedToMembers } from '../lib/public-read';
@@ -1188,6 +1189,10 @@ async function buildFloorPayload(ws: PublicWs) {
     // The owner's live view, framed on the floor above "What is <name>?";
     // null means no box (docs/ui-conventions.md, "The live view").
     liveViewUrl: ws.liveViewUrl ?? null,
+    // The owner's feed, drawn natively on the LIVE segment; null means no
+    // segment (docs/ui-conventions.md, "The live view is a segment of the
+    // chart slot").
+    liveFeed: (ws.liveFeed as { kind: string; url: string } | null) ?? null,
     // The moment the floor's year chart marks, when the owner named one.
     telarchyStartedOn: ws.telarchyStartedOn ?? null,
     visibility: ws.visibility,
@@ -1270,6 +1275,51 @@ marketplaceRouter.get(
     res.json({ history: points.slice(-500).map(pt => ({ at: pt.at, consensus: pt.consensus })) });
   }),
 );
+
+/**
+ * The owner's live feed, proxied for the floor's LIVE segment
+ * (docs/ui-conventions.md, "The live view is a segment of the chart slot").
+ * Public with no key, like the floor payload that names the feed. The body
+ * is the upstream's JSON passed through; the app holds it for the stated
+ * window (2 s for /state, 30 s for /games and /history, per workspace and
+ * query) with one upstream fetch in flight per key, and answers 502 when
+ * the upstream fails, so a hundred browsers polling cost the owner's host
+ * one read per window and a dead host costs the floor one small error.
+ * `cache-control: no-store` to the browser: the freshness is the app's.
+ */
+function liveRoute(endpoint: LiveEndpoint) {
+  return wrap(async (req, res) => {
+    res.setHeader('cache-control', 'no-store');
+    const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
+    if (!ws) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+    if (restrictedToMembers(ws.visibility)) {
+      res.status(403).json({ error: 'This workspace is private' });
+      return;
+    }
+    const feed = ws.liveFeed as { kind: string; url: string } | null;
+    if (!feed) {
+      res.status(404).json({ error: 'This workspace has no live feed' });
+      return;
+    }
+    const query = endpoint === 'history' ? historyQuery(req.query as Record<string, unknown>) : undefined;
+    try {
+      const body = await readLiveFeed(ws.id, feed, endpoint, query);
+      res.json(body);
+    } catch (e) {
+      if (e instanceof LiveFeedError) {
+        res.status(502).json({ error: e.message });
+        return;
+      }
+      throw e;
+    }
+  });
+}
+marketplaceRouter.get('/:workspaceId/live', liveRoute('state'));
+marketplaceRouter.get('/:workspaceId/live/games', liveRoute('games'));
+marketplaceRouter.get('/:workspaceId/live/history', liveRoute('history'));
 
 /**
  * The workspace's announcements, newest first (the owner's, and any

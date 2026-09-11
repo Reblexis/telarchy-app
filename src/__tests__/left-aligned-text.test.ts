@@ -38,6 +38,8 @@ const PROSE = [
   'pubws-provenance',
   // the live view's caption (docs/ui-conventions.md, "The live view")
   'pubws-live-caption',
+  // the live segment's quiet line (docs/ui-conventions.md, "The live view is a segment of the chart slot")
+  'snake-quiet',
   'pubws-publish-sub',
   'doors-note',
   // the home board, /owners, /forecast, /for-agents
