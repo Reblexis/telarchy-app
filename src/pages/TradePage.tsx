@@ -702,9 +702,10 @@ export function TradePage() {
     liveFeed?.kind === 'snake' ? moveQuestionOf(v, now) : dateQuestionOf(v);
   /* The feed's own action order, remembered per proposal the first time the
      feed names it (docs/ui-conventions.md, "A pending row keeps its place
-     for its whole life"): the board reads the three of a step in the order
-     of the chips under the grid, and a row never changes place afterwards,
-     not when the feed moves on and not when it is ruled on. The server
+     for its whole life"): the board reads the three of a step in the
+     feed's own order, Continue, Turn left, Turn right, and a row never
+     changes place afterwards, not when the feed moves on and not when it
+     is ruled on. The server
      posts the three in whatever order it wrote them, which is not the same
      order every minute. */
   const feedOrderRef = useRef<Record<string, number>>({});
