@@ -114,9 +114,9 @@ export function pendingBallot(
   proposals: PublicProposal[],
   /** The feed's own action order by proposal id, where a feed names one
    *  (docs/ui-conventions.md, "A pending row keeps its place for its whole
-   *  life"): Continue, Turn left, Turn right, the order of the chips under
-   *  the grid, so the row a reader aims at is in the same place every
-   *  minute. The server posts the three in whatever order it wrote them. */
+   *  life"): Continue, Turn left, Turn right, so the row a reader aims at
+   *  is in the same place every minute. The server posts the three in
+   *  whatever order it wrote them, which is not that order. */
   feedOrder?: Record<string, number>,
   /** Rows to keep on the ballot though they are no longer pending: a row
    *  ruled on under the reader holds its place for a moment. */
