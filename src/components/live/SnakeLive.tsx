@@ -602,6 +602,14 @@ export function SnakeLive({
 
   const elapsed = fetchedAt ? Math.max(0, (now - fetchedAt) / 1000) : 0;
   const seconds = next ? Math.max(0, next.seconds - elapsed) : 0;
+  /* A step whose countdown has run out stays run out until the next one
+     opens: the service's own `seconds` came back 2, 1, 0, 1 across a
+     boundary, and a line that takes "deciding" back for a second reads as a
+     stutter where the page should be showing the transition. */
+  const decidedStepRef = useRef<number | null>(null);
+  const openStep = state?.open?.step ?? null;
+  if (next && seconds < 1 && openStep !== null) decidedStepRef.current = openStep;
+  const ranOut = !!next && (seconds < 1 || (openStep !== null && decidedStepRef.current === openStep));
 
   /* The 60-move impacts: carried on the drawing, shown only as the chevrons' shading. */
   const impacts = state ? ACTIONS.map(a => impactOf(state, a)) : [];
@@ -631,7 +639,7 @@ export function SnakeLive({
     /* A feed read older than 8 seconds is said instead of a countdown the
        page cannot see (docs/ui-conventions.md, "The feed drives the floor"). */
     line = { text: `Next move: ${ACTION_WORDS[next.action]} · feed ${Math.round(elapsed)}s old`, cls: 'is-idle' };
-  } else if (seconds < 1) {
+  } else if (ranOut) {
     /* The countdown ran out (2026-09-11): the ruling lands a moment later
        and the next step a moment after that, and a line sitting on "in
        0:00" for those ten seconds hides the one transition the page exists

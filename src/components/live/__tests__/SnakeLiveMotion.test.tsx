@@ -21,6 +21,7 @@ const h = vi.hoisted(() => {
     ],
     decided: false,
     seconds: 31,
+    step: 42,
     fail: false,
     hang: false,
   };
@@ -40,7 +41,7 @@ const h = vi.hoisted(() => {
     gameNumber: 2,
     next: { action: 'forward', direction: 'right', decided: state.decided, seconds: state.seconds },
     open: {
-      step: 42,
+      step: state.step,
       decideAt: '2026-09-11T12:00:31Z',
       deadline: '2026-09-11T12:01:00Z',
       cells: {},
@@ -109,6 +110,7 @@ beforeEach(() => {
   ];
   h.state.decided = false;
   h.state.seconds = 31;
+  h.state.step = 42;
   h.state.fail = false;
   h.state.hang = false;
 });
@@ -198,6 +200,25 @@ describe('a countdown that runs out says what is happening', () => {
     const line = container.querySelector('.snake-next') as HTMLElement;
     expect(line.textContent).toMatch(/Next move: continue forward, deciding/);
     expect(line.textContent).not.toMatch(/0:00/);
+  });
+
+  test('a later read that still shows a second does not take "deciding" back', async () => {
+    /* The service's own countdown is not the page's: reads came back 2, 1,
+       0, 1 across a boundary and the line flickered deciding, 0:01,
+       deciding. Once a step has run out it stays run out. */
+    h.state.seconds = 0;
+    const { container } = board();
+    await settle(10);
+    const line = () => (container.querySelector('.snake-next') as HTMLElement).textContent ?? '';
+    expect(line()).toMatch(/deciding/);
+    h.state.seconds = 1;
+    await settle(2_100);
+    expect(line()).toMatch(/deciding/);
+    // A new step starts the clock again.
+    h.state.step = 43;
+    h.state.seconds = 31;
+    await settle(2_100);
+    expect(line()).toMatch(/in 0:3\d/);
   });
 
   test('a feed the page cannot see says so instead of claiming a ruling', async () => {
