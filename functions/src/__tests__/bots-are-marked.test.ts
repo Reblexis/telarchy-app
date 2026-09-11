@@ -286,16 +286,14 @@ describe('the floor counts the bots that trade on it', () => {
   test('a floor only people traded on says zero', async () => {
     // Trades are append-only, so a floor of its own rather than a deletion.
     await openFloor('ws-people', ['hana']);
-    await db
-      .insert(metrics)
-      .values({
-        id: 'metric-people',
-        workspaceId: 'ws-people',
-        name: 'Users',
-        value: 0,
-        formula: '0',
-        marketRangeMax: 100,
-      });
+    await db.insert(metrics).values({
+      id: 'metric-people',
+      workspaceId: 'ws-people',
+      name: 'Users',
+      value: 0,
+      formula: '0',
+      marketRangeMax: 100,
+    });
     await db.insert(markets).values({
       id: 'mkt-people',
       workspaceId: 'ws-people',
