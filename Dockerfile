@@ -25,6 +25,11 @@ COPY functions/src/types.ts ./functions/src/types.ts
 # `npm run build` regenerates the guides module from docs/guides first.
 COPY scripts/build-guides.mjs ./scripts/build-guides.mjs
 COPY docs/guides ./docs/guides
+# ...and the data room's vision from docs/data-room/vision.md (no .git here,
+# so its updatedAt falls back to the build day; the committed module, which
+# the backend stage already compiled, carries the commit date).
+COPY scripts/build-vision.mjs ./scripts/build-vision.mjs
+COPY docs/data-room/vision.md ./docs/data-room/vision.md
 # ...and the audience pages from docs/audience-pages.md (docs govern; the
 # generated modules are committed, but the build regenerates them).
 COPY scripts/build-audience-pages.mjs ./scripts/build-audience-pages.mjs

@@ -36,6 +36,7 @@ import { getAuthWorkspaceMemberships } from '../middleware/auth';
 import { computeCapabilities } from '../middleware/capabilities';
 import { requireCapability, requireIdentity } from '../middleware/roles';
 import { voidMarket } from '../services/markets';
+import { buildTimeline } from '../services/timeline';
 import { createWorkspaceFromTemplate, WorkspaceCreateError } from '../services/workspace-create';
 import type { AuthInfo } from '../types';
 
@@ -990,6 +991,36 @@ function readPlanFields(
 function dueBeforeStart(start: Date | null | undefined, due: Date | null | undefined): boolean {
   return !!start && !!due && due.getTime() < start.getTime();
 }
+
+/**
+ * GET /api/workspaces/:id/plans
+ *
+ * A floor's plan entries, open and done, for its managers: the cockpit's
+ * list (docs/data-room.md, "What is planned"). Same order as the public
+ * GET /api/data-room/planned, because buildTimeline is the one home of it:
+ * open entries by due ascending, undated last, then done by doneAt
+ * descending. Same two-layer check as the writes, so a manager of one floor
+ * cannot read another floor's list through the path.
+ */
+workspacesRouter.get(
+  '/:id/plans',
+  requireCapability('manage'),
+  wrap(async (req, res) => {
+    const wsId = req.params.id as string;
+    const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, wsId));
+    if (!ws) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+    if (!(await canManagePathWorkspace(req.auth!, wsId))) {
+      res.status(403).json({ error: 'Forbidden: this identity lacks the "manage" capability in this workspace.' });
+      return;
+    }
+    const now = new Date();
+    const items = await buildTimeline(db, { id: ws.id, slug: ws.slug ?? ws.id }, now);
+    res.json({ workspace: { id: ws.id, slug: ws.slug, name: ws.name }, now: now.toISOString(), items });
+  }),
+);
 
 /**
  * POST /api/workspaces/:id/plans

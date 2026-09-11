@@ -37,7 +37,6 @@ import { buildDataRoomFeed, renderDataRoomDocument } from '../services/data-room
 import { type ApiCallRecord, ottoApiTools } from '../services/otto-tools';
 import { linkedManifoldCount, platformStats } from '../services/platform-stats';
 import { marketPriceSeries } from '../services/predictions';
-import { buildTimeline } from '../services/timeline';
 import { webSearchTool } from '../services/web-search';
 import { buildWorkspaceContext, renderContextIndex, renderContextMarkdown } from '../services/workspace-context';
 import { ensureSystemGroups } from './groups';
@@ -1375,48 +1374,6 @@ marketplaceRouter.get(
         publishedBy: a.publishedBy ?? null,
       })),
     });
-  }),
-);
-
-/**
- * GET /api/marketplace/:idOrSlug/timeline
- *
- * The floor's time axis (docs/data-room.md, "What is planned"): one
- * interval per thing the owner has committed to, soonest end first, undated
- * last. Every bar is computed in services/timeline.ts; the page and Otto draw
- * what they are handed and never derive a bar themselves, so the rule for
- * what is on the axis has one home. `now` is the server clock, because the
- * now-line and the shaded past must agree with the instants the bars carry.
- *
- * Same disclosure rule as the announcements: 404 unknown, 403 private, 403
- * where the Public group does not hold read.
- */
-marketplaceRouter.get(
-  '/:workspaceId/timeline',
-  wrap(async (req, res) => {
-    const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
-    if (!ws) {
-      res.status(404).json({ error: 'Workspace not found' });
-      return;
-    }
-    if (restrictedToMembers(ws.visibility)) {
-      res.status(403).json({ error: 'This workspace is private' });
-      return;
-    }
-    const [publicGroup] = await db
-      .select()
-      .from(permissionGroups)
-      .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
-    const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
-    if (!publicCaps.includes('read')) {
-      res.status(403).json({ error: 'Not public' });
-      return;
-    }
-
-    const now = new Date();
-    // A floor with no slug is addressed by id, as its share link is.
-    const items = await buildTimeline(db, { id: ws.id, slug: ws.slug ?? ws.id }, now);
-    res.json({ now: now.toISOString(), items });
   }),
 );
 

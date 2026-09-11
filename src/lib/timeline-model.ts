@@ -1,7 +1,7 @@
 /**
  * The geometry of "What is planned" (docs/data-room.md, "What is
- * planned", "The axis"): one time axis, one row per item with its bar on
- * the shared axis under its title, the soonest end on top. Pure functions
+ * planned", "The axis"): one time axis, one row per open entry with its bar
+ * on the shared axis under its title, the soonest due on top. Pure functions
  * of a fixed clock so the component only paints.
  *
  * No lanes and no label measurement, on purpose: the room reads the same at
@@ -10,20 +10,22 @@
  * the lane layout borrowed from vcihal.com/tasks).
  */
 
-export type TimelineKind = 'proposal' | 'decision' | 'book' | 'plan';
-
+/** One entry the owner typed (docs/data-room.md, "What is planned", the
+ *  API shape). Nothing on the planned tab is derived, so there is no kind:
+ *  every row is a plan entry. */
 export interface TimelineItem {
-  kind: TimelineKind;
   id: string;
   title: string;
-  /** ISO instant; null means "can be worked on now", drawn from the window's left edge. */
+  /** The owner's words, markdown, or null. */
+  description: string | null;
+  /** ISO instant; null means the entry begins at the left edge of whatever range is shown. */
   start: string | null;
   /** ISO instant; null means no due point, listed under the axis rather than drawn. */
-  end: string | null;
-  /** Where the row goes; a plan item has none and opens its own words. */
-  href: string | null;
-  done?: boolean;
-  description?: string | null;
+  due: string | null;
+  done: boolean;
+  createdAt: string;
+  editedAt: string | null;
+  doneAt: string | null;
 }
 
 export type Range = 'today' | 'week' | 'month';
@@ -89,21 +91,19 @@ export function ticksFor(range: Range, from: number, to: number): Tick[] {
   return out;
 }
 
-/** The mono meta at the end of a title line: what the end IS, then the day.
- *  Today and tomorrow are written as words because "due 11 Sept" makes the
- *  reader look at a calendar for what is in front of them. Null when the
- *  item has no end. */
-export function endMeta(item: TimelineItem, now: Date | number): string | null {
-  if (!item.end) return null;
-  const e = Date.parse(item.end);
+/** The mono meta at the end of a title line: "due", then the day. Today and
+ *  tomorrow are written as words because "due 11 Sept" makes the reader
+ *  look at a calendar for what is in front of them. Null when the entry has
+ *  no due point. */
+export function endMeta(item: Pick<TimelineItem, 'due'>, now: Date | number): string | null {
+  if (!item.due) return null;
+  const e = Date.parse(item.due);
   if (Number.isNaN(e)) return null;
-  const verb =
-    item.kind === 'decision' ? 'decides' : item.kind === 'proposal' ? 'by' : item.kind === 'book' ? 'settles' : 'due';
   const today = new Date(typeof now === 'number' ? now : now.getTime());
   today.setHours(0, 0, 0, 0);
   const days = Math.floor((e - today.getTime()) / DAY);
   const when = days === 0 ? 'today' : days === 1 ? 'tomorrow' : fmtDayMonth(new Date(e));
-  return `${verb} ${when}`;
+  return `due ${when}`;
 }
 
 export interface PlacedRow {
@@ -121,7 +121,7 @@ export interface Layout {
   from: number;
   to: number;
   width: number;
-  /** Soonest end first. */
+  /** Soonest due first. */
   rows: PlacedRow[];
   undated: TimelineItem[];
   /** Null when now is outside the window. */
@@ -157,11 +157,11 @@ export function layout(
   const rows: PlacedRow[] = [];
   for (const it of items) {
     if (it.done) continue;
-    if (!it.end) {
+    if (!it.due) {
       undated.push(it);
       continue;
     }
-    const e = Date.parse(it.end);
+    const e = Date.parse(it.due);
     // A null start is "can be worked on now": the bar begins at the window's
     // left edge, whichever window is shown.
     const s = it.start ? Date.parse(it.start) : -Infinity;
@@ -178,7 +178,7 @@ export function layout(
       end: e,
     });
   }
-  // The API already sends end ascending; sorting again costs nothing and
+  // The API already sends due ascending; sorting again costs nothing and
   // keeps the rule true whatever the caller hands over.
   rows.sort((a, b) => a.end - b.end);
 

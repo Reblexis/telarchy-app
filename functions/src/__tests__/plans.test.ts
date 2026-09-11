@@ -1,7 +1,8 @@
 /**
  * Plan items: the owner's commitments that are not proposals
- * (docs/owner-on-the-floor.md, "What is planned"). Written by
- * POST/PUT /api/workspaces/:id/plans, both behind manage; never deleted, only
+ * (docs/data-room.md, "What is planned"). Written by
+ * POST/PUT /api/workspaces/:id/plans and listed by GET, all behind manage
+ * (the cockpit's list; the public read is GET /api/data-room/planned); never deleted, only
  * done or edited, so nothing planned in public can be quietly unplanned. The
  * no-delete rule lives in the database (migration 0121), and the tests hit it
  * there, not only through the routes that are the convenient path to it.
@@ -40,14 +41,12 @@ import express from 'express';
 import request from 'supertest';
 import { agents, permissionGroups, plans, workspaces } from '../db/schema';
 import { AppError } from '../lib/errors';
-import { marketplaceRouter } from '../routes/marketplace';
 import { workspacesRouter } from '../routes/workspaces';
 import { buildActions } from '../services/actions';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
-app.use('/api/marketplace', marketplaceRouter);
 app.use(
   '/api/workspaces',
   (req: any, _res, next) => {
@@ -108,6 +107,7 @@ async function seed() {
 
 const post = (body: object) => request(app).post(`/api/workspaces/${WS}/plans`).send(body);
 const put = (id: string, body: object) => request(app).put(`/api/workspaces/${WS}/plans/${id}`).send(body);
+const list = () => request(app).get(`/api/workspaces/${WS}/plans`);
 
 describe('adding a plan', () => {
   test('201 with the row, dates as ISO strings, createdBy the caller', async () => {
@@ -131,8 +131,8 @@ describe('adding a plan', () => {
       createdAt: expect.stringMatching(ISO),
       editedAt: null,
     });
-    const timeline = await request(app).get(`/api/marketplace/${SLUG}/timeline`);
-    expect(timeline.body.items.map((i: { id: string }) => i.id)).toEqual([res.body.id]);
+    const listed = await list();
+    expect(listed.body.items.map((i: { id: string }) => i.id)).toEqual([res.body.id]);
   });
 
   test('a title alone is enough; start and due are optional', async () => {
@@ -239,16 +239,21 @@ describe('editing a plan', () => {
     const undone = await put(created.body.id, { done: false });
     expect(undone.body.doneAt).toBeNull();
 
-    const timeline = await request(app).get(`/api/marketplace/${SLUG}/timeline`);
-    expect(timeline.body.items).toHaveLength(1);
+    const listed = await list();
+    expect(listed.body.items).toHaveLength(1);
+    expect(listed.body.items[0].done).toBe(false);
   });
 
-  test('a done plan leaves the timeline', async () => {
+  test('a done plan stays on the list, marked done, after the open ones', async () => {
     await seed();
+    const open = await post({ title: 'Still open' });
     const created = await post({ title: 'Do it', due: '2026-09-20T00:00:00Z' });
     await put(created.body.id, { done: true });
-    const timeline = await request(app).get(`/api/marketplace/${SLUG}/timeline`);
-    expect(timeline.body.items).toEqual([]);
+    const listed = await list();
+    expect(listed.body.items.map((i: { id: string; done: boolean }) => [i.id, i.done])).toEqual([
+      [open.body.id, false],
+      [created.body.id, true],
+    ]);
   });
 
   test('editing the words does not move doneAt', async () => {
@@ -281,6 +286,81 @@ describe('editing a plan', () => {
   test('an unknown plan is 404', async () => {
     await seed();
     expect((await put('nope', { title: 'x' })).status).toBe(404);
+  });
+});
+
+describe("listing a floor's plans (the cockpit's list)", () => {
+  test('open entries first by due ascending with the undated last, then done by doneAt descending', async () => {
+    await seed();
+    const undated = await post({ title: 'Someday' });
+    const late = await post({ title: 'Later', due: '2026-09-20T00:00:00Z' });
+    const soon = await post({ title: 'Soon', due: '2026-09-12T00:00:00Z' });
+    const doneFirst = await post({ title: 'Finished first' });
+    const doneSecond = await post({ title: 'Finished second' });
+    await put(doneFirst.body.id, { done: true });
+    await new Promise(r => setTimeout(r, 5));
+    await put(doneSecond.body.id, { done: true });
+    const res = await list();
+    expect(res.status).toBe(200);
+    expect(Object.keys(res.body).sort()).toEqual(['items', 'now', 'workspace']);
+    expect(res.body.workspace).toEqual({ id: WS, slug: SLUG, name: 'Plans WS' });
+    expect(res.body.items.map((i: { id: string }) => i.id)).toEqual([
+      soon.body.id,
+      late.body.id,
+      undated.body.id,
+      doneSecond.body.id,
+      doneFirst.body.id,
+    ]);
+    expect(res.body.items[0]).toEqual({
+      id: soon.body.id,
+      title: 'Soon',
+      description: null,
+      start: null,
+      due: '2026-09-12T00:00:00.000Z',
+      done: false,
+      createdAt: soon.body.createdAt,
+      editedAt: null,
+      doneAt: null,
+    });
+  });
+
+  test('a floor with nothing planned lists nothing', async () => {
+    await seed();
+    const res = await list();
+    expect(res.status).toBe(200);
+    expect(res.body.items).toEqual([]);
+  });
+
+  test("another floor's plans are not on the list", async () => {
+    await seed();
+    await db
+      .insert(workspaces)
+      .values({ id: 'ws-other', name: 'Other', createdBy: 'agent-p1', visibility: 'public', slug: 'other-ws' });
+    await db.insert(plans).values({ id: 'pl-other', workspaceId: 'ws-other', title: 'Not ours' });
+    await post({ title: 'Ours' });
+    const res = await list();
+    expect(res.body.items.map((i: { title: string }) => i.title)).toEqual(['Ours']);
+  });
+
+  test('the list needs manage, like the writes: a reader is refused', async () => {
+    await seed();
+    await post({ title: 'secret-ish' });
+    auth = { workspaceId: WS, capabilities: new Set(['read', 'trade']), agentId: 'agent-p1' };
+    expect((await list()).status).toBe(403);
+  });
+
+  test('manage rights in one workspace do not list another', async () => {
+    await seed();
+    await db
+      .insert(workspaces)
+      .values({ id: 'ws-other', name: 'Other', createdBy: 'agent-p1', visibility: 'public', slug: 'other-ws' });
+    expect((await request(app).get('/api/workspaces/ws-other/plans')).status).toBe(403);
+  });
+
+  test('an unknown workspace is 404', async () => {
+    await seed();
+    auth = { workspaceId: 'ws-none', capabilities: new Set(['manage']), agentId: 'agent-p1' };
+    expect((await request(app).get('/api/workspaces/ws-none/plans')).status).toBe(404);
   });
 });
 

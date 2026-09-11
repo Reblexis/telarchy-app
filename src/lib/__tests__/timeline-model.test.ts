@@ -16,11 +16,14 @@ const iso = (d: Date | number) => new Date(d).toISOString();
 const at = (offsetMs: number) => iso(NOW.getTime() + offsetMs);
 
 const item = (over: Partial<TimelineItem> & { id: string }): TimelineItem => ({
-  kind: 'plan',
   title: `Item ${over.id}`,
+  description: null,
   start: null,
-  end: null,
-  href: null,
+  due: null,
+  done: false,
+  createdAt: '2026-09-01T00:00:00.000Z',
+  editedAt: null,
+  doneAt: null,
   ...over,
 });
 
@@ -55,41 +58,41 @@ describe('which items reach the window', () => {
     expect(l.nowX).not.toBeNull();
   });
   test('an item entirely before the window is dropped', () => {
-    expect(layout([item({ id: 'a', start: at(-10 * DAY), end: at(-8 * DAY) })], 'week', NOW, 280).rows).toEqual([]);
+    expect(layout([item({ id: 'a', start: at(-10 * DAY), due: at(-8 * DAY) })], 'week', NOW, 280).rows).toEqual([]);
   });
   test('an item entirely after the window is dropped', () => {
-    expect(layout([item({ id: 'a', start: at(10 * DAY), end: at(12 * DAY) })], 'week', NOW, 280).rows).toEqual([]);
+    expect(layout([item({ id: 'a', start: at(10 * DAY), due: at(12 * DAY) })], 'week', NOW, 280).rows).toEqual([]);
   });
   test('an item spanning the whole window is clipped to its edges and marked open both ways', () => {
-    const [row] = layout([item({ id: 'a', start: at(-30 * DAY), end: at(30 * DAY) })], 'week', NOW, 280).rows;
+    const [row] = layout([item({ id: 'a', start: at(-30 * DAY), due: at(30 * DAY) })], 'week', NOW, 280).rows;
     expect(row.left).toBe(0);
     expect(row.left + row.width).toBe(280);
     expect(row.openLeft).toBe(true);
     expect(row.openRight).toBe(true);
   });
   test('a null start begins at the left edge of the window, and is not "open"', () => {
-    const [row] = layout([item({ id: 'a', start: null, end: at(2 * DAY) })], 'week', NOW, 280).rows;
+    const [row] = layout([item({ id: 'a', start: null, due: at(2 * DAY) })], 'week', NOW, 280).rows;
     expect(row.left).toBe(0);
     expect(row.openLeft).toBe(false);
   });
-  test('a null end is not a bar: it is listed as undated', () => {
-    const l = layout([item({ id: 'a', start: at(-DAY), end: null })], 'week', NOW, 280);
+  test('a null due is not a bar: it is listed as undated', () => {
+    const l = layout([item({ id: 'a', start: at(-DAY), due: null })], 'week', NOW, 280);
     expect(l.rows).toEqual([]);
     expect(l.undated.map(i => i.id)).toEqual(['a']);
   });
-  test('a done plan leaves the axis', () => {
-    const l = layout([item({ id: 'a', start: at(-DAY), end: at(DAY), done: true })], 'week', NOW, 280);
+  test('a done entry leaves the axis and is not listed as undated either', () => {
+    const l = layout([item({ id: 'a', start: at(-DAY), due: at(DAY), done: true })], 'week', NOW, 280);
     expect(l.rows).toEqual([]);
     expect(l.undated).toEqual([]);
   });
   test('pixel extents follow the window linearly', () => {
     // week: from = now - 1d, span 7d, 700px wide => 100px a day.
-    const [row] = layout([item({ id: 'a', start: at(0), end: at(2 * DAY) })], 'week', NOW, 700).rows;
+    const [row] = layout([item({ id: 'a', start: at(0), due: at(2 * DAY) })], 'week', NOW, 700).rows;
     expect(row.left).toBeCloseTo(100, 5);
     expect(row.width).toBeCloseTo(200, 5);
   });
   test('a ten-minute item is still a visible bar', () => {
-    const [row] = layout([item({ id: 'a', start: at(0), end: at(600e3) })], 'month', NOW, 280).rows;
+    const [row] = layout([item({ id: 'a', start: at(0), due: at(600e3) })], 'month', NOW, 280).rows;
     expect(row.width).toBeGreaterThanOrEqual(2);
   });
 });
@@ -98,9 +101,9 @@ describe('row order', () => {
   test('rows are sorted by end, soonest on top, whatever order they arrived in', () => {
     const l = layout(
       [
-        item({ id: 'late', start: at(-DAY), end: at(5 * DAY) }),
-        item({ id: 'soon', start: at(0), end: at(DAY) }),
-        item({ id: 'mid', start: null, end: at(3 * DAY) }),
+        item({ id: 'late', start: at(-DAY), due: at(5 * DAY) }),
+        item({ id: 'soon', start: at(0), due: at(DAY) }),
+        item({ id: 'mid', start: null, due: at(3 * DAY) }),
       ],
       'week',
       NOW,
@@ -152,16 +155,17 @@ describe('the ticks, one rule per range', () => {
 
 describe('the meta at the end of a title line', () => {
   const on = (d: Date) => d.toISOString();
-  test('one verb per kind, then the day', () => {
+  test('"due", then the day: every entry is something the owner typed, so there is one verb', () => {
     const d = new Date(2026, 8, 15, 12);
-    expect(endMeta({ ...item({ id: 'a', kind: 'decision' }), end: on(d) }, NOW)).toBe(`decides ${dayMonth(d)}`);
-    expect(endMeta({ ...item({ id: 'a', kind: 'proposal' }), end: on(d) }, NOW)).toBe(`by ${dayMonth(d)}`);
-    expect(endMeta({ ...item({ id: 'a', kind: 'book' }), end: on(d) }, NOW)).toBe(`settles ${dayMonth(d)}`);
-    expect(endMeta({ ...item({ id: 'a', kind: 'plan' }), end: on(d) }, NOW)).toBe(`due ${dayMonth(d)}`);
+    expect(endMeta({ ...item({ id: 'a' }), due: on(d) }, NOW)).toBe(`due ${dayMonth(d)}`);
   });
   test('today and tomorrow are written as words', () => {
-    expect(endMeta({ ...item({ id: 'a', kind: 'plan' }), end: at(3 * 36e5) }, NOW)).toBe('due today');
-    expect(endMeta({ ...item({ id: 'a', kind: 'decision' }), end: at(DAY) }, NOW)).toBe('decides tomorrow');
+    expect(endMeta({ ...item({ id: 'a' }), due: at(3 * 36e5) }, NOW)).toBe('due today');
+    expect(endMeta({ ...item({ id: 'a' }), due: at(DAY) }, NOW)).toBe('due tomorrow');
+  });
+  test('a due point that has passed is still "due <day>": the row sits in the shaded past', () => {
+    const d = new Date(2026, 8, 9, 12);
+    expect(endMeta({ ...item({ id: 'a' }), due: on(d) }, NOW)).toBe(`due ${dayMonth(d)}`);
   });
   test('an undated item has no meta', () => {
     expect(endMeta(item({ id: 'a' }), NOW)).toBeNull();

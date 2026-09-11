@@ -239,16 +239,14 @@ credits stays on the floor, beside the price each pool moves.
 
 ## What is planned lives in the data room
 
-The owner's calendar (what is committed and by when: approved proposals not
-yet delivered, pending proposals until they decide, open books until they
-settle, and the owner's own plan items) is not a card on the floor. It is a
-section of the data room (`docs/data-room.md`, "What is planned"), because
-the floor is the place to price a number and the room is the place to read
-what the owner is doing (owner decision 2026-09-11, record in the telarchy
-umbrella, `notes/floor-timeline-proposal-2026-09-11.md`). The floor draws
-nothing for it. Plan items are the owner's own: `POST /api/workspaces/:id/plans`
-and `PUT /api/workspaces/:id/plans/:planId`, both behind `manage`, and the
-room's "+ plan" control is the button for the same calls.
+The owner's calendar (the plan entries the owner writes by hand: what is
+coming and when) is not a card on the floor. It is a tab of the data room
+(`docs/data-room.md`, "What is planned"), entered from the cockpit
+(`/admin`, "Plans"), because the floor is the place to price a number and
+the room is the place to read what the owner is doing (owner decision
+2026-09-11, record in the telarchy umbrella,
+`notes/floor-timeline-proposal-2026-09-11.md`). The floor draws nothing
+for it.
 
 ## What is still open, on the floor itself
 

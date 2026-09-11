@@ -2713,8 +2713,8 @@ different lie.
 ### The cockpit is tabbed, and only the open tab costs anything
 
 `/admin` carries every operational surface there is: outreach, the X
-workbench, traffic, the people to pay, the earn table, what the floors were
-asked, and what people reported. On one page that is a scroll nobody reads
+workbench, the data room's plan entries, traffic, the people to pay, the earn
+table, what the floors were asked, and what people reported. On one page that is a scroll nobody reads
 to the bottom of, and worse, it is one page's worth of queries every poll
 whether or not anyone is looking at them.
 
@@ -2888,18 +2888,30 @@ kind and floor above the sentence. A kind's colour is never the only place
 its name appears. A row the minute's poll brought in is tinted in its kind's
 colour until the pointer moves. Spec: `docs/data-room.md`.
 
-Between the stamp and the filter row sits **"What is planned"**
-(`PlannedTimeline`, `.dr-tl-*`): the platform floor's calendar, one time
-axis with a now-line and shaded past, a segmented control for today, week
-and month, one row per item (title line with a mono end meta, a thin bar
-beneath) with the soonest deadline on top, eight rows shown and "All N"
-unfolding the rest, and under it the items without a date. It draws
-exactly what `GET /api/data-room/planned` returns (`docs/data-room.md`,
-"What is planned"). Same head anatomy as the log's day rules: mono label,
-the floor's name as the meta, hairline. The title is never drawn inside or
-beside its bar, and a row is a link to the thing it is. A manager of that
-floor gets "+ plan" as the corner control and a done tick on each plan
-row; a visitor gets neither. With nothing planned it says so in one line.
+**The tabs.** Under the masthead sits one tab row (`.dr-tabs`): Log,
+What is planned, Documentation, Vision, mono uppercase, the current one
+underlined in the accent, each a link to its address (`/data-room`,
+`/data-room/planned`, `/data-room/docs`, `/data-room/vision`). The stamp,
+the filter row and the log belong to the Log tab only.
+
+**"What is planned"** (`PlannedTimeline`, `.dr-tl-*`) is the owner's
+hand-written calendar: one time axis with a now-line and shaded past, a
+segmented control for today, week and month, one row per open entry (title
+line with a mono due meta, a thin bar beneath) with the soonest due on top,
+eight rows shown and "All N" unfolding the rest, and under it the entries
+without a date. It draws exactly what `GET /api/data-room/planned` returns
+(`docs/data-room.md`, "What is planned"). Same head anatomy as the log's
+day rules: mono label, the floor's name as the meta, hairline. The title is
+never drawn inside or beside its bar; a row opens the entry's own words.
+There are no controls on it for anyone: entries are written in the cockpit
+(`/admin`, "Plans" tab, `.adm-*` language like the other cards). With
+nothing planned it says "Nothing planned yet." in one line.
+
+**Documentation** renders the guides (`GuideIndex`, `OneGuide`, the same
+components as `/guides`) inside the room's column and palette, with the
+room's tab row above them. **Vision** renders one markdown document the
+same way an announcement body is rendered, under the tab row, with its
+"updated" date in mono.
 
 ## The frontend never speaks HTTP directly
 
