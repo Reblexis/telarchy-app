@@ -41,7 +41,6 @@ const PROSE = [
   // the live segment's next-move line (docs/ui-conventions.md, "The live view is a segment of the chart slot")
   'snake-next',
   // the why line under it (item 3 of what LIVE draws, 2026-09-11)
-  'snake-why',
   'pubws-publish-sub',
   'doors-note',
   // the home board, /owners, /forecast, /for-agents
