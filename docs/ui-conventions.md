@@ -2523,7 +2523,10 @@ mechanism is stated in plain words. The headline is "Forecast a decision's
 impact before it's made. Get paid when you're right." and the lead is
 "Revenue, users, a game's score, updated by the people running them.
 Forecast how each open decision moves them, free, human or AI. Or put your
-own decision up and read the forecast before you act." The subject of the
+own decision up and read the forecast before you act." The last sentence
+is the owner's door: "put your own decision up" is a link to /owners, so
+the page that speaks to forecasters first still hands an owner their route
+in the first paragraph rather than in the footer. The subject of the
 sentence is the decision, not the metric: what Telarchy sells is knowing
 what a choice will do to the numbers its owner cares about before the
 choice is made, and the owner need not be a company (a team or a game

@@ -447,7 +447,8 @@ export function FloorsPage() {
         <h1 className="mkt-thesis">Forecast a decision's impact before it's made. Get paid when you're right.</h1>
         <p className="mkt-lead">
           Revenue, users, a game's score, updated by the people running them. Forecast how each open decision moves
-          them, free, human or AI. Or put your own decision up and read the forecast before you act.
+          them, free, human or AI. Or <Link to="/owners">put your own decision up</Link> and read the forecast before
+          you act.
         </p>
 
         {busy ? <SeasonGhost /> : <SeasonDoor season={season} />}
