@@ -728,10 +728,10 @@ export interface Announcement {
   publishedBy: string | null;
 }
 
-/** One bar or listed item on the floor's "What is planned" axis
- *  (docs/owner-on-the-floor.md, "What is planned"). Computed by the server
- *  and drawn as returned; the client derives no bar itself. The shape lives
- *  with the geometry in lib/timeline-model.ts and is re-exported here. */
+/** One plan entry on the data room's "What is planned" tab and in the
+ *  cockpit's Plans card (docs/data-room.md, "What is planned"): something the
+ *  owner typed, never derived. The shape lives with the geometry in
+ *  lib/timeline-model.ts and is re-exported here. */
 export type { TimelineItem };
 
 /** An owner's plan item: a commitment that is not a proposal. Never
@@ -905,12 +905,29 @@ export interface ActionsPage {
 }
 
 /** The room's "What is planned" read (docs/data-room.md, "What is planned"):
- *  the platform floor's calendar, `workspace` null on an instance that has no
- *  such floor. `items` are exactly the per-floor timeline's. */
+ *  the platform floor's entries, `workspace` null when no public floor
+ *  carries the slug. Open entries by due ascending (undated last), then done
+ *  entries by doneAt descending. */
 export interface PlannedResponse {
   workspace: { id: string; slug: string; name: string } | null;
   now: string;
   items: TimelineItem[];
+}
+
+/** GET /api/workspaces/:id/plans: the same list for the floor's managers
+ *  (the cockpit's Plans card), always naming the floor. */
+export interface PlansList {
+  workspace: { id: string; slug: string | null; name: string };
+  now: string;
+  items: TimelineItem[];
+}
+
+/** The data room's Vision tab (docs/data-room.md, "Vision"). `updatedAt` is
+ *  a calendar day, YYYY-MM-DD. */
+export interface DataRoomVision {
+  title: string;
+  updatedAt: string;
+  markdown: string;
 }
 
 /** The filters the page and the endpoint share (docs/data-room.md,
@@ -1974,10 +1991,11 @@ export const api = {
    *  renders this response and nothing else (docs/data-room.md). */
   getActions: (params: ActionsParams = {}): Promise<ActionsPage> =>
     request(`/api/data-room/actions${actionsQueryString(params)}`),
-  /** What the owner of Telarchy has committed to and by when: the platform
-   *  floor's calendar, drawn between the room's stamp and its filter bar
-   *  (docs/data-room.md, "What is planned"). */
+  /** The room's "What is planned" tab: the platform floor's entries, as the
+   *  owner typed them (docs/data-room.md, "What is planned"). */
   getDataRoomPlanned: (): Promise<PlannedResponse> => request('/api/data-room/planned'),
+  /** The room's Vision tab: one markdown document (docs/data-room.md, "Vision"). */
+  getDataRoomVision: (): Promise<DataRoomVision> => request('/api/data-room/vision'),
 
   /** Admin launch dashboard: floor visits, signups, waitlist. */
   getFloorStats: () => request('/api/admin/floor-stats'),
@@ -2647,12 +2665,7 @@ export const api = {
     }),
 
   // User auth / profile
-  /** With a workspace id the answer is scoped to that floor (X-Workspace-Id),
-   *  so `capabilities` says what the caller may do THERE rather than on the
-   *  floor they last opened; the data room asks this way about the platform
-   *  floor without making it the active workspace. */
-  getProfile: (workspaceId?: string) =>
-    workspaceId ? requestWithWorkspace('/api/auth/me', {}, { workspaceId }) : request('/api/auth/me'),
+  getProfile: () => request('/api/auth/me'),
   /** `notifications` is the email switches; any subset, an omitted key keeps
    *  its current value (see docs/vision.md, "Participant email notifications"). */
   upsertProfile: (opts?: {
@@ -2766,6 +2779,9 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ body }),
     }),
+  /** A floor's plan entries, open and done, for its managers: the cockpit's
+   *  Plans card (docs/data-room.md, "What is planned"). */
+  listPlans: (workspaceId: string): Promise<PlansList> => request(`/api/workspaces/${workspaceId}/plans`),
   createPlan: (
     workspaceId: string,
     body: { title: string; description?: string; start?: string; due?: string },
@@ -2777,7 +2793,13 @@ export const api = {
   updatePlan: (
     workspaceId: string,
     planId: string,
-    body: { title?: string; description?: string; start?: string | null; due?: string | null; done?: boolean },
+    body: {
+      title?: string;
+      description?: string | null;
+      start?: string | null;
+      due?: string | null;
+      done?: boolean;
+    },
   ): Promise<Plan> =>
     request(`/api/workspaces/${workspaceId}/plans/${planId}`, {
       method: 'PUT',

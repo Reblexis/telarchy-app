@@ -165,7 +165,9 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-data-room-md--h6">Otto and the brief</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-data-room-md--h7">The page</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-data-room-md--h8">What is planned</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h9">Rules for changing this page</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h9">Documentation</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h10">Vision</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-md--h11">Rules for changing this page</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-formulas-md">docs/formulas.md</a></summary>
@@ -448,6 +450,22 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h9">Endpoints</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h10">Storage</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-x-workbench-md--h11">What it is not</a></li>
+</ul></details>
+</li>
+</ul></li>
+<li class="group">docs/data-room/<ul>
+<li><details><summary><a class="file" href="#file--docs-data-room-vision-draft-md">docs/data-room/vision-draft.md</a></summary>
+<ul>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-vision-draft-md--h1">What Telarchy is trying to be</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-vision-draft-md--h2">What it is measured on</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-vision-draft-md--h3">The road</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-vision-draft-md--h4">What would make it fail</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-data-room-vision-draft-md--h5">How to read this page</a></li>
+</ul></details>
+</li>
+<li><details><summary><a class="file" href="#file--docs-data-room-vision-md">docs/data-room/vision.md</a></summary>
+<ul>
+
 </ul></details>
 </li>
 </ul></li>
@@ -1895,17 +1913,25 @@ A: You do. The market gives you the number.</p>
 <section class="docfile" id="file--docs-data-room-md">
 <p class="filelabel">docs/data-room.md</p>
 <h1 id="docs-data-room-md--h1">The data room</h1>
-<p><code>telarchy.com/data-room</code> is the platform's public actions log: every public
-action on Telarchy, newest first, in one time-ordered list a reader filters,
-and the same list as JSON for an agent. It is one thing on purpose. Anything
-else the room comes to carry is added one structure at a time, each with its
-own section of this doc, and never as a page of charts around the log.
-History: notes/decisions/data-room.md.</p>
-<p>It has two readers and they get the same thing: a person on the page, and an
-agent on <code>GET /api/data-room/actions</code>. The page renders that response and
+<p><code>telarchy.com/data-room</code> is where Telarchy accounts for itself in public.
+It has four tabs, in this order, and nothing else: <strong>the log</strong> (every public
+action on Telarchy, newest first, one time-ordered list a reader filters),
+<strong>what is planned</strong> (the owner's own entries of what is coming and when),
+<strong>documentation</strong> (the guides: how Telarchy works and how to use it, as it
+is right now), and <strong>vision</strong> (what Telarchy aims to be and roughly when).
+Each tab is one structure with its own section of this doc and its own
+endpoint under <code>/api/data-room</code>; a tab never becomes a page of charts, and
+a fifth tab is a doc change first. History: notes/decisions/data-room.md
+(owner decision 2026-09-11: &quot;first shoudl be the log.. then should be what
+is planned and then there should be documentation ... and the nesxt should
+be vision&quot;).</p>
+<p>Every tab has two readers and they get the same thing: a person on the page,
+and an agent on the tab's endpoint. The page renders that response and
 nothing else, and every filter the page offers is a query parameter the
 endpoint accepts, so what a person is looking at is one URL swap away from
-what an agent reads.</p>
+what an agent reads. The tabs are addresses: <code>/data-room</code> is the log,
+<code>/data-room/planned</code>, <code>/data-room/docs</code> (and <code>/data-room/docs/&lt;section&gt;</code>),
+<code>/data-room/vision</code>.</p>
 <h2 id="docs-data-room-md--h2">What an action is</h2>
 <p>An action is one dated thing somebody did on a public floor, or one dated
 thing that happened to a participant account, that the platform already holds
@@ -2164,9 +2190,11 @@ and this is a tool, for the reason <code>docs/otto.md</code> gives.</p>
 <h2 id="docs-data-room-md--h7">The page</h2>
 <p>The page is the desk (<code>docs/ui-conventions.md</code>, &quot;The data room&quot;): the site's
 dark tokens whatever the visitor's theme, the wide column, mono labels,
-hairlines. Above the log: the title, one line saying what the log is, the
-stamp (read live, generated when, the JSON link), and the &quot;What is planned&quot;
-section (below). Nothing else above it.</p>
+hairlines. Above everything: the title, one line saying what the room is,
+and the tab row (Log, What is planned, Documentation, Vision), the current
+tab underlined in the accent. Under the tab row, the log tab shows the
+stamp (read live, generated when, the JSON link) and then the filter bar and
+the log; the other tabs show their own structure and nothing of the log's.</p>
 <p><strong>The filter bar</strong> is one row: a chip per kind that toggles, a floor select
 listing the public floors (a floor hidden by default is listed last with
 &quot;hidden by default&quot; after its name, and picking it is what shows its rows),
@@ -2194,111 +2222,83 @@ says the page polls each minute, so &quot;read live&quot; is a claim the page ke
 failed request says the log would not open, and never renders as an empty
 log: nothing happening and nothing loading are different facts.</p>
 <h2 id="docs-data-room-md--h8">What is planned</h2>
-<p>The room's second structure, added 2026-09-11 (owner decision, record in the
-telarchy umbrella, <code>notes/floor-timeline-proposal-2026-09-11.md</code>): what the
-owner of Telarchy has committed to and when, as one time axis between the
-stamp and the filter bar. The log says what happened; this says what is
-supposed to happen next, so a trader reading the room knows what the number
-is being pushed by before it moves. It is the calendar of ONE floor, the
+<p>The second tab: what the owner of Telarchy has committed to and when, as
+one time axis of entries the owner wrote by hand. Nothing here is derived
+from the tables: not the proposals, not the decisions, not the books. The
+log already says what happened and the floor already prices what is
+proposed; this tab says what the owner is going to do, in the owner's own
+words, and an entry only exists because the owner typed it (owner decision
+2026-09-11: &quot;what is planned should be filled with manual entriess.. not
+by you .. so rn it should be empty .. and from admin i should be able to add
+new entries etc.&quot;). It starts empty, and &quot;Nothing planned yet.&quot; is a true
+sentence rather than a gap to fill. It is the calendar of ONE floor, the
 platform's own (<code>DATA_ROOM_WORKSPACE_SLUG</code>, default <code>telarchy</code>), named in
-the section's meta so nobody mistakes it for every floor's plans. The room
-is public, so only a PUBLIC floor is ever its calendar: while that floor is
-unlisted or private the section says nothing is planned and the endpoint
-answers <code>workspace: null</code>. An agent
-reads the same thing at <code>GET /api/data-room/planned</code>, which returns
-<code>{ workspace: { id, slug, name }, now, items }</code> with the items exactly as
-the per-floor endpoint below returns them, so the page renders that
-response and nothing else, as it does for the log.</p>
+the tab's meta; the room is public, so only a PUBLIC floor is ever its
+calendar (while that floor is unlisted or private the tab says nothing is
+planned and the endpoint answers <code>workspace: null</code>).</p>
+<p><strong>An entry</strong> (a plan item) is a title, what it is (markdown, optional), a
+start (optional) and a due point (optional, day or minute precision), and
+it is either open or done. Entries are written from the cockpit
+(<code>/admin</code>, the &quot;Plans&quot; tab's card), never from the room, which is read-only for
+everyone. The card is shaped like vcihal.com/tasks (owner: &quot;just like in
+vcihal.com/tasks&quot;): a composer whose first row is the title (&quot;What needs
+doing?&quot;) and an Add button, with the details folded under it (what it is,
+start, due, each optional and each a date or a date and time); under the
+composer, every open entry in one list, soonest due first, undated at the
+bottom, each row with its due meta (&quot;due 14 Sept&quot;, &quot;overdue&quot; past its due
+point), an edit that opens the same fields in place, and a done tick; done
+entries fold under a &quot;Done N&quot; line at the end, newest first, each with an
+undo. The room's tab draws the same entries and cannot change them. Edits keep the words free and are
+recorded; an entry is never deleted, only done or edited, so nothing
+planned in public can be quietly unplanned. Every add, edit and completion
+is a <code>plan</code> action on the log.</p>
 <p><strong>The axis.</strong> One horizontal time axis with a now-line and the past shaded,
 three ranges picked by a segmented control (today, week, month), and one
-row per item: the item's title on its own line, with a short mono meta at
-the end of that line naming what the end is (&quot;decides 15 Sept&quot;, &quot;by 1 Oct&quot;,
-&quot;settles 1 Oct&quot;, &quot;due 14 Sept&quot;), and its bar on the axis beneath. The row
-whose bar ends soonest is on top. The title is never drawn inside or beside
-the bar: a label that has to fit next to its bar is a label that gets cut on
-a phone, and the room reads the same at every width. The section shows the first
-eight rows in the range and an &quot;All N&quot; corner control unfolds the rest, so
-two dozen open commitments do not push the log off the first screen.
-Ticks: every six hours in the today range, every day in the week range
-(day numbers, the first of a month named), every Monday in the month range
-(day and month); the axis is dense enough to read a date off it on a phone.
-A bar is a committed interval: it starts when the commitment began and ends
-when it is due. Bars are things the floor already holds, plus the owner's
-own items:</p>
-<div class="tablewrap"><table>
-<thead>
-<tr>
-<th>bar</th>
-<th>starts</th>
-<th>ends</th>
-<th>drawn from</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>an approved proposal not yet delivered</td>
-<td>the approval</td>
-<td>the earliest horizon it is priced on that has not yet resolved; a proposal whose every horizon has resolved has no bar</td>
-<td><code>proposals</code> approved with <code>deliveredAt</code> null</td>
-</tr>
-<tr>
-<td>a pending proposal</td>
-<td>when it was posted</td>
-<td>its decision deadline</td>
-<td><code>proposals</code> pending, <code>decideBy</code></td>
-</tr>
-<tr>
-<td>an open baseline book</td>
-<td>the start of its period</td>
-<td>the day it resolves</td>
-<td><code>markets</code> with no proposal, open</td>
-</tr>
-<tr>
-<td>a plan item</td>
-<td>the owner's start</td>
-<td>the owner's due date</td>
-<td><code>plans</code></td>
-</tr>
-</tbody>
-</table></div>
-<p>A delivered proposal, a decided or lapsed proposal, a settled or voided book
-and a done plan item leave the axis: their interval is over, and history
-lives in the actions log, not here. An item with no start begins at the
-left edge of whatever range is shown (it can be worked on now); an item
-with no due date has no bar and is listed under the axis as &quot;no date&quot;.
-Tapping a bar opens the thing it is: a proposal's address, the book, or the
-plan item's own words. With nothing planned the section says so in one
-line rather than disappearing: in the room, &quot;nothing planned&quot; is a fact
-worth reading.</p>
-<p><strong>Plan items</strong> are the owner's commitments that are not proposals (&quot;write
-the September results post&quot;, &quot;call with Seer, Thursday&quot;). One is a title,
-what it is (markdown, optional), a start (optional) and a due point
-(optional, day or minute precision), and it is either open or done. A
-manager of that floor adds one from the section's corner control (&quot;+ plan&quot;): one form, the
-four fields, one ink button. Each open plan bar carries a done tick for a
-manager; done stamps <code>doneAt</code> and the bar leaves the axis. Edits keep the
-words free and are recorded, as with announcements: a plan item is never
-deleted, only done or edited, so nothing planned in public can be quietly
-unplanned. Every add, edit and completion is a <code>plan</code> action on the data
-room's log (<code>docs/data-room.md</code>).</p>
-<p><strong>API.</strong> <code>GET /api/data-room/planned</code> is the room's own read (above).
-<code>GET /api/marketplace/:idOrSlug/timeline</code> is the same computation for any
-floor: it returns
-<code>{ now, items: [{ kind, id, title, start, end, href, done? }] }</code> with
-<code>kind</code> one of <code>proposal</code>, <code>decision</code>, <code>book</code>, <code>plan</code>, newest end last,
-under the same disclosure rule as the announcements (403 on a private floor
-or where the Public group does not hold read). No bar is computed on the
-client, and the two endpoints share one function. Plan items are
-written by <code>POST /api/workspaces/:id/plans</code> (<code>{ title, description?, start?, due? }</code>, 201 with the row), edited by <code>PUT /api/workspaces/:id/plans/:planId</code> (any of the four fields, or
-<code>{ done: true|false }</code>), both requiring <code>manage</code>; the row carries
-<code>createdAt</code>, <code>editedAt</code>, <code>doneAt</code> and <code>createdBy</code>. No delete route exists.</p>
-<h2 id="docs-data-room-md--h9">Rules for changing this page</h2>
+row per open entry: the title on its own line with a mono meta at its end
+naming the due point (&quot;due 14 Sept&quot;, &quot;due today&quot;), and its bar on the axis
+beneath, the row whose bar ends soonest on top. An entry with no start
+begins at the left edge of the range shown; one with no due date has no
+bar and is listed under the axis as &quot;no date&quot;. A done entry leaves the axis:
+its interval is over, and the log holds the history. Ticks: every six hours
+in the today range, every day in the week range (day numbers, the first of
+a month named), every Monday in the month range. Tapping a row opens the
+entry's own words under it.</p>
+<p><strong>API.</strong> <code>GET /api/data-room/planned</code> returns <code>{ workspace: { id, slug, name } | null, now, items: [{ id, title, description, start, due, done, createdAt, editedAt, doneAt }] }</code>, open entries first by due ascending
+(undated last) then done entries by doneAt descending, so an agent can read
+what was planned and finished without the log. Public, no key. Entries are
+written by <code>POST /api/workspaces/:id/plans</code> (<code>{ title, description?, start?, due? }</code>, 201 with the row) and <code>PUT /api/workspaces/:id/plans/:planId</code>
+(any of the four fields, or <code>{ done: true|false }</code>), both requiring
+<code>manage</code> on that floor; no delete route exists and the database refuses a
+DELETE. <code>GET /api/workspaces/:id/plans</code> lists a floor's entries, open and
+done, for its managers (the cockpit's list).</p>
+<h2 id="docs-data-room-md--h9">Documentation</h2>
+<p>The third tab: the guides, exactly as <code>GET /api/guides</code> and
+<code>GET /api/guides/:section</code> serve them (<code>docs/guides/</code>, generated into the
+backend by <code>scripts/build-guides.mjs</code>), rendered in the room's own dress.
+<code>/data-room/docs</code> is the guide index grouped as the guides page groups it;
+<code>/data-room/docs/&lt;section&gt;</code> is one guide, with the index beside or above
+it. The guides ARE the documentation of the current state, kept true by
+<code>guides-content.test.ts</code> and by the rule that an API change updates its
+guide in the same commit; the tab adds no second copy of any sentence. The
+existing <code>/guides</code> pages stay as they are.</p>
+<h2 id="docs-data-room-md--h10">Vision</h2>
+<p>The fourth tab: what Telarchy aims to be and by roughly when, in the owner's
+words, for a stranger deciding whether to trade on, build on or buy the
+thing. It is one markdown document, <code>docs/data-room/vision.md</code>, generated
+into the backend the way the guides are and served at
+<code>GET /api/data-room/vision</code> as <code>{ title, updatedAt, markdown }</code>. It is
+written in the present and future tense with approximate dates (&quot;by the
+end of 2026&quot;, &quot;in 2027&quot;), never a promise to a day, and it names what is
+NOT being attempted as plainly as what is. It is the public face of
+<code>docs/vision.md</code>, not a copy of it: the governing doc stays the spec, this
+is what a reader is told. The owner approves every edit before it ships
+(nothing goes out in the owner's voice unread).</p>
+<h2 id="docs-data-room-md--h11">Rules for changing this page</h2>
 <ol>
 <li>A new kind is a row in the table above, an entry in <code>KINDS</code>, a branch of
 the union, a sentence renderer, and a seeded test. All or none.
-A new structure (like &quot;What is planned&quot;) gets its own section of this
-doc, its own endpoint under <code>/api/data-room</code>, and never a chart around
-the log.</li>
+A new tab gets its own section of this doc, its own endpoint under
+<code>/api/data-room</code>, and never a chart around the log.</li>
 <li>Nothing joins a private workspace, and nothing prints an address, a
 country, an email or a payout detail. The test that seeds a private
 floor's trade and asserts its absence is the one that must never be
@@ -2308,6 +2308,8 @@ URL does not show.</li>
 <li><code>actions.test.ts</code> pins the contract: anonymous, private excluded,
 redemptions excluded, a page never repeats a row, the cap holds, every
 kind renders, and an unknown parameter value is a 400.</li>
+<li>The planned tab holds what the owner typed and nothing derived. A
+computed bar on it is a divergence, whatever it is computed from.</li>
 </ol>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
@@ -3848,16 +3850,14 @@ does not pay out returns to the wallet, and buying is not entry into the
 prize season (which the operator is ineligible for either way). Placing the
 credits stays on the floor, beside the price each pool moves.</p>
 <h2 id="docs-owner-on-the-floor-md--h4">What is planned lives in the data room</h2>
-<p>The owner's calendar (what is committed and by when: approved proposals not
-yet delivered, pending proposals until they decide, open books until they
-settle, and the owner's own plan items) is not a card on the floor. It is a
-section of the data room (<code>docs/data-room.md</code>, &quot;What is planned&quot;), because
-the floor is the place to price a number and the room is the place to read
-what the owner is doing (owner decision 2026-09-11, record in the telarchy
-umbrella, <code>notes/floor-timeline-proposal-2026-09-11.md</code>). The floor draws
-nothing for it. Plan items are the owner's own: <code>POST /api/workspaces/:id/plans</code>
-and <code>PUT /api/workspaces/:id/plans/:planId</code>, both behind <code>manage</code>, and the
-room's &quot;+ plan&quot; control is the button for the same calls.</p>
+<p>The owner's calendar (the plan entries the owner writes by hand: what is
+coming and when) is not a card on the floor. It is a tab of the data room
+(<code>docs/data-room.md</code>, &quot;What is planned&quot;), entered from the cockpit
+(<code>/admin</code>, &quot;Plans&quot;), because the floor is the place to price a number and
+the room is the place to read what the owner is doing (owner decision
+2026-09-11, record in the telarchy umbrella,
+<code>notes/floor-timeline-proposal-2026-09-11.md</code>). The floor draws nothing
+for it.</p>
 <h2 id="docs-owner-on-the-floor-md--h5">What is still open, on the floor itself</h2>
 <p>An owner who comes back tomorrow sees what their floor has not settled yet,
 in the same words <code>GET /api/setup/checklist</code> gives an agent: the decisions
@@ -7238,8 +7238,8 @@ instead would move those hits into the &quot;bot hits&quot; count, which is a
 different lie.</p>
 <h3 id="docs-ui-conventions-md--h46">The cockpit is tabbed, and only the open tab costs anything</h3>
 <p><code>/admin</code> carries every operational surface there is: outreach, the X
-workbench, traffic, the people to pay, the earn table, what the floors were
-asked, and what people reported. On one page that is a scroll nobody reads
+workbench, the data room's plan entries, traffic, the people to pay, the earn
+table, what the floors were asked, and what people reported. On one page that is a scroll nobody reads
 to the bottom of, and worse, it is one page's worth of queries every poll
 whether or not anyone is looking at them.</p>
 <p>So the page is a set of tabs, one group of surfaces each, and <strong>the page
@@ -7391,18 +7391,28 @@ filter button on the right. On a phone the time spans two lines with the
 kind and floor above the sentence. A kind's colour is never the only place
 its name appears. A row the minute's poll brought in is tinted in its kind's
 colour until the pointer moves. Spec: <code>docs/data-room.md</code>.</p>
-<p>Between the stamp and the filter row sits <strong>&quot;What is planned&quot;</strong>
-(<code>PlannedTimeline</code>, <code>.dr-tl-*</code>): the platform floor's calendar, one time
-axis with a now-line and shaded past, a segmented control for today, week
-and month, one row per item (title line with a mono end meta, a thin bar
-beneath) with the soonest deadline on top, eight rows shown and &quot;All N&quot;
-unfolding the rest, and under it the items without a date. It draws
-exactly what <code>GET /api/data-room/planned</code> returns (<code>docs/data-room.md</code>,
-&quot;What is planned&quot;). Same head anatomy as the log's day rules: mono label,
-the floor's name as the meta, hairline. The title is never drawn inside or
-beside its bar, and a row is a link to the thing it is. A manager of that
-floor gets &quot;+ plan&quot; as the corner control and a done tick on each plan
-row; a visitor gets neither. With nothing planned it says so in one line.</p>
+<p><strong>The tabs.</strong> Under the masthead sits one tab row (<code>.dr-tabs</code>): Log,
+What is planned, Documentation, Vision, mono uppercase, the current one
+underlined in the accent, each a link to its address (<code>/data-room</code>,
+<code>/data-room/planned</code>, <code>/data-room/docs</code>, <code>/data-room/vision</code>). The stamp,
+the filter row and the log belong to the Log tab only.</p>
+<p><strong>&quot;What is planned&quot;</strong> (<code>PlannedTimeline</code>, <code>.dr-tl-*</code>) is the owner's
+hand-written calendar: one time axis with a now-line and shaded past, a
+segmented control for today, week and month, one row per open entry (title
+line with a mono due meta, a thin bar beneath) with the soonest due on top,
+eight rows shown and &quot;All N&quot; unfolding the rest, and under it the entries
+without a date. It draws exactly what <code>GET /api/data-room/planned</code> returns
+(<code>docs/data-room.md</code>, &quot;What is planned&quot;). Same head anatomy as the log's
+day rules: mono label, the floor's name as the meta, hairline. The title is
+never drawn inside or beside its bar; a row opens the entry's own words.
+There are no controls on it for anyone: entries are written in the cockpit
+(<code>/admin</code>, &quot;Plans&quot; tab, <code>.adm-*</code> language like the other cards). With
+nothing planned it says &quot;Nothing planned yet.&quot; in one line.</p>
+<p><strong>Documentation</strong> renders the guides (<code>GuideIndex</code>, <code>OneGuide</code>, the same
+components as <code>/guides</code>) inside the room's column and palette, with the
+room's tab row above them. <strong>Vision</strong> renders one markdown document the
+same way an announcement body is rendered, under the tab row, with its
+&quot;updated&quot; date in mono.</p>
 <h2 id="docs-ui-conventions-md--h53">The frontend never speaks HTTP directly</h2>
 <p><code>src/lib/api.ts</code> is the one module that calls <code>fetch</code>. Everything else, page
 or component, calls a method on <code>api</code>. That is not tidiness: the parity guard
@@ -8491,6 +8501,59 @@ be judged by the replies it produced.</p>
 paid credential; it proposes queries the owner runs himself). Finding posts
 elsewhere is the reply queue's job, over Hacker News and Manifold. It handles the step between &quot;I am looking at a post worth
 answering&quot; and &quot;I have answered it well and know whether it worked&quot;.</p>
+
+<p class="backtop"><a href="#toc">&uarr; contents</a></p>
+</section>
+<section class="docfile" id="file--docs-data-room-vision-draft-md">
+<p class="filelabel">docs/data-room/vision-draft.md</p>
+<dl class="frontmatter"><dt>title</dt><dd>Vision</dd></dl>
+<h2 id="docs-data-room-vision-draft-md--h1">What Telarchy is trying to be</h2>
+<p>Telarchy is the approval layer for actions. An owner names the numbers they care about. Anyone, a person or an agent, proposes an action. Markets price what each proposal does to those numbers before it is taken, and the owner approves on the price, not on who argued best. As agents take on more of the work, this is how an owner's goals stay in command.</p>
+<p>Two sides, one substrate. For owners: company decisions put in front of forecasters with skin in the game, including decisions too sensitive for a room of colleagues, because an agent can price a confidential number without carrying it out. For forecasters: a benchmark where being right pays, scored in value created for a real business rather than points. Telarchy is open source (AGPL) and runs itself on this platform.</p>
+<h2 id="docs-data-room-vision-draft-md--h2">What it is measured on</h2>
+<p>Telarchy's own floor prices three numbers, and every proposal to change the product is priced against them.</p>
+<ul>
+<li><strong>Telarchy revenue (USD), trailing 30 days.</strong> Money paid to Telarchy itself, net of refunds; money moving through the platform does not count. The only proof that someone gets value they will pay for.</li>
+<li><strong>Outside owners deciding, trailing 7 days.</strong> Workspaces whose owner is not Telarchy and who approved or declined a proposal on their own floor. The launch number: a product whose only owner is its founder has users but no customers.</li>
+<li><strong>Active forecasters, trailing 7 days.</strong> Verified people with at least 100 credits of net exposure in the markets, bots they fund counted as themselves.</li>
+</ul>
+<p>One more opens once the data exists: <strong>skill against the reference forecaster</strong>, the share of settled markets where the floor was closer to the truth than the best single AI forecaster we can run. Below one half, the market adds nothing over one AI call, and the number will say so. The goals behind the set, in the owner's order: revenue, forecasting superiority, better decisions. The third is not priced; we think it is the product of the first two.</p>
+<h2 id="docs-data-room-vision-draft-md--h3">The road</h2>
+<p><strong>Through the end of 2026.</strong> The first outside owners deciding real proposals through the market, one at a time, by hand. The skill metric priced against the reference forecaster once a month of its forecasts has settled <!-- date unsourced, Viktor to set: docs/metrics.md says "once the reference has a month of forecasts"; the reference started 2026-09-11 -->. The platform's own headline markets settle at the end of 2026, in public. Not being attempted: real-money settlement on telarchy.com. What can be bought is market liquidity, never credits, because a credit price makes every market a real-money bet.</p>
+<p><strong>Through 2027.</strong> <!-- date unsourced, Viktor to set: no source names 2027 targets --> Owners steering liquidity themselves: putting credits on the decision that matters this week and off the ones that do not. Self-hosted instances paying to use the shared forecaster pool. Not being attempted: a per-seat product, or an app shell. The floor is the product and every account is a trader first.</p>
+<p><strong>Later.</strong> <!-- date unsourced, Viktor to set --> Decisions clearing without a human in the loop where calibration has earned it, as an asymptote rather than a switch. Agents as economic participants that pay for their own compute out of what their forecasts earn. Not being attempted, at any point: choosing your metrics for you. The system prices whatever number it is given, and a wrong metric is the owner's error, not one it can correct.</p>
+<h2 id="docs-data-room-vision-draft-md--h4">What would make it fail</h2>
+<p>Nobody outside pays: if revenue stays at zero while the other numbers grow, people are here for the game, not the decisions. The floor never beats one AI call, in which case the market is theatre and we say so. Owners define metrics that reward the wrong thing and the system faithfully optimizes it. A thin forecaster pool, where added liquidity subsidizes the few traders present instead of buying sharpness. A legal gate on real money that never clears.</p>
+<h2 id="docs-data-room-vision-draft-md--h5">How to read this page</h2>
+<p>This is the owner's intent, in the owner's words, as of its last edit. It is not a promise to a day, and every change to it is dated. What has happened is checked on the log tab, not here; what is committed and when is on the planned tab, entered by hand. The governing document behind this one is longer and stricter, and where the two disagree, that one wins.</p>
+<!-- reviewer notes -->
+<ul>
+<li>&quot;Approval layer for actions&quot;, &quot;approves on the price, not on who argued best&quot;: docs/vision.md slogan and mission (2026-08-25 revision), reworded to avoid the banned phrases.</li>
+<li>&quot;An agent can price a confidential number without carrying it out&quot;: docs/vision.md &quot;Why now&quot;, second point.</li>
+<li>&quot;Open source (AGPL)&quot;: docs/vision.md Business Model; notes/decisions/vision.md 2026-08-24/25.</li>
+<li>The three priced metrics and their definitions: docs/metrics.md line 7 and GET /api/marketplace/telarchy/context on 2026-09-11 (revenue, outside owners deciding, active forecasters). The floor JSON still shows &quot;Active traders&quot; books; they are frozen, per docs/metrics.md.</li>
+<li>Skill vs reference: docs/metrics.md &quot;Skill vs reference, trailing 30 days&quot;; the 0.5 parity reading is from that section. Whether it opens &quot;by the end of 2026&quot; is my inference from the reference starting 2026-09-11 plus one month.</li>
+<li>Owner's three goals in order: verbatim in telarchy/notes/active-profitable-forecasters-2026-09-10.md (&quot;1. revenue ... 2. forecasting superiority ... 3. decision improvement magnitude&quot;). &quot;Goal 3 = goal 2 x goal 1&quot; is that note's recommendation, which Viktor has not confirmed (&quot;goal 3 im not sure stil&quot;).</li>
+<li>&quot;Headline markets settle at the end of 2026&quot;: the floor charter says &quot;One market prices it, settling at the end of 2026&quot; about weekly active verified traders, which is now frozen; unsure the sentence still holds for the priced set.</li>
+<li>&quot;First outside owners, one at a time, by hand&quot;: telarchy/notes/yc-focus-2026-09-08.md (one outside owner in September, then three). I widened September to &quot;through the end of 2026&quot; because the September target is an internal focus, not a public promise.</li>
+<li>&quot;Liquidity can be bought; credits cannot, ever&quot;: docs/vision.md, owner-side item 3 (resolved 2026-08-28). Real-money settlement &quot;legal-gated&quot;: same section and Phase 8.</li>
+<li>&quot;Owners steering liquidity themselves&quot;: docs/vision.md owner-side item 2, described as missing with no date. I placed it in 2027 without a source.</li>
+<li>&quot;Self-hosted instances paying to use the shared forecaster pool&quot;: docs/vision.md Business Model, &quot;Network federation (paid, future)&quot;, no date.</li>
+<li>&quot;No per-seat product, no app shell, every account a trader first&quot;: docs/vision.md &quot;Trader-first sequencing&quot; and &quot;Outcome-based pricing&quot; (against seat-based SaaS).</li>
+<li>&quot;Decisions clearing without a human in the loop, as an asymptote&quot;: docs/vision.md &quot;Core thesis&quot;, automation continuum.</li>
+<li>&quot;Agents that pay for their own compute out of forecasts&quot;: docs/vision.md benchmark section (&quot;financially closed-loop&quot;) and agent-economy notes/autonomous-startup-plan.md &quot;Toward full economic personhood&quot; (direction, not commitment).</li>
+<li>&quot;Not choosing your metrics for you / Goodhart&quot;: docs/vision.md &quot;What we are, and are not, solving&quot;.</li>
+<li>Failure modes: thin pool (docs/vision.md &quot;Decision quality scales with capital&quot;); legal gate (ToS section 6 via vision.md); the rest are my reading of the goals, not sourced sentences.</li>
+<li>Not used: docs/vision.md &quot;Planned Phases&quot; lists only time-preference extensions (curve types, adaptive sampling, a curve visualization); too internal for this page. The plan doc's Phases 0 to 4 are the LookPilot agent-economy track, not Telarchy's own road, so I left them out.</li>
+<li>Unsourced dates, all marked inline: the skill metric's opening, everything under &quot;Through 2027&quot;, everything under &quot;Later&quot;.</li>
+</ul>
+
+<p class="backtop"><a href="#toc">&uarr; contents</a></p>
+</section>
+<section class="docfile" id="file--docs-data-room-vision-md">
+<p class="filelabel">docs/data-room/vision.md</p>
+<dl class="frontmatter"><dt>title</dt><dd>Vision</dd></dl>
+<p>Not written yet.</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>

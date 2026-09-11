@@ -1,27 +1,56 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import { Link, Navigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
+import remarkGfm from 'remark-gfm';
+import { GUIDE_ALIASES, GuideIndex, OneGuide } from '../components/Guides';
 import { PlannedTimeline } from '../components/PlannedTimeline';
 import { useAuth } from '../hooks/useAuth';
-import { type ActionRow, type ActionsPage, type ActionsParams, actionsQueryString, api } from '../lib/api';
+import {
+  type ActionRow,
+  type ActionsPage,
+  type ActionsParams,
+  actionsQueryString,
+  api,
+  type DataRoomVision,
+} from '../lib/api';
 import { withBase } from '../lib/base-path';
 import { TopBar } from './TradePage';
 
 /**
- * telarchy.com/data-room: the public actions log (docs/data-room.md).
- *
- * The page renders `GET /api/data-room/actions`, with the filters it holds
- * in its own URL query, so what a person is looking at is one URL swap away
- * from what an agent reads; and, between the stamp and the filter bar, "What
- * is planned" from `GET /api/data-room/planned` (the platform floor's
- * calendar, docs/data-room.md, "What is planned"). Drawn as the desk
+ * telarchy.com/data-room: where Telarchy accounts for itself in public
+ * (docs/data-room.md). Four tabs, each an address and each drawing one
+ * endpoint's response and nothing else: the log (`/data-room`,
+ * `GET /api/data-room/actions`, filtered through the page's own URL query),
+ * what is planned (`/data-room/planned`, `GET /api/data-room/planned`),
+ * documentation (`/data-room/docs`, the guides) and vision
+ * (`/data-room/vision`, `GET /api/data-room/vision`). Drawn as the desk
  * (docs/ui-conventions.md, "The data room"): the site's dark tokens whatever
  * the visitor's theme, mono labels, hairlines.
  */
 
-/** How often the page asks for rows newer than the newest it holds. */
+/** How often the log asks for rows newer than the newest it holds. */
 const POLL_MS = 60_000;
 
 const FILTER_KEYS = ['kinds', 'workspace', 'participant', 'after', 'before'] as const;
+
+type Tab = 'log' | 'planned' | 'docs' | 'vision';
+
+/** In the order the owner set (docs/data-room.md, the opening). */
+const TABS: Array<{ id: Tab; label: string; to: string }> = [
+  { id: 'log', label: 'Log', to: '/data-room' },
+  { id: 'planned', label: 'What is planned', to: '/data-room/planned' },
+  { id: 'docs', label: 'Documentation', to: '/data-room/docs' },
+  { id: 'vision', label: 'Vision', to: '/data-room/vision' },
+];
+
+/** The tab is the address; anything under the room that is not a tab's is the log. */
+function tabOf(pathname: string): Tab {
+  const rest = pathname.replace(/\/+$/, '').replace(/^.*\/data-room/, '');
+  if (rest.startsWith('/planned')) return 'planned';
+  if (rest.startsWith('/docs')) return 'docs';
+  if (rest.startsWith('/vision')) return 'vision';
+  return 'log';
+}
 
 function readFilters(search: URLSearchParams): ActionsParams {
   const out: ActionsParams = {};
@@ -52,8 +81,10 @@ function dayKey(iso: string): string {
   return iso.slice(0, 10);
 }
 
-export function DataRoomPage() {
-  const { user, loading: authLoading } = useAuth();
+/** The log tab: the stamp, the filter bar and the log (docs/data-room.md,
+ *  "The page"). Mounted only while the log is the open tab, so its reads and
+ *  its minute poll stop the moment the reader is elsewhere. */
+function LogTab({ onBusy }: { onBusy: (busy: boolean) => void }) {
   const [search, setSearch] = useSearchParams();
   const filters = useMemo(() => readFilters(search), [search]);
   const filterKey = actionsQueryString(filters);
@@ -67,31 +98,6 @@ export function DataRoomPage() {
   const [newIds, setNewIds] = useState<Set<string>>(() => new Set());
   const rowsRef = useRef<ActionRow[]>([]);
   rowsRef.current = rows;
-
-  // Whose calendar "What is planned" is, as the endpoint named it, and
-  // whether the reader manages that floor. The question is asked once the
-  // floor is known and only of someone signed in: a visitor is a reader.
-  const [plannedWs, setPlannedWs] = useState<{ id: string } | null>(null);
-  const [canManagePlanned, setCanManagePlanned] = useState(false);
-  useEffect(() => {
-    if (!user || !plannedWs) {
-      setCanManagePlanned(false);
-      return;
-    }
-    let live = true;
-    api
-      .getProfile(plannedWs.id)
-      .then(p => {
-        if (!live) return;
-        setCanManagePlanned(((p as { capabilities?: string[] }).capabilities ?? []).includes('manage'));
-      })
-      .catch(() => {
-        if (live) setCanManagePlanned(false);
-      });
-    return () => {
-      live = false;
-    };
-  }, [user, plannedWs]);
 
   // The first page, whenever the filters change. A request that is no
   // longer the newest one is dropped rather than raced onto the page.
@@ -203,159 +209,257 @@ export function DataRoomPage() {
   const anyFilter = FILTER_KEYS.some(k => filters[k]);
   const jsonHref = withBase(`/api/data-room/actions${filterKey}`);
 
+  useEffect(() => {
+    onBusy(state === 'loading');
+  }, [state, onBusy]);
+  useEffect(() => () => onBusy(false), [onBusy]);
+
+  return (
+    <>
+      <p className="dr-stamp">
+        <span className="dr-live">
+          <span className="dr-live-dot" aria-hidden="true" />
+          read live, polls each minute
+        </span>
+        {generatedAt && (
+          <span>
+            rows generated{' '}
+            {new Date(generatedAt).toLocaleString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+              timeZone: 'UTC',
+            })}
+            {' UTC'}
+          </span>
+        )}
+        <span>times are UTC</span>
+        <a href={jsonHref} className="dr-stamp-link">
+          the same log as JSON
+        </a>
+      </p>
+
+      <div className="dr-filters" role="group" aria-label="Filter the log">
+        <div className="dr-kinds">
+          {(vocab?.kinds ?? []).map(k => (
+            <button
+              key={k.id}
+              type="button"
+              className={`dr-chip dr-chip--${k.id}${activeKinds.has(k.id) ? ' is-on' : ''}`}
+              aria-pressed={activeKinds.has(k.id)}
+              title={k.description}
+              onClick={() => toggleKind(k.id)}
+            >
+              <span className="dr-kind-dot" aria-hidden="true" />
+              {k.label}
+            </button>
+          ))}
+        </div>
+        <div className="dr-filters-right">
+          <label className="dr-select-wrap">
+            <span className="dr-select-label">Floor</span>
+            <select
+              className="dr-select"
+              aria-label="Floor"
+              value={filters.workspace ?? ''}
+              onChange={e => setFilter('workspace', e.target.value || null)}
+            >
+              <option value="">Every floor</option>
+              {(vocab?.workspaces ?? []).map(w => (
+                <option key={w.slug} value={w.slug}>
+                  {w.hidden ? `${w.name} (hidden by default)` : w.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {filters.participant && (
+            <button
+              type="button"
+              className="dr-chip dr-chip--who is-on"
+              aria-pressed="true"
+              title="Clear the participant filter"
+              onClick={() => setFilter('participant', null)}
+            >
+              {filters.participant}
+              <span className="dr-chip-x" aria-hidden="true">
+                ×
+              </span>
+            </button>
+          )}
+          {anyFilter && (
+            <button type="button" className="dr-clear" onClick={() => setSearch(new URLSearchParams())}>
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
+
+      <section className="dr-log" aria-live="polite" onMouseMove={() => newIds.size && setNewIds(new Set())}>
+        {state === 'failed' && <p className="dr-err">The log would not open.</p>}
+        {state === 'ready' && rows.length === 0 && <p className="dr-empty">No actions match.</p>}
+        {days.map(d => (
+          <div className="dr-day" key={d.day}>
+            <h2 className="dr-day-rule">{dayLabel(d.rows[0].at)}</h2>
+            <ol className="dr-rows">
+              {d.rows.map(r => (
+                <li key={r.id} className={`dr-row dr-row--${r.kind}${newIds.has(r.id) ? ' is-new' : ''}`}>
+                  <time className="dr-row-time" dateTime={r.at} title={r.at}>
+                    {timeLabel(r.at)}
+                  </time>
+                  <span className="dr-row-kind" title={kindLabel(r.kind)}>
+                    <span className="dr-kind-dot" aria-hidden="true" />
+                    <span className="dr-row-kind-label">{kindLabel(r.kind)}</span>
+                  </span>
+                  <span className="dr-row-body">
+                    {r.actor && (
+                      <button
+                        type="button"
+                        className="dr-row-who"
+                        title={`Only ${r.actor.handle}`}
+                        onClick={() => setFilter('participant', r.actor!.handle)}
+                      >
+                        {r.actor.handle}
+                      </button>
+                    )}
+                    <Link className="dr-row-text" to={r.href}>
+                      {r.text}
+                    </Link>
+                  </span>
+                  {r.workspace && (
+                    <button
+                      type="button"
+                      className="dr-row-floor"
+                      title={`Only ${r.workspace.name}`}
+                      onClick={() => setFilter('workspace', r.workspace!.slug)}
+                    >
+                      {r.workspace.name}
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </div>
+        ))}
+      </section>
+
+      {state === 'ready' && rows.length > 0 && (
+        <footer className="dr-foot">
+          {next ? (
+            <button type="button" className="dr-more" ref={moreRef} onClick={loadMore} disabled={loadingMore}>
+              {loadingMore ? 'Loading' : 'More'}
+            </button>
+          ) : (
+            <span className="dr-end">End of the log.</span>
+          )}
+        </footer>
+      )}
+    </>
+  );
+}
+
+/** Documentation: the guides, rendered by the same components as /guides,
+ *  inside the room (docs/data-room.md, "Documentation"). */
+function DocsTab({ section }: { section?: string }) {
+  if (section && GUIDE_ALIASES[section]) return <Navigate to={`/data-room/docs/${GUIDE_ALIASES[section]}`} replace />;
+  return (
+    <div className="dr-docs">
+      {section ? (
+        <OneGuide section={section} base="/data-room/docs" inRoom />
+      ) : (
+        <GuideIndex base="/data-room/docs" inRoom />
+      )}
+    </div>
+  );
+}
+
+/** Vision: one markdown document, rendered with the stack announcements use
+ *  (docs/data-room.md, "Vision"). */
+function VisionTab() {
+  const [vision, setVision] = useState<DataRoomVision | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let live = true;
+    api
+      .getDataRoomVision()
+      .then(v => {
+        if (live) setVision(v);
+      })
+      .catch(() => {
+        if (live) setFailed(true);
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  return (
+    <section className="dr-vision" aria-label="Vision">
+      {failed && <p className="dr-err">The vision would not open.</p>}
+      {vision && (
+        <>
+          <div className="dr-tl-head">
+            <h2 className="dr-tl-label">{vision.title}</h2>
+            <span className="dr-vision-updated">updated {vision.updatedAt}</span>
+          </div>
+          <div className="pubws-ann-body dr-vision-body">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                a: ({ href, children }) => (
+                  <a href={href} target="_blank" rel="noreferrer">
+                    {children}
+                  </a>
+                ),
+              }}
+            >
+              {vision.markdown}
+            </ReactMarkdown>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+export function DataRoomPage() {
+  const { user, loading: authLoading } = useAuth();
+  const { pathname } = useLocation();
+  const { section } = useParams<{ section?: string }>();
+  const tab = tabOf(pathname);
+  const [busy, setBusy] = useState(false);
+
   return (
     <div className="pubws dr-desk" data-theme="dark">
-      <TopBar user={!!user} ready={!authLoading} busy={state === 'loading'} />
+      <TopBar user={!!user} ready={!authLoading} busy={busy} />
       <main className="dr">
         <header className="dr-head">
           <div className="dr-head-main">
             <h1 className="dr-title">Data room</h1>
-            <p className="dr-lead">Every public action on Telarchy, newest first. Times are UTC.</p>
+            <p className="dr-lead">
+              Where Telarchy accounts for itself in public: what happened, what is planned, how it works and where it is
+              going.
+            </p>
           </div>
-          <p className="dr-stamp">
-            <span className="dr-live">
-              <span className="dr-live-dot" aria-hidden="true" />
-              read live, polls each minute
-            </span>
-            {generatedAt && (
-              <span>
-                rows generated{' '}
-                {new Date(generatedAt).toLocaleString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  timeZone: 'UTC',
-                })}
-                {' UTC'}
-              </span>
-            )}
-            <a href={jsonHref} className="dr-stamp-link">
-              the same log as JSON
-            </a>
-          </p>
         </header>
 
-        <PlannedTimeline
-          canManage={canManagePlanned}
-          workspaceId={plannedWs?.id ?? null}
-          onWorkspace={ws => setPlannedWs(cur => (cur?.id === ws?.id ? cur : ws ? { id: ws.id } : null))}
-        />
-
-        <div className="dr-filters" role="group" aria-label="Filter the log">
-          <div className="dr-kinds">
-            {(vocab?.kinds ?? []).map(k => (
-              <button
-                key={k.id}
-                type="button"
-                className={`dr-chip dr-chip--${k.id}${activeKinds.has(k.id) ? ' is-on' : ''}`}
-                aria-pressed={activeKinds.has(k.id)}
-                title={k.description}
-                onClick={() => toggleKind(k.id)}
-              >
-                <span className="dr-kind-dot" aria-hidden="true" />
-                {k.label}
-              </button>
-            ))}
-          </div>
-          <div className="dr-filters-right">
-            <label className="dr-select-wrap">
-              <span className="dr-select-label">Floor</span>
-              <select
-                className="dr-select"
-                aria-label="Floor"
-                value={filters.workspace ?? ''}
-                onChange={e => setFilter('workspace', e.target.value || null)}
-              >
-                <option value="">Every floor</option>
-                {(vocab?.workspaces ?? []).map(w => (
-                  <option key={w.slug} value={w.slug}>
-                    {w.hidden ? `${w.name} (hidden by default)` : w.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {filters.participant && (
-              <button
-                type="button"
-                className="dr-chip dr-chip--who is-on"
-                aria-pressed="true"
-                title="Clear the participant filter"
-                onClick={() => setFilter('participant', null)}
-              >
-                {filters.participant}
-                <span className="dr-chip-x" aria-hidden="true">
-                  ×
-                </span>
-              </button>
-            )}
-            {anyFilter && (
-              <button type="button" className="dr-clear" onClick={() => setSearch(new URLSearchParams())}>
-                Clear
-              </button>
-            )}
-          </div>
-        </div>
-
-        <section className="dr-log" aria-live="polite" onMouseMove={() => newIds.size && setNewIds(new Set())}>
-          {state === 'failed' && <p className="dr-err">The log would not open.</p>}
-          {state === 'ready' && rows.length === 0 && <p className="dr-empty">No actions match.</p>}
-          {days.map(d => (
-            <div className="dr-day" key={d.day}>
-              <h2 className="dr-day-rule">{dayLabel(d.rows[0].at)}</h2>
-              <ol className="dr-rows">
-                {d.rows.map(r => (
-                  <li key={r.id} className={`dr-row dr-row--${r.kind}${newIds.has(r.id) ? ' is-new' : ''}`}>
-                    <time className="dr-row-time" dateTime={r.at} title={r.at}>
-                      {timeLabel(r.at)}
-                    </time>
-                    <span className="dr-row-kind" title={kindLabel(r.kind)}>
-                      <span className="dr-kind-dot" aria-hidden="true" />
-                      <span className="dr-row-kind-label">{kindLabel(r.kind)}</span>
-                    </span>
-                    <span className="dr-row-body">
-                      {r.actor && (
-                        <button
-                          type="button"
-                          className="dr-row-who"
-                          title={`Only ${r.actor.handle}`}
-                          onClick={() => setFilter('participant', r.actor!.handle)}
-                        >
-                          {r.actor.handle}
-                        </button>
-                      )}
-                      <Link className="dr-row-text" to={r.href}>
-                        {r.text}
-                      </Link>
-                    </span>
-                    {r.workspace && (
-                      <button
-                        type="button"
-                        className="dr-row-floor"
-                        title={`Only ${r.workspace.name}`}
-                        onClick={() => setFilter('workspace', r.workspace!.slug)}
-                      >
-                        {r.workspace.name}
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ol>
-            </div>
+        <nav className="dr-tabs" aria-label="Data room">
+          {TABS.map(t => (
+            <Link
+              key={t.id}
+              to={t.to}
+              className={`dr-tab${tab === t.id ? ' is-current' : ''}`}
+              aria-current={tab === t.id ? 'page' : undefined}
+            >
+              {t.label}
+            </Link>
           ))}
-        </section>
+        </nav>
 
-        {state === 'ready' && rows.length > 0 && (
-          <footer className="dr-foot">
-            {next ? (
-              <button type="button" className="dr-more" ref={moreRef} onClick={loadMore} disabled={loadingMore}>
-                {loadingMore ? 'Loading' : 'More'}
-              </button>
-            ) : (
-              <span className="dr-end">End of the log.</span>
-            )}
-          </footer>
-        )}
+        {tab === 'log' && <LogTab onBusy={setBusy} />}
+        {tab === 'planned' && <PlannedTimeline />}
+        {tab === 'docs' && <DocsTab section={section} />}
+        {tab === 'vision' && <VisionTab />}
       </main>
     </div>
   );

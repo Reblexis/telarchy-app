@@ -196,8 +196,14 @@ export function App() {
             what is planned, every figure read live from the same database
             that serves this page (owner ask 2026-08-20). Declared before the
             /:slug route so a workspace can never take the URL.
-            Spec: docs/data-room.md. */}
+            Spec: docs/data-room.md. Its four tabs are addresses
+            (docs/data-room.md: "The tabs are addresses"), every one above
+            /:slug so no floor can take one. */}
         <Route path="/data-room" element={<DataRoomPage />} />
+        <Route path="/data-room/planned" element={<DataRoomPage />} />
+        <Route path="/data-room/docs" element={<DataRoomPage />} />
+        <Route path="/data-room/docs/:section" element={<DataRoomPage />} />
+        <Route path="/data-room/vision" element={<DataRoomPage />} />
 
         {/* The account is a dialog on the floor, not a page (owner direction
             2026-08-19: settings belong in the new account settings). The old

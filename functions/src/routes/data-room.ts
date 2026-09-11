@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { Router } from 'express';
+import { VISION } from '../content/vision';
 import { db } from '../db/client';
 import { workspaces } from '../db/schema';
 import { wrap } from '../lib/wrap';
@@ -15,7 +16,8 @@ import { buildTimeline } from '../services/timeline';
  * visitor can fetch the same URL the page fetches, with the same filters, and
  * an agent reads the same list. `/` is the room as a document (prose plus the
  * first page); `/actions` is the log with filters; `/planned` is the platform
- * floor's calendar (docs/data-room.md, "What is planned").
+ * floor's calendar (docs/data-room.md, "What is planned"); `/vision` is the
+ * one document of the Vision tab (docs/data-room.md, "Vision").
  */
 export const dataRoomRouter = Router();
 
@@ -38,10 +40,11 @@ dataRoomRouter.get(
  *
  * What the owner of Telarchy has committed to and by when: the calendar of
  * ONE floor, the platform's own, named by DATA_ROOM_WORKSPACE_SLUG (default
- * "telarchy"). The items are buildTimeline's, the same function behind
- * GET /api/marketplace/:idOrSlug/timeline, so a bar the room draws is the bar
- * the floor would draw. The floor is named in the response so the page can
- * say whose calendar this is.
+ * "telarchy"). The items are the entries the owner typed, from the plans
+ * table and nothing else (buildTimeline, the same function behind the
+ * cockpit's GET /api/workspaces/:id/plans, so the room and the cockpit read
+ * one order). The floor is named in the response so the page can say whose
+ * calendar this is.
  *
  * A fresh instance has no such floor, and a private one must not be
  * disclosed through the room: both answer 200 with a null workspace and no
@@ -67,5 +70,21 @@ dataRoomRouter.get(
     }
     const items = await buildTimeline(db, { id: ws.id, slug: ws.slug }, now);
     res.json({ workspace: { id: ws.id, slug: ws.slug, name: ws.name }, now: now.toISOString(), items });
+  }),
+);
+
+/**
+ * GET /api/data-room/vision
+ *
+ * What Telarchy aims to be and by roughly when, in the owner's words: one
+ * markdown document, docs/data-room/vision.md, generated into the backend at
+ * build time (scripts/build-vision.mjs) because the runtime image has no
+ * docs directory. updatedAt is the day the markdown last changed. Public,
+ * no key, like the rest of the room.
+ */
+dataRoomRouter.get(
+  '/vision',
+  wrap(async (_req, res) => {
+    res.json({ title: VISION.title, updatedAt: VISION.updatedAt, markdown: VISION.markdown });
   }),
 );

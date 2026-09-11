@@ -1,17 +1,25 @@
 # The data room
 
-`telarchy.com/data-room` is the platform's public actions log: every public
-action on Telarchy, newest first, in one time-ordered list a reader filters,
-and the same list as JSON for an agent. It is one thing on purpose. Anything
-else the room comes to carry is added one structure at a time, each with its
-own section of this doc, and never as a page of charts around the log.
-History: notes/decisions/data-room.md.
+`telarchy.com/data-room` is where Telarchy accounts for itself in public.
+It has four tabs, in this order, and nothing else: **the log** (every public
+action on Telarchy, newest first, one time-ordered list a reader filters),
+**what is planned** (the owner's own entries of what is coming and when),
+**documentation** (the guides: how Telarchy works and how to use it, as it
+is right now), and **vision** (what Telarchy aims to be and roughly when).
+Each tab is one structure with its own section of this doc and its own
+endpoint under `/api/data-room`; a tab never becomes a page of charts, and
+a fifth tab is a doc change first. History: notes/decisions/data-room.md
+(owner decision 2026-09-11: "first shoudl be the log.. then should be what
+is planned and then there should be documentation ... and the nesxt should
+be vision").
 
-It has two readers and they get the same thing: a person on the page, and an
-agent on `GET /api/data-room/actions`. The page renders that response and
+Every tab has two readers and they get the same thing: a person on the page,
+and an agent on the tab's endpoint. The page renders that response and
 nothing else, and every filter the page offers is a query parameter the
 endpoint accepts, so what a person is looking at is one URL swap away from
-what an agent reads.
+what an agent reads. The tabs are addresses: `/data-room` is the log,
+`/data-room/planned`, `/data-room/docs` (and `/data-room/docs/<section>`),
+`/data-room/vision`.
 
 ## What an action is
 
@@ -185,9 +193,11 @@ room` entry of `documents`, rendered as the same lines.
 
 The page is the desk (`docs/ui-conventions.md`, "The data room"): the site's
 dark tokens whatever the visitor's theme, the wide column, mono labels,
-hairlines. Above the log: the title, one line saying what the log is, the
-stamp (read live, generated when, the JSON link), and the "What is planned"
-section (below). Nothing else above it.
+hairlines. Above everything: the title, one line saying what the room is,
+and the tab row (Log, What is planned, Documentation, Vision), the current
+tab underlined in the accent. Under the tab row, the log tab shows the
+stamp (read live, generated when, the JSON link) and then the filter bar and
+the log; the other tabs show their own structure and nothing of the log's.
 
 **The filter bar** is one row: a chip per kind that toggles, a floor select
 listing the public floors (a floor hidden by default is listed last with
@@ -223,89 +233,94 @@ log: nothing happening and nothing loading are different facts.
 
 ## What is planned
 
-The room's second structure, added 2026-09-11 (owner decision, record in the
-telarchy umbrella, `notes/floor-timeline-proposal-2026-09-11.md`): what the
-owner of Telarchy has committed to and when, as one time axis between the
-stamp and the filter bar. The log says what happened; this says what is
-supposed to happen next, so a trader reading the room knows what the number
-is being pushed by before it moves. It is the calendar of ONE floor, the
+The second tab: what the owner of Telarchy has committed to and when, as
+one time axis of entries the owner wrote by hand. Nothing here is derived
+from the tables: not the proposals, not the decisions, not the books. The
+log already says what happened and the floor already prices what is
+proposed; this tab says what the owner is going to do, in the owner's own
+words, and an entry only exists because the owner typed it (owner decision
+2026-09-11: "what is planned should be filled with manual entriess.. not
+by you .. so rn it should be empty .. and from admin i should be able to add
+new entries etc."). It starts empty, and "Nothing planned yet." is a true
+sentence rather than a gap to fill. It is the calendar of ONE floor, the
 platform's own (`DATA_ROOM_WORKSPACE_SLUG`, default `telarchy`), named in
-the section's meta so nobody mistakes it for every floor's plans. The room
-is public, so only a PUBLIC floor is ever its calendar: while that floor is
-unlisted or private the section says nothing is planned and the endpoint
-answers `workspace: null`. An agent
-reads the same thing at `GET /api/data-room/planned`, which returns
-`{ workspace: { id, slug, name }, now, items }` with the items exactly as
-the per-floor endpoint below returns them, so the page renders that
-response and nothing else, as it does for the log.
+the tab's meta; the room is public, so only a PUBLIC floor is ever its
+calendar (while that floor is unlisted or private the tab says nothing is
+planned and the endpoint answers `workspace: null`).
+
+**An entry** (a plan item) is a title, what it is (markdown, optional), a
+start (optional) and a due point (optional, day or minute precision), and
+it is either open or done. Entries are written from the cockpit
+(`/admin`, the "Plans" tab's card), never from the room, which is read-only for
+everyone. The card is shaped like vcihal.com/tasks (owner: "just like in
+vcihal.com/tasks"): a composer whose first row is the title ("What needs
+doing?") and an Add button, with the details folded under it (what it is,
+start, due, each optional and each a date or a date and time); under the
+composer, every open entry in one list, soonest due first, undated at the
+bottom, each row with its due meta ("due 14 Sept", "overdue" past its due
+point), an edit that opens the same fields in place, and a done tick; done
+entries fold under a "Done N" line at the end, newest first, each with an
+undo. The room's tab draws the same entries and cannot change them. Edits keep the words free and are
+recorded; an entry is never deleted, only done or edited, so nothing
+planned in public can be quietly unplanned. Every add, edit and completion
+is a `plan` action on the log.
 
 **The axis.** One horizontal time axis with a now-line and the past shaded,
 three ranges picked by a segmented control (today, week, month), and one
-row per item: the item's title on its own line, with a short mono meta at
-the end of that line naming what the end is ("decides 15 Sept", "by 1 Oct",
-"settles 1 Oct", "due 14 Sept"), and its bar on the axis beneath. The row
-whose bar ends soonest is on top. The title is never drawn inside or beside
-the bar: a label that has to fit next to its bar is a label that gets cut on
-a phone, and the room reads the same at every width. The section shows the first
-eight rows in the range and an "All N" corner control unfolds the rest, so
-two dozen open commitments do not push the log off the first screen.
-Ticks: every six hours in the today range, every day in the week range
-(day numbers, the first of a month named), every Monday in the month range
-(day and month); the axis is dense enough to read a date off it on a phone.
-A bar is a committed interval: it starts when the commitment began and ends
-when it is due. Bars are things the floor already holds, plus the owner's
-own items:
+row per open entry: the title on its own line with a mono meta at its end
+naming the due point ("due 14 Sept", "due today"), and its bar on the axis
+beneath, the row whose bar ends soonest on top. An entry with no start
+begins at the left edge of the range shown; one with no due date has no
+bar and is listed under the axis as "no date". A done entry leaves the axis:
+its interval is over, and the log holds the history. Ticks: every six hours
+in the today range, every day in the week range (day numbers, the first of
+a month named), every Monday in the month range. Tapping a row opens the
+entry's own words under it.
 
-| bar | starts | ends | drawn from |
-|---|---|---|---|
-| an approved proposal not yet delivered | the approval | the earliest horizon it is priced on that has not yet resolved; a proposal whose every horizon has resolved has no bar | `proposals` approved with `deliveredAt` null |
-| a pending proposal | when it was posted | its decision deadline | `proposals` pending, `decideBy` |
-| an open baseline book | the start of its period | the day it resolves | `markets` with no proposal, open |
-| a plan item | the owner's start | the owner's due date | `plans` |
-
-A delivered proposal, a decided or lapsed proposal, a settled or voided book
-and a done plan item leave the axis: their interval is over, and history
-lives in the actions log, not here. An item with no start begins at the
-left edge of whatever range is shown (it can be worked on now); an item
-with no due date has no bar and is listed under the axis as "no date".
-Tapping a bar opens the thing it is: a proposal's address, the book, or the
-plan item's own words. With nothing planned the section says so in one
-line rather than disappearing: in the room, "nothing planned" is a fact
-worth reading.
-
-**Plan items** are the owner's commitments that are not proposals ("write
-the September results post", "call with Seer, Thursday"). One is a title,
-what it is (markdown, optional), a start (optional) and a due point
-(optional, day or minute precision), and it is either open or done. A
-manager of that floor adds one from the section's corner control ("+ plan"): one form, the
-four fields, one ink button. Each open plan bar carries a done tick for a
-manager; done stamps `doneAt` and the bar leaves the axis. Edits keep the
-words free and are recorded, as with announcements: a plan item is never
-deleted, only done or edited, so nothing planned in public can be quietly
-unplanned. Every add, edit and completion is a `plan` action on the data
-room's log (`docs/data-room.md`).
-
-**API.** `GET /api/data-room/planned` is the room's own read (above).
-`GET /api/marketplace/:idOrSlug/timeline` is the same computation for any
-floor: it returns
-`{ now, items: [{ kind, id, title, start, end, href, done? }] }` with
-`kind` one of `proposal`, `decision`, `book`, `plan`, newest end last,
-under the same disclosure rule as the announcements (403 on a private floor
-or where the Public group does not hold read). No bar is computed on the
-client, and the two endpoints share one function. Plan items are
+**API.** `GET /api/data-room/planned` returns `{ workspace: { id, slug,
+name } | null, now, items: [{ id, title, description, start, due, done,
+createdAt, editedAt, doneAt }] }`, open entries first by due ascending
+(undated last) then done entries by doneAt descending, so an agent can read
+what was planned and finished without the log. Public, no key. Entries are
 written by `POST /api/workspaces/:id/plans` (`{ title, description?,
-start?, due? }`, 201 with the row), edited by `PUT
-/api/workspaces/:id/plans/:planId` (any of the four fields, or
-`{ done: true|false }`), both requiring `manage`; the row carries
-`createdAt`, `editedAt`, `doneAt` and `createdBy`. No delete route exists.
+start?, due? }`, 201 with the row) and `PUT /api/workspaces/:id/plans/:planId`
+(any of the four fields, or `{ done: true|false }`), both requiring
+`manage` on that floor; no delete route exists and the database refuses a
+DELETE. `GET /api/workspaces/:id/plans` lists a floor's entries, open and
+done, for its managers (the cockpit's list).
+
+## Documentation
+
+The third tab: the guides, exactly as `GET /api/guides` and
+`GET /api/guides/:section` serve them (`docs/guides/`, generated into the
+backend by `scripts/build-guides.mjs`), rendered in the room's own dress.
+`/data-room/docs` is the guide index grouped as the guides page groups it;
+`/data-room/docs/<section>` is one guide, with the index beside or above
+it. The guides ARE the documentation of the current state, kept true by
+`guides-content.test.ts` and by the rule that an API change updates its
+guide in the same commit; the tab adds no second copy of any sentence. The
+existing `/guides` pages stay as they are.
+
+## Vision
+
+The fourth tab: what Telarchy aims to be and by roughly when, in the owner's
+words, for a stranger deciding whether to trade on, build on or buy the
+thing. It is one markdown document, `docs/data-room/vision.md`, generated
+into the backend the way the guides are and served at
+`GET /api/data-room/vision` as `{ title, updatedAt, markdown }`. It is
+written in the present and future tense with approximate dates ("by the
+end of 2026", "in 2027"), never a promise to a day, and it names what is
+NOT being attempted as plainly as what is. It is the public face of
+`docs/vision.md`, not a copy of it: the governing doc stays the spec, this
+is what a reader is told. The owner approves every edit before it ships
+(nothing goes out in the owner's voice unread).
 
 ## Rules for changing this page
 
 1. A new kind is a row in the table above, an entry in `KINDS`, a branch of
    the union, a sentence renderer, and a seeded test. All or none.
-   A new structure (like "What is planned") gets its own section of this
-   doc, its own endpoint under `/api/data-room`, and never a chart around
-   the log.
+   A new tab gets its own section of this doc, its own endpoint under
+   `/api/data-room`, and never a chart around the log.
 2. Nothing joins a private workspace, and nothing prints an address, a
    country, an email or a payout detail. The test that seeds a private
    floor's trade and asserts its absence is the one that must never be
@@ -315,3 +330,5 @@ start?, due? }`, 201 with the row), edited by `PUT
 4. `actions.test.ts` pins the contract: anonymous, private excluded,
    redemptions excluded, a page never repeats a row, the cap holds, every
    kind renders, and an unknown parameter value is a 400.
+5. The planned tab holds what the owner typed and nothing derived. A
+   computed bar on it is a divergence, whatever it is computed from.

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { EarnTableEditor } from '../components/EarnTableEditor';
 import { ManifoldUpdate } from '../components/ManifoldUpdate';
 import { OutreachWorkbench } from '../components/OutreachWorkbench';
+import { PlansCard } from '../components/PlansCard';
 import { XWorkbench } from '../components/XWorkbench';
 import { useAuth } from '../hooks/useAuth';
 import { api, type FeedbackItem, type Journey, type JourneyFeed } from '../lib/api';
@@ -213,6 +214,7 @@ function Journeys({ feed }: { feed: JourneyFeed | null }) {
 const TABS = [
   { id: 'outreach', label: 'Outreach' },
   { id: 'x', label: 'X' },
+  { id: 'plans', label: 'Plans' },
   { id: 'traffic', label: 'Traffic' },
   { id: 'people', label: 'People' },
   { id: 'reports', label: 'Reports' },
@@ -430,6 +432,10 @@ export function AdminPage() {
         {tab === 'outreach' && <OutreachWorkbench />}
 
         {tab === 'x' && <XWorkbench />}
+
+        {/* The data room's "What is planned" is written here and nowhere else
+            (docs/data-room.md, "What is planned"). */}
+        {tab === 'plans' && <PlansCard />}
 
         {tab === 'setup' && (
           <>

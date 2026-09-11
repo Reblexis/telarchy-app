@@ -57,6 +57,9 @@ const PROSE = [
   'dr-lead',
   // a plan item's own words under the room's "What is planned" axis
   'dr-tl-words',
+  // the room's Vision tab, and a plan entry's words in the cockpit's Plans card
+  'dr-vision-body',
+  'adm-plan-desc',
 ];
 
 describe('blocks of text are left-aligned', () => {

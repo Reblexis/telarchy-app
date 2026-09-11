@@ -12,6 +12,10 @@ vi.mock('../../lib/api', async importOriginal => ({
   api: {
     getActions: vi.fn(),
     getDataRoomPlanned: vi.fn(),
+    getDataRoomVision: vi.fn(),
+    getGuides: vi.fn(),
+    getGuideCategories: vi.fn(),
+    getGuide: vi.fn(),
     getProfile: vi.fn(),
     createPlan: vi.fn(),
     updatePlan: vi.fn(),
@@ -69,6 +73,10 @@ const page = (rows: ReturnType<typeof row>[], next: string | null = null) => ({
 
 const getActions = api.getActions as unknown as ReturnType<typeof vi.fn>;
 const getDataRoomPlanned = api.getDataRoomPlanned as unknown as ReturnType<typeof vi.fn>;
+const getDataRoomVision = api.getDataRoomVision as unknown as ReturnType<typeof vi.fn>;
+const getGuides = api.getGuides as unknown as ReturnType<typeof vi.fn>;
+const getGuideCategories = api.getGuideCategories as unknown as ReturnType<typeof vi.fn>;
+const getGuide = api.getGuide as unknown as ReturnType<typeof vi.fn>;
 const getProfile = api.getProfile as unknown as ReturnType<typeof vi.fn>;
 
 const PLANNED_WS = { id: 'ws-telarchy', slug: 'telarchy', name: 'Telarchy' };
@@ -80,32 +88,69 @@ const plannedPage = (items: unknown[] = []) => ({
 
 function LocationProbe() {
   const loc = useLocation();
-  return <output data-testid="loc">{loc.search}</output>;
+  return (
+    <>
+      <output data-testid="loc">{loc.search}</output>
+      <output data-testid="path">{loc.pathname}</output>
+    </>
+  );
 }
+
+/** The same five addresses App.tsx registers (docs/data-room.md: "The tabs are addresses"). */
+const ADDRESSES = [
+  '/data-room',
+  '/data-room/planned',
+  '/data-room/docs',
+  '/data-room/docs/:section',
+  '/data-room/vision',
+];
 
 function mount(initial = '/data-room') {
   return render(
     <MemoryRouter initialEntries={[initial]}>
       <Routes>
-        <Route
-          path="/data-room"
-          element={
-            <>
-              <DataRoomPage />
-              <LocationProbe />
-            </>
-          }
-        />
+        {ADDRESSES.map(path => (
+          <Route
+            key={path}
+            path={path}
+            element={
+              <>
+                <DataRoomPage />
+                <LocationProbe />
+              </>
+            }
+          />
+        ))}
       </Routes>
     </MemoryRouter>,
   );
 }
 
+const GUIDES = [
+  { id: 'start-here', title: 'Start here', description: 'The first read.', category: 'basics', order: 1 },
+  { id: 'get-paid', title: 'Get paid for work', description: 'How a proposal pays.', category: 'forecast', order: 50 },
+];
+
 beforeEach(() => {
   getActions.mockReset();
   getDataRoomPlanned.mockReset();
+  getDataRoomVision.mockReset();
+  getGuides.mockReset();
+  getGuideCategories.mockReset();
+  getGuide.mockReset();
   getProfile.mockReset();
   getDataRoomPlanned.mockResolvedValue(plannedPage());
+  getDataRoomVision.mockResolvedValue({
+    title: 'Vision',
+    updatedAt: '2026-09-11',
+    markdown: '## Where this goes\n\nBy the end of 2026 the floor prices **four** numbers.',
+  });
+  getGuides.mockResolvedValue(GUIDES);
+  getGuideCategories.mockResolvedValue([
+    { id: 'basics', title: 'Basics', description: '' },
+    { id: 'forecast', title: 'Forecasting', description: '' },
+  ]);
+  getGuide.mockImplementation(async (id: string) => `# Guide ${id}\n\nSee [the index](./start-here.md).`);
   h.auth.user = null;
 });
 afterEach(() => {
@@ -290,72 +335,152 @@ describe('the log', () => {
  * calendar; a visitor gets the section without the owner's controls, and a
  * signed-in reader who manages that floor gets "+ plan".
  */
+describe('the tabs', () => {
+  const tabLinks = () =>
+    Array.from(document.querySelectorAll('.dr-tabs a')).map(a => [a.textContent, a.getAttribute('href')]);
+
+  test('one tab row under the masthead: Log, What is planned, Documentation, Vision, each a link to its address', async () => {
+    getActions.mockResolvedValue(page([row()]));
+    mount();
+    await screen.findByText(/bought 10 higher/);
+    expect(tabLinks()).toEqual([
+      ['Log', '/data-room'],
+      ['What is planned', '/data-room/planned'],
+      ['Documentation', '/data-room/docs'],
+      ['Vision', '/data-room/vision'],
+    ]);
+    const head = document.querySelector('.dr-head')!;
+    const tabs = document.querySelector('.dr-tabs')!;
+    expect(head.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  test('the current tab is marked, and only it', async () => {
+    getActions.mockResolvedValue(page([row()]));
+    mount('/data-room/planned');
+    await screen.findByRole('region', { name: 'What is planned' });
+    const current = Array.from(document.querySelectorAll('.dr-tabs a[aria-current="page"]')).map(a => a.textContent);
+    expect(current).toEqual(['What is planned']);
+  });
+
+  test('the log tab carries the stamp, the filter row and the log, and none of the other tabs', async () => {
+    getActions.mockResolvedValue(page([row()]));
+    mount('/data-room');
+    await screen.findByText(/bought 10 higher/);
+    expect(document.querySelector('.dr-stamp')).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Filter the log' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'What is planned' })).toBeNull();
+    expect(getDataRoomPlanned).not.toHaveBeenCalled();
+    expect(getGuides).not.toHaveBeenCalled();
+    expect(getDataRoomVision).not.toHaveBeenCalled();
+  });
+
+  test('a tab link walks to that tab without a reload, and back to the log', async () => {
+    getActions.mockResolvedValue(page([row()]));
+    mount('/data-room');
+    await screen.findByText(/bought 10 higher/);
+    fireEvent.click(screen.getByRole('link', { name: 'Vision' }));
+    expect(screen.getByTestId('path').textContent).toBe('/data-room/vision');
+    expect(await screen.findByText('Where this goes')).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Filter the log' })).toBeNull();
+    fireEvent.click(screen.getByRole('link', { name: 'Log' }));
+    expect(screen.getByTestId('path').textContent).toBe('/data-room');
+    expect(await screen.findByText(/bought 10 higher/)).toBeInTheDocument();
+  });
+});
+
 describe('what is planned', () => {
-  test("renders between the stamp and the filters, with the floor's name as its meta", async () => {
+  test("the planned tab draws the timeline with the floor's name as its meta, and nothing of the log", async () => {
     getActions.mockResolvedValue(page([row()]));
     getDataRoomPlanned.mockResolvedValue(
       plannedPage([
         {
-          kind: 'plan',
           id: 'pl1',
           title: 'Write the September results post',
+          description: null,
           start: null,
-          end: '2026-09-14T18:00:00.000Z',
-          href: null,
+          due: '2026-09-14T18:00:00.000Z',
           done: false,
+          createdAt: '2026-09-01T00:00:00.000Z',
+          editedAt: null,
+          doneAt: null,
         },
       ]),
     );
-    mount();
-    await screen.findByText(/bought 10 higher/);
+    mount('/data-room/planned');
     const planned = await screen.findByRole('region', { name: 'What is planned' });
     expect(planned.className).toContain('dr-planned');
     expect(planned.querySelector('.dr-tl-floor')?.textContent).toBe('Telarchy');
     expect(await screen.findByText('Write the September results post')).toBeInTheDocument();
-    // Order in the document: the stamp, then the section, then the filter bar.
-    const stamp = document.querySelector('.dr-stamp')!;
-    const filters = screen.getByRole('group', { name: 'Filter the log' });
-    expect(stamp.compareDocumentPosition(planned) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(planned.compareDocumentPosition(filters) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(document.querySelector('.dr-stamp')).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Filter the log' })).toBeNull();
+    expect(screen.queryByText(/bought 10 higher/)).toBeNull();
+    expect(getActions).not.toHaveBeenCalled();
   });
 
-  test('a visitor sees the section with nothing planned as one line, and no "+ plan"', async () => {
-    getActions.mockResolvedValue(page([row()]));
-    mount();
-    await screen.findByText(/bought 10 higher/);
-    expect(await screen.findByText('Nothing planned yet.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '+ plan' })).toBeNull();
-    // Nobody signed in: the page never asks who they are.
-    expect(getProfile).not.toHaveBeenCalled();
-  });
-
-  test('a signed-in reader is asked about on that floor; one who manages it gets "+ plan"', async () => {
+  test('THE ROOM IS READ-ONLY FOR EVERYONE: a signed-in reader gets no controls and is asked nothing', async () => {
     h.auth.user = { id: 'u1' };
-    getActions.mockResolvedValue(page([row()]));
     getProfile.mockResolvedValue({ capabilities: ['read', 'trade', 'manage'] });
-    mount();
-    await screen.findByText('Nothing planned yet.');
-    await waitFor(() => expect(getProfile).toHaveBeenCalledWith('ws-telarchy'));
-    expect(await screen.findByRole('button', { name: '+ plan' })).toBeInTheDocument();
-  });
-
-  test('a signed-in reader without manage on that floor gets no "+ plan"', async () => {
-    h.auth.user = { id: 'u1' };
-    getActions.mockResolvedValue(page([row()]));
-    getProfile.mockResolvedValue({ capabilities: ['read', 'trade'] });
-    mount();
-    await screen.findByText('Nothing planned yet.');
-    await waitFor(() => expect(getProfile).toHaveBeenCalledWith('ws-telarchy'));
-    expect(screen.queryByRole('button', { name: '+ plan' })).toBeNull();
-  });
-
-  test('with no platform floor the page asks nobody anything and the room still opens', async () => {
-    h.auth.user = { id: 'u1' };
-    getActions.mockResolvedValue(page([row()]));
-    getDataRoomPlanned.mockResolvedValue({ workspace: null, now: '2026-09-10T12:00:00.000Z', items: [] });
-    mount();
-    await screen.findByText(/bought 10 higher/);
+    mount('/data-room/planned');
     expect(await screen.findByText('Nothing planned yet.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '+ plan' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /mark done/i })).toBeNull();
     expect(getProfile).not.toHaveBeenCalled();
+  });
+
+  test('with no platform floor the tab still opens and says nothing is planned', async () => {
+    getDataRoomPlanned.mockResolvedValue({ workspace: null, now: '2026-09-10T12:00:00.000Z', items: [] });
+    mount('/data-room/planned');
+    expect(await screen.findByText('Nothing planned yet.')).toBeInTheDocument();
+  });
+});
+
+describe('documentation', () => {
+  test('/data-room/docs is the guide index, grouped as the guides page groups it, linking inside the room', async () => {
+    mount('/data-room/docs');
+    const link = await screen.findByRole('link', { name: 'Start here' });
+    expect(link.getAttribute('href')).toBe('/data-room/docs/start-here');
+    expect(screen.getByRole('link', { name: 'Get paid for work' }).getAttribute('href')).toBe(
+      '/data-room/docs/get-paid',
+    );
+    expect(screen.getByText('Basics')).toBeInTheDocument();
+    expect(screen.getByText('Forecasting')).toBeInTheDocument();
+    expect(document.querySelector('.dr-tabs')).toBeTruthy();
+    expect(screen.queryByRole('group', { name: 'Filter the log' })).toBeNull();
+    expect(getActions).not.toHaveBeenCalled();
+  });
+
+  test('/data-room/docs/<section> is one guide, with its links kept inside /data-room/docs', async () => {
+    mount('/data-room/docs/get-paid');
+    expect(await screen.findByText('Guide get-paid')).toBeInTheDocument();
+    expect(getGuide).toHaveBeenCalledWith('get-paid');
+    expect(screen.getByRole('link', { name: 'the index' }).getAttribute('href')).toBe('/data-room/docs/start-here');
+    expect(screen.getByRole('link', { name: 'All guides' }).getAttribute('href')).toBe('/data-room/docs');
+    expect(document.querySelector('.dr-tabs a[aria-current="page"]')?.textContent).toBe('Documentation');
+  });
+
+  test('a guide that does not exist says so, inside the room', async () => {
+    getGuide.mockRejectedValue(new Error('404'));
+    mount('/data-room/docs/no-such');
+    expect(await screen.findByText('That guide is not here')).toBeInTheDocument();
+    expect(document.querySelector('.dr-tabs')).toBeTruthy();
+  });
+});
+
+describe('vision', () => {
+  test('/data-room/vision renders the one document as markdown, with its updated date in mono', async () => {
+    mount('/data-room/vision');
+    expect(await screen.findByText('Where this goes')).toBeInTheDocument();
+    expect(screen.getByText('four').tagName).toBe('STRONG');
+    const updated = document.querySelector('.dr-vision-updated')!;
+    expect(updated.textContent).toContain('2026-09-11');
+    expect(getDataRoomVision).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('group', { name: 'Filter the log' })).toBeNull();
+    expect(getActions).not.toHaveBeenCalled();
+  });
+
+  test('a failed read says the vision would not open, never an empty page', async () => {
+    getDataRoomVision.mockRejectedValue(new Error('boom'));
+    mount('/data-room/vision');
+    expect(await screen.findByText('The vision would not open.')).toBeInTheDocument();
   });
 });
