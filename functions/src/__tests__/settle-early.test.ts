@@ -58,26 +58,56 @@ async function seed() {
     { id: HOLDER, apiKeyHash: 'h-early-holder', balance: 0 },
   ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await provisionWorkspace(db as any, { wsId: WS, name: 'Early', createdBy: OWNER, ownerAgentId: OWNER, visibility: 'public' });
+  await provisionWorkspace(db as any, {
+    wsId: WS,
+    name: 'Early',
+    createdBy: OWNER,
+    ownerAgentId: OWNER,
+    visibility: 'public',
+  });
   await db.insert(metrics).values([
     { id: M, workspaceId: WS, name: 'Reached length', value: 7, formula: '0', marketRangeMax: 100 },
     { id: OTHER, workspaceId: WS, name: 'Other', value: 1, formula: '0', marketRangeMax: 100 },
   ]);
   await db.insert(proposals).values({
-    id: 'prop-1', workspaceId: WS, title: 'Turn left', description: '', status: 'approved', proposedBy: OWNER,
+    id: 'prop-1',
+    workspaceId: WS,
+    title: 'Turn left',
+    description: '',
+    status: 'approved',
+    proposedBy: OWNER,
   } as never);
   await book('floor-1');
   await book('floor-2', { targetDate: cell(30) });
   await book('branch-approved', { proposalId: 'prop-1', branch: 'approved' });
-  await book('branch-declined-voided', { proposalId: 'prop-1', branch: 'declined', voided: true, resolved: true, active: false, pool: 0 });
+  await book('branch-declined-voided', {
+    proposalId: 'prop-1',
+    branch: 'declined',
+    voided: true,
+    resolved: true,
+    active: false,
+    pool: 0,
+  });
   await book('already-settled', { resolved: true, active: false, pool: 0, actualValue: 3 });
   await book('other-metric', { metricId: OTHER, metricName: 'Other' });
   await db.insert(positions).values({
-    id: 'pos-1', workspaceId: WS, marketId: 'branch-approved', agentId: HOLDER, direction: 'higher', shares: 100, totalCost: 60,
+    id: 'pos-1',
+    workspaceId: WS,
+    marketId: 'branch-approved',
+    agentId: HOLDER,
+    direction: 'higher',
+    shares: 100,
+    totalCost: 60,
   });
 }
 
-const row = async (id: string) => (await db.select().from(markets).where(and(eq(markets.id, id), eq(markets.workspaceId, WS))))[0];
+const row = async (id: string) =>
+  (
+    await db
+      .select()
+      .from(markets)
+      .where(and(eq(markets.id, id), eq(markets.workspaceId, WS)))
+  )[0];
 
 describe('settling a metric early', () => {
   test('THE RULE: every open book on the metric settles at the value, floor books and the continued branch alike, and nothing else', async () => {
@@ -108,7 +138,10 @@ describe('settling a metric early', () => {
     await seed();
     const asOf = new Date(Date.now() - 5_000);
     await settleMetricEarly(M, WS, { value: 9, reason: 'attempt 41 ended', asOf });
-    const logs = await db.select().from(metricLogs).where(and(eq(metricLogs.metricId, M), eq(metricLogs.workspaceId, WS)));
+    const logs = await db
+      .select()
+      .from(metricLogs)
+      .where(and(eq(metricLogs.metricId, M), eq(metricLogs.workspaceId, WS)));
     expect(logs).toHaveLength(1);
     expect(logs[0].value).toBe(9);
     expect(logs[0].timestamp.getTime()).toBe(asOf.getTime());
@@ -122,8 +155,13 @@ describe('settling a metric early', () => {
     await seed();
     const r = await settleMetricEarly(M, WS, { value: 9, reason: 'attempt 41 ended' });
     await new Promise(res => setTimeout(res, 50));
-    const rows = await db.select().from(events).where(and(eq(events.workspaceId, WS), eq(events.type, 'market:resolved')));
-    const byMarket = new Map(rows.map(e => [(e.data as { marketId: string }).marketId, e.data as Record<string, unknown>]));
+    const rows = await db
+      .select()
+      .from(events)
+      .where(and(eq(events.workspaceId, WS), eq(events.type, 'market:resolved')));
+    const byMarket = new Map(
+      rows.map(e => [(e.data as { marketId: string }).marketId, e.data as Record<string, unknown>]),
+    );
     for (const id of r.settled) {
       expect(byMarket.get(id)).toMatchObject({ settledEarly: true, reason: 'attempt 41 ended', actualValue: 9 });
     }

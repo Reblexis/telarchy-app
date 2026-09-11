@@ -1,13 +1,23 @@
+import { randomUUID } from 'crypto';
 import { and, asc, count, eq, gt, gte, inArray, lte, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { randomUUID } from 'crypto';
-import { agents, liquidityEvents, markets, metricLogs, metrics, positions, proposals, trades, updates } from '../db/schema';
+import {
+  agents,
+  liquidityEvents,
+  markets,
+  metricLogs,
+  metrics,
+  positions,
+  proposals,
+  trades,
+  updates,
+} from '../db/schema';
 import { consensus, pHigher, resolutionPayouts } from '../lib/amm';
 import { mapWithConcurrency } from '../lib/concurrency';
 import { periodEndInstant, periodStartInstant, resolutionInstant } from '../lib/date-utils';
+import { AppError } from '../lib/errors';
 import { emitPricesChanged, onPricesChanged } from '../lib/market-events';
 import { ttlCache } from '../lib/ttl-cache';
-import { AppError } from '../lib/errors';
 import { toUnits } from '../lib/validation';
 import type { Metric } from '../types';
 import { applyCredits } from './credits';

@@ -16,10 +16,10 @@ import { desiredMarketDates, generatesMarkets, getLeafDescendantNames } from '..
 import { fromUnits, liquiditySpendableUnits } from '../lib/validation';
 import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
-import { settleMetricEarly } from '../services/predictions';
 import { emitEvent } from '../services/events';
 import { voidMarketsById, voidOpenMarketsForMetrics } from '../services/markets';
 import * as svc from '../services/metrics';
+import { settleMetricEarly } from '../services/predictions';
 import type { HorizonCredits, TimePreference } from '../types';
 
 export const metricsRouter = Router();

@@ -230,7 +230,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       description:
         'Settle the metric early: the answer is known before the period ends (docs/market-integrity.md). Files the reading at asOf (default now) and settles EVERY open book on this metric at that value, whatever its date, floor books and the continued branch of a decided proposal alike, with normal payouts. Voided and settled books are untouched; a second call settles nothing more. reason is required and is published on each market:resolved event with settledEarly: true. Returns { settled: [marketId], count, totalPayout }.',
       body: {
-        value: 'number (the answer; clamped to each book\'s range)',
+        value: "number (the answer; clamped to each book's range)",
         reason: 'string (required; why the answer is already known, e.g. "attempt 41 ended")',
         asOf: 'ISO instant (optional; when the reading was taken, at most a minute ahead of now)',
       },
