@@ -745,3 +745,46 @@ describe('which number a card shows', () => {
     expect(container.querySelector('.mkt-cell-price')!.textContent).toBe('$77,316');
   });
 });
+
+describe('liquidity on the cell, with a proposal with options', () => {
+  // A proposal with options has no approved or declined book: its books are
+  // its options' (docs/guides/proposals.md, "More than two options"), and
+  // the drop counts every one of them (docs/ui-conventions.md, "The
+  // marketplace").
+  const optionRow = (pools: Array<number | null>) => ({
+    metricId: 'met-1',
+    metricName: 'LookPilot revenue (monthly, USD)',
+    targetDate: '2026-08',
+    approvedPool: null,
+    declinedPool: null,
+    options: pools.map((pool, i) => ({ id: `o${i}`, label: `Option ${i}`, marketId: `m-o${i}`, pool })),
+  });
+  test('the drop sums the option pools of every proposal on the ballot, never NaN', async () => {
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
+      ...payload,
+      markets: [{ ...payload.markets[0], pool: 1000 }],
+      proposals: [
+        {
+          id: 'p-opts',
+          number: 9,
+          title: 'Which way?',
+          description: '',
+          proposedByName: 'ann',
+          createdAt: '2026-09-01T00:00:00.000Z',
+          status: 'pending',
+          closedAt: null,
+          options: [
+            { id: 'o0', label: 'Option 0' },
+            { id: 'o1', label: 'Option 1' },
+            { id: 'o2', label: 'Option 2' },
+          ],
+          marketPairCount: 1,
+          markets: [optionRow([300, 200, null])],
+        },
+      ],
+    } as never);
+    renderPage();
+    expect(await screen.findByTitle(/1,500 credits in the pools/)).toHaveTextContent('1,500');
+    expect(document.body.textContent).not.toMatch(/NaN/);
+  });
+});

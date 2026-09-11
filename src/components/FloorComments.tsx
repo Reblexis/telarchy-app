@@ -44,7 +44,7 @@ interface Holder {
   shares: number;
   cost: number;
   worth: number | null;
-  branch?: BranchLabel;
+  branch?: string;
 }
 interface TradeItem {
   id: string;
@@ -55,7 +55,7 @@ interface TradeItem {
   shares: number;
   cost: number;
   createdAt: string;
-  branch?: BranchLabel;
+  branch?: string;
 }
 
 /**
@@ -74,17 +74,30 @@ interface PoolItem {
   /** Credits in the pool after it. */
   pool: number;
   createdAt: string;
-  branch?: BranchLabel;
+  branch?: string;
 }
 
 type BranchLabel = 'approved' | 'declined';
+/** How a book is named on its rows: "if declined" for a pair branch, the
+ *  label alone for an option. */
+function worldWords(m: { branch?: BranchLabel; label?: string }): string | undefined {
+  return m.label ?? (m.branch ? `if ${m.branch}` : undefined);
+}
 
 interface Props {
   idOrSlug: string;
   /** The market(s) drive positions/trades; proposalId routes the comment
    *  thread. A proposal passes `markets` with both labeled branches and the
    *  tabs show their union; a baseline market passes `marketId` alone. */
-  subject: { marketId?: string; proposalId?: string; markets?: Array<{ marketId: string; branch: BranchLabel }> };
+  subject: {
+    marketId?: string;
+    proposalId?: string;
+    /** A proposal's books, each named: a pair's `branch`, printed "if approved",
+     *  or an option's own `label`, printed bare ("if Turn left" is not a
+     *  sentence; docs/ui-conventions.md, "A proposal with options shows one
+     *  world per option"). */
+    markets?: Array<{ marketId: string; branch?: BranchLabel; label?: string }>;
+  };
   canPost: boolean;
   onRequireSignup: () => void;
   /**
@@ -149,7 +162,7 @@ export function FloorComments({
   // Every market whose activity belongs on the tabs: both labeled branches
   // of a proposal, or the one baseline market. The key is order-stable so a
   // branch switch (which reorders nothing here) does not refetch.
-  const activityMarkets: Array<{ marketId: string; branch?: BranchLabel }> = subject.markets?.length
+  const activityMarkets: Array<{ marketId: string; branch?: BranchLabel; label?: string }> = subject.markets?.length
     ? subject.markets
     : subject.marketId
       ? [{ marketId: subject.marketId }]
@@ -190,9 +203,9 @@ export function FloorComments({
         api
           .getMarketActivity(idOrSlug, m.marketId)
           .then(a => ({
-            positions: (a.positions ?? []).map(p => ({ ...p, branch: m.branch })),
-            trades: (a.trades ?? []).map(t => ({ ...t, branch: m.branch })),
-            pool: (a.pool ?? []).map(l => ({ ...l, branch: m.branch })),
+            positions: (a.positions ?? []).map(p => ({ ...p, branch: worldWords(m) })),
+            trades: (a.trades ?? []).map(t => ({ ...t, branch: worldWords(m) })),
+            pool: (a.pool ?? []).map(l => ({ ...l, branch: worldWords(m) })),
           }))
           .catch(e => {
             console.error('market activity fetch failed:', e);
@@ -386,7 +399,7 @@ export function FloorComments({
                     {p.handle}
                     <BotMark bot={p.bot} />
                   </Link>
-                  {p.branch && <span className="pubws-mkt-branch">if {p.branch}</span>}
+                  {p.branch && <span className="pubws-mkt-branch">{p.branch}</span>}
                   <span className="pubws-mkt-val">
                     {fmtShares(p.shares)} sh{p.worth !== null ? ` · ${fmtCr(p.worth)} cr` : ''}
                   </span>
@@ -419,7 +432,7 @@ export function FloorComments({
                       {item.handle}
                       <BotMark bot={item.bot} />
                     </Link>
-                    {item.branch && <span className="pubws-mkt-branch">if {item.branch}</span>}
+                    {item.branch && <span className="pubws-mkt-branch">{item.branch}</span>}
                     <span className="pubws-mkt-act">
                       {item.kind === 'buy' ? 'bought' : 'sold'} {fmtShares(item.shares)}
                       {/* The price per share, so this row and the profile's say
@@ -455,7 +468,7 @@ export function FloorComments({
                     ) : (
                       <span className="pubws-mkt-who">the house</span>
                     )}
-                    {item.branch && <span className="pubws-mkt-branch">if {item.branch}</span>}
+                    {item.branch && <span className="pubws-mkt-branch">{item.branch}</span>}
                     <span className="pubws-mkt-act pubws-mkt-act--pool">
                       {item.kind === 'opened' ? 'opened it with' : 'deepened the pool by'} {fmtCr(item.amount)}
                     </span>
