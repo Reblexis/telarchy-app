@@ -6660,40 +6660,79 @@ board's side in cells), <code>gameNumber</code>, <code>next: { action, direction
 <code>recentDecisions[]</code>, <code>recentTrades[]</code> (newest first, <code>{ handle, action, cost, ... }</code>), <code>commentary</code>, <code>complete</code>, <code>nextGameAt</code>. <code>/games</code> is
 <code>{ games: [{ number, size, startedAt, endedAt|null, steps, bestLength, deaths }] }</code>; <code>/history</code> is <code>{ game: {number,size,startedAt,endedAt}, total, from, steps: [{ step, at, snake, food, heading, action, direction, undecided, impact:{forward,left,right}, length, deaths }] }</code>, each step the
 state after its move.</p>
-<p>What LIVE draws, top to bottom, in the chart's slot under the same control
-row (the segment toggle in the left cell, the metric caption centred):</p>
+<p>What LIVE draws, in the chart's slot under the same control row (the
+segment toggle in the left cell, the metric caption centred), is exactly
+two things and then the replay row (revised 2026-09-11, Viktor: &quot;in live
+keep only the visualziaiton not the trading buttons just the snake on the
+grid.. and next move.. maybe text&quot;):</p>
 <ol>
-<li><strong>The grid</strong> (<code>.snake-board</code>, an svg sized by <code>grid</code>): a near-black
-board with soft grid lines, one cell per square, the snake as one
-rounded green band along its cells with a lighter head and two dark
-eyes on the side it moves towards, the food a round red dot.</li>
-<li><strong>The next move</strong> (<code>.snake-next</code>), one line: the arrow of the compass
-direction and the action, &quot;→ Turn left&quot;, with the countdown from
-<code>next.seconds</code> as a clock beside it, &quot;0:31&quot;, in the accent while the
-step is open; once <code>next.decided</code> the clock reads &quot;decided&quot; and the
-line takes the snake's green.</li>
-<li><strong>Three tiles</strong> (<code>.snake-tiles</code>), Continue, Turn left, Turn right: the
-compass arrow, the name, and the 60-move impact (approved minus
-declined on <code>m60</code>, signed, one decimal, &quot;—&quot; while unreadable). The
-leader, the highest impact, carries the accent (<code>is-lead</code>). Each tile
-is a link to its proposal on this floor: <code>/&lt;slug&gt;/p/&lt;number&gt;</code> when the
-proposal's url ends in a number, else the url as given.</li>
-<li><strong>One status line</strong> (<code>.snake-status</code>): &quot;Length 7 · Game 1 · 12x12&quot;.</li>
-<li><strong>One quiet line</strong> (<code>.snake-quiet</code>, left-aligned): the newest trade
-(&quot;philipp-gl bet 5 on Turn left&quot;), else the commentary; never both.</li>
+<li><strong>The grid</strong> (<code>.snake-board</code>, an svg sized by <code>grid</code>): one cell per
+square, the snake as one rounded band along its cells with the head
+marked (a lighter disc and two eyes on the side it moves towards), the
+food a round dot.</li>
+<li><strong>The next move</strong> (<code>.snake-next</code>), one left-aligned text line, the
+leader's action in words: &quot;Next move: turn left in 0:31&quot; while the step
+is open (the countdown from <code>next.seconds</code>, ticking by the second
+between polls, in <code>.snake-clock</code>), &quot;Next move: turn left, decided&quot; once
+<code>next.decided</code> and until the move, and &quot;Next move: continue forward
+(default)&quot; while nothing is readable (<code>next</code> absent, or its action
+unreadable). Before the first poll the line reads &quot;Loading&quot;; after a
+failed one &quot;Feed unavailable&quot;; between games &quot;Waiting for the next
+game&quot;.</li>
 </ol>
-<p>It polls <code>/live</code> every 2 seconds while the LIVE segment is on screen and
-the tab is visible, and stops when the segment is left or the tab hidden.</p>
-<p><strong>Replay</strong> sits under the live block (<code>.snake-replay</code>): a game picker
-(from <code>/live/games</code>, newest first, &quot;Game 3 · 12x12 · best 9&quot;), a thin
-scrubber (a range input over the game's <code>total</code> steps), play/pause, a
-speed (1x is one step per second, 10x), and a LIVE button that returns to
-realtime. Touching the scrubber or the picker leaves realtime: the view
-loads the history window around that step (<code>from</code>/<code>limit</code> 300, further
-windows fetched as the scrubber reaches them) and draws that step's snake
-and food on the same grid, with the step's own length and the action the
-market took in the status line. Play advances one step per tick at the
-chosen speed and pauses at the game's last recorded step. No library: the
+<p>Nothing else is in the segment: no tiles, no impact numbers, no status
+line (length, game number, grid size), no quiet line, no trade, no
+commentary, and no button or link other than the replay row's. The
+60-move impacts still arrive on the component (<code>impactOf</code> on the state,
+kept in the props of the drawing) so that showing them again is a
+one-line change, but nothing renders them.</p>
+<p><strong>Telarchy style, not the external board's.</strong> The segment is set in the
+floor's own tokens and nothing else: the board's ground is the chart
+area's (<code>var(--bg-secondary)</code>) with a hairline grid in
+<code>var(--border-color)</code>, the snake in the floor's green (<code>var(--higher)</code>,
+the Higher button's colour) with the head in the same green and the eyes
+in the ground colour, the food in the floor's red (<code>var(--lower)</code>). No
+glow, no shadow, no near-black board, no external font, no yellow (the
+accent is amber and it marks only the countdown while the step is open).
+The next-move line is in <code>var(--font-mono)</code> at the chart's headline
+weight (600, tabular numerals, <code>var(--text-primary)</code>), the clock in the
+accent while open and <code>var(--text-tertiary)</code> once decided. The replay
+controls are the chart's range chips (<code>.mchart-range</code>: mono 0.68rem,
+weight 600, no border, <code>var(--bg-tertiary)</code> when active) and the game
+picker a select in the same type; the scrubber is the native range input
+in the ticket slider's language (a 6px track in <code>var(--border-color)</code>
+filled to the thumb in <code>var(--text-secondary)</code>, a 4px upright thumb in
+<code>var(--text-primary)</code>). The grid takes the column's full width, the
+next-move line sits under it, the replay row under that and wraps on a
+phone. No multi-line text is centred.</p>
+<p><strong>Replay</strong> sits under the next-move line (<code>.snake-replay</code>): a game picker
+(from <code>/live/games</code>, newest first, &quot;Game 3 · 12x12 · best 9&quot;), a
+scrubber (a range input), play/pause, a speed (1x is one entry per
+second, 10x), and a LIVE button that returns to realtime.</p>
+<p>The scrubber indexes ENTRIES of the recording, not moves: <code>/history</code>
+answers <code>total</code> recorded entries, <code>from</code> is the 0-based entry offset in
+the recording, and each entry's <code>step</code> is the move number it records, so
+on a partial game (<code>partial: true</code> in <code>/games</code>, a log that starts late)
+entry 0 is a step far above 0 (game 1 on production: 38 entries for
+steps 202..239, while <code>/games</code> says <code>steps: 239</code>). The scrubber's range
+is therefore 0..<code>total - 1</code> of the loaded history, never the game's
+<code>steps</code> from <code>/games</code>; until the first window is in, the scrubber is
+disabled rather than sized by a number that does not index anything.
+The newest game's first window is fetched with the games list so the
+scrubber is usable at once; in realtime it rests at the end of that game.
+Loaded entries are kept per game by entry index (<code>from + i</code>), and the
+drawn entry is the one at the scrubber's index. Touching the scrubber or
+the picker leaves realtime: the view loads the window around that entry
+(<code>from</code>/<code>limit</code> 300, further windows fetched as the scrubber reaches
+them) and draws that entry's snake and food on the same grid, and the
+next-move line reads the move the entry records, &quot;Step 231: turned left&quot;
+(&quot;Step 202: start&quot; for an entry with no action, &quot;Step 203: continued
+forward (default)&quot; for one the market left undecided). Picking a game
+opens it at its first entry; Play from realtime opens the newest game at
+its first entry. Play advances one entry per tick at the chosen speed and
+holds at the game's last entry (the button reads Play again). LIVE drops
+the replay, draws the polled state again and the next-move line returns.
+The poll never stops during replay, so LIVE is instant. No library: the
 range input and a timer.</p>
 <h3 id="docs-ui-conventions-md--h39">The announcements page</h3>
 <p><code>AnnouncementsPage</code> (<code>/:slug/announcements</code>) is a poster head over a

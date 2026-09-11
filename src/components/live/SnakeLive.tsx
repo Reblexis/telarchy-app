@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import {
   api,
   type SnakeAction,
@@ -12,15 +11,16 @@ import {
 
 /**
  * The snake feed, drawn natively on the floor (docs/ui-conventions.md, "The
- * live view is a segment of the chart slot", "The snake feed"): the grid,
- * the next move with its countdown, three tiles carrying the 60-move impact
- * with the leader in the accent, one status line, one quiet line; and under
- * it the replay: a game picker, a scrubber, play, a speed, and LIVE.
+ * live view is a segment of the chart slot", "The snake feed"): the grid
+ * and one next-move line, nothing else; under it the replay: a game
+ * picker, a scrubber, play, a speed, and LIVE.
  *
  * Realtime polls GET /api/marketplace/:slug/live every 2 seconds while the
- * tab is visible. Replay reads windows of 300 steps of one game around the
- * step the scrubber sits on and draws that step on the same grid. No
- * library: an svg, a range input and a timer.
+ * tab is visible, and keeps polling during replay so LIVE is instant.
+ * Replay indexes ENTRIES of the recording (/history's `total` and `from`),
+ * never move numbers: a partial game's entry 0 is a step far above 0.
+ * Windows of 300 entries are kept per game by entry index. No library: an
+ * svg, a range input and a timer.
  */
 
 const POLL_MS = 2_000;
@@ -28,9 +28,19 @@ const WINDOW = 300;
 /** Drawing units per cell; the svg scales to its box. */
 const CELL = 24;
 
-const ARROW: Record<SnakeHeading, string> = { up: '↑', down: '↓', left: '←', right: '→' };
-const ACTION_LABEL: Record<SnakeAction, string> = { forward: 'Continue', left: 'Turn left', right: 'Turn right' };
 const ACTIONS: SnakeAction[] = ['forward', 'left', 'right'];
+/** The action in words, as the next-move line prints it. */
+const ACTION_WORDS: Record<SnakeAction, string> = {
+  forward: 'continue forward',
+  left: 'turn left',
+  right: 'turn right',
+};
+/** The action in the past, as the replay line prints it. */
+const ACTION_PAST: Record<SnakeAction, string> = {
+  forward: 'continued forward',
+  left: 'turned left',
+  right: 'turned right',
+};
 
 function clock(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
@@ -44,24 +54,9 @@ function impactOf(state: SnakeState, action: SnakeAction): number | null {
   return q.approved - q.declined;
 }
 
-function formatImpact(v: number | null): string {
-  if (v === null) return '—';
-  const abs = Math.abs(v).toFixed(1);
-  return v < 0 ? `-${abs}` : `+${abs}`;
-}
-
-function formatCost(c: number): string {
-  return Number.isInteger(c) ? String(c) : c.toFixed(1);
-}
-
-/** The proposal's address on this floor when its url ends in a number. */
-function proposalHref(slug: string, url: string): { to: string } | { href: string } {
-  const m = url.match(/\/p\/(\d+)\/?$/);
-  return m ? { to: `/${slug}/p/${m[1]}` } : { href: url };
-}
-
-/** The board: grid x grid cells, the snake as one rounded band head first,
- *  a lighter head with two eyes on the moving side, the food a red dot. */
+/** The board: grid x grid cells on the chart area's ground with a hairline
+ *  grid, the snake as one rounded band head first, the head a disc with
+ *  two eyes on the moving side, the food a round dot. */
 function Board({
   grid,
   snake,
@@ -113,7 +108,7 @@ function Board({
       aria-label={`Snake board, ${grid} by ${grid}`}
     >
       <title>Snake board</title>
-      <rect className="snake-bg" x={0} y={0} width={side} height={side} rx={CELL * 0.5} />
+      <rect className="snake-bg" x={0} y={0} width={side} height={side} />
       {cells.map(([x, y]) => (
         <rect key={`${x}-${y}`} className="snake-cell" x={x * CELL} y={y * CELL} width={CELL} height={CELL} />
       ))}
@@ -136,7 +131,15 @@ function Board({
   );
 }
 
-type Replay = { game: number; step: number };
+/** A game and an ENTRY index into its recording (0-based, /history's `from`). */
+type Replay = { game: number; entry: number };
+
+/** The replay line for one recorded entry: the move the market took. */
+function replayLine(row: SnakeHistoryStep): string {
+  if (row.action === null) return `Step ${row.step}: start`;
+  const past = ACTION_PAST[row.action] ?? row.action;
+  return row.undecided ? `Step ${row.step}: ${past} (default)` : `Step ${row.step}: ${past}`;
+}
 
 export function SnakeLive({ slug }: { slug: string }) {
   const [state, setState] = useState<SnakeState | null>(null);
@@ -191,33 +194,19 @@ export function SnakeLive({ slug }: { slug: string }) {
     return () => window.clearInterval(t);
   }, []);
 
-  /* Replay: the games newest first, a per-game cache of loaded steps, and
-     the step the scrubber sits on. Realtime while `replay` is null. */
+  /* Replay: the games newest first, a per-game cache of loaded entries by
+     entry index, the recorded total per game, and the entry the scrubber
+     sits on. Realtime while `replay` is null. */
   const [games, setGames] = useState<SnakeGame[]>([]);
   const [replay, setReplay] = useState<Replay | null>(null);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<1 | 10>(1);
   const [totals, setTotals] = useState<Record<number, number>>({});
-  const stepsRef = useRef<Map<number, Map<number, SnakeHistoryStep>>>(new Map());
+  const entriesRef = useRef<Map<number, Map<number, SnakeHistoryStep>>>(new Map());
   const loadingRef = useRef<Set<string>>(new Set());
   const [, setLoaded] = useState(0);
 
-  useEffect(() => {
-    let stopped = false;
-    api
-      .getLiveGames(slug)
-      .then(r => {
-        if (!stopped) setGames([...r.games].sort((a, b) => b.number - a.number));
-      })
-      .catch(() => {
-        /* No record yet: the replay row stays empty. */
-      });
-    return () => {
-      stopped = true;
-    };
-  }, [slug]);
-
-  const stepOf = useCallback((game: number, step: number) => stepsRef.current.get(game)?.get(step) ?? null, []);
+  const entryOf = useCallback((game: number, entry: number) => entriesRef.current.get(game)?.get(entry) ?? null, []);
 
   const loadWindow = useCallback(
     (game: number, from: number) => {
@@ -227,81 +216,104 @@ export function SnakeLive({ slug }: { slug: string }) {
       api
         .getLiveHistory(slug, { game, from, limit: WINDOW })
         .then(h => {
-          let map = stepsRef.current.get(game);
+          let map = entriesRef.current.get(game);
           if (!map) {
             map = new Map();
-            stepsRef.current.set(game, map);
+            entriesRef.current.set(game, map);
           }
-          for (const s of h.steps) map.set(s.step, s);
+          // Entries are kept by their index in the recording, `from + i`,
+          // never by the move number they record.
+          h.steps.forEach((s, i) => map.set(h.from + i, s));
           setTotals(t => (t[game] === h.total ? t : { ...t, [game]: h.total }));
           setLoaded(n => n + 1);
         })
         .catch(() => {
-          /* A window that fails to load leaves the last drawn step on screen. */
+          /* A window that fails to load leaves the last drawn entry on screen. */
         })
         .finally(() => loadingRef.current.delete(key));
     },
     [slug],
   );
 
-  /** The step's row, fetching the window around it when it is not loaded. */
+  /* The games list, and with it the newest game's first window, so the
+     scrubber has a real range before anyone touches it. */
+  useEffect(() => {
+    let stopped = false;
+    api
+      .getLiveGames(slug)
+      .then(r => {
+        if (stopped) return;
+        const sorted = [...r.games].sort((a, b) => b.number - a.number);
+        setGames(sorted);
+        if (sorted[0]) loadWindow(sorted[0].number, 0);
+      })
+      .catch(() => {
+        /* No record yet: the replay row stays empty. */
+      });
+    return () => {
+      stopped = true;
+    };
+  }, [slug, loadWindow]);
+
+  /** The entry's row, fetching the window around it when it is not loaded. */
   const ensureLoaded = useCallback(
-    (game: number, step: number) => {
-      if (stepOf(game, step)) return;
-      loadWindow(game, Math.max(0, step - WINDOW / 2));
+    (game: number, entry: number) => {
+      if (entryOf(game, entry)) return;
+      loadWindow(game, Math.max(0, entry - WINDOW / 2));
     },
-    [stepOf, loadWindow],
+    [entryOf, loadWindow],
   );
 
-  const totalOf = useCallback(
-    (game: number) => totals[game] ?? (games.find(g => g.number === game)?.steps ?? 0) + 1,
-    [totals, games],
-  );
+  /** Recorded entries of a game, or null until its first window is in. */
+  const totalOf = useCallback((game: number): number | null => totals[game] ?? null, [totals]);
 
   const goTo = useCallback(
-    (game: number, step: number) => {
-      const max = Math.max(0, totalOf(game) - 1);
-      const s = Math.min(Math.max(0, step), max);
-      setReplay({ game, step: s });
-      ensureLoaded(game, s);
+    (game: number, entry: number) => {
+      const total = totalOf(game);
+      const max = total === null ? Number.POSITIVE_INFINITY : Math.max(0, total - 1);
+      const e = Math.min(Math.max(0, entry), max);
+      setReplay({ game, entry: e });
+      ensureLoaded(game, e);
     },
     [totalOf, ensureLoaded],
   );
 
-  /* Play: one step per tick at the chosen speed, held at the last step. */
+  /* Play: one entry per tick at the chosen speed, held at the last entry. */
   useEffect(() => {
     if (!playing || !replay) return;
     const t = window.setInterval(() => {
       setReplay(cur => {
         if (!cur) return cur;
-        const max = Math.max(0, totalOf(cur.game) - 1);
-        if (cur.step >= max) {
+        const total = totalOf(cur.game);
+        if (total === null) return cur;
+        const max = Math.max(0, total - 1);
+        if (cur.entry >= max) {
           setPlaying(false);
           return cur;
         }
-        const next = cur.step + 1;
+        const next = cur.entry + 1;
         ensureLoaded(cur.game, next);
         // Look ahead so the next window is in before the scrubber reaches it.
         const ahead = next + 20;
-        if (ahead <= max && !stepOf(cur.game, ahead)) loadWindow(cur.game, next + 1);
-        return { game: cur.game, step: next };
+        if (ahead <= max && !entryOf(cur.game, ahead)) loadWindow(cur.game, next + 1);
+        return { game: cur.game, entry: next };
       });
     }, 1_000 / speed);
     return () => window.clearInterval(t);
-  }, [playing, speed, replay?.game, totalOf, ensureLoaded, stepOf, loadWindow]);
+  }, [playing, speed, replay, totalOf, ensureLoaded, entryOf, loadWindow]);
 
   const goLive = () => {
     setPlaying(false);
     setReplay(null);
   };
 
-  const row = replay ? stepOf(replay.game, replay.step) : null;
+  const row = replay ? entryOf(replay.game, replay.entry) : null;
   const game = state?.game ?? null;
   const grid = replay
-    ? (games.find(g => g.number === replay.game)?.size ?? row?.snake.length ?? state?.grid ?? 12)
+    ? (games.find(g => g.number === replay.game)?.size ?? state?.grid ?? 12)
     : (state?.grid ?? game?.size ?? 12);
 
-  /* What the board draws: the live game, or the scrubbed step. */
+  /* What the board draws: the live game, or the scrubbed entry. */
   const drawn = replay
     ? row
       ? { snake: row.snake, food: row.food, heading: row.heading }
@@ -314,20 +326,38 @@ export function SnakeLive({ slug }: { slug: string }) {
   const elapsed = fetchedAt ? Math.max(0, (now - fetchedAt) / 1000) : 0;
   const seconds = next ? Math.max(0, next.seconds - elapsed) : 0;
 
+  /* The 60-move impacts, carried on the drawing but not printed (the tiles
+     were cut 2026-09-11); rendering them again is a one-line change here. */
   const impacts = state ? ACTIONS.map(a => impactOf(state, a)) : [];
-  const readable = impacts.filter((v): v is number => v !== null);
-  const leader: SnakeAction = readable.length === 0 ? 'forward' : ACTIONS[impacts.indexOf(Math.max(...readable))];
+  const impactsAttr = impacts.length
+    ? impacts.map(v => (v === null ? '' : String(Number(v.toFixed(1))))).join(',')
+    : undefined;
 
-  const trade = state?.recentTrades?.[0] ?? null;
-  const quiet = trade
-    ? `${trade.handle} ${trade.kind === 'sell' ? 'sold' : 'bet'} ${formatCost(trade.cost)} on ${ACTION_LABEL[trade.action] ?? trade.action}`
-    : (state?.commentary ?? null);
+  /* The scrubber's game: the one being replayed, else the newest. */
+  const scrubGame = replay?.game ?? games[0]?.number;
+  const scrubTotal = scrubGame === undefined ? null : totalOf(scrubGame);
+  const scrubMax = scrubTotal === null ? 0 : Math.max(0, scrubTotal - 1);
+  const scrubValue = replay ? Math.min(replay.entry, scrubMax) : scrubMax;
 
-  const total = replay ? totalOf(replay.game) : 0;
+  /* The one line under the grid. */
+  let line: { text: string; clock?: string; cls: string };
+  if (replay) {
+    line = { text: row ? replayLine(row) : `Game ${replay.game}`, cls: 'is-replay' };
+  } else if (!state) {
+    line = { text: failed ? 'Feed unavailable' : 'Loading', cls: 'is-idle' };
+  } else if (!game) {
+    line = { text: failed ? 'Feed unavailable' : 'Waiting for the next game', cls: 'is-idle' };
+  } else if (!next || !(next.action in ACTION_WORDS)) {
+    line = { text: 'Next move: continue forward (default)', cls: 'is-default' };
+  } else if (next.decided) {
+    line = { text: `Next move: ${ACTION_WORDS[next.action]}, decided`, cls: 'is-decided' };
+  } else {
+    line = { text: `Next move: ${ACTION_WORDS[next.action]} in `, clock: clock(seconds), cls: 'is-open' };
+  }
 
   return (
     <div className="snake-live">
-      <div className="snake-main">
+      <div className="snake-main" data-impacts={impactsAttr}>
         <div className="snake-board-box">
           {drawn ? (
             <Board grid={grid} snake={drawn.snake} food={drawn.food} heading={drawn.heading} />
@@ -335,71 +365,10 @@ export function SnakeLive({ slug }: { slug: string }) {
             <Board grid={grid} snake={[]} food={null} heading="right" />
           )}
         </div>
-        <div className="snake-side">
-          {replay ? (
-            <p className="snake-status">
-              {row
-                ? `Length ${row.length} · Game ${replay.game} · Step ${replay.step} · ${
-                    row.action === null ? 'Start' : ACTION_LABEL[row.action]
-                  }`
-                : `Game ${replay.game} · Step ${replay.step}`}
-            </p>
-          ) : (
-            <>
-              {next ? (
-                <p className={`snake-next${next.decided ? ' is-decided' : ''}`}>
-                  <span className="snake-next-move">{`${ARROW[next.direction]} ${ACTION_LABEL[next.action]}`}</span>
-                  <span className="snake-clock">{next.decided ? 'decided' : clock(seconds)}</span>
-                </p>
-              ) : state ? (
-                <p className="snake-next is-idle">
-                  <span className="snake-next-move">{failed ? 'Feed unavailable' : 'Waiting for the next game'}</span>
-                </p>
-              ) : (
-                <p className="snake-next is-idle">
-                  <span className="snake-next-move">{failed ? 'Feed unavailable' : 'Loading'}</span>
-                </p>
-              )}
-              {state?.open && (
-                <div className="snake-tiles">
-                  {ACTIONS.map((a, i) => {
-                    const dir = state.open?.directions?.[a];
-                    const p = state.open?.proposals?.[a] ?? null;
-                    const cls = `snake-tile${a === leader ? ' is-lead' : ''}`;
-                    const body = (
-                      <>
-                        <span className="snake-tile-arrow">{dir ? ARROW[dir] : ''}</span>
-                        <span className="snake-tile-impact">{formatImpact(impacts[i])}</span>
-                        <span className="snake-tile-name">{ACTION_LABEL[a]}</span>
-                      </>
-                    );
-                    if (!p?.url) {
-                      return (
-                        <span key={a} className={cls}>
-                          {body}
-                        </span>
-                      );
-                    }
-                    const href = proposalHref(slug, p.url);
-                    return 'to' in href ? (
-                      <Link key={a} className={cls} to={href.to}>
-                        {body}
-                      </Link>
-                    ) : (
-                      <a key={a} className={cls} href={href.href} target="_blank" rel="noopener noreferrer">
-                        {body}
-                      </a>
-                    );
-                  })}
-                </div>
-              )}
-              {game && (
-                <p className="snake-status">{`Length ${game.length} · Game ${state?.gameNumber ?? game.gameNumber} · ${grid}x${grid}`}</p>
-              )}
-              {quiet && <p className="snake-quiet">{quiet}</p>}
-            </>
-          )}
-        </div>
+        <p className={`snake-next ${line.cls}`}>
+          {line.text}
+          {line.clock !== undefined && <span className="snake-clock">{line.clock}</span>}
+        </p>
       </div>
       <div className="snake-replay" role="group" aria-label="Replay">
         <select
@@ -424,39 +393,38 @@ export function SnakeLive({ slug }: { slug: string }) {
         <input
           className="snake-scrub"
           type="range"
-          aria-label="Step"
+          aria-label="Entry"
           min={0}
-          max={replay ? Math.max(0, total - 1) : 0}
-          value={replay?.step ?? 0}
-          disabled={games.length === 0}
+          max={scrubMax}
+          value={scrubValue}
+          disabled={scrubTotal === null}
+          style={{ '--slider-pct': `${scrubMax ? (scrubValue / scrubMax) * 100 : 0}%` } as React.CSSProperties}
           onChange={e => {
-            const g = replay?.game ?? games[0]?.number;
-            if (g === undefined) return;
+            if (scrubGame === undefined) return;
             setPlaying(false);
-            goTo(g, Number(e.target.value));
+            goTo(scrubGame, Number(e.target.value));
           }}
         />
         <button
           type="button"
-          className="snake-btn"
-          disabled={games.length === 0}
+          className="mchart-range snake-btn"
+          disabled={scrubTotal === null}
           onClick={() => {
             if (!replay) {
-              const g = games[0]?.number;
-              if (g === undefined) return;
-              goTo(g, 0);
+              if (scrubGame === undefined) return;
+              goTo(scrubGame, 0);
             }
             setPlaying(p => !p);
           }}
         >
           {playing ? 'Pause' : 'Play'}
         </button>
-        <button type="button" className="snake-btn" onClick={() => setSpeed(s => (s === 1 ? 10 : 1))}>
+        <button type="button" className="mchart-range snake-btn" onClick={() => setSpeed(s => (s === 1 ? 10 : 1))}>
           {`${speed}x`}
         </button>
         <button
           type="button"
-          className={`snake-btn snake-live-btn${replay === null ? ' is-active' : ''}`}
+          className={`mchart-range snake-btn snake-live-btn${replay === null ? ' is-active' : ''}`}
           aria-pressed={replay === null}
           onClick={goLive}
         >

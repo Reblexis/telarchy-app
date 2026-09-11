@@ -1947,3 +1947,28 @@ on such a floor, and a replay (game picker, scrubber, play, speed) under
 it. `liveViewUrl` is deprecated: it still frames a page for a floor that
 has only it, and hides once `liveFeed` is set. Spec in
 docs/ui-conventions.md, "The live view is a segment of the chart slot".
+
+**2026-09-11 (Viktor): the live segment is the grid and the next move,
+in the floor's own style, and the replay works.** Of the LIVE segment
+shipped that morning (PR 257): "teh replay doesnt really work so fix
+that.. and improve the /design in general so it fits more telarchy
+styel.. thgen also in live keep only the visualziaiton not the trading
+buttons just the snake on the grid.. and next move.. maybe text". Three
+changes. (1) The replay was broken on production because the scrubber
+counted moves while the recording counts entries: `/history` answers
+`total` entries with `from` an entry offset, and each entry carries the
+move number it records; a partial game (production game 1: 38 entries
+for steps 202..239, `/games` saying `steps: 239`) has entry 0 at step
+202, and the component keyed its cache by step and looked up by the
+scrubber's index, so no entry was ever found and the board stayed
+empty; the scrubber was also sized by `steps + 1` until a window
+loaded. The spec now says entries, end to end. (2) The segment shows
+only the grid and one left-aligned "Next move: turn left in 0:31" line;
+the three tiles, the impact numbers, the status line and the quiet line
+are gone. The m60 impacts still reach the component so a later "show
+impacts" is a one-line change. (3) The segment is set in the floor's
+tokens: the chart area's ground with a hairline grid, the snake in
+`--higher`, the food in `--lower`, mono at the headline weight, the
+chart's range chips for the replay controls and the ticket slider's
+track for the scrubber; no near-black board, no glow. Spec in
+docs/ui-conventions.md, "The live view is a segment of the chart slot".
