@@ -627,16 +627,18 @@ export function SnakeLive({
     line = { text: 'Next move: continue forward (default)', cls: 'is-default' };
   } else if (next.decided) {
     line = { text: `Next move: ${ACTION_WORDS[next.action]}, decided`, cls: 'is-decided' };
-  } else if (seconds < 1) {
-    /* The countdown ran out (2026-09-11): the ruling lands a moment later
-       and the next step a moment after that, and a line sitting on "in
-       0:00" for those ten seconds hides the one transition the page exists
-       to show. Under a second, so the clock never prints 0:00 at all. */
-    line = { text: `Next move: ${ACTION_WORDS[next.action]}, deciding`, cls: 'is-decided' };
   } else if (elapsed > STALE_S) {
     /* A feed read older than 8 seconds is said instead of a countdown the
        page cannot see (docs/ui-conventions.md, "The feed drives the floor"). */
     line = { text: `Next move: ${ACTION_WORDS[next.action]} · feed ${Math.round(elapsed)}s old`, cls: 'is-idle' };
+  } else if (seconds < 1) {
+    /* The countdown ran out (2026-09-11): the ruling lands a moment later
+       and the next step a moment after that, and a line sitting on "in
+       0:00" for those ten seconds hides the one transition the page exists
+       to show. Under a second, so the clock never prints 0:00 at all; after the
+       stale check, because a page that cannot see the feed does not know
+       that anything is being decided. */
+    line = { text: `Next move: ${ACTION_WORDS[next.action]}, deciding`, cls: 'is-decided' };
   } else {
     line = { text: `Next move: ${ACTION_WORDS[next.action]} in `, clock: clock(seconds), cls: 'is-open' };
   }
