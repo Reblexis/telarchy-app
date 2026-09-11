@@ -2043,8 +2043,18 @@ move and the head transition to their new cells over 250ms and a chevron
 fades between its states, reduced motion respected, instead of the board
 jumping between polls; and the closed line in the ticket's place stays
 through the ruling ("Trading closed. Decided: approved.") instead of the
-rail emptying at the decision. The ticking m:ss countdowns and the fed
+rail emptying at the decision. Two more of the same defect, found on
+the live floor while checking those four: the next-move line sat on "in
+0:00" for the ten seconds between the step closing and the next opening,
+where it now says "deciding", and in those same seconds the feed names no
+step at all, which sent the read age back to "1m ago" until the page kept
+the newest reading it had seen. The ticking m:ss countdowns and the fed
 floor's poll rates were already in place from the same day's feed work.
+One consequence outside the snake floor: the pool no longer orders any
+ballot anywhere, the /owners panel included, since it reads the same
+function; it still prints on every row (the 2026-09-02 "ordered by total
+liquidity available" had already been demoted to a tiebreak on
+2026-09-09).
 Specs in docs/ui-conventions.md, "The live view is a segment of the chart
 slot" ("The feed drives the floor", "A pending row keeps its place for its
 whole life", "The reading's age is the newest reading's age", "A proposal
