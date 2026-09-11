@@ -2343,7 +2343,9 @@ grid.. and next move.. maybe text"):
    between polls, in `.snake-clock`), "Next move: turn left, deciding"
    from the moment that countdown would print 0:00 until the ruling lands
    (never over a stale read: a page that cannot see the feed says so
-   instead, since it does not know that anything is being decided)
+   instead, since it does not know that anything is being decided; and a
+   step that has run out stays run out until the next one opens, because
+   the service's own count came back 2, 1, 0, 1 across a boundary)
    (the service rules a moment after the step closes and opens the next a
    moment after that, and a line sitting on "in 0:00" for those seconds
    hides the one transition the page exists to show), "Next move: turn
