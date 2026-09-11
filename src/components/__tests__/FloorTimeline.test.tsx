@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
  * "What is planned" on the floor (docs/owner-on-the-floor.md, "What is
  * planned"; docs/ui-conventions.md, the FloorTimeline paragraph). The
  * geometry is the model's spec (timeline-model.test.ts); this pins what a
- * visitor and a manager see, and what the two owner controls call.
+ * visitor and a manager see, the eight-row fold, and what the two owner
+ * controls call.
  */
 
 const h = vi.hoisted(() => ({
@@ -28,16 +29,10 @@ import { FloorTimeline } from '../FloorTimeline';
 const NOW = new Date(2026, 8, 11, 10, 0, 0, 0);
 const DAY = 864e5;
 const at = (ms: number) => new Date(NOW.getTime() + ms).toISOString();
+const dayMonth = (ms: number) =>
+  new Date(NOW.getTime() + ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
 const ITEMS = [
-  {
-    kind: 'proposal',
-    id: 'p1',
-    title: 'Ship the results post',
-    start: at(-DAY),
-    end: at(2 * DAY),
-    href: '/telarchy?proposal=1',
-  },
   {
     kind: 'decision',
     id: 'd1',
@@ -45,6 +40,14 @@ const ITEMS = [
     start: at(-2 * DAY),
     end: at(DAY),
     href: '/telarchy?proposal=36',
+  },
+  {
+    kind: 'proposal',
+    id: 'p1',
+    title: 'Ship the results post',
+    start: at(-DAY),
+    end: at(2 * DAY),
+    href: '/telarchy?proposal=1',
   },
   {
     kind: 'book',
@@ -75,6 +78,17 @@ const ITEMS = [
     description: null,
   },
 ];
+
+/** Twelve dated plans, one a day, for the fold. */
+const MANY = Array.from({ length: 12 }, (_, i) => ({
+  kind: 'plan',
+  id: `m${i}`,
+  title: `Plan number ${i}`,
+  start: null,
+  end: at((i + 1) * 0.4 * DAY),
+  href: null,
+  done: false,
+}));
 
 const renderIt = (props: Partial<Parameters<typeof FloorTimeline>[0]> = {}) =>
   render(
@@ -117,41 +131,71 @@ describe('what is planned, on the floor', () => {
     await waitFor(() => expect(container.querySelector('section')).toBeNull());
   });
 
-  test('items render as bars that link to the thing they are', async () => {
+  test('each item is one row, in end order, and the row is the link to the thing it is', async () => {
     renderIt();
-    const bar = (await screen.findByText('Ship the results post')).closest('a');
-    expect(bar?.getAttribute('href')).toBe('/telarchy?proposal=1');
+    await screen.findByText('Ship the results post');
+    const titles = Array.from(document.querySelectorAll('.pubws-tl-row .pubws-tl-title')).map(e => e.textContent);
+    expect(titles).toEqual([
+      'Daily update for a week',
+      'Ship the results post',
+      'Active forecasters, this week',
+      'Call with Seer',
+    ]);
+    expect(screen.getByText('Ship the results post').closest('a')?.getAttribute('href')).toBe('/telarchy?proposal=1');
     expect(screen.getByText('Active forecasters, this week').closest('a')?.getAttribute('href')).toBe(
       '/telarchy#market=b1',
     );
-    // Each bar names its kind in one word for a reader who cannot tell a book from a proposal by colour.
-    expect(screen.getByText('decides')).toBeTruthy();
   });
 
-  test('a plan bar has no address: it is a button that opens its own words', async () => {
+  test('the title line is one line cut with an ellipsis, and the bar carries no words', async () => {
     renderIt();
-    const bar = (await screen.findByText('Call with Seer')).closest('button');
-    expect(bar).toBeTruthy();
-    fireEvent.click(bar!);
+    const title = await screen.findByText('Ship the results post');
+    expect(title.className).toContain('pubws-tl-title');
+    const row = title.closest('.pubws-tl-row')!;
+    const bar = row.querySelector('.pubws-tl-bar')!;
+    expect(bar.textContent).toBe('');
+    expect(bar.className).toContain('pubws-tl-bar--proposal');
+    // The book began three days ago, before the week window opens: its bar is open on the left.
+    const book = screen
+      .getByText('Active forecasters, this week')
+      .closest('.pubws-tl-row')!
+      .querySelector('.pubws-tl-bar')!;
+    expect(book.className).toContain('pubws-tl-bar--book');
+    expect(book.className).toContain('pubws-tl-bar--open-left');
+  });
+
+  test('the meta at the end of the title line names the end per kind', async () => {
+    renderIt();
+    await screen.findByText('Ship the results post');
+    expect(screen.getByText('decides tomorrow')).toBeTruthy();
+    expect(screen.getByText(`by ${dayMonth(2 * DAY)}`)).toBeTruthy();
+    expect(screen.getByText(`settles ${dayMonth(3 * DAY)}`)).toBeTruthy();
+    expect(screen.getByText(`due ${dayMonth(4 * DAY)}`)).toBeTruthy();
+  });
+
+  test('a plan row has no address: it is a button that opens its own words', async () => {
+    renderIt();
+    const row = (await screen.findByText('Call with Seer')).closest('button');
+    expect(row).toBeTruthy();
+    fireEvent.click(row!);
     expect(screen.getByText('Thursday')).toBeTruthy();
   });
 
-  test('undated items are listed under "No date"', async () => {
+  test('undated items are listed under "No date" with no meta', async () => {
     renderIt();
     expect(await screen.findByText('No date')).toBeTruthy();
-    expect(screen.getByText('Write the September post')).toBeTruthy();
+    const row = screen.getByText('Write the September post').closest('.pubws-tl-undated-row')!;
+    expect(row.querySelector('.pubws-tl-meta')).toBeNull();
   });
 
-  test('a manager gets a done tick on each plan bar; a visitor gets none', async () => {
+  test('a manager gets a done tick on each plan row; a visitor gets none', async () => {
     const { unmount } = renderIt();
     await screen.findByText('Call with Seer');
     expect(screen.queryByRole('button', { name: 'Mark done: Call with Seer' })).toBeNull();
     unmount();
     renderIt({ canManage: true });
     expect(await screen.findByRole('button', { name: 'Mark done: Call with Seer' })).toBeTruthy();
-    // Undated plans are open too, and can be done from the list.
     expect(screen.getByRole('button', { name: 'Mark done: Write the September post' })).toBeTruthy();
-    // A proposal is not a plan: no tick.
     expect(screen.queryByRole('button', { name: 'Mark done: Ship the results post' })).toBeNull();
   });
 
@@ -175,6 +219,15 @@ describe('what is planned, on the floor', () => {
     expect(screen.getByRole('button', { name: 'Week' }).className).not.toContain('is-active');
   });
 
+  test('ticks follow the range: a week has seven day ticks, today has four six-hour ticks', async () => {
+    renderIt();
+    await screen.findByText('Call with Seer');
+    expect(document.querySelectorAll('.pubws-tl-tick').length).toBe(7);
+    fireEvent.click(screen.getByRole('button', { name: 'Today' }));
+    const labels = Array.from(document.querySelectorAll('.pubws-tl-tick')).map(e => e.textContent);
+    expect(labels).toEqual(['00:00', '06:00', '12:00', '18:00', '00:00']);
+  });
+
   test('today shows only what reaches today, the rest waits for the wider range', async () => {
     h.getWorkspaceTimeline.mockResolvedValue({
       now: NOW.toISOString(),
@@ -187,6 +240,34 @@ describe('what is planned, on the floor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Today' }));
     expect(screen.queryByText('Far away')).toBeNull();
     expect(screen.getByText('Nothing in this range.')).toBeTruthy();
+  });
+
+  test('eight rows show; "All N" in the corner unfolds the rest and "Fewer" folds them', async () => {
+    h.getWorkspaceTimeline.mockResolvedValue({ now: NOW.toISOString(), items: MANY });
+    renderIt();
+    await screen.findByText('Plan number 0');
+    expect(document.querySelectorAll('.pubws-tl-row').length).toBe(8);
+    expect(screen.queryByText('Plan number 8')).toBeNull();
+    const all = screen.getByRole('button', { name: 'All 12' });
+    fireEvent.click(all);
+    expect(document.querySelectorAll('.pubws-tl-row').length).toBe(12);
+    expect(screen.getByText('Plan number 11')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Fewer' }));
+    expect(document.querySelectorAll('.pubws-tl-row').length).toBe(8);
+  });
+
+  test('eight or fewer rows: no "All N" control', async () => {
+    renderIt();
+    await screen.findByText('Call with Seer');
+    expect(screen.queryByRole('button', { name: /^All \d+$/ })).toBeNull();
+  });
+
+  test('a manager with many rows has both "+ plan" and "All N" in the corner', async () => {
+    h.getWorkspaceTimeline.mockResolvedValue({ now: NOW.toISOString(), items: MANY });
+    renderIt({ canManage: true });
+    await screen.findByText('Plan number 0');
+    expect(screen.getByRole('button', { name: '+ plan' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'All 12' })).toBeTruthy();
   });
 
   test('"+ plan" opens the form and posting it creates the plan and refetches', async () => {

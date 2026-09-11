@@ -247,10 +247,21 @@ approved" but "what is actually happening, and by when". Design record in
 the telarchy umbrella, `notes/floor-timeline-proposal-2026-09-11.md`.
 
 **The axis.** One horizontal time axis with a now-line and the past shaded,
-three ranges picked by a segmented control (today, week, month), a bar per
-item packed into lanes, the lane whose bar ends soonest on top. A bar is a
-committed interval: it starts when the commitment began and ends when it is
-due. Bars are things the floor already holds, plus the owner's own items:
+three ranges picked by a segmented control (today, week, month), and one
+row per item: the item's title on its own line, with a short mono meta at
+the end of that line naming what the end is ("decides 15 Sept", "by 1 Oct",
+"settles 1 Oct", "due 14 Sept"), and its bar on the axis beneath. The row
+whose bar ends soonest is on top. The title is never drawn inside or beside
+the bar: the column the card lives in is 280px wide, and a label that has
+to fit next to its bar is a label that gets cut. The card shows the first
+eight rows in the range and an "All N" corner control unfolds the rest, so
+a floor with two dozen open commitments is still a card and not a page.
+Ticks: every six hours in the today range, every day in the week range
+(day numbers, the first of a month named), every Monday in the month range
+(day and month); the axis is dense enough to read a date off it at 280px.
+A bar is a committed interval: it starts when the commitment began and ends
+when it is due. Bars are things the floor already holds, plus the owner's
+own items:
 
 | bar | starts | ends | drawn from |
 |---|---|---|---|
