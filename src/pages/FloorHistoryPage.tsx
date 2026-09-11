@@ -9,7 +9,7 @@ import {
   type HistoryOption,
   type HistorySettle,
 } from '../lib/api';
-import { currencyOf, metricLabelOf } from '../lib/floor-horizons';
+import { compactValueOf, currencyOf, metricLabelOf } from '../lib/floor-horizons';
 import { clockOf, countdownTo, dayOf } from '../lib/viewer-time';
 import { TopBar } from './TradePage';
 
@@ -40,6 +40,9 @@ const CURVES_W = 88;
 function num(v: number | null | undefined, unit = ''): string | null {
   if (v === null || v === undefined || !Number.isFinite(v)) return null;
   const a = Math.abs(v);
+  // From ten thousand up the tree prints the caption form the floor uses
+  // ("744k", "10M"): a full figure does not fit the left column on a phone.
+  if (a >= 10_000) return compactValueOf(v, unit);
   const body =
     a >= 1000
       ? Math.round(v).toLocaleString('en-US')

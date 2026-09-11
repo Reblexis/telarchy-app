@@ -231,6 +231,29 @@ describe('A DECISION IS A FORK: what happened right of the trunk, what did not l
   });
 });
 
+describe('A PRICE FITS ITS COLUMN', () => {
+  test('from ten thousand up a price is printed compact, so it fits the left column on a phone', async () => {
+    getFloorHistory.mockResolvedValue(
+      history({
+        events: [
+          fork({
+            metric: { id: 'm-val', name: 'Implied valuation (USD)', targetDate: '2026' },
+            options: [
+              { label: 'if approved', proposalId: 'p1', taken: true, price: 744_286 },
+              { label: 'if declined', proposalId: 'p1', taken: false, price: 10_000_000 },
+            ],
+          }),
+        ],
+      }),
+    );
+    const { container } = renderPage();
+    await screen.findByRole('heading', { name: 'Telarchy' });
+    const [row] = rows(container);
+    expect(row.querySelector('.hist-verdict')?.textContent).toContain('$744k');
+    expect(row.querySelector('.hist-ghosts')?.textContent).toContain('$10.0M');
+  });
+});
+
 describe('A BOOK THAT SETTLED IS A SQUARE ON THE TRUNK', () => {
   test('the call against the value, and a voided book says so', async () => {
     getFloorHistory.mockResolvedValue(history({ events: [settle] }));
