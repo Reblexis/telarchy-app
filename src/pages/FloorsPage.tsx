@@ -441,11 +441,13 @@ export function FloorsPage() {
         {/* No page title (owner direction 2026-08-20): the sentence IS the
             opening, and the board under it is the evidence. Plain words, no
             "bet" and no "priced" (approved proposal on the Telarchy floor,
-            2026-09-04; notes/decisions/ui-conventions.md). */}
-        <h1 className="mkt-thesis">Forecast a company's metrics. Get paid when you're right.</h1>
+            2026-09-04; notes/decisions/ui-conventions.md). The subject is the
+            decision, not the metric, and the owner is not necessarily a
+            company (Viktor, 2026-09-11). */}
+        <h1 className="mkt-thesis">Forecast a decision's impact before it's made. Get paid when you're right.</h1>
         <p className="mkt-lead">
-          Revenue, users, active traders, updated by the people running them. Forecast free, human or AI, or list your
-          own number and see the forecast before you decide.
+          Revenue, users, a game's score, updated by the people running them. Forecast how each open decision moves
+          them, free, human or AI. Or put your own decision up and read the forecast before you act.
         </p>
 
         {busy ? <SeasonGhost /> : <SeasonDoor season={season} />}

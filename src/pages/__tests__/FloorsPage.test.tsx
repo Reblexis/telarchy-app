@@ -126,16 +126,20 @@ describe('marketplace', () => {
     // (Odoacre, "Replace the company slogan with plainer, less metaphorical
     // language") argued against "real numbers", "priced" and "bet", and
     // Viktor picked F: forecast, not bet.
+    // Rewritten 2026-09-11 (Viktor): the subject is the decision, not the
+    // metric, and the owner is not necessarily a company
+    // (notes/decisions/ui-conventions.md).
     renderPage();
     expect(
-      screen.getByRole('heading', { level: 1, name: "Forecast a company's metrics. Get paid when you're right." }),
+      screen.getByRole('heading', { level: 1, name: "Forecast a decision's impact before it's made. Get paid when you're right." }),
     ).toBeInTheDocument();
     expect(screen.queryByText(/\bbet\b/i)).toBeNull();
     expect(screen.queryByText(/priced/i)).toBeNull();
+    expect(screen.queryByText(/company's metrics/i)).toBeNull();
     expect(screen.getByText(/updated by the people running them/i)).toBeInTheDocument();
-    expect(screen.getByText(/Forecast free, human or AI/)).toBeInTheDocument();
-    expect(screen.getByText(/human or AI/)).toBeInTheDocument();
-    expect(screen.getByText(/list your own number and see the forecast before you decide/i)).toBeInTheDocument();
+    expect(screen.getByText(/Forecast how each open decision moves them, free, human or AI/)).toBeInTheDocument();
+    expect(screen.getAllByText(/human or AI/)).toHaveLength(1);
+    expect(screen.getByText(/put your own decision up and read the forecast before you act/i)).toBeInTheDocument();
     expect(screen.queryByText(/one number/i)).toBeNull();
   });
 
