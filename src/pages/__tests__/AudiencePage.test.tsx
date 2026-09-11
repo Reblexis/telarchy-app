@@ -127,8 +127,12 @@ const PROPOSALS = [
   proposal('p8', 'A decided one, out of the ballot', 'Alan', 500, 5000, 'approved'),
   proposal('p9', 'Another decided one', 'Barbara', 400, 4000, 'declined'),
 ];
-// The floor's order: pool descending, impact breaking the tie, pending only.
-const FLOOR_ORDER = ['p2', 'p3', 'p4', 'p7', 'p6', 'p1', 'p5'];
+/* The floor's order (revised 2026-09-11, docs/ui-conventions.md, "A pending
+   row keeps its place for its whole life"): deadline, then the feed's action
+   order, then creation and number, pending only. Nothing that moves with a
+   trade can move a row, so these seven, posted together and unnumbered, read
+   in the order they were posted. */
+const FLOOR_ORDER = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7'];
 const WORKSPACE = {
   workspaceId: 'ws-telarchy',
   name: 'Telarchy',
@@ -286,17 +290,17 @@ describe('/owners as a board: the product moment', () => {
     // the one the floor opens on), formatted as the floor formats it and
     // coloured by direction; the credits are the pool behind the proposal.
     const impacts = rows.map(r => r.querySelector('.pubws-ballot-delta'));
-    expect(impacts.map(d => d?.textContent)).toEqual(['+12.0', '-3.0', '+120', '+7.0', '+0.4', '+2.5']);
-    expect(impacts[0]).toHaveClass('is-up');
-    expect(impacts[1]).toHaveClass('is-down');
+    expect(impacts.map(d => d?.textContent)).toEqual(['+2.5', '+12.0', '-3.0', '+120', 'open', '+0.4']);
+    expect(impacts[1]).toHaveClass('is-up');
+    expect(impacts[2]).toHaveClass('is-down');
     // Both branches of EVERY pair, added up, as the floor's pool figure is.
     expect(rows.map(r => r.querySelector('.own-shot-pool')?.textContent)).toEqual([
+      '48',
       '1,080',
       '1,080',
       '360',
-      '300',
+      '0',
       '72',
-      '48',
     ]);
     expect(rows.map(r => r.querySelector('.own-shot-by')?.textContent)).toEqual(
       expected.map(p => `by ${p.proposedByName}`),
@@ -306,16 +310,13 @@ describe('/owners as a board: the product moment', () => {
 
   test('an unpriced proposal prints "open" and a seventh row is cut', async () => {
     resolveBoth();
-    // Drop one funded proposal so the unpriced one makes the six.
-    mocks.getMarketplaceWorkspace.mockResolvedValue({
-      ...WORKSPACE,
-      proposals: PROPOSALS.filter(p => p.id !== 'p7'),
-    });
     const { container } = renderRoute('/owners');
     await waitFor(() => expect(container.querySelectorAll('.own-shot-row')).toHaveLength(6));
     const rows = [...container.querySelectorAll('.own-shot-row')];
-    expect(rows[5]?.querySelector('.own-shot-title')?.textContent).toBe('Write the API cookbook');
-    expect(rows[5]?.querySelector('.pubws-ballot-delta')?.textContent).toBe('open');
+    expect(rows[4]?.querySelector('.own-shot-title')?.textContent).toBe('Write the API cookbook');
+    expect(rows[4]?.querySelector('.pubws-ballot-delta')?.textContent).toBe('open');
+    // The seventh pending proposal is cut, whatever is behind it.
+    expect(container.textContent).not.toContain('Rebuild the leaderboard');
   });
 
   test('THE PANEL IS ONE LINK TO THE FLOOR, labelled for assistive technology', async () => {

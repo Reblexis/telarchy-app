@@ -318,7 +318,7 @@ function ProposalsShot() {
   const hero = primaryHorizonOf(buildHorizonViews(ws));
   const unit = hero?.unit ?? '';
   const impactOf = (p: PublicProposal) => (hero ? deltaAt(p, hero.targetDate, hero.metricId) : null);
-  const rows = pendingBallot(ws.proposals, impactOf).slice(0, SHOW_ROWS);
+  const rows = pendingBallot(ws.proposals).slice(0, SHOW_ROWS);
   return (
     <Link to={`/${SHOW_FLOOR}`} className="own-shot" aria-label={label}>
       <span className="own-shot-head own-caption">

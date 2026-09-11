@@ -700,6 +700,24 @@ export function TradePage() {
      60 moves", never "at 15:53". Every other floor reads as before. */
   const askDateOf = (v: HorizonView | null) =>
     liveFeed?.kind === 'snake' ? moveQuestionOf(v, now) : dateQuestionOf(v);
+  /* The feed's own action order, remembered per proposal the first time the
+     feed names it (docs/ui-conventions.md, "A pending row keeps its place
+     for its whole life"): the board reads the three of a step in the order
+     of the chips under the grid, and a row never changes place afterwards,
+     not when the feed moves on and not when it is ruled on. The server
+     posts the three in whatever order it wrote them, which is not the same
+     order every minute. */
+  const feedOrderRef = useRef<Record<string, number>>({});
+  const feedOrder = useMemo(() => {
+    const proposals = liveState?.open?.proposals;
+    if (proposals) {
+      (['forward', 'left', 'right'] as const).forEach((action, rank) => {
+        const id = proposals[action]?.id;
+        if (id && feedOrderRef.current[id] === undefined) feedOrderRef.current[id] = rank;
+      });
+    }
+    return { ...feedOrderRef.current };
+  }, [liveState]);
   /* The attempt the reading belongs to, `deaths + 1`, once the feed has
      been read (docs/ui-conventions.md, "The stat row"); null otherwise. */
   const attempt =
@@ -749,7 +767,20 @@ export function TradePage() {
   // period has no reading yet, which is also when the number chart has
   // nothing to hold a dashed rule to.
   const lastReading = hero && hero.metricHistory.length > 0 ? hero.metricHistory[hero.metricHistory.length - 1] : null;
-  const nowReading = lastReading?.value ?? null;
+  /* The newest reading the page holds (docs/ui-conventions.md, "The
+     reading's age is the newest reading's age"): on a fed floor the feed's
+     open step IS a reading, taken when the move it follows was played, and
+     it is two seconds old where the floor payload is up to fifteen. The
+     page said "read 1m ago" one second after the reading it was naming. */
+  const feedReading =
+    liveFeed?.kind === 'snake' && liveState?.open?.openedAt && typeof liveState.game?.length === 'number'
+      ? { at: liveState.open.openedAt, value: liveState.game.length }
+      : null;
+  const newestReading =
+    feedReading && (!lastReading?.at || Date.parse(feedReading.at) > Date.parse(lastReading.at))
+      ? feedReading
+      : lastReading;
+  const nowReading = newestReading?.value ?? null;
   // Beside the price, where the since-open chip used to be (owner ask
   // 2026-08-28, "the settles should be above the market graph next to the
   // market number"). The countdown and nothing else: the exact instant is
@@ -2080,11 +2111,11 @@ export function TradePage() {
                         <span className="pubws-stat-what">
                           now
                           {attempt !== null && ` · attempt ${attempt}`}
-                          {lastReading?.at && (
+                          {newestReading?.at && (
                             <>
                               {' · '}
-                              <span className="pubws-updated" title={instantOf(lastReading.at)}>
-                                read {timeAgoOf(lastReading.at, now) ?? ''}
+                              <span className="pubws-updated" title={instantOf(newestReading.at)}>
+                                read {timeAgoOf(newestReading.at, now) ?? ''}
                               </span>
                             </>
                           )}
@@ -2387,12 +2418,16 @@ export function TradePage() {
             the reading order is unchanged. */}
           {/* Keyed by the side so a verb re-seeds the ticket instead of being
               a dead click, exactly as the inline ticket was. */}
-          {selectedJobPastDeadline && (
+          {!!selectedJob && (selectedJobPastDeadline || selectedJobClosed) && (
             /* Closed before the ruling lands (docs/ui-conventions.md, "A
                proposal past its deadline reads as closed before the ruling
-               lands"): one mono line where the ticket was. */
+               lands"): one mono line where the ticket was, and the SAME line
+               through the ruling, so the rail never empties under a reader
+               who was looking at the ticket. */
             <p className="pubws-closed-line" role="status">
-              Trading closed at the deadline. The ruling lands in a moment; this page updates on its own.
+              {selectedJobRuling
+                ? `Trading closed. Decided: ${selectedJobRuling}.`
+                : 'Trading closed at the deadline. The ruling lands in a moment; this page updates on its own.'}
             </p>
           )}
           {active && !selectedJobClosed && !selectedJobPastDeadline && (
@@ -2753,6 +2788,7 @@ export function TradePage() {
                 signedIn={!!user}
                 onRequireSignup={() => navigate(authPath('signup', location))}
                 workspaceName={ws.name}
+                feedOrder={feedOrder}
                 proposalReward={ws.proposalReward}
                 metricNames={metricNames}
                 decisionMinutes={ws.decisionMinutes ?? 1440}

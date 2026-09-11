@@ -135,13 +135,21 @@ function renderLive() {
   );
 }
 
+/** The band's points, in drawing units: "M132,132L108,132" as [x, y] pairs. */
+function bandPoints(container: HTMLElement): Array<[number, number]> {
+  const band = container.querySelector('.snake-snake');
+  return (band?.getAttribute('d') ?? '')
+    .split(/[ML]/)
+    .filter(Boolean)
+    .map(pt => pt.split(',').map(Number) as [number, number]);
+}
+
 /** The head's cell centre, in cell units, from the drawn band. */
 function headCell(container: HTMLElement): [number, number] {
   const cell = Number(container.querySelector('rect.snake-cell')?.getAttribute('width'));
-  const band = container.querySelector('.snake-snake') as SVGPolylineElement | null;
-  if (!band) return [Number.NaN, Number.NaN];
-  const [x, y] = (band.getAttribute('points') ?? '').trim().split(/\s+/)[0].split(',').map(Number);
-  return [x / cell, y / cell];
+  const [first] = bandPoints(container);
+  if (!first) return [Number.NaN, Number.NaN];
+  return [first[0] / cell, first[1] / cell];
 }
 
 async function pickGame(container: HTMLElement, n: number) {
@@ -173,18 +181,22 @@ describe('the grid', () => {
   test('the snake is one rounded band along its cells, head first, with the head marked on the moving side', async () => {
     const { container } = renderLive();
     await waitFor(() => expect(container.querySelector('.snake-snake')).toBeTruthy());
-    const band = container.querySelector('.snake-snake') as SVGPolylineElement;
+    const band = container.querySelector('.snake-snake') as SVGPathElement;
     expect(band.getAttribute('stroke-linecap')).toBe('round');
     expect(band.getAttribute('stroke-linejoin')).toBe('round');
-    expect((band.getAttribute('points') ?? '').trim().split(/\s+/)).toHaveLength(3);
+    expect(bandPoints(container)).toHaveLength(3);
     expect(headCell(container)).toEqual([5.5, 5.5]);
     const cell = Number(container.querySelector('rect.snake-cell')?.getAttribute('width'));
+    // The head is a group the board slides to its new cell; the disc and the
+    // eyes ride it, so their own coordinates are relative to its centre.
+    const mark = container.querySelector('.snake-head-mark') as SVGGElement;
+    expect(mark.getAttribute('style')).toContain(`translate(${5.5 * cell}px`);
     const head = container.querySelector('circle.snake-head') as SVGCircleElement;
-    expect(Number(head.getAttribute('cx'))).toBeCloseTo(5.5 * cell);
+    expect(Number(head.getAttribute('cx'))).toBe(0);
     const eyes = Array.from(container.querySelectorAll('circle.snake-eye'));
     expect(eyes).toHaveLength(2);
     // Heading right: both eyes sit right of the head's centre.
-    for (const e of eyes) expect(Number(e.getAttribute('cx'))).toBeGreaterThan(5.5 * cell);
+    for (const e of eyes) expect(Number(e.getAttribute('cx'))).toBeGreaterThan(0);
   });
 
   test('the food is a round dot in its cell', async () => {

@@ -207,14 +207,13 @@ describe('rows never re-sort between refreshes', () => {
   });
 
   test('pendingBallot: the deadline, then the feed order, then creation and number; never the pool', () => {
-    const impact = (p: { number?: number }) => (p.number === 4022 ? 9 : 0);
     const rows = [proposal(4024, 'Turn right'), proposal(4022, 'Turn left'), proposal(4023, 'Continue forward')];
-    expect(pendingBallot(rows as never, impact as never, order1).map(p => p.number)).toEqual([4023, 4022, 4024]);
+    expect(pendingBallot(rows as never, order1).map(p => p.number)).toEqual([4023, 4022, 4024]);
     // With no feed to name an order, creation time then the number decide.
-    expect(pendingBallot(rows as never, impact as never).map(p => p.number)).toEqual([4022, 4023, 4024]);
+    expect(pendingBallot(rows as never).map(p => p.number)).toEqual([4022, 4023, 4024]);
     // An earlier deadline always reads first.
     const mixed = [...minute2, ...rows];
-    expect(pendingBallot(mixed as never, impact as never, { ...order1, ...order2 }).map(p => p.number)).toEqual([
+    expect(pendingBallot(mixed as never, { ...order1, ...order2 }).map(p => p.number)).toEqual([
       4023, 4022, 4024, 4027, 4026, 4025,
     ]);
   });

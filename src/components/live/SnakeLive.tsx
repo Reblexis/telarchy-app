@@ -17,7 +17,10 @@ import {
  * LIVE.
  *
  * Realtime polls GET /api/marketplace/:slug/live every 2 seconds while the
- * tab is visible, and keeps polling during replay so LIVE is instant.
+ * tab is visible, and keeps polling during replay so LIVE is instant. A move
+ * TRANSITIONS to its new cells rather than snapping (the band's `d`, the
+ * head's transform, a chevron's shading, all in the stylesheet off
+ * `data-motion`), and a read that fails leaves the last board drawn.
  * Replay indexes ENTRIES of the recording (/history's `total` and `from`),
  * never move numbers: a partial game's entry 0 is a step far above 0.
  * Windows of 300 entries are kept per game by entry index. No library: an
@@ -55,6 +58,35 @@ function impactOf(state: SnakeState, action: SnakeAction): number | null {
   const q = state.open?.quotes?.[action]?.m60;
   if (!q || typeof q.approved !== 'number' || typeof q.declined !== 'number') return null;
   return q.approved - q.declined;
+}
+
+/**
+ * A move transitions, it does not snap (docs/ui-conventions.md, "The live
+ * view is a segment of the chart slot", item 1): the band is one PATH, whose
+ * `d` a CSS transition can interpolate, where a polyline's `points` cannot be
+ * animated at all. A one-cell snake draws a dot, a lineto onto its own point
+ * that the round cap paints.
+ */
+function bandPath(points: ReadonlyArray<readonly [number, number]>): string {
+  const at = ([x, y]: readonly [number, number]) => `${Number(x.toFixed(2))},${Number(y.toFixed(2))}`;
+  if (points.length === 0) return '';
+  if (points.length === 1) return `M${at(points[0])}L${at(points[0])}`;
+  return `M${at(points[0])}${points
+    .slice(1)
+    .map(pt => `L${at(pt)}`)
+    .join('')}`;
+}
+
+/** A reader who asked for less motion gets none: the board says so and every
+ *  transition hangs off that word. */
+function reducedMotion(): boolean {
+  try {
+    return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      : false;
+  } catch {
+    return false;
+  }
 }
 
 /** One cell of travel per compass direction. */
@@ -140,26 +172,28 @@ function Board({
   const [hx, hy] = head ? centre(head) : [0, 0];
   const off = CELL * 0.16;
   const sidew = CELL * 0.14;
+  /* Relative to the head's own centre: the head is a group the board slides
+     to its new cell, and the eyes ride it. */
   const eyes: Array<[number, number]> = !head
     ? []
     : heading === 'up'
       ? [
-          [hx - sidew, hy - off],
-          [hx + sidew, hy - off],
+          [-sidew, -off],
+          [sidew, -off],
         ]
       : heading === 'down'
         ? [
-            [hx - sidew, hy + off],
-            [hx + sidew, hy + off],
+            [-sidew, off],
+            [sidew, off],
           ]
         : heading === 'left'
           ? [
-              [hx - off, hy - sidew],
-              [hx - off, hy + sidew],
+              [-off, -sidew],
+              [-off, sidew],
             ]
           : [
-              [hx + off, hy - sidew],
-              [hx + off, hy + sidew],
+              [off, -sidew],
+              [off, sidew],
             ];
   /* Each chevron: in the cell its direction leads to, or, when that cell is
      off the grid, pressed against the head's edge pointing out. */
@@ -192,6 +226,7 @@ function Board({
       className="snake-board"
       viewBox={`0 0 ${side} ${side}`}
       role="img"
+      data-motion={reducedMotion() ? 'reduce' : 'animate'}
       aria-label={`Snake board, ${grid} by ${grid}`}
     >
       <title>Snake board</title>
@@ -201,19 +236,23 @@ function Board({
       ))}
       {food && <circle className="snake-food" cx={centre(food)[0]} cy={centre(food)[1]} r={CELL * 0.3} />}
       {snake.length > 0 && (
-        <polyline
+        <path
           className="snake-snake"
-          points={snake.map(c => centre(c).join(',')).join(' ')}
+          d={bandPath(snake.map(centre))}
           fill="none"
           strokeWidth={CELL * 0.72}
           strokeLinecap="round"
           strokeLinejoin="round"
         />
       )}
-      {head && <circle className="snake-head" cx={hx} cy={hy} r={CELL * 0.36} />}
-      {eyes.map(([ex, ey], i) => (
-        <circle key={i} className="snake-eye" cx={ex} cy={ey} r={CELL * 0.07} />
-      ))}
+      {head && (
+        <g className="snake-head-mark" style={{ transform: `translate(${hx}px, ${hy}px)` }}>
+          <circle className="snake-head" cx={0} cy={0} r={CELL * 0.36} />
+          {eyes.map(([ex, ey], i) => (
+            <circle key={i} className="snake-eye" cx={ex} cy={ey} r={CELL * 0.07} />
+          ))}
+        </g>
+      )}
       {drawnArrows.map(({ arrow, wall, points }) => {
         const key = arrow.action ?? arrow.direction;
         const mark = (

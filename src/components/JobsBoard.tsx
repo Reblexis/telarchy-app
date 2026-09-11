@@ -71,6 +71,10 @@ interface Props {
   /** The workspace's proposalReward, in credits. Defaults to 0, so the board
    *  must not promise a bounty it does not pay. */
   proposalReward?: number;
+  /** The feed's own action order by proposal id, on a floor with a feed
+   *  (docs/ui-conventions.md, "A pending row keeps its place for its whole
+   *  life"). Absent everywhere else, where creation order stands. */
+  feedOrder?: Record<string, number>;
   /** The numbers this floor prices, for the form's placeholders. A proposer
    *  arrives knowing what they want to do and not which metric it moves;
    *  naming them in the prompt is what turns "Links: portfolio" into a pitch
@@ -88,6 +92,11 @@ export function fmtDelta(d: number, unit: string): string {
   return `${d > 0 ? '+' : d < 0 ? '-' : ''}${fmtVal(Math.abs(d), unit).replace(/^([+-])?/, '')}`;
 }
 
+/** How long a row ruled on under the reader keeps its place before it joins
+ *  the decided fold (docs/ui-conventions.md, "A pending row keeps its place
+ *  for its whole life"). */
+const HOLD_MS = 10_000;
+
 /** On the ballot: not yet decided by the owner. */
 export function isPending(p: PublicProposal): boolean {
   return !p.status || p.status === 'pending';
@@ -103,27 +112,38 @@ export function isPending(p: PublicProposal): boolean {
  */
 export function pendingBallot(
   proposals: PublicProposal[],
-  impactOf: (p: PublicProposal) => number | null,
+  /** The feed's own action order by proposal id, where a feed names one
+   *  (docs/ui-conventions.md, "A pending row keeps its place for its whole
+   *  life"): Continue, Turn left, Turn right, the order of the chips under
+   *  the grid, so the row a reader aims at is in the same place every
+   *  minute. The server posts the three in whatever order it wrote them. */
+  feedOrder?: Record<string, number>,
+  /** Rows to keep on the ballot though they are no longer pending: a row
+   *  ruled on under the reader holds its place for a moment. */
+  alsoKeep?: ReadonlySet<string>,
 ): PublicProposal[] {
-  const byImpact = (a: PublicProposal, b: PublicProposal) => (impactOf(b) ?? 0) - (impactOf(a) ?? 0);
-  const byPool = (a: PublicProposal, b: PublicProposal) => poolOf(b) - poolOf(a) || byImpact(a, b);
   /* Soonest ruling first (revised 2026-09-09, replacing pool-first of
      2026-09-02): the question a reader has is which of these needs them, not
      which is deepest, and pool-first put the biggest claimed impact on the
      floor at the bottom because nobody had funded it. A proposal with no
      deadline sorts last rather than first, the way a decided one with no
-     decision time does. Pool still decides between two closing the same day,
-     so the propose footer keeps meaning what it says. */
+     decision time does.
+
+     Nothing that MOVES can break the tie (revised 2026-09-11): pool and
+     impact both change with every trade, so ranking on them re-sorted the
+     list under the pointer, and a click on "Turn left" opened the next
+     minute's "Continue forward". A proposal's deadline, its place in the
+     feed's order and its creation are fixed for its whole life. */
   const dueAt = (p: PublicProposal) => (p.decideBy ? Date.parse(p.decideBy) : Number.POSITIVE_INFINITY);
-  const byDue = (a: PublicProposal, b: PublicProposal) => {
-    const ta = dueAt(a);
-    const tb = dueAt(b);
-    if (ta !== tb) return ta < tb ? -1 : 1;
-    // Then the number, so three proposals posted together keep their places
-    // as prices refresh (docs/ui-conventions.md, "The feed drives the floor").
-    return byPool(a, b) || (a.number ?? 0) - (b.number ?? 0);
-  };
-  return proposals.filter(isPending).sort(byDue);
+  const rankOf = (p: PublicProposal) => feedOrder?.[p.id] ?? Number.POSITIVE_INFINITY;
+  const madeAt = (p: PublicProposal) => (p.createdAt ? Date.parse(p.createdAt) : Number.POSITIVE_INFINITY);
+  const cmp = (a: number, b: number) => (a === b ? 0 : a < b ? -1 : 1);
+  const byDue = (a: PublicProposal, b: PublicProposal) =>
+    cmp(dueAt(a), dueAt(b)) ||
+    cmp(rankOf(a), rankOf(b)) ||
+    cmp(madeAt(a), madeAt(b)) ||
+    (a.number ?? 0) - (b.number ?? 0);
+  return proposals.filter(p => isPending(p) || alsoKeep?.has(p.id)).sort(byDue);
 }
 
 /**
@@ -278,6 +298,7 @@ export function JobsBoard({
   signedIn,
   onRequireSignup,
   workspaceName,
+  feedOrder,
   metricNames = [],
   horizonDate,
   horizonMetricId,
@@ -356,12 +377,30 @@ export function JobsBoard({
   // ask 2026-09-04). docs/ui-conventions.md, "The board opens on the live
   // ballot".
   const byImpact = (a: PublicProposal, b: PublicProposal) => (impactOf(b) ?? 0) - (impactOf(a) ?? 0);
-  // Money decides the order (see `pendingBallot`).
-  const pending = pendingBallot(proposals, impactOf);
+  /* A row ruled on under the reader holds its place (docs/ui-conventions.md,
+     "A pending row keeps its place for its whole life"): for ten seconds it
+     stays where it stood, its ruling on it, and only then joins the decided
+     fold, so a click in flight lands on the row that was under the pointer
+     and the next minute's rows arrive UNDER it rather than in its place. */
+  const seenPendingRef = useRef<Set<string>>(new Set());
+  const decidedAtRef = useRef<Map<string, number>>(new Map());
+  for (const p of proposals) {
+    if (isPending(p)) {
+      seenPendingRef.current.add(p.id);
+      decidedAtRef.current.delete(p.id);
+    } else if (seenPendingRef.current.has(p.id) && !decidedAtRef.current.has(p.id)) {
+      decidedAtRef.current.set(p.id, Date.now());
+    }
+  }
+  const held = new Set([...decidedAtRef.current].filter(([, at]) => now - at < HOLD_MS).map(([id]) => id));
+  // The deadline, the feed's order, then creation (see `pendingBallot`).
+  const pending = pendingBallot(proposals, feedOrder, held);
   /* Five rows and a line for the rest: the board is one screen at four
-     pending and would not be at twenty. */
+     pending and would not be at twenty. A held row is a row that was already
+     there, so it does not spend the budget. */
   const CAP = 5;
-  const shownPending = showAll ? pending : pending.slice(0, CAP);
+  let budget = CAP;
+  const shownPending = showAll ? pending : pending.filter(p => held.has(p.id) || budget-- > 0);
   const hiddenPending = pending.length - shownPending.length;
   // Newest decision first; a proposal with no decision time sorts last and
   // impact breaks a tie.
@@ -372,7 +411,7 @@ export function JobsBoard({
     if (ta !== tb) return ta > tb ? -1 : 1;
     return byImpact(a, b);
   };
-  const decided = proposals.filter(p => !isPending(p)).sort(byDecision);
+  const decided = proposals.filter(p => !isPending(p) && !held.has(p.id)).sort(byDecision);
 
   // A board with nothing pending has no ballot to bury, so the decided ones
   // ARE the list and there is no fold; a board with nothing decided has
