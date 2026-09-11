@@ -183,7 +183,10 @@ describe('the deadline is one amber chip', () => {
     expect(screen.queryByLabelText('Decision deadline')).toBeNull();
   });
 
-  test('after the decision the chip reads "decided"', async () => {
+  test('after the decision the chip reads the ruling and its instant to the second', async () => {
+    // Revised 2026-09-11 (docs/ui-conventions.md, "A proposal past its
+    // deadline reads as closed before the ruling lands"): "approved 16:02:00",
+    // never a bare "decided".
     await withProposal({
       status: 'approved',
       resolvedAt: '2026-09-12T14:02:00.000Z',
@@ -192,7 +195,8 @@ describe('the deadline is one amber chip', () => {
     renderFloor();
     await selectContract();
     const chip = await screen.findByLabelText('Decision deadline');
-    expect(chip.textContent).toMatch(/decided/i);
+    expect(chip.textContent).toMatch(/approved \d\d:\d\d:00/);
+    expect(chip.textContent).not.toMatch(/decided/i);
   });
 });
 
