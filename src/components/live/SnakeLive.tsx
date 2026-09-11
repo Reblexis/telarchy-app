@@ -196,10 +196,11 @@ function chevron(cx: number, cy: number, direction: SnakeHeading, half: number, 
 function wallBar(hx: number, hy: number, direction: SnakeHeading): string {
   const [dx, dy] = DELTA[direction];
   const [px, py] = [-dy, dx];
-  // A full stroke in from the edge, so the bar reads as its own mark and does
-  // not merge with the board's own border line.
-  const off = CELL * 0.5 - ARROW_STROKE;
-  const half = CELL * 0.28;
+  // Flush inside the border: the head's band reaches 0.36 of a cell from its
+  // centre, so a bar any further in would sit on the snake instead of on the
+  // wall it stands for.
+  const off = CELL * 0.5 - ARROW_STROKE / 2;
+  const half = CELL * 0.34;
   const cx = hx + dx * off;
   const cy = hy + dy * off;
   const pts: Array<[number, number]> = [
