@@ -2069,8 +2069,9 @@ the snake workspace more interesting" then "no you can code it up quite
 quickly.. if you figure out the best /design". Built on branch
 `multiple-choice-proposals`. The page counts instead of assuming two: one
 world cell per option, the hero is the leader's lead over the next best,
-the chart draws only the selected option against the baseline, one
-"Choose <label>" button per option. Spec: docs/ui-conventions.md, "A
+one "Choose <label>" button per option. On seeing the canvas: "looks good
+imo obv in the graph show all options not just the one selected and
+without it.. whatever that means", so the chart draws every option and
+drops the baseline line. Spec: docs/ui-conventions.md, "A
 proposal with options shows one world per option"; contract:
 docs/guides/proposals.md, "More than two options".
-

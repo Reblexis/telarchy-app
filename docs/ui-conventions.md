@@ -950,10 +950,14 @@ counting:
   <metric> be on <settle day>?", switching with the selected cell. "With",
   not "If": a label is a noun phrase the proposer wrote ("Turn left",
   "Headline B"), and "if Turn left" is not a sentence.
-- **The chart draws the selected option** against the baseline "without
-  it" line, and its legend names the option, not "if approved". The other
-  options are not drawn: three or more conditional lines over a baseline is
-  the mismatch the pair legend exists to prevent.
+- **The chart draws every option.** One line per option, the selected
+  one in the accent and full weight, the others thinner in the muted ink,
+  each labelled with its option's name at its right end where the pair
+  chart prints its two prices. No baseline "without it" line: with options
+  there is no world without the proposal to compare against, and the
+  "last read" cell already carries the metric's current value (Viktor,
+  2026-09-11: "in the graph show all options not just the one selected
+  and without it.. whatever that means").
 - **The world rides the verb**: "Bet Higher · Turn left". The ticket's
   header names the same option.
 - **The decision bar has one button per option**, each reading "Choose
