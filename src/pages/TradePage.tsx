@@ -680,7 +680,13 @@ export function TradePage() {
     setDeclineReason(null);
     setDecideErr('');
     setWorldPick(pendingWorldRef.current);
-    pendingWorldRef.current = null;
+    /* A selection that is still a bare NUMBER is a placeholder: the effect
+       above swaps it for the real proposal id a tick later, which runs this
+       reset a second time. The pending world has to survive that step or an
+       arrow on the grid (which knows only the number) loses its option and
+       the leader wins it back (Viktor, 2026-09-11: "i click the left arfrow
+       and it selects contineu forward option.."). */
+    if (!selectedJobId || !/^\d+$/.test(selectedJobId)) pendingWorldRef.current = null;
     setDescExpanded(false);
     setCondHistory(null);
   }, [selectedJobId]);
