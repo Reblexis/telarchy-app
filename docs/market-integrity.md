@@ -234,6 +234,28 @@ deliberately: "the cost is fine its reputation based").
 Records: `notes/resolve-on-the-reading-2026-09-01.md`,
 `notes/bug-hunt-2026-08-31.md` P0-5.
 
+### The answer can arrive before the period ends
+
+The rule above says the answer's arrival is the resolution. Sometimes the
+answer is known before the period is over: a game whose attempt has ended
+cannot reach a different length at the top of the hour, a contract signed
+in March is signed for the quarter. The owner says so by **settling the
+metric**: `POST /api/metrics/:id/settle { value, reason, asOf? }` files the
+reading at `asOf` (default now) and settles **every open book on that
+metric** at that value, whatever the book's date and
+whether it is a floor book or a proposal branch that stayed live because
+it was the branch the owner chose. Payouts, the LP leftover and resting
+orders are handled exactly as a settlement on the period end; a voided or
+already settled book is untouched; a second call settles nothing more.
+
+`reason` is required and is published on the `market:resolved` event, and
+the book's summary (`GET /api/predictions/markets/:id`) carries
+`settledEarly: true`, so a holder can learn why an 11:00 book paid at
+10:23. The call is the owner's
+(`manage`), never a trader's, and it cannot file the future: `asOf` is at
+most a minute ahead of the clock. A book that opens after the call is a
+new question and settles on its own reading.
+
 ### Stopping a date is not destroying a market
 
 An owner drops an entry from `timePreference.customHorizons` when they no

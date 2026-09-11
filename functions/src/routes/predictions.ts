@@ -1087,6 +1087,10 @@ predictionsRouter.get(
       resolved: market.resolved,
       resolvedAt: market.resolvedAt ?? null,
       actualValue: market.actualValue ?? null,
+      // docs/market-integrity.md, "The answer can arrive before the period
+      // ends": settled before its own period was over.
+      settledEarly:
+        market.resolved && !market.voided && !!market.resolvedAt && market.resolvedAt < periodEndInstant(market.targetDate),
       rangeMin: market.rangeMin,
       rangeMax: market.rangeMax,
       liquidity: market.liquidity,

@@ -367,7 +367,7 @@ Participants forecast metric values, staking credits on their predictions.
 - **Markets**: created by admin or auto-created from time-preference curves. The managed instance refreshes them hourly (`POST /api/cron/refresh`, `10 * * * *`); the live schedule is `docs/infra/deploy.md`.
 - **Date granularity**: markets support multiple target date formats: `YYYY` (year), `YYYY-MM` (month), `YYYY-Www` (ISO week), `YYYY-MM-DD` (day), `YYYY-MM-DDTHH` (hour, UTC) and `YYYY-MM-DDTHH:MM` (minute, UTC). A period runs from its first instant to the first instant of the next period of the same size; a minute cell `2026-09-10T20:05` covers 20:05:00 up to but not including 20:06:00. Every size settles by the same rule: on the last reading whose timestamp falls inside the period, and it voids after the give-up grace when no reading arrives. Relative dates (`+Nmin`, `+Nh`, `+Nd`, `+Nw`, `+Nm`, `+Ny`; `m` is months, `min` is minutes) are resolved to absolute dates at creation time.
 - **Resolution**: markets resolve when `endOfPeriod(targetDate) <= today`. Triggered by `POST /api/predictions/resolve` or by the resolve cron, which runs every 10 minutes on the managed instance.
-- **Market administration** is API-only: create, void, resolve and refresh are calls under `/api/predictions`, and there is no browser screen for any of them.
+- **Market administration** is API-only: create, void, resolve and refresh are calls under `/api/predictions`, settling a metric early is `POST /api/metrics/:id/settle` (`market-integrity.md`, "The answer can arrive before the period ends"), and there is no browser screen for any of them.
 
 ### Formula Composition
 
