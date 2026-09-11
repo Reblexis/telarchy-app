@@ -4091,6 +4091,14 @@ textarea.jobform-line--desc {
   height: 1.05em;
   flex: none;
 }
+.prof-runby a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prof-runby a:hover {
+  color: var(--text-primary);
+}
 .pubws-lb-bots {
   margin: 0.5rem 0 0;
   font-size: 0.8125rem;

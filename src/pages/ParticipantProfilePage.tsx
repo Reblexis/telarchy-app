@@ -315,8 +315,19 @@ export function ParticipantProfilePage() {
                 </h1>
                 {/* Who runs it and on what (docs/ui-conventions.md, "A bot says it
                     is one"): only for a bot the platform runs. */}
-                {profile.bot && profile.runBy === 'telarchy' && (
-                  <p className="prof-since prof-runby">Run by Telarchy{profile.model ? ` on ${profile.model}` : ''}</p>
+                {profile.bot && (profile.owner || profile.runBy === 'telarchy') && (
+                  <p className="prof-since prof-runby">
+                    {profile.owner && (
+                      <>
+                        Owned by{' '}
+                        <Link to={`/participants/${encodeURIComponent(profile.owner.nickname ?? profile.owner.id)}`}>
+                          {profile.owner.nickname ?? profile.owner.id}
+                        </Link>
+                      </>
+                    )}
+                    {profile.owner && profile.runBy === 'telarchy' && ' · '}
+                    {profile.runBy === 'telarchy' && `Run by Telarchy${profile.model ? ` on ${profile.model}` : ''}`}
+                  </p>
                 )}
                 <p className="prof-since">
                   Trading since {since}

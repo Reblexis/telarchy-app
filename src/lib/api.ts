@@ -460,6 +460,9 @@ export interface PublicParticipantProfile {
   bot?: boolean;
   runBy?: 'telarchy' | null;
   model?: string | null;
+  /** Who owns the bot: the participant that created it, or the participant
+   *  of the person whose account did; null for a person or an unowned bot. */
+  owner?: { id: string; nickname: string | null } | null;
   intent: string | null;
   /** Freeform public description: who this participant is and what it is in
    *  Telarchy to do. Set via POST /api/auth/profile (max 500 chars). */

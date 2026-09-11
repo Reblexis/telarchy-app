@@ -606,10 +606,31 @@ agentsRouter.get(
           .orderBy(desc(marketForecasts.createdAt))
           .limit(1)
       : [];
+    // Who owns it (docs/ui-conventions.md, "A bot says it is one"): the
+    // participant that created it, or the participant of the person whose
+    // account created it. An owning account with no participant has no one
+    // to link, so it reads as no owner.
+    let owner: { id: string; nickname: string | null } | null = null;
+    if (isBot && agent.ownerAgentId) {
+      const [o] = await db
+        .select({ id: agents.id, nickname: agents.nickname })
+        .from(agents)
+        .where(eq(agents.id, agent.ownerAgentId))
+        .limit(1);
+      owner = o ?? null;
+    } else if (isBot && agent.ownerUserId) {
+      const [o] = await db
+        .select({ id: agents.id, nickname: agents.nickname })
+        .from(agents)
+        .where(eq(agents.authUserId, agent.ownerUserId))
+        .limit(1);
+      owner = o ?? null;
+    }
     const botIdentity = {
       bot: isBot,
       runBy: isBot && agent.platformOperated ? ('telarchy' as const) : null,
       model: isBot ? (lastForecast?.model ?? null) : null,
+      owner,
     };
 
     if (publicWsIds.length === 0 && viewerWsIds.size === 0) {
