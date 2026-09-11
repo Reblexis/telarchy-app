@@ -32,6 +32,7 @@
  */
 
 import type { PublicWorkspace } from './api';
+import { clockOf, instantOf, viewerZone } from './viewer-time';
 
 export interface HorizonView {
   marketId: string;
@@ -101,7 +102,20 @@ export function metricLabelOf(metricName: string): string {
  * 2026, an ISO week on its Sunday. The END of the period, so a year boundary
  * never reads a day late.
  */
-export function settleDayOf(targetDate: string): string | null {
+export function settleDayOf(targetDate: string, zone?: string): string | null {
+  // A minute or hour cell settles at an instant, and the day of an instant is
+  // the viewer's (docs/ui-conventions.md, "Every clock on the floor reads in
+  // the viewer's zone"): 23:30 UTC is tomorrow east of Greenwich.
+  const clockEnd = cellEndOf(targetDate);
+  if (clockEnd) {
+    const p = new Intl.DateTimeFormat('en-GB', {
+      timeZone: zone ?? viewerZone(),
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    return p.format(new Date(clockEnd.getTime() - 1));
+  }
   const fmt = (d: Date) =>
     d.toLocaleDateString('en-GB', {
       day: 'numeric',
@@ -133,7 +147,7 @@ export function settleDayOf(targetDate: string): string | null {
  * What to call a horizon in the selector: the reader thinks in "this week"
  * and "end of 2026", not in ISO period strings.
  */
-export function horizonLabel(targetDate: string, now: Date = new Date()): string {
+export function horizonLabel(targetDate: string, now: Date = new Date(), zone?: string): string {
   // "this week" only when it IS this week. In the window between a week
   // rolling over and the hourly refresh creating the new market, last week's
   // market is still the one on the page, and a label reading "this week"
@@ -147,11 +161,14 @@ export function horizonLabel(targetDate: string, now: Date = new Date()): string
     return targetDate === now.toISOString().slice(0, 10) ? 'today' : shortDay(targetDate);
   }
   if (/^\d{4}$/.test(targetDate)) return `end of ${targetDate}`;
-  // A minute cell reads as a clock time, an hour cell too: "20:05 UTC"
-  // (owner ask 2026-09-10, minute horizons on a floor that moves once a
-  // minute). The day is on the settle note beside it.
-  const clock = targetDate.match(/^\d{4}-\d{2}-\d{2}T(\d{2})(?::(\d{2}))?$/);
-  if (clock) return `${clock[1]}:${clock[2] ?? '00'} UTC`;
+  // A minute cell reads as a clock time in the viewer's zone, an hour cell
+  // as the hour it closes: "22:05", "hour to 23:00" (owner ask 2026-09-10,
+  // minute horizons; local since 2026-09-11, docs/ui-conventions.md, "Every
+  // clock on the floor reads in the viewer's zone"). Never a "UTC" word: the
+  // day is on the settle note beside it.
+  const cell = cellKindOf(targetDate);
+  if (cell === 'minute') return clockOf(cellStartOf(targetDate), zone);
+  if (cell === 'hour') return `hour to ${clockOf(cellEndOf(targetDate), zone)}`;
   const m = targetDate.match(/^(\d{4})-(\d{2})$/);
   if (m) {
     // December IS the year end: "end of 2026" is what the charter calls it,
@@ -190,8 +207,8 @@ export function isoWeekOf(d: Date): string {
  * from the market's target date and never stored on the metric, so the weekly
  * market rolling over on Monday renames nothing and cannot go stale.
  */
-export function settleShortOf(targetDate: string, now: Date = new Date()): string | null {
-  const full = settleDayOf(targetDate);
+export function settleShortOf(targetDate: string, now: Date = new Date(), zone?: string): string | null {
+  const full = settleDayOf(targetDate, zone);
   if (!full) return null;
   const [day, month, year] = full.split(' ');
   const short = `${day} ${month.slice(0, 3)}`;
@@ -216,7 +233,11 @@ function shortDay(targetDate: string): string {
  * without a second ordering of their own. The payload ships soonest-first;
  * the order flip lives here and nowhere else.
  */
-export function buildHorizonViews(ws: PublicWorkspace | null | undefined, now: Date = new Date()): HorizonView[] {
+export function buildHorizonViews(
+  ws: PublicWorkspace | null | undefined,
+  now: Date = new Date(),
+  zone?: string,
+): HorizonView[] {
   const markets = ws?.markets ?? [];
   const historyByMarket = new Map((ws?.horizonHistories ?? []).map(h => [h.marketId, h]));
   const views = markets.map(m => {
@@ -229,9 +250,9 @@ export function buildHorizonViews(ws: PublicWorkspace | null | undefined, now: D
       metricLabel: metricLabelOf(m.metricName),
       unit: currencyOf(m.metricName),
       targetDate: m.targetDate,
-      label: horizonLabel(m.targetDate, now),
-      settleDay: settleDayOf(m.targetDate),
-      settleShort: settleShortOf(m.targetDate, now),
+      label: horizonLabel(m.targetDate, now, zone),
+      settleDay: settleDayOf(m.targetDate, zone),
+      settleShort: settleShortOf(m.targetDate, now, zone),
       resolvesOn: m.resolvesOn ?? null,
       periodStart: row?.periodStart,
       periodEnd: row?.periodEnd,
@@ -397,6 +418,9 @@ export function timeAgoOf(at: string | null | undefined, now: Date = new Date())
  */
 export function dateSegmentOf(v: HorizonView | null): string {
   if (!v) return '';
+  // A minute or hour cell is its clock ("12:38", "hour to 13:00") and nothing
+  // else: the day rides the settle note.
+  if (cellKindOf(v.targetDate)) return v.label;
   const named = /^(today|this week|this month)$/.test(v.label) ? v.label : '';
   if (!v.settleShort) return named || v.targetDate;
   return named ? `${named} · ${v.settleShort}` : v.settleShort;
@@ -404,16 +428,42 @@ export function dateSegmentOf(v: HorizonView | null): string {
 
 /**
  * A date as it reads inside the question line ("What will be LookPilot's
- * net revenue this week?"): a named clock is its own adverb ("today",
- * "this week", "this month") and takes no preposition; any other date
- * reads as "on" plus its settle day ("on 30 Sep"). Both computed from the
- * market, never stored on the metric. The settle instant lives in the
- * word's tooltip and the time left in the chart's control row, not here.
+ * net revenue this week?"), at the cell's own granularity (docs/
+ * ui-conventions.md, "The question line"): a named clock is its own adverb
+ * ("today", "this week", "this month") and takes no lead; any other day
+ * reads as "on" plus its settle day ("on 30 Sep"); a minute cell "at 12:38";
+ * an hour cell "in the hour to 13:00". Computed from the market, never
+ * stored on the metric. The settle instant lives in the word's tooltip and
+ * the time left in the chart's control row, not here.
  */
-export function dateQuestionOf(v: HorizonView | null): { word: string; on: boolean } {
-  if (!v) return { word: '', on: false };
-  if (/^(today|this week|this month)$/.test(v.label)) return { word: v.label, on: false };
-  return { word: v.settleShort || v.targetDate, on: true };
+export function dateQuestionOf(v: HorizonView | null): { word: string; lead: '' | 'on ' | 'at ' | 'in the hour to ' } {
+  if (!v) return { word: '', lead: '' };
+  if (/^(today|this week|this month)$/.test(v.label)) return { word: v.label, lead: '' };
+  const cell = cellKindOf(v.targetDate);
+  if (cell === 'minute') return { word: v.label, lead: 'at ' };
+  if (cell === 'hour') return { word: v.label.replace(/^hour to /, ''), lead: 'in the hour to ' };
+  return { word: v.settleShort || v.targetDate, lead: 'on ' };
+}
+
+/** 'minute' for 2026-09-11T10:38, 'hour' for 2026-09-11T10, null otherwise. */
+export function cellKindOf(targetDate: string): 'minute' | 'hour' | null {
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(targetDate)) return 'minute';
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}$/.test(targetDate)) return 'hour';
+  return null;
+}
+
+/** The instant a minute or hour cell starts, UTC; null for a day cell. */
+function cellStartOf(targetDate: string): Date | null {
+  const kind = cellKindOf(targetDate);
+  if (!kind) return null;
+  return new Date(`${kind === 'hour' ? `${targetDate}:00` : targetDate}:00Z`);
+}
+
+/** The instant a minute or hour cell ends (its settlement), UTC; null for a day cell. */
+function cellEndOf(targetDate: string): Date | null {
+  const start = cellStartOf(targetDate);
+  if (!start) return null;
+  return new Date(start.getTime() + (cellKindOf(targetDate) === 'hour' ? 3_600_000 : 60_000));
 }
 
 /**
@@ -574,22 +624,15 @@ export function openableDates(now: Date = new Date()): Array<{ label: string; ta
 }
 
 /**
- * The settlement instant, written out: "30 Sep 2026, 23:59 UTC".
- *
- * A market settles on the last reading at or before this moment
- * (docs/guides/sources.md), so an owner deciding when to push a number needs
- * the boundary itself and not the distance to it: a reading at 23:58 and one
- * at 00:02 belong to different markets. UTC always, because the boundary is
- * UTC and a local rendering of it would be a different instant for every
- * reader.
+ * The settlement instant, written out in the viewer's zone: "1 Oct 2026,
+ * 01:59 CEST" (docs/ui-conventions.md, "Every clock on the floor reads in
+ * the viewer's zone"). A market settles on the last reading at or before
+ * this moment (docs/guides/sources.md), so an owner deciding when to push a
+ * number needs the boundary itself and not the distance to it; the zone is
+ * named once so a reader far from the boundary's midnight is not misled.
  */
-export function settleInstant(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const day = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-  const hh = String(d.getUTCHours()).padStart(2, '0');
-  const mm = String(d.getUTCMinutes()).padStart(2, '0');
-  return `${day}, ${hh}:${mm} UTC`;
+export function settleInstant(iso: string, zone?: string): string {
+  return instantOf(iso, zone);
 }
 
 /**

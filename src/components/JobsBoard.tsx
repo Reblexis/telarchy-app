@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import type { PublicProposal } from '../lib/api';
 import { api } from '../lib/api';
 import { horizonLabel } from '../lib/floor-horizons';
+import { countdownTo, instantOf, tickIntervalFor } from '../lib/viewer-time';
 import { FloorModal } from './FloorModal';
 
 /**
@@ -147,16 +148,8 @@ export const ClockGlyph = () => (
   </svg>
 );
 
-/** "6d", "5h", "<1h": how long until the owner has to decide. */
-export function countdownTo(iso: string, now = Date.now()): { label: string; urgent: boolean } {
-  const ms = new Date(iso).getTime() - now;
-  if (ms <= 0) return { label: 'now', urgent: true };
-  // Rounded up: with six days to go it says 6d until the sixth day is over.
-  const hours = ms / 3_600_000;
-  if (hours >= 24) return { label: `${Math.ceil(hours / 24)}d`, urgent: false };
-  if (hours >= 1) return { label: `${Math.ceil(hours)}h`, urgent: true };
-  return { label: '<1h', urgent: true };
-}
+/** The row's countdown lives in lib/viewer-time; re-exported for the page. */
+export { countdownTo };
 
 /**
  * The windows a proposer picks from (docs/ui-conventions.md): a DURATION,
@@ -300,6 +293,16 @@ export function JobsBoard({
   // (owner report, docs/ui-conventions.md "the board reads the pair on screen").
   const impactOf = (p: PublicProposal) => (horizonDate ? deltaAt(p, horizonDate, horizonMetricId) : headlineDelta(p));
   const [foldOpen, setFoldOpen] = useState(false);
+  // The clocks on the rows tick: every second while a pending deadline is
+  // under an hour, every minute otherwise (docs/ui-conventions.md, "The
+  // deadline is said ONCE"). The interval is re-read after every tick so a
+  // deadline crossing the hour line speeds the clock up on its own.
+  const [now, setNow] = useState(() => Date.now());
+  const tickMs = tickIntervalFor(proposals, now);
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), tickMs);
+    return () => clearInterval(id);
+  }, [tickMs]);
   /* Ruling in place: which row is being ruled on, which way, and the reason
      the charter promises to publish. Approve confirms too, because a list is
      a place to mis-click and approving pays real money. */
@@ -440,7 +443,7 @@ export function JobsBoard({
     // first, the four facts as an icon row on the second, the two verbs on
     // the right. Nothing stacked on the right edge, which is what made this
     // row unreadable in a 340px rail.
-    const countdown = isPending(p) && p.decideBy ? countdownTo(p.decideBy) : null;
+    const countdown = isPending(p) && p.decideBy ? countdownTo(p.decideBy, now) : null;
     // A priced, live proposal is one you can act on from where you read it.
     // A decided one has nothing left to trade, and an unpriced one has no
     // market to trade against.
@@ -510,7 +513,7 @@ export function JobsBoard({
                 <span
                   className={`pubws-ballot-clock${countdown.urgent ? ' is-urgent' : ''}`}
                   aria-label="Decision in"
-                  title={`The owner decides by ${new Date(p.decideBy as string).toUTCString()}`}
+                  title={`The owner decides by ${instantOf(p.decideBy)}`}
                 >
                   <ClockGlyph />
                   {countdown.label}

@@ -489,6 +489,13 @@ find out:
   the day it is forecasting rides the "no price yet" line instead. The day
   never leaves the page, which is the rule the date chip used to carry.
 
+- **The date word names the instant the book asks about, at the cell's own
+  granularity** (Viktor, 2026-09-11, of a minute cell titled "on 11 Sep?"):
+  "today", "this week", "this month" for the named clocks; "on 30 Sep" for
+  any other day; "at 12:38" for a minute cell; "in the hour to 13:00" for
+  an hour cell. A book that settles inside a minute is never titled with a
+  day. The date strip's tab and the board's "impact by" use the same
+  words (`dateQuestionOf`, `horizonLabel`).
 - **The sentence is "What will be {company}'s {metric} {date}?"** The
   scaffold words sit a register quieter (`.pubws-instrument-ask`); the
   metric and the date are the sentence's ink. The company is named
@@ -618,6 +625,30 @@ any of it.
 not capped; the metric log is read once per distinct metric, not once per
 market, so the cost is per metric.
 
+### Every clock on the floor reads in the viewer's zone
+
+Every instant the floor prints is the viewer's local time (Viktor,
+2026-09-11: "the time shown has to be local for the viewer"): a minute or
+hour cell's label ("12:38", "hour to 13:00"), the settle instant on hover
+("11 Sep 2026, 12:38 CEST"), a deadline's hover, "decided 12 Sep", "edited
+3 Sep", the chart's axis days and its tooltip, a position's settle day. The
+zone is named once, on a hover instant, as its short name; a bare clock
+never carries "UTC". Day, week and month cells stay UTC periods (a book
+"for 30 Sep" is the UTC day, as docs/guides/sources.md defines it) and keep
+their settle day as before; only the rendering of an instant moves. The
+public actions log is the exception: it is an audit record and says "Times
+are UTC" over its rows.
+
+### Links in prose are links
+
+A URL typed into a proposal's description, the workspace's one-line
+description, the owner's "What is <name>?" text or a metric's definition
+renders as a link (new tab, no referrer), never as inert text (Viktor,
+2026-09-11: "make sure that links in descriptions etc. work"). Trailing
+punctuation stays outside the link, so a sentence that ends in an address
+does not link the full stop. The stream a workspace runs (the snake on
+Twitch) is linked from that prose, in the owner's words.
+
 ### A proposal is a decision with a price
 
 **Revised 2026-09-09**, replacing "A proposal keeps the clock line, and says
@@ -655,8 +686,11 @@ deadline, an ask, and a price, and it reads in that order:
   proposer, the USD ask, the countdown to the decision, and the pool behind
   the pair.
 - **The deadline in the facts row counts down under a day** ("decides in
-  4h"), red inside the last hour, and its hover says the proposal declines
-  itself at it. The deadline never moves: there is no extend control
+  4h"), red inside the last hour, and **by the second under an hour**
+  ("decides in 5:31", then "0:09"), ticking every second, because on a floor
+  that decides once a minute a static "<1h" is a lie for its whole life
+  (Viktor, 2026-09-11, of the snake floor). Its hover says the proposal
+  declines itself at it. The deadline never moves: there is no extend control
   anywhere (docs/market-integrity.md I1b).
 - **The ask says what approving does to it**: "$250 if approved", not a
   bare "$250" (2026-09-10, after a review scored this page 3/10 for a
@@ -745,8 +779,10 @@ deadline, an ask, and a price, and it reads in that order:
 **The deadline is said ONCE, in the facts row under the title** (a clock
 glyph and the date, in the accent: "decides 14 Sep"; "decided 12 Sep" after
 the ruling). Under a day it counts down instead ("decides in 4h"), red
-inside the last hour, because a date is no use when the answer is due this
-afternoon. There is no standalone chip above the title and nothing under the
+inside the last hour, and under an hour by the second ("decides in 5:31"),
+because a date is no use when the answer is due this afternoon and an hour
+is no use when it is due this minute. The same clock, at the same
+resolution, on the board row and in the owner's bar. There is no standalone chip above the title and nothing under the
 pitch, in the ticket or on the chart. The owner's bar carries three mono
 words under its buttons, "declines itself in 4h", and nothing to press: a
 deadline does not move. On the board a pending row carries the same clock
@@ -901,14 +937,14 @@ the same vertical rhythm.
 
 - The reading (`.pubws-stat--now`, ink): the value in force, "now", then
   "read 25m ago" (`.pubws-updated`, `timeAgoOf` from the latest reading's
-  instant, the exact UTC instant as its hover title), because a reading is
+  instant, the exact instant as its hover title), because a reading is
   only trustworthy with its age on it. A metric with no reading yet prints
   "no reading yet" in the value's place and no age.
 - The market's call (`.pubws-stat--call`, amber): the consensus, "market's
   call", then "for 30 Sep · settles in 27d" (`.pubws-settle-in`: the day
   being forecast, which is the day before the settle instant, exactly as
   the date strip names it, and the countdown ticking by the minute, the
-  exact UTC instant on hover; "settling" once it is). A selected proposal's
+  exact instant on hover; "settling" once it is). A selected proposal's
   impact chip sits beside the value as the bare arrow and delta
   ("▲ +7.8"), because the impact is the proposal's one number.
 - **The call carries its own move** (2026-09-09), on the plain market view
@@ -979,10 +1015,10 @@ and nothing else.
 **When a market settles is said once, beside the call.** The date
 picker names each market by its clock and settle day (`TODAY · 26 AUG`,
 `THIS WEEK · 30 AUG`, `30 SEP`), the question line by its clock alone
-("today", "this week", "on 30 Sep", the exact UTC settle instant as the
+("today", "this week", "on 30 Sep", the exact settle instant as the
 word's hover title), and the countdown rides the call's date line, whether
 or not the metric has readings, so the settle clock never leaves the page.
-That countdown carries the distance ALONE: the exact UTC instant is its
+That countdown carries the distance ALONE: the exact instant is its
 hover title, in the same words the rest of the floor uses for one, and
 never a second line of type. A metric with no reading yet keeps its
 number chart too, in the component's own "no reading yet" state with the
@@ -2101,7 +2137,9 @@ reload.
 
 **The board is at most five seconds behind the trades, and a reader's own
 trade shows up on their next read.** The server-side board cache TTL is
-five seconds: the floor polls every fifteen seconds, and a cache longer
+five seconds: the floor polls every fifteen seconds (every five while a
+pending proposal decides within five minutes, so a one-minute window is
+watched at the rate it moves), and a cache longer
 than the poll makes successive polls alternate between a fresh answer and
 a stale one, which reads as the board twitching backwards. Five seconds
 still collapses an arrival burst into one aggregation per key while

@@ -1,4 +1,5 @@
 import { previewSell } from '../lib/amm';
+import { dayOf } from '../lib/viewer-time';
 
 /**
  * A held position as a card (docs/ui-conventions.md, "what your position is
@@ -11,11 +12,6 @@ export interface HeldPosition {
   direction: 'higher' | 'lower';
   shares: number;
   totalCost: number;
-}
-
-/** "30 Sep", the way the floor names a date. */
-function dayOf(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
 function fmt(v: number): string {

@@ -17,6 +17,7 @@ import { FloorStandings, type ProposalTraderRow, SeasonAdvert, useCurrentSeason 
 import { FloorStrip } from '../components/FloorStrip';
 import { Ghost, GhostRows, LoadingStatus } from '../components/Ghosts';
 import { ClockGlyph, CoinGlyph, DropGlyph, JobsBoard, PersonGlyph, poolOf, splitAsk } from '../components/JobsBoard';
+import { Linkified } from '../components/Linkified';
 import { Logo } from '../components/Logo';
 import { ManifoldButton } from '../components/ManifoldButton';
 import { MarketChart } from '../components/MarketChart';
@@ -63,6 +64,7 @@ import { dropInline, readInline } from '../lib/inline-data';
 import { maxWinLabel } from '../lib/market-quote';
 import { authPath } from '../lib/nextPath';
 import { periodGapOf } from '../lib/period-gap';
+import { countdownTo, dayOf, instantOf, pollIntervalFor, tickIntervalFor } from '../lib/viewer-time';
 
 /**
  * telarchy.com/<slug>: the market and one action, nothing else (owner
@@ -101,24 +103,16 @@ function formatValue(v: number): string {
 
 /**
  * How a deadline reads at any scale (docs/ui-conventions.md, "The deadline
- * is one amber chip"): a countdown under a day, because a date is no use
- * when the answer is due this afternoon, and the date itself above that.
+ * is said ONCE"): a countdown under a day, because a date is no use when the
+ * answer is due this afternoon, by the second under an hour, and the date
+ * itself above that.
  */
 function whenOf(iso: string | null | undefined, now = Date.now()): string {
   if (!iso) return '';
   const ms = new Date(iso).getTime() - now;
   if (ms <= 0) return 'now';
-  const minutes = ms / 60_000;
-  if (minutes < 60) return `in ${Math.max(1, Math.ceil(minutes))}m`;
-  const hours = minutes / 60;
-  if (hours < 24) return `in ${Math.ceil(hours)}h`;
+  if (ms < 24 * 3_600_000) return `in ${countdownTo(iso, now).label}`;
   return dayOf(iso);
-}
-
-/** "30 Sep", the way the floor names a date; "" for nothing. */
-function dayOf(iso: string | null | undefined): string {
-  if (!iso) return '';
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
 function formatDelta(delta: number, unit = ''): string {
@@ -659,10 +653,13 @@ export function TradePage() {
       // A browser that refuses storage still gets the toggle, just not the memory.
     }
   }, []);
+  // Every minute, and every second while the selected proposal decides
+  // within the hour (docs/ui-conventions.md, "The deadline is said ONCE").
+  const tickMs = tickIntervalFor(ws?.proposals ?? [], now.getTime());
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 60_000);
+    const id = setInterval(() => setNow(new Date()), tickMs);
     return () => clearInterval(id);
-  }, []);
+  }, [tickMs]);
   // How long until the market on screen settles: beside the price in the
   // market chart's row (owner ask 2026-08-28), so the clock never leaves
   // the page.
@@ -1074,11 +1071,15 @@ export function TradePage() {
     pairHoldersRef.current();
     if (joined) refreshMoney();
   };
+  // Every five seconds instead while a pending proposal decides within five
+  // minutes (docs/ui-conventions.md, "The board is at most five seconds
+  // behind the trades"): a one-minute window is watched at the rate it moves.
+  const pollMs = pollIntervalFor(ws?.proposals ?? [], now.getTime());
   useEffect(() => {
     const tick = () => {
       if (typeof document === 'undefined' || !document.hidden) pollRef.current();
     };
-    const interval = setInterval(tick, 15_000);
+    const interval = setInterval(tick, pollMs);
     const onVisible = () => {
       if (!document.hidden) pollRef.current();
     };
@@ -1087,7 +1088,7 @@ export function TradePage() {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, []);
+  }, [pollMs]);
 
   // The stale-tab guard is app-wide now (src/components/BuildWatch.tsx): it
   // was here alone, on a five-minute timer a phone freezes while the tab is
@@ -1526,7 +1527,7 @@ export function TradePage() {
                     i
                   </button>
                   <span className="pubws-ws-what" role="tooltip">
-                    {ws.description}
+                    <Linkified text={ws.description} />
                   </span>
                 </span>
               )}
@@ -1755,7 +1756,7 @@ export function TradePage() {
                         <span
                           className={`pubws-chip--deadline${deadlineUrgent ? ' is-urgent' : ''}`}
                           aria-label="Decision deadline"
-                          title={`The owner decides by ${new Date(selectedJob.decideBy).toUTCString()}, or it declines itself`}
+                          title={`The owner decides by ${instantOf(selectedJob.decideBy)}, or it declines itself`}
                         >
                           <ClockGlyph />
                           {/* A date is no use when the answer is due this
@@ -1802,13 +1803,13 @@ export function TradePage() {
                  inline-block child ignores a no-break space before it, so
                  the group is held together by nowrap instead. */}{' '}
                   <span className="pubws-ask-tail">
-                    {dateQuestionOf(hero).on ? 'on ' : ''}
+                    {dateQuestionOf(hero).lead}
                     <CycleWord
                       what="Date"
                       options={heroDates.map(d => ({
                         key: d.marketId,
                         label: dateQuestionOf(d).word,
-                        title: d.resolvesOn ? `settles ${new Date(d.resolvesOn).toUTCString()}` : undefined,
+                        title: d.resolvesOn ? `settles ${settleInstant(d.resolvesOn)}` : undefined,
                       }))}
                       activeKey={hero.marketId}
                       onStep={marketId => setHorizonId(marketId)}
@@ -1856,7 +1857,7 @@ export function TradePage() {
                           was read as growth from today, or as profit after
                           the ask was paid (review 2026-09-10). */}
                         <span className="pubws-impact-what">
-                          {sentenceCase(captionLabel(metricLabel, ws.name))} {dateQuestionOf(hero).on ? 'on ' : ''}
+                          {sentenceCase(captionLabel(metricLabel, ws.name))} {dateQuestionOf(hero).lead}
                           {dateQuestionOf(hero).word}, approved versus declined
                         </span>
                         <p
@@ -1939,7 +1940,7 @@ export function TradePage() {
                         putting all of it in one clause ahead of any number. */}
                       <p className="pubws-proposal-q">
                         If {branch}, what will {ws.name}'s {sentenceCase(captionLabel(metricLabel, ws.name))} be{' '}
-                        {dateQuestionOf(hero).on ? 'on ' : ''}
+                        {dateQuestionOf(hero).lead}
                         {dateQuestionOf(hero).word}?
                       </p>
                     </>
@@ -1956,7 +1957,7 @@ export function TradePage() {
                           {lastReading?.at && (
                             <>
                               {' · '}
-                              <span className="pubws-updated" title={new Date(lastReading.at).toUTCString()}>
+                              <span className="pubws-updated" title={instantOf(lastReading.at)}>
                                 read {timeAgoOf(lastReading.at, now) ?? ''}
                               </span>
                             </>
@@ -2398,7 +2399,7 @@ export function TradePage() {
                     selectedJob.description && (
                       <>
                         <p className={`pubws-details pubws-enter pubws-enter--1${descExpanded ? '' : ' is-clamped'}`}>
-                          {selectedJob.description}
+                          <Linkified text={selectedJob.description} />
                         </p>
                         {selectedJob.description.length > 220 && (
                           <button className="pubws-details-more" onClick={() => setDescExpanded(v => !v)}>
@@ -2411,14 +2412,7 @@ export function TradePage() {
                   {/* Edited, and when: a trader who priced this proposal before
                 the wording moved is entitled to know that it moved. */}
                   {!editingJob && selectedJob.editedAt && (
-                    <p className="pubws-proposal-meta">
-                      edited{' '}
-                      {new Date(selectedJob.editedAt).toLocaleDateString('en-GB', {
-                        day: 'numeric',
-                        month: 'short',
-                        timeZone: 'UTC',
-                      })}
-                    </p>
+                    <p className="pubws-proposal-meta">edited {dayOf(selectedJob.editedAt)}</p>
                   )}
                   {/* How this decides: the mechanism, and the only place it
                 is explained (Viktor, 2026-09-10, of a sentence above the
@@ -2482,7 +2476,7 @@ export function TradePage() {
                               {selectedJob.decideBy && (
                                 <span
                                   className={`pubws-ownerbar-note${deadlineUrgent ? ' is-urgent' : ''}`}
-                                  title={`Deadline ${new Date(selectedJob.decideBy).toUTCString()}`}
+                                  title={`Deadline ${instantOf(selectedJob.decideBy)}`}
                                 >
                                   declines itself {whenOf(selectedJob.decideBy)}
                                 </span>

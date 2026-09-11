@@ -19,6 +19,7 @@ import {
   priceSeriesOf,
   primaryHorizonOf,
   settleDayOf,
+  settleInstant,
   settleNoteOf,
   settleShortOf,
   timeAgoOf,
@@ -224,13 +225,19 @@ describe('the label helpers', () => {
     ['2026-08', 'this month'],
     ['2026-08-19', 'today'],
     ['2026-08-18', '18 Aug'],
-    // A minute cell reads as a clock time, an hour cell too (owner ask
-    // 2026-09-10, minute horizons).
-    ['2026-08-19T20:05', '20:05 UTC'],
-    ['2026-08-19T23:59', '23:59 UTC'],
-    ['2026-08-19T20', '20:00 UTC'],
   ])('horizonLabel(%s) is %s', (target, label) => {
     expect(horizonLabel(target, NOW)).toBe(label);
+  });
+
+  // A minute cell reads as a clock time in the VIEWER's zone, an hour cell
+  // as the hour it closes (docs/ui-conventions.md, "Every clock on the floor
+  // reads in the viewer's zone"; Viktor 2026-09-11). Never a "UTC" word.
+  test.each([
+    ['2026-08-19T20:05', '22:05'],
+    ['2026-08-19T23:59', '01:59'],
+    ['2026-08-19T20', 'hour to 23:00'],
+  ])('horizonLabel(%s) in Prague is %s', (target, label) => {
+    expect(horizonLabel(target, NOW, 'Europe/Prague')).toBe(label);
   });
 
   test('only the current week is called "this week"', () => {
@@ -255,7 +262,14 @@ describe('the label helpers', () => {
     ['2026-08-15T20:05', '15 August 2026'],
     ['2026-12-31T23:59', '31 December 2026'],
   ])('settleDayOf(%s) is %s', (target, day) => {
-    expect(settleDayOf(target)).toBe(day);
+    // A minute cell's day is the viewer's; pinned to UTC here, and tested
+    // east of Greenwich below.
+    expect(settleDayOf(target, 'UTC')).toBe(day);
+  });
+
+  test('a minute cell late in the UTC day settles on the next local day east of Greenwich', () => {
+    expect(settleDayOf('2026-12-31T23:59', 'Europe/Prague')).toBe('1 January 2027');
+    expect(settleDayOf('2026-12-31', 'Europe/Prague')).toBe('31 December 2026');
   });
 
   test('the currency is the tail, and only the tail', () => {
@@ -479,11 +493,36 @@ describe('a floor that prices several metrics', () => {
   });
 
   test('the date word reads as the clock, or as "on" its settle day', () => {
-    expect(dateQuestionOf(horizonById(grid, 'rev-day'))).toEqual({ word: 'today', on: false });
-    expect(dateQuestionOf(horizonById(grid, 'rev-week'))).toEqual({ word: 'this week', on: false });
-    expect(dateQuestionOf(horizonById(grid, 'rev-month'))).toEqual({ word: 'this month', on: false });
-    expect(dateQuestionOf(horizonById(grid, 'rev-sep'))).toEqual({ word: '30 Sep', on: true });
-    expect(dateQuestionOf(null)).toEqual({ word: '', on: false });
+    expect(dateQuestionOf(horizonById(grid, 'rev-day'))).toEqual({ word: 'today', lead: '' });
+    expect(dateQuestionOf(horizonById(grid, 'rev-week'))).toEqual({ word: 'this week', lead: '' });
+    expect(dateQuestionOf(horizonById(grid, 'rev-month'))).toEqual({ word: 'this month', lead: '' });
+    expect(dateQuestionOf(horizonById(grid, 'rev-sep'))).toEqual({ word: '30 Sep', lead: 'on ' });
+    expect(dateQuestionOf(null)).toEqual({ word: '', lead: '' });
+  });
+
+  // The date word names the instant the book asks about, at the cell's own
+  // granularity (Viktor 2026-09-11, of a minute cell titled "on 11 Sep?").
+  test('a minute cell asks "at 12:38", an hour cell "in the hour to 13:00", never a day', () => {
+    const minute = buildHorizonViews(
+      ws({
+        markets: [cell('len-m', 'len', 'Snake length', 1, '2026-09-11T10:38', '2026-09-11T10:39:00Z')],
+        horizonHistories: [],
+      }),
+      new Date('2026-09-11T10:20:00Z'),
+      'Europe/Prague',
+    )[0];
+    expect(dateQuestionOf(minute)).toEqual({ word: '12:38', lead: 'at ' });
+    const hour = buildHorizonViews(
+      ws({
+        markets: [cell('len-h', 'len', 'Snake length', 1, '2026-09-11T10', '2026-09-11T11:00:00Z')],
+        horizonHistories: [],
+      }),
+      new Date('2026-09-11T10:20:00Z'),
+      'Europe/Prague',
+    )[0];
+    expect(dateQuestionOf(hour)).toEqual({ word: '13:00', lead: 'in the hour to ' });
+    expect(dateSegmentOf(minute)).toBe('12:38');
+    expect(dateSegmentOf(hour)).toBe('hour to 13:00');
   });
 
   test('time ago mirrors time left, with "just now" under a minute', () => {
@@ -507,7 +546,7 @@ describe('a floor that prices several metrics', () => {
   test('a day that has ended is a date, not "today"', () => {
     const later = buildHorizonViews(ws({ markets: GRID, horizonHistories: [] }), new Date('2026-08-26T00:30:00Z'));
     expect(dateSegmentOf(horizonById(later, 'rev-day'))).toBe('25 Aug');
-    expect(dateQuestionOf(horizonById(later, 'rev-day'))).toEqual({ word: '25 Aug', on: true });
+    expect(dateQuestionOf(horizonById(later, 'rev-day'))).toEqual({ word: '25 Aug', lead: 'on ' });
   });
 });
 
@@ -609,5 +648,13 @@ describe('forecastDayOf: the day being forecast, as the picker names it', () => 
   test('an unparsable instant is nothing', () => {
     expect(forecastDayOf('soon')).toBeNull();
     expect(forecastDayOf(null)).toBeNull();
+  });
+});
+
+describe('the settle instant reads in the viewer zone', () => {
+  test('day, clock and the short zone name, once', () => {
+    expect(settleInstant('2026-09-30T23:59:00Z', 'Europe/Prague')).toBe('1 Oct 2026, 01:59 CEST');
+    expect(settleInstant('2026-09-11T10:39:00Z', 'Europe/Prague')).toBe('11 Sep 2026, 12:39 CEST');
+    expect(settleInstant('garbage')).toBe('');
   });
 });

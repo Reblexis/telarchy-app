@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { api } from '../lib/api';
+import { linkify } from './Linkified';
 
 /**
  * The "What is <name>?" section on the public floor: the owner's own words
@@ -9,19 +10,6 @@ import { api } from '../lib/api';
  * default copy until the owner writes their own. URLs render as links; line
  * breaks are preserved, so a "Sources:" list reads the way it was typed.
  */
-
-function linkify(text: string) {
-  // Split on URLs, keeping them (capturing group), then wrap the URL parts.
-  return text.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
-    /^https?:\/\//.test(part) ? (
-      <a key={i} href={part} target="_blank" rel="noreferrer">
-        {part}
-      </a>
-    ) : (
-      <span key={i}>{part}</span>
-    ),
-  );
-}
 
 export function SubjectAbout({
   workspaceId,
