@@ -6368,8 +6368,8 @@ textarea.jobform-line--desc {
 
 /* "What is planned" (docs/owner-on-the-floor.md, "What is planned"): one
    time axis in the owner's column, one row per item. Hairlines, not cards:
-   the ticks are a row of small mono labels with faint gridlines through
-   the rows, the past is a wash, and the only filled shapes are the bars,
+   the ticks are a row of small mono labels above the rows (no gridlines
+   through the titles, which read as strikes), the past is a wash, and the only filled shapes are the bars,
    because a bar IS an interval and a wash is the honest way to draw one.
    The title sits on its own line with the meta at the end, never inside or
    beside the bar: the column is 280px and a label next to its bar is a
@@ -6384,7 +6384,7 @@ textarea.jobform-line--desc {
 }
 .pubws-tl-seg { justify-content: flex-start; }
 .pubws-tl-seg .pubws-seg-btn { padding: 0.32rem 0.55rem; font-size: 0.62rem; }
-.pubws-tl-corner { display: inline-flex; gap: 0.7rem; white-space: nowrap; }
+.pubws-tl-corner { display: inline-flex; gap: 0.7rem; margin-left: auto; white-space: nowrap; }
 
 .pubws-tl-axis { position: relative; width: 100%; min-width: 0; }
 .pubws-tl-ticks {
@@ -6420,14 +6420,6 @@ textarea.jobform-line--desc {
   bottom: 0;
   left: 0;
   background: var(--bg-secondary);
-  pointer-events: none;
-}
-.pubws-tl-grid {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  border-left: 1px solid var(--border-color);
-  opacity: 0.7;
   pointer-events: none;
 }
 .pubws-tl-now {
