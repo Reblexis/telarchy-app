@@ -386,6 +386,8 @@ Participants propose proposals; the system evaluates each proposal by running th
 6. **Decline** (good faith) - mirror image of approve. The approved-branch markets are voided and refunded; the declined-branch markets stay live and resolve against actual metric, producing a counterfactual calibration record we can score the decision against later.
 7. **Withdraw / decline as spam** - both branches voided, all stakes refunded. Decline as spam additionally charges the proposer the workspace's `spamPenalty`, capped at their balance, paid to the owner. `refund: true` on decline voids both branches.
 
+**Options.** A proposal may carry `options: [{ id, label }]`, two to six, in place of the approve/decline pair: one conditional market per option per active leaf-metric market, `branch` set to the option id, each opening at the baseline price (less the ask where the metric burns dollars). The headline per option is its consensus minus the best other option, so the leader's number is its lead. `POST /api/proposals/:id/approve { option }` keeps the chosen option's markets and voids the rest with refund; decline, spam, withdraw, remove and lapse void them all. `docs/guides/proposals.md`, "More than two options", is the contract.
+
 Approve, decline and withdraw act only on a pending proposal; `DELETE /api/proposals/:id` (remove, `manage`) acts on any.
 
 A per-proposal message thread (`proposals/{proposalId}/messages`) enables proposer-admin negotiation before a decision is made.

@@ -924,6 +924,53 @@ hero number.
   knows how to price it.
 
 
+### A proposal with options shows one world per option
+
+A proposal may carry options instead of the approve/decline pair
+(`docs/guides/proposals.md`, "More than two options"). The page is the
+same page; only the parts that said "two" change, and they change by
+counting:
+
+- **The worlds are the options.** The control under the hero is the "last
+  read" cell followed by ONE cell per option, in the proposer's order, each
+  captioned with the option's label ("Turn left", not "if turn left") over
+  its price; the leader's cell wears the accent the approved cell wears
+  today, the others are plain. Every priced cell is a button
+  (`aria-pressed`) that puts that option on the chart and the ticket; an
+  unpriced one says "no liquidity" and cannot be pressed, as any pair does.
+  Up to six options fit one row on the desktop floor; on a phone the row
+  wraps to two cells per line, the last-read cell first. There is no
+  declined cell, because there is no declined world.
+- **The hero is the lead.** The big number is the leader's consensus minus
+  the best other option, over the caption "<metric> <date>, <leader label>
+  over the next best". Fewer than two priced options: the hero prints
+  "no lead yet" in the place of the number, and the strips print "open" for
+  that cell.
+- **The question names the option**: "If <label>, what will <floor>'s
+  <metric> be on <settle day>?", switching with the selected cell.
+- **The chart draws the selected option** against the baseline "without
+  it" line, and its legend names the option, not "if approved". The other
+  options are not drawn: three or more conditional lines over a baseline is
+  the mismatch the pair legend exists to prevent.
+- **The world rides the verb**: "Bet Higher · Turn left". The ticket's
+  header names the same option.
+- **The decision bar has one button per option**, each reading "Choose
+  <label>", the leader's first and in the accent, then Decline as today.
+  Pressing one is the approve with that option; nothing asks twice.
+- **The board row prints the leader's lead** where a pair prints approved
+  minus declined, prefixed with the leader's label in the mono caption
+  register ("Turn left +0.4"); "open" until two options are priced. The
+  ruling band reads "Chose <label>" in the approved pill's colours.
+- **A decided proposal with options** strikes through every option cell
+  but the chosen one, exactly as the declined world is struck through
+  today, and the ruling says which option was chosen.
+- **Posting one**: the creation form has an "Options" row under the pitch,
+  closed by default (a two-branch proposal is the default and stays the
+  default). Opened, it holds two label fields and an "add option" control
+  up to six; a label empties an option, and fewer than two filled labels
+  post a two-branch proposal. Ids are the labels lowercased and hyphenated,
+  deduplicated with a number.
+
 ### A proposal ships every pair of the grid, and the board reads the pair on screen
 
 A proposal's `markets` carries EVERY pair the engine spawned for it, one

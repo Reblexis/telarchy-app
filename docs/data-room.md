@@ -45,8 +45,8 @@ The kinds, in the order the filter bar lists them:
 | `trade` | a participant bought or sold shares on a book: side, shares, credits, and the market's call before and after | `trades` with kind `trade`; a redemption is bookkeeping and is never a row |
 | `order` | a participant placed a limit order (side, level, budget), and later it filled, was cancelled, expired or was voided | `limit_orders`: one row at `createdAt`, and one at `updatedAt` for a status other than `open` |
 | `liquidity` | a participant put liquidity behind a book, or funded a proposal's books | `liquidity_events` of type `injection`, one row each; of type `proposal-subsidy`, one row per proposal, funder and minute with the amounts summed, because a subsidy lands on every branch book at once. The engine's own `initial` and `anchor` rows are not actions |
-| `proposal` | a proposal was posted (title, ask), or its title or description was edited | `proposals` that are not `removed`; `proposal_revisions` |
-| `decision` | the owner approved, declined (with the written reason), or the proposal lapsed or was withdrawn | `proposals` by status: `approved`, `declined`, `declined_spam`, `lapsed`, `withdrawn` |
+| `proposal` | a proposal was posted (title, ask, its option labels when it has options), or its title or description was edited | `proposals` that are not `removed`; `proposal_revisions` |
+| `decision` | the owner approved (naming the chosen option when the proposal had options), declined (with the written reason), or the proposal lapsed or was withdrawn | `proposals` by status: `approved`, `declined`, `declined_spam`, `lapsed`, `withdrawn` |
 | `delivery` | the proposer reported delivery | `proposals.deliveredAt` |
 | `comment` | a message on a proposal or on a book, as an excerpt | `proposal_messages`, `market_messages` |
 | `announcement` | the owner published an announcement, or edited one | `announcements`; an edit is its own row at `editedAt` |
