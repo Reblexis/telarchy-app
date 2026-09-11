@@ -1,12 +1,13 @@
 /**
  * The geometry of "What is planned" (docs/owner-on-the-floor.md, "What is
- * planned"): one time axis, bars packed into lanes, the soonest deadline on
- * top. Pure functions of a fixed clock so the component only paints.
+ * planned", "The axis"): one time axis, one row per item with its bar on
+ * the shared axis under its title, the soonest end on top. Pure functions
+ * of a fixed clock so the component only paints.
  *
- * The lane packing, the tick ladder and the label rule are borrowed from
- * vcihal.com/tasks (design record in the telarchy umbrella,
- * notes/floor-timeline-proposal-2026-09-11.md), where they were tuned by
- * living with them; the styling is not.
+ * No lanes and no label measurement, on purpose: the column the card lives
+ * in is 280px wide, and a label that has to fit next to its bar is a label
+ * that gets cut (measured on the branch preview 2026-09-11, revising the
+ * lane layout borrowed from vcihal.com/tasks).
  */
 
 export type TimelineKind = 'proposal' | 'decision' | 'book' | 'plan';
@@ -19,7 +20,7 @@ export interface TimelineItem {
   start: string | null;
   /** ISO instant; null means no due point, listed under the axis rather than drawn. */
   end: string | null;
-  /** Where the bar goes; a plan item has none and opens its own words. */
+  /** Where the row goes; a plan item has none and opens its own words. */
   href: string | null;
   done?: boolean;
   description?: string | null;
@@ -28,7 +29,6 @@ export interface TimelineItem {
 export type Range = 'today' | 'week' | 'month';
 
 const DAY = 864e5;
-const HOUR = 36e5;
 
 /**
  * The three windows. "Today" is the local calendar day, because a reader
@@ -49,89 +49,64 @@ export function windowFor(range: Range, now: Date | number): { from: number; to:
   return { from: t - 3 * DAY, to: t + 27 * DAY };
 }
 
-export interface Step {
-  u: 'hour' | 'day';
-  n: number;
-}
-
-/** Coarsest first would be wrong: walk from fine to coarse and stop at the
- *  first rung whose labels still sit at least 52px apart ("13 Aug" is about
- *  42px; tighter than that they touch). */
-const STEPS: Step[] = [
-  { u: 'hour', n: 1 },
-  { u: 'hour', n: 3 },
-  { u: 'hour', n: 6 },
-  { u: 'hour', n: 12 },
-  { u: 'day', n: 1 },
-  { u: 'day', n: 7 },
-];
-const UNIT_MS = { hour: HOUR, day: DAY };
-const MIN_TICK_GAP_PX = 52;
-
-export function pickStep(spanMs: number, widthPx: number): Step {
-  const perPx = spanMs / Math.max(widthPx, 1);
-  for (const s of STEPS) if ((UNIT_MS[s.u] * s.n) / perPx >= MIN_TICK_GAP_PX) return s;
-  return STEPS[STEPS.length - 1];
-}
-
 export interface Tick {
   t: number;
   label: string;
-  /** A tick that also opens a bigger unit: midnight among hours, the first among days. */
-  major: boolean;
 }
 
-const fmtDay = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-const fmtMonth = (d: Date) => d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+const fmtDayMonth = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 const fmtTime = (d: Date) => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
 /**
- * Ticks on real calendar boundaries between `from` and `to`. Walking Date
- * fields rather than adding milliseconds keeps a day tick at midnight across
- * a DST change. At midnight an hour tick names the day instead of "00:00",
- * and on the first a day tick names the month, so the axis always says
- * which date its times belong to.
+ * One tick rule per range rather than a pixel-spacing ladder: at 280px a
+ * ladder chose weekly ticks for a week and the axis had one date on it.
+ * Today: every six hours as a time. Week: every midnight, the day number,
+ * the first of a month named. Month: every Monday, day and month. Walking
+ * Date fields rather than adding milliseconds keeps a tick at midnight
+ * across a DST change.
  */
-export function tickTimes(from: number, to: number, step: Step): Tick[] {
+export function ticksFor(range: Range, from: number, to: number): Tick[] {
   const out: Tick[] = [];
   const d = new Date(from);
-  if (step.u === 'day') {
-    d.setHours(0, 0, 0, 0);
-  } else {
+  if (range === 'today') {
     d.setMinutes(0, 0, 0);
-    d.setHours(Math.floor(d.getHours() / step.n) * step.n);
+    d.setHours(Math.floor(d.getHours() / 6) * 6);
+  } else {
+    d.setHours(0, 0, 0, 0);
+    // Back to the Monday on or before `from`; getDay() is 0 on Sunday.
+    if (range === 'month') d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
   }
   let guard = 0;
   while (d.getTime() <= to && guard++ < 400) {
     if (d.getTime() >= from) {
-      const midnight = d.getHours() === 0 && d.getMinutes() === 0;
       const label =
-        step.u === 'hour' ? (midnight ? fmtDay(d) : fmtTime(d)) : d.getDate() === 1 ? fmtMonth(d) : fmtDay(d);
-      const major = step.u === 'hour' ? midnight : d.getDate() === 1;
-      out.push({ t: d.getTime(), label, major });
+        range === 'today' ? fmtTime(d) : range === 'month' || d.getDate() === 1 ? fmtDayMonth(d) : String(d.getDate());
+      out.push({ t: d.getTime(), label });
     }
-    if (step.u === 'day') d.setDate(d.getDate() + step.n);
-    else d.setHours(d.getHours() + step.n);
+    if (range === 'today') d.setHours(d.getHours() + 6);
+    else d.setDate(d.getDate() + (range === 'month' ? 7 : 1));
   }
   return out;
 }
 
-/** The one word a bar's meta prints for its kind, so a reader who cannot
- *  tell the colours apart still knows a book from a proposal. */
-export function kindWord(kind: string): string {
-  switch (kind) {
-    case 'proposal':
-      return 'proposal';
-    case 'decision':
-      return 'decides';
-    case 'book':
-      return 'book';
-    default:
-      return 'plan';
-  }
+/** The mono meta at the end of a title line: what the end IS, then the day.
+ *  Today and tomorrow are written as words because "due 11 Sept" makes the
+ *  reader look at a calendar for what is in front of them. Null when the
+ *  item has no end. */
+export function endMeta(item: TimelineItem, now: Date | number): string | null {
+  if (!item.end) return null;
+  const e = Date.parse(item.end);
+  if (Number.isNaN(e)) return null;
+  const verb =
+    item.kind === 'decision' ? 'decides' : item.kind === 'proposal' ? 'by' : item.kind === 'book' ? 'settles' : 'due';
+  const today = new Date(typeof now === 'number' ? now : now.getTime());
+  today.setHours(0, 0, 0, 0);
+  const days = Math.floor((e - today.getTime()) / DAY);
+  const when = days === 0 ? 'today' : days === 1 ? 'tomorrow' : fmtDayMonth(new Date(e));
+  return `${verb} ${when}`;
 }
 
-export interface PlacedBar {
+export interface PlacedRow {
   item: TimelineItem;
   /** Visible extent, clipped to the axis. */
   left: number;
@@ -139,8 +114,6 @@ export interface PlacedBar {
   /** Whether the bar continues past the axis edge. */
   openLeft: boolean;
   openRight: boolean;
-  labelInside: boolean;
-  labelX: number;
   end: number;
 }
 
@@ -148,26 +121,23 @@ export interface Layout {
   from: number;
   to: number;
   width: number;
-  /** Lane 0 on top: the lane whose bar ends soonest. */
-  lanes: PlacedBar[][];
+  /** Soonest end first. */
+  rows: PlacedRow[];
   undated: TimelineItem[];
   /** Null when now is outside the window. */
   nowX: number | null;
   pastWidth: number;
   ticks: Array<Tick & { x: number }>;
-  step: Step;
 }
 
-const LABEL_PAD = 16;
-const LABEL_GAP = 12;
-const LANE_GAP = 6;
+/** A ten-minute call is still a bar, not nothing. */
+const MIN_BAR_PX = 2;
 
 /**
  * @param items what the API returned
  * @param range which window
  * @param now the clock the window is built around
  * @param widthPx the axis width in pixels
- * @param measureLabel text width in pixels at the bar's font
  * @param clock the instant the now-line marks; defaults to `now`, split
  *   out so a test can put now outside the window
  */
@@ -176,7 +146,6 @@ export function layout(
   range: Range,
   now: Date | number,
   widthPx: number,
-  measureLabel: (s: string) => number,
   clock: Date | number = now,
 ): Layout {
   const { from, to } = windowFor(range, now);
@@ -185,7 +154,7 @@ export function layout(
   const toX = (t: number) => ((t - from) / span) * width;
 
   const undated: TimelineItem[] = [];
-  const dated: Array<{ item: TimelineItem; s: number; e: number }> = [];
+  const rows: PlacedRow[] = [];
   for (const it of items) {
     if (it.done) continue;
     if (!it.end) {
@@ -198,82 +167,28 @@ export function layout(
     const s = it.start ? Date.parse(it.start) : -Infinity;
     if (Number.isNaN(e) || Number.isNaN(s)) continue;
     if (s > to || e < from) continue;
-    dated.push({ item: it, s, e });
+    const x1 = s === -Infinity ? 0 : Math.max(toX(s), 0);
+    const x2 = Math.min(toX(e), width);
+    rows.push({
+      item: it,
+      left: x1,
+      width: Math.max(x2 - x1, MIN_BAR_PX),
+      openLeft: s !== -Infinity && s < from,
+      openRight: e > to,
+      end: e,
+    });
   }
-
-  // Pixel extents first, label included, then pack. The label only goes
-  // inside when the visible bar can hold it; otherwise it sits past the end
-  // and occupies the lane too, or the next bar prints straight through it.
-  const placed = dated
-    .map(({ item, s, e }) => {
-      const x1 = s === -Infinity ? 0 : Math.max(toX(s), 0);
-      const x2 = Math.min(toX(e), width);
-      const tw = measureLabel(item.title);
-      const inside = x2 - x1 > tw + LABEL_PAD;
-      // A ten-minute call is still a bar, not nothing: two pixels at least.
-      const w = Math.max(x2 - x1, 2);
-      return {
-        bar: {
-          item,
-          left: x1,
-          width: w,
-          openLeft: s !== -Infinity && s < from,
-          openRight: e > to,
-          labelInside: inside,
-          labelX: inside ? x1 : x1 + w,
-          end: e,
-        } as PlacedBar,
-        occupyTo: inside ? x2 : x1 + w + tw + LABEL_GAP,
-        lane: -1,
-      };
-    })
-    .sort((a, b) => a.bar.left - b.bar.left);
-
-  // Greedy interval packing: a bar only earns its own lane when it overlaps
-  // everything already on the lanes above it.
-  const laneEnds: number[] = [];
-  const laneSoonest: number[] = [];
-  for (const p of placed) {
-    let lane = laneEnds.findIndex(end => end + LANE_GAP <= p.bar.left);
-    if (lane === -1) {
-      lane = laneEnds.length;
-      laneEnds.push(-Infinity);
-      laneSoonest.push(Infinity);
-    }
-    laneEnds[lane] = p.occupyTo;
-    laneSoonest[lane] = Math.min(laneSoonest[lane], p.bar.end);
-    p.lane = lane;
-  }
-
-  // Packing runs in start order, which buries urgent work: a bar with no
-  // start begins at the far left and would always take the top lane. Reorder
-  // by soonest end so the top of the axis is what needs attention.
-  const order = laneSoonest.map((soonest, i) => ({ soonest, i })).sort((a, b) => a.soonest - b.soonest);
-  const lanes: PlacedBar[][] = order.map(() => []);
-  const newIndex: number[] = [];
-  order.forEach(({ i }, newI) => {
-    newIndex[i] = newI;
-  });
-  for (const p of placed) lanes[newIndex[p.lane]].push(p.bar);
+  // The API already sends end ascending; sorting again costs nothing and
+  // keeps the rule true whatever the caller hands over.
+  rows.sort((a, b) => a.end - b.end);
 
   const nowT = typeof clock === 'number' ? clock : clock.getTime();
   const nowRaw = toX(nowT);
   const nowX = nowRaw < 0 || nowRaw > width ? null : nowRaw;
 
-  const step = pickStep(span, width);
-  const ticks = tickTimes(from, to, step)
+  const ticks = ticksFor(range, from, to)
     .map(t => ({ ...t, x: toX(t.t) }))
     .filter(t => t.x >= 0 && t.x <= width);
 
-  return {
-    from,
-    to,
-    width,
-    lanes,
-    undated,
-    nowX,
-    pastWidth: Math.max(0, Math.min(nowRaw, width)),
-    ticks,
-    step,
-  };
+  return { from, to, width, rows, undated, nowX, pastWidth: Math.max(0, Math.min(nowRaw, width)), ticks };
 }

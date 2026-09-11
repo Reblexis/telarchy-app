@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type TimelineItem } from '../lib/api';
-import { kindWord, layout, type PlacedBar, type Range } from '../lib/timeline-model';
+import { endMeta, layout, type PlacedRow, type Range } from '../lib/timeline-model';
 import { FloorModal } from './FloorModal';
 
 /**
@@ -12,9 +12,11 @@ import { FloorModal } from './FloorModal';
  * A trader can read what the floor would do if a proposal were approved;
  * what they could not read is what the owner has actually committed to and
  * by when. This draws exactly what `GET /api/marketplace/:id/timeline`
- * returns, one bar per commitment packed into lanes with the soonest
- * deadline on top, and lists what has no date under the axis. The geometry
- * is `lib/timeline-model.ts`; this component fetches, measures and paints.
+ * returns: one row per commitment, its title on a line with a meta naming
+ * the end, its bar on the shared axis beneath, soonest end on top; the
+ * first eight rows, the rest behind "All N"; and what has no date listed
+ * under the axis. The geometry is `lib/timeline-model.ts`; this component
+ * fetches, measures the axis width and paints.
  *
  * It renders nothing when there is nothing planned and the visitor cannot
  * manage, the announcements' rule: an empty heading on every floor is
@@ -22,24 +24,8 @@ import { FloorModal } from './FloorModal';
  */
 
 const FALLBACK_WIDTH = 280;
-const BAR_FONT = '500 11px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
-
-/** Real text metrics where a canvas exists, because lane packing has to
- *  reserve room for the label and a per-character guess overlaps on long
- *  titles. jsdom has no canvas, so it gets the guess. */
-function makeMeasure(): (s: string) => number {
-  const guess = (s: string) => s.length * 6.5;
-  if (typeof document === 'undefined' || (typeof navigator !== 'undefined' && /jsdom/i.test(navigator.userAgent)))
-    return guess;
-  try {
-    const ctx = document.createElement('canvas').getContext('2d');
-    if (!ctx) return guess;
-    ctx.font = BAR_FONT;
-    return (s: string) => ctx.measureText(s).width;
-  } catch {
-    return guess;
-  }
-}
+/** A floor with two dozen open commitments is still a card, not a page. */
+const FOLD_AT = 8;
 
 const fmtDay = (t: number) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
@@ -66,7 +52,7 @@ export function FloorTimeline({
   idOrSlug: string;
   workspaceId: string;
   canManage: boolean;
-  /** The clock to lay out around; tests pin it, the floor leaves it to the wall clock. */
+  /** The clock to lay out around; tests pin it, the floor leaves it to the server's `now`. */
   initialNow?: Date;
 }) {
   const [items, setItems] = useState<TimelineItem[] | null>(null);
@@ -74,10 +60,10 @@ export function FloorTimeline({
   const [range, setRange] = useState<Range>('week');
   const [width, setWidth] = useState(FALLBACK_WIDTH);
   const [adding, setAdding] = useState(false);
+  const [unfolded, setUnfolded] = useState(false);
   const [openWords, setOpenWords] = useState<string | null>(null);
   const [now, setNow] = useState<Date>(() => initialNow ?? new Date());
   const axisRef = useRef<HTMLDivElement | null>(null);
-  const measure = useMemo(makeMeasure, []);
 
   // One fetcher for mount and for every refetch after a plan changes. The
   // generation counter drops a reply that lands after unmount or after a
@@ -115,9 +101,9 @@ export function FloorTimeline({
     };
   }, [load]);
 
-  // The axis is as wide as the rail gives it; measure rather than guess, and
-  // keep measuring as the rail reflows. jsdom has no ResizeObserver and reports
-  // zero widths, so it keeps the fallback.
+  // The axis is as wide as the column gives it; measure rather than guess,
+  // and keep measuring as the column reflows. jsdom has no ResizeObserver
+  // and reports zero widths, so it keeps the fallback.
   useLayoutEffect(() => {
     const el = axisRef.current;
     if (!el) return;
@@ -132,7 +118,7 @@ export function FloorTimeline({
     return () => ro.disconnect();
   }, [items]);
 
-  const lay = useMemo(() => layout(items ?? [], range, now, width, measure), [items, range, now, width, measure]);
+  const lay = useMemo(() => layout(items ?? [], range, now, width), [items, range, now, width]);
 
   if (items === null) return null;
   if (failed) return null;
@@ -146,52 +132,14 @@ export function FloorTimeline({
   };
 
   const wordsOf = items.find(i => i.id === openWords);
+  const shown = unfolded ? lay.rows : lay.rows.slice(0, FOLD_AT);
+  const folded = lay.rows.length - shown.length;
 
-  const barBody = (bar: PlacedBar) => (
-    <>
-      <span className="pubws-tl-fill" style={{ width: bar.width }} aria-hidden="true" />
-      <span className="pubws-tl-label">
-        <span className="pubws-tl-kind">{kindWord(bar.item.kind)}</span>
-        {bar.item.title}
-      </span>
-    </>
-  );
-
-  const barEl = (bar: PlacedBar) => {
-    const cls =
-      `pubws-tl-bar pubws-tl-bar--${bar.item.kind}` +
-      (bar.labelInside ? ' pubws-tl-bar--inside' : '') +
-      (bar.openLeft ? ' pubws-tl-bar--open-left' : '') +
-      (bar.openRight ? ' pubws-tl-bar--open-right' : '');
-    const labelW = measure(bar.item.title) + 40;
-    const style = { left: bar.left, width: bar.labelInside ? bar.width : bar.width + labelW };
-    const title = `${bar.item.title} · until ${fmtDay(bar.end)}`;
-    return bar.item.href ? (
-      <Link key={bar.item.id} className={cls} style={style} to={bar.item.href} title={title}>
-        {barBody(bar)}
-      </Link>
-    ) : (
-      <button
-        key={bar.item.id}
-        type="button"
-        className={cls}
-        style={style}
-        title={title}
-        aria-expanded={openWords === bar.item.id}
-        onClick={() => setOpenWords(openWords === bar.item.id ? null : bar.item.id)}
-      >
-        {barBody(bar)}
-      </button>
-    );
-  };
-
-  const tick = (it: TimelineItem, style?: React.CSSProperties) =>
+  const doneTick = (it: TimelineItem) =>
     canManage && it.kind === 'plan' ? (
       <button
-        key={`done-${it.id}`}
         type="button"
         className="pubws-tl-done"
-        style={style}
         aria-label={`Mark done: ${it.title}`}
         title="Mark done"
         onClick={() => markDone(it)}
@@ -200,8 +148,49 @@ export function FloorTimeline({
       </button>
     ) : null;
 
+  const rowEl = (row: PlacedRow) => {
+    const it = row.item;
+    const body = (
+      <>
+        <span className="pubws-tl-line">
+          <span className="pubws-tl-title">{it.title}</span>
+          <span className="pubws-tl-meta">{endMeta(it, now)}</span>
+        </span>
+        <span className="pubws-tl-track">
+          <span
+            className={
+              `pubws-tl-bar pubws-tl-bar--${it.kind}` +
+              (row.openLeft ? ' pubws-tl-bar--open-left' : '') +
+              (row.openRight ? ' pubws-tl-bar--open-right' : '')
+            }
+            style={{ left: row.left, width: row.width }}
+          />
+        </span>
+      </>
+    );
+    return (
+      <li className="pubws-tl-row" key={it.id}>
+        {it.href ? (
+          <Link className="pubws-tl-rowlink" to={it.href}>
+            {body}
+          </Link>
+        ) : (
+          <button
+            type="button"
+            className="pubws-tl-rowlink"
+            aria-expanded={openWords === it.id}
+            onClick={() => setOpenWords(openWords === it.id ? null : it.id)}
+          >
+            {body}
+          </button>
+        )}
+        {doneTick(it)}
+      </li>
+    );
+  };
+
   const nothingAtAll = items.length === 0;
-  const nothingInRange = !nothingAtAll && lay.lanes.length === 0;
+  const nothingInRange = !nothingAtAll && lay.rows.length === 0;
 
   return (
     <section className="pubws-know pubws-enter pubws-enter--3 pubws-tl" aria-label="What is planned">
@@ -223,11 +212,18 @@ export function FloorTimeline({
             </button>
           ))}
         </span>
-        {canManage && (
-          <button type="button" className="pubws-know-edit" onClick={() => setAdding(true)}>
-            + plan
-          </button>
-        )}
+        <span className="pubws-tl-corner">
+          {canManage && (
+            <button type="button" className="pubws-know-edit" onClick={() => setAdding(true)}>
+              + plan
+            </button>
+          )}
+          {(folded > 0 || (unfolded && lay.rows.length > FOLD_AT)) && (
+            <button type="button" className="pubws-know-edit" onClick={() => setUnfolded(u => !u)}>
+              {unfolded ? 'Fewer' : `All ${lay.rows.length}`}
+            </button>
+          )}
+        </span>
       </div>
 
       {nothingAtAll ? (
@@ -236,46 +232,23 @@ export function FloorTimeline({
         <div className="pubws-tl-axis" ref={axisRef}>
           <div className="pubws-tl-ticks" aria-hidden="true">
             {lay.ticks.map(t => (
-              <span
-                key={t.t}
-                className={`pubws-tl-tick${t.major ? ' pubws-tl-tick--major' : ''}`}
-                style={{ left: t.x }}
-              >
+              <span key={t.t} className="pubws-tl-tick" style={{ left: t.x }}>
                 {t.label}
               </span>
             ))}
           </div>
-          <div className="pubws-tl-lanes">
+          <div className="pubws-tl-rows">
             {/* Everything left of now is spent time; shading it makes the
                 now-line read as a boundary rather than a stray rule. */}
             {lay.pastWidth > 0 && <div className="pubws-tl-past" style={{ width: lay.pastWidth }} aria-hidden="true" />}
             {lay.ticks.map(t => (
-              <div
-                key={`g${t.t}`}
-                className={`pubws-tl-grid${t.major ? ' pubws-tl-grid--major' : ''}`}
-                style={{ left: t.x }}
-                aria-hidden="true"
-              />
+              <div key={`g${t.t}`} className="pubws-tl-grid" style={{ left: t.x }} aria-hidden="true" />
             ))}
             {lay.nowX !== null && <div className="pubws-tl-now" style={{ left: lay.nowX }} aria-hidden="true" />}
             {nothingInRange ? (
               <p className="pubws-tl-empty pubws-tl-empty--range">Nothing in this range.</p>
             ) : (
-              lay.lanes.map((lane, i) => (
-                <div className="pubws-tl-lane" key={i}>
-                  {lane.map(bar => {
-                    const occupied = bar.labelInside
-                      ? bar.left + bar.width
-                      : bar.left + bar.width + measure(bar.item.title) + 40;
-                    return (
-                      <span key={bar.item.id} className="pubws-tl-slot">
-                        {barEl(bar)}
-                        {tick(bar.item, { left: Math.min(occupied + 4, lay.width - 18) })}
-                      </span>
-                    );
-                  })}
-                </div>
-              ))
+              <ul className="pubws-tl-list">{shown.map(rowEl)}</ul>
             )}
           </div>
         </div>
@@ -294,7 +267,6 @@ export function FloorTimeline({
           <ul className="pubws-tl-undated-list">
             {lay.undated.map(it => (
               <li key={it.id} className="pubws-tl-undated-row">
-                <span className="pubws-tl-kind">{kindWord(it.kind)}</span>
                 {it.href ? (
                   <Link className="pubws-tl-undated-title" to={it.href}>
                     {it.title}
@@ -308,7 +280,7 @@ export function FloorTimeline({
                     {it.title}
                   </button>
                 )}
-                {tick(it)}
+                {doneTick(it)}
               </li>
             ))}
           </ul>

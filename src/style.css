@@ -6367,12 +6367,14 @@ textarea.jobform-line--desc {
 .pubws-rail .pubws-ballot-facts { font-size: 0.72rem; }
 
 /* "What is planned" (docs/owner-on-the-floor.md, "What is planned"): one
-   time axis in the owner's column. Hairlines, not cards: the axis is a
-   baseline with tick marks, the past is a faint wash, and the only filled
-   shapes are the bars themselves, because a bar IS an interval and a
-   wash is the honest way to draw one. Colour says the kind (accent for a
-   proposal, ink for the owner's own plan, bone for a book) and the one-word
-   meta on every bar says it again for a reader who cannot see the colour. */
+   time axis in the owner's column, one row per item. Hairlines, not cards:
+   the ticks are a row of small mono labels with faint gridlines through
+   the rows, the past is a wash, and the only filled shapes are the bars,
+   because a bar IS an interval and a wash is the honest way to draw one.
+   The title sits on its own line with the meta at the end, never inside or
+   beside the bar: the column is 280px and a label next to its bar is a
+   label that gets cut. Colour says the kind (accent for a proposal, ink for
+   the owner's own plan, bone for a book); the meta's verb says it again. */
 .pubws-tl-controls {
   display: flex;
   align-items: center;
@@ -6382,38 +6384,36 @@ textarea.jobform-line--desc {
 }
 .pubws-tl-seg { justify-content: flex-start; }
 .pubws-tl-seg .pubws-seg-btn { padding: 0.32rem 0.55rem; font-size: 0.62rem; }
+.pubws-tl-corner { display: inline-flex; gap: 0.7rem; white-space: nowrap; }
 
 .pubws-tl-axis { position: relative; width: 100%; min-width: 0; }
 .pubws-tl-ticks {
   position: relative;
-  height: 1.1rem;
+  height: 1rem;
   border-bottom: 1px solid var(--border-color);
   font-family: var(--font-mono);
-  font-size: 0.6rem;
+  font-size: 0.58rem;
   color: var(--text-tertiary);
 }
 .pubws-tl-tick {
   position: absolute;
-  bottom: 0.15rem;
+  bottom: 0.12rem;
   transform: translateX(2px);
   white-space: nowrap;
 }
-.pubws-tl-tick--major { color: var(--text-secondary); font-weight: 600; }
+/* The last tick of a window sits on the right edge; keep its label on the axis. */
+.pubws-tl-tick:last-child { transform: translateX(calc(-100% - 2px)); }
 .pubws-tl-tick::before {
   content: '';
   position: absolute;
   left: -2px;
-  bottom: -0.15rem;
-  height: 0.3rem;
+  bottom: -0.12rem;
+  height: 0.28rem;
   border-left: 1px solid var(--border-strong);
 }
+.pubws-tl-tick:last-child::before { left: auto; right: -2px; }
 
-.pubws-tl-lanes {
-  position: relative;
-  overflow: hidden;
-  padding: 0.35rem 0 0.25rem;
-  min-height: 1.6rem;
-}
+.pubws-tl-rows { position: relative; overflow: hidden; min-height: 1.6rem; }
 .pubws-tl-past {
   position: absolute;
   top: 0;
@@ -6427,10 +6427,9 @@ textarea.jobform-line--desc {
   top: 0;
   bottom: 0;
   border-left: 1px solid var(--border-color);
-  opacity: 0.6;
+  opacity: 0.7;
   pointer-events: none;
 }
-.pubws-tl-grid--major { opacity: 1; }
 .pubws-tl-now {
   position: absolute;
   top: 0;
@@ -6440,21 +6439,20 @@ textarea.jobform-line--desc {
   z-index: 2;
 }
 
-.pubws-tl-lane { position: relative; height: 1.45rem; }
-.pubws-tl-lane + .pubws-tl-lane { margin-top: 3px; }
-.pubws-tl-slot { display: contents; }
-
-/* A bar is one clickable row: the fill is the interval, the label sits over
-   it when the interval can hold the words and just past its end otherwise
-   (the model decides which). Text is one line, cut with an ellipsis. */
-.pubws-tl-bar {
-  position: absolute;
-  top: 0;
+/* One row: 34px, so eight rows are a card and not a page. The title line
+   is one line cut with an ellipsis, the meta stays whole at its end, the
+   bar is a thin fill on the shared axis below. */
+.pubws-tl-list { position: relative; list-style: none; margin: 0; padding: 0; z-index: 1; }
+.pubws-tl-row {
+  position: relative;
+  height: 34px;
+  border-bottom: 1px solid var(--border-color);
+}
+.pubws-tl-rowlink {
+  display: block;
+  width: 100%;
   height: 100%;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 0;
+  padding: 5px 0 0;
   border: none;
   background: none;
   font: inherit;
@@ -6462,60 +6460,60 @@ textarea.jobform-line--desc {
   text-decoration: none;
   color: var(--text-primary);
   cursor: pointer;
-  z-index: 1;
-  min-width: 0;
-}
-.pubws-tl-fill {
-  flex: none;
-  height: 100%;
-  border-radius: 2px;
-  background: var(--bg-tertiary);
-  border-left: 2px solid var(--border-strong);
   box-sizing: border-box;
 }
-.pubws-tl-bar--proposal .pubws-tl-fill { background: var(--accent-soft); border-left-color: var(--accent); }
-.pubws-tl-bar--decision .pubws-tl-fill {
-  background: transparent;
-  border: 1px solid var(--accent);
-  border-left-width: 2px;
+.pubws-tl-row:has(.pubws-tl-done) .pubws-tl-rowlink { padding-right: 22px; }
+.pubws-tl-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+  line-height: 1;
 }
-.pubws-tl-bar--book .pubws-tl-fill { background: var(--bg-tertiary); border-left-color: var(--border-strong); }
-.pubws-tl-bar--plan .pubws-tl-fill { background: var(--bg-tertiary); border-left-color: var(--text-primary); }
-.pubws-tl-bar--open-left .pubws-tl-fill { border-left-width: 0; border-radius: 0 2px 2px 0; }
-.pubws-tl-bar--open-right .pubws-tl-fill { border-radius: 2px 0 0 2px; }
-.pubws-tl-label {
+.pubws-tl-title {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 500;
-  line-height: 1;
 }
-.pubws-tl-bar--inside .pubws-tl-label {
-  position: absolute;
-  left: 6px;
-  right: 6px;
-}
-.pubws-tl-kind {
-  display: inline-block;
-  margin-right: 0.35rem;
+.pubws-tl-meta {
+  flex: none;
   font-family: var(--font-mono);
-  font-size: 0.58rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 0.6rem;
+  letter-spacing: 0.02em;
   color: var(--text-tertiary);
+  white-space: nowrap;
 }
-.pubws-tl-bar:hover .pubws-tl-label,
-.pubws-tl-bar:focus-visible .pubws-tl-label { color: var(--accent); }
-.pubws-tl-bar:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pubws-tl-track { position: relative; display: block; height: 6px; margin-top: 7px; }
+.pubws-tl-bar {
+  position: absolute;
+  top: 0;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+  border-left: 2px solid var(--border-strong);
+  box-sizing: border-box;
+}
+.pubws-tl-bar--proposal { background: var(--accent-soft); border-left-color: var(--accent); }
+.pubws-tl-bar--decision { background: transparent; border: 1px solid var(--accent); border-left-width: 2px; }
+.pubws-tl-bar--book { background: var(--bg-tertiary); border-left-color: var(--border-strong); }
+.pubws-tl-bar--plan { background: var(--bg-tertiary); border-left-color: var(--text-primary); }
+.pubws-tl-bar--open-left { border-left-width: 0; border-radius: 0 3px 3px 0; }
+.pubws-tl-bar--open-right { border-radius: 3px 0 0 3px; }
+.pubws-tl-bar--open-left.pubws-tl-bar--open-right { border-radius: 0; }
+.pubws-tl-rowlink:hover .pubws-tl-title,
+.pubws-tl-rowlink:focus-visible .pubws-tl-title { color: var(--accent); }
+.pubws-tl-rowlink:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
-/* The manager's done tick: a hairline square after the bar's words. */
+/* The manager's done tick: a hairline square at the row's right edge. */
 .pubws-tl-done {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 5px;
+  right: 0;
   width: 15px;
   height: 15px;
   padding: 0;
@@ -6531,7 +6529,7 @@ textarea.jobform-line--desc {
 }
 .pubws-tl-done:hover,
 .pubws-tl-done:focus-visible { color: var(--higher); border-color: var(--higher); outline: none; }
-.pubws-tl-undated-row .pubws-tl-done { position: static; transform: none; }
+.pubws-tl-undated-row .pubws-tl-done { position: static; }
 
 /* Under the axis: the items with no due point, one hairline row each. */
 .pubws-tl-undated { margin-top: 0.7rem; }
@@ -6552,7 +6550,7 @@ textarea.jobform-line--desc {
   gap: 0.5rem;
   padding: 0.4rem 0;
   border-bottom: 1px solid var(--border-color);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
 }
 .pubws-tl-undated-title {
   flex: 1 1 auto;
@@ -6564,6 +6562,7 @@ textarea.jobform-line--desc {
   border: none;
   background: none;
   font: inherit;
+  font-weight: 500;
   text-align: left;
   text-decoration: none;
   color: var(--text-primary);
@@ -6572,7 +6571,7 @@ textarea.jobform-line--desc {
 .pubws-tl-undated-title:hover,
 .pubws-tl-undated-title:focus-visible { color: var(--accent); outline: none; }
 
-/* A plan item's own words, opened from its bar; and the empty lines. */
+/* A plan item's own words, opened from its row; and the empty lines. */
 .pubws-tl-words {
   text-align: left;
   margin: 0.6rem 0 0;
@@ -6591,7 +6590,7 @@ textarea.jobform-line--desc {
 .pubws-tl-empty--range {
   position: relative;
   z-index: 1;
-  padding: 0.2rem 0;
+  padding: 0.3rem 0;
   font-family: var(--font-mono);
   font-size: 0.68rem;
 }

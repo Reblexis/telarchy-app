@@ -3709,10 +3709,21 @@ answers the trader's question the ballot cannot: not &quot;what would this do if
 approved&quot; but &quot;what is actually happening, and by when&quot;. Design record in
 the telarchy umbrella, <code>notes/floor-timeline-proposal-2026-09-11.md</code>.</p>
 <p><strong>The axis.</strong> One horizontal time axis with a now-line and the past shaded,
-three ranges picked by a segmented control (today, week, month), a bar per
-item packed into lanes, the lane whose bar ends soonest on top. A bar is a
-committed interval: it starts when the commitment began and ends when it is
-due. Bars are things the floor already holds, plus the owner's own items:</p>
+three ranges picked by a segmented control (today, week, month), and one
+row per item: the item's title on its own line, with a short mono meta at
+the end of that line naming what the end is (&quot;decides 15 Sept&quot;, &quot;by 1 Oct&quot;,
+&quot;settles 1 Oct&quot;, &quot;due 14 Sept&quot;), and its bar on the axis beneath. The row
+whose bar ends soonest is on top. The title is never drawn inside or beside
+the bar: the column the card lives in is 280px wide, and a label that has
+to fit next to its bar is a label that gets cut. The card shows the first
+eight rows in the range and an &quot;All N&quot; corner control unfolds the rest, so
+a floor with two dozen open commitments is still a card and not a page.
+Ticks: every six hours in the today range, every day in the week range
+(day numbers, the first of a month named), every Monday in the month range
+(day and month); the axis is dense enough to read a date off it at 280px.
+A bar is a committed interval: it starts when the commitment began and ends
+when it is due. Bars are things the floor already holds, plus the owner's
+own items:</p>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -6698,9 +6709,9 @@ under it the items without a date. It draws exactly what
 &quot;What is planned&quot;): approved-but-undelivered proposals, pending proposals
 until they decide, open books until they resolve, and the owner's plan
 items. The block shares the <code>.pubws-lb-head</code> anatomy (label &quot;What is
-planned&quot;, meta naming the range shown), a bar is labelled inside itself
-when it is wide enough and just past its end otherwise, and a bar is a
-link to the thing it is. A manager gets &quot;+ plan&quot; as the corner control and
+planned&quot;, meta naming the range shown), the title is never drawn inside
+or beside its bar (a 280px column cuts it), and a row is a link to the
+thing it is. A manager gets &quot;+ plan&quot; as the corner control and
 a done tick on each plan bar; a visitor gets neither. It renders nothing
 when there is nothing planned and the visitor cannot manage. The left
 column holds it on wide viewports together with the season block and the
