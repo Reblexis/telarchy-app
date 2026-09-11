@@ -4244,6 +4244,18 @@ textarea.jobform-line--desc {
    bet modal): the wrapper carries NO chrome of its own - the ticket's own
    card is the one card, at the column's full width (a card inside a card
    is what shipped first and read as a joke, owner report 2026-08-28). */
+/* The closed line, in the ticket's place (docs/ui-conventions.md, "A proposal past its deadline reads as closed"). */
+.pubws-closed-line {
+  margin: 1rem 0 0;
+  padding: 0.8rem 0;
+  border-top: 1px solid var(--border-color);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  line-height: 1.6;
+  color: var(--text-tertiary);
+  text-align: left;
+}
+.pubws-bet-btn:disabled { opacity: 0.38; cursor: default; }
 .pubws-ticket-inline {
   width: 100%;
   margin: 1rem auto 0;
@@ -6482,7 +6494,9 @@ textarea.jobform-line--desc {
   position: absolute;
   top: calc(100% + 0.45rem);
   left: 50%;
-  z-index: 20;
+  /* Above everything on the page, on an opaque surface: the headline used to
+     paint across it (design critic, 2026-09-11). */
+  z-index: 60;
   width: max-content;
   max-width: min(22rem, 70vw);
   padding: 0.5rem 0.7rem;
@@ -11989,9 +12003,13 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 /* The next direction: a chevron in the accent in the cell ahead of the
    head, faint while the step is open, solid once decided. */
 .snake-arrow { fill: none; stroke: var(--accent); stroke-opacity: 1; }
-.snake-arrow.is-open { stroke-opacity: 0.55; }
 /* Under the wall chevron, so it stands off the head. */
 .snake-arrow-halo { fill: none; stroke: var(--bg-secondary); }
+/* The chevrons are links to their proposals (docs/ui-conventions.md, "The snake feed"): a hand, and a
+   brighter stroke under the pointer so the shading reads as live, not as a broken icon. */
+.snake-arrow-link { cursor: pointer; }
+.snake-arrow-link:hover .snake-arrow, .snake-arrow-link:focus-visible .snake-arrow { stroke-opacity: 1 !important; }
+.snake-arrow-link:focus-visible { outline: none; }
 /* The next move, in the chart's headline type: mono, weight 600, tabular
    numerals, ink; the countdown in the accent while the step is open. */
 .snake-next {

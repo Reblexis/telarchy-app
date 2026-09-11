@@ -58,9 +58,40 @@ function impactOf(state: SnakeState, action: SnakeAction): number | null {
 const DELTA: Record<SnakeHeading, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const HEADINGS: SnakeHeading[] = ['up', 'down', 'left', 'right'];
 
-/** The next direction the grid draws: where the snake moves next and
- *  whether that is decided (solid) or still the open step's leader (faint). */
-type Arrow = { direction: SnakeHeading; decided: boolean };
+/** One chevron on the grid (docs/ui-conventions.md, "The snake feed", the
+ *  grid): the direction it points, how solid it draws (`opacity`, the
+ *  open step's impact shading, 1 once decided), and, for an open action,
+ *  the action and the proposal it links to on this floor. */
+export type Arrow = {
+  direction: SnakeHeading;
+  decided: boolean;
+  opacity: number;
+  action?: SnakeAction;
+  number?: number;
+  href?: string;
+};
+
+/** The proposal number a feed url names ("https://telarchy.com/snake/p/122"), or null. */
+export function proposalNumberOf(url: string | null | undefined): number | null {
+  const m = /\/p\/(\d+)(?:[/?#]|$)/.exec(url ?? '');
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * How bright each open action's chevron draws: the highest impact at 0.9,
+ * the lowest at 0.3, the rest in proportion, and 0.55 for all when the
+ * impacts tie or any is unreadable (docs/ui-conventions.md, "The snake
+ * feed"; Viktor 2026-09-11: "make the highlight of the arrows depend on how
+ * high the predicted impact is").
+ */
+export function arrowOpacities(impacts: Array<number | null>): number[] {
+  const nums = impacts.filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+  if (nums.length !== impacts.length || nums.length === 0) return impacts.map(() => 0.55);
+  const min = Math.min(...nums);
+  const max = Math.max(...nums);
+  if (max === min) return impacts.map(() => 0.55);
+  return nums.map(v => 0.3 + 0.6 * ((v - min) / (max - min)));
+}
 
 /** The chevron's three points, in drawing units: two arms behind, the tip
  *  ahead, centred on (cx, cy) and pointing along `direction`. */
@@ -85,13 +116,15 @@ function Board({
   snake,
   food,
   heading,
-  arrow,
+  arrows,
+  onPick,
 }: {
   grid: number;
   snake: SnakeCell[];
   food: SnakeCell | null;
   heading: SnakeHeading;
-  arrow: Arrow | null;
+  arrows: Arrow[];
+  onPick?: (n: number) => void;
 }) {
   const side = grid * CELL;
   const centre = (c: SnakeCell) => [(c.x + 0.5) * CELL, (c.y + 0.5) * CELL] as const;
@@ -125,31 +158,32 @@ function Board({
               [hx + off, hy - sidew],
               [hx + off, hy + sidew],
             ];
-  /* The next-direction chevron: in the cell ahead, or, when that cell is
+  /* Each chevron: in the cell its direction leads to, or, when that cell is
      off the grid, pressed against the head's edge pointing out. */
-  let next: { points: string; wall: boolean } | null = null;
-  if (head && arrow) {
-    const [dx, dy] = DELTA[arrow.direction];
-    const ahead = { x: head.x + dx, y: head.y + dy };
-    const wall = ahead.x < 0 || ahead.y < 0 || ahead.x >= grid || ahead.y >= grid;
-    if (wall) {
-      /* Larger, its tip on the grid's edge and its arms back over the head. */
-      const half = CELL * 0.2;
-      next = {
-        points: chevron(
-          hx + dx * (CELL * 0.5 - half),
-          hy + dy * (CELL * 0.5 - half),
-          arrow.direction,
-          half,
-          CELL * 0.3,
-        ),
-        wall,
-      };
-    } else {
-      const [ax, ay] = centre(ahead);
-      next = { points: chevron(ax, ay, arrow.direction, CELL * 0.14, CELL * 0.2), wall };
-    }
-  }
+  const drawnArrows = !head
+    ? []
+    : arrows.map(arrow => {
+        const [dx, dy] = DELTA[arrow.direction];
+        const ahead = { x: head.x + dx, y: head.y + dy };
+        const wall = ahead.x < 0 || ahead.y < 0 || ahead.x >= grid || ahead.y >= grid;
+        if (wall) {
+          /* Larger, its tip on the grid's edge and its arms back over the head. */
+          const half = CELL * 0.2;
+          return {
+            arrow,
+            wall,
+            points: chevron(
+              hx + dx * (CELL * 0.5 - half),
+              hy + dy * (CELL * 0.5 - half),
+              arrow.direction,
+              half,
+              CELL * 0.3,
+            ),
+          };
+        }
+        const [ax, ay] = centre(ahead);
+        return { arrow, wall, points: chevron(ax, ay, arrow.direction, CELL * 0.14, CELL * 0.2) };
+      });
   return (
     <svg
       className="snake-board"
@@ -177,27 +211,61 @@ function Board({
       {eyes.map(([ex, ey], i) => (
         <circle key={i} className="snake-eye" cx={ex} cy={ey} r={CELL * 0.07} />
       ))}
-      {next?.wall && (
-        <polyline
-          className="snake-arrow-halo"
-          points={next.points}
-          fill="none"
-          strokeWidth={CELL * 0.26}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      )}
-      {next && arrow && (
-        <polyline
-          className={`snake-arrow ${arrow.decided ? 'is-decided' : 'is-open'}${next.wall ? ' is-wall' : ''}`}
-          data-direction={arrow.direction}
-          points={next.points}
-          fill="none"
-          strokeWidth={CELL * 0.12}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      )}
+      {drawnArrows.map(({ arrow, wall, points }) => {
+        const key = arrow.action ?? arrow.direction;
+        const mark = (
+          <>
+            {wall && (
+              <polyline
+                className="snake-arrow-halo"
+                points={points}
+                fill="none"
+                strokeWidth={CELL * 0.26}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            )}
+            <polyline
+              className={`snake-arrow ${arrow.decided ? 'is-decided' : 'is-open'}${wall ? ' is-wall' : ''}`}
+              data-direction={arrow.direction}
+              data-action={arrow.action}
+              points={points}
+              fill="none"
+              style={{ strokeOpacity: arrow.opacity }}
+              strokeWidth={CELL * 0.12}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        );
+        if (!arrow.href || arrow.number === undefined) return <g key={key}>{mark}</g>;
+        /* A link to the action's proposal on this floor, opened in place;
+           the wide invisible stroke is the hit area, a cell across. */
+        return (
+          <a
+            key={key}
+            className="snake-arrow-link"
+            href={arrow.href}
+            aria-label={`${arrow.action}: open its proposal #${arrow.number}`}
+            onClick={e => {
+              if (!onPick) return;
+              e.preventDefault();
+              onPick(arrow.number as number);
+            }}
+          >
+            <polyline
+              className="snake-arrow-hit"
+              points={points}
+              fill="none"
+              stroke="transparent"
+              strokeWidth={CELL * 0.7}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {mark}
+          </a>
+        );
+      })}
     </svg>
   );
 }
@@ -212,11 +280,24 @@ function replayLine(row: SnakeHistoryStep): string {
   return row.undecided ? `Step ${row.step}: ${past} (default)` : `Step ${row.step}: ${past}`;
 }
 
-export function SnakeLive({ slug }: { slug: string }) {
+export function SnakeLive({
+  slug,
+  onPickProposal,
+  onStep,
+}: {
+  slug: string;
+  /** A chevron was clicked: select that proposal on the floor (docs/ui-conventions.md, "The feed drives the floor"). */
+  onPickProposal?: (number: number) => void;
+  /** The feed's open step changed or its decision landed, reported as soon as the poll reads it, never for the first read. */
+  onStep?: (s: { step: number; decided: boolean }) => void;
+}) {
   const [state, setState] = useState<SnakeState | null>(null);
   const [fetchedAt, setFetchedAt] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [failed, setFailed] = useState(false);
+  const onStepRef = useRef(onStep);
+  onStepRef.current = onStep;
+  const stepKeyRef = useRef<string | null>(null);
 
   /* Realtime: one read now, then every 2 seconds while the tab is visible. */
   useEffect(() => {
@@ -229,6 +310,16 @@ export function SnakeLive({ slug }: { slug: string }) {
         setState(s);
         setFetchedAt(Date.now());
         setFailed(false);
+        /* The feed drives the floor: a new step or a decision is reported
+           up the moment it is read, so the page reloads at once instead of
+           on its own slower poll. The first read sets the baseline. */
+        const step = s.open?.step ?? null;
+        const decided = s.next?.decided === true;
+        const key = step === null ? null : `${step}:${decided}`;
+        if (step !== null && stepKeyRef.current !== null && key !== null && key !== stepKeyRef.current) {
+          onStepRef.current?.({ step, decided });
+        }
+        if (key !== null) stepKeyRef.current = key;
       } catch {
         if (!stopped) setFailed(true);
       }
@@ -386,29 +477,65 @@ export function SnakeLive({ slug }: { slug: string }) {
 
   /* What the board draws: the live game, or the scrubbed entry. */
   const next = state?.next ?? null;
-  /* The arrow: in replay the entry's own direction, solid; live the leader's
-     `next.direction` (the heading itself while `next` is unreadable, forward
-     being the default), solid once decided. */
+  /* The chevrons (docs/ui-conventions.md, "The snake feed", the grid): in
+     replay the entry's own direction, solid; live, one per open action
+     shaded by impact and linked to its proposal, the approved one alone
+     once decided, and the leader's `next.direction` (the heading itself
+     when unreadable, forward being the default) while no step is open. */
   const isHeading = (d: unknown): d is SnakeHeading => HEADINGS.includes(d as SnakeHeading);
+  const liveArrows = (): Arrow[] => {
+    if (!game) return [];
+    const open = state?.open ?? null;
+    if (open && next?.decided && isHeading(next.direction)) {
+      const p = open.proposals?.[next.action];
+      const number = proposalNumberOf(p?.url);
+      return [
+        {
+          direction: next.direction,
+          decided: true,
+          opacity: 1,
+          action: next.action,
+          ...(number !== null ? { number, href: `/${slug}/p/${number}` } : {}),
+        },
+      ];
+    }
+    if (open && !next?.decided) {
+      const actions = ACTIONS.filter(a => isHeading(open.directions?.[a]));
+      if (actions.length > 0) {
+        const opacities = arrowOpacities(actions.map(a => (state ? impactOf(state, a) : null)));
+        return actions.map((a, i) => {
+          const number = proposalNumberOf(open.proposals?.[a]?.url);
+          return {
+            direction: open.directions[a],
+            decided: false,
+            opacity: opacities[i],
+            action: a,
+            ...(number !== null ? { number, href: `/${slug}/p/${number}` } : {}),
+          };
+        });
+      }
+    }
+    return [
+      {
+        direction: next && isHeading(next.direction) ? next.direction : game.heading,
+        decided: next?.decided === true,
+        opacity: next?.decided === true ? 1 : 0.55,
+      },
+    ];
+  };
   const drawn = replay
     ? row
       ? {
           snake: row.snake,
           food: row.food,
           heading: row.heading,
-          arrow: { direction: isHeading(row.direction) ? row.direction : row.heading, decided: true },
+          arrows: [
+            { direction: isHeading(row.direction) ? row.direction : row.heading, decided: true, opacity: 1 } as Arrow,
+          ],
         }
       : null
     : game
-      ? {
-          snake: game.snake,
-          food: game.food,
-          heading: game.heading,
-          arrow: {
-            direction: next && isHeading(next.direction) ? next.direction : game.heading,
-            decided: next?.decided === true,
-          },
-        }
+      ? { snake: game.snake, food: game.food, heading: game.heading, arrows: liveArrows() }
       : null;
 
   const elapsed = fetchedAt ? Math.max(0, (now - fetchedAt) / 1000) : 0;
@@ -448,9 +575,16 @@ export function SnakeLive({ slug }: { slug: string }) {
       <div className="snake-main" data-impacts={impactsAttr}>
         <div className="snake-board-box">
           {drawn ? (
-            <Board grid={grid} snake={drawn.snake} food={drawn.food} heading={drawn.heading} arrow={drawn.arrow} />
+            <Board
+              grid={grid}
+              snake={drawn.snake}
+              food={drawn.food}
+              heading={drawn.heading}
+              arrows={drawn.arrows}
+              onPick={onPickProposal}
+            />
           ) : (
-            <Board grid={grid} snake={[]} food={null} heading="right" arrow={null} />
+            <Board grid={grid} snake={[]} food={null} heading="right" arrows={[]} />
           )}
         </div>
         <p className={`snake-next ${line.cls}`}>

@@ -2283,17 +2283,25 @@ grid.. and next move.. maybe text"):
 1. **The grid** (`.snake-board`, an svg sized by `grid`): one cell per
    square, the snake as one rounded band along its cells with the head
    marked (a lighter disc and two eyes on the side it moves towards), the
-   food a round dot, and the next direction as an arrow (`.snake-arrow`):
-   a short chevron in the accent, drawn from the head into the cell the
-   snake moves to next (`next.direction`; the heading itself while `next`
-   is unreadable, forward being the default), faint while the step is
-   open and solid once `next.decided`; when that cell is off the grid the
-   chevron sits pressed against the head's edge pointing out (`.is-wall`),
-   so a wall crash is visible before it happens. In replay the chevron is
-   the entry's `direction`, solid, so scrubbing shows where it went (owner
-   ask, Viktor 2026-09-11: "show an arrow in the visualization indicating
-   the next direction it will go in"; record in
-   `notes/decisions/ui-conventions.md`).
+   food a round dot, and **one shadow arrow per open action**
+   (`.snake-arrow`, revised 2026-09-11, Viktor: "show 'shadow' arrows on
+   the visualization of the snake that when clicked go to the
+   corresponding proposal on which i can trade"): a short chevron in the
+   accent from the head into the cell each of the three actions would
+   move to (`open.directions`), each one a link to that action's proposal
+   on this floor (the number from `open.proposals[action].url`, opened in
+   place, never a new tab). **How bright a chevron is follows its live
+   60-move impact** (Viktor: "make the highlight of the arrows depend on
+   how high the predicted impact is"): the highest impact draws at 0.9,
+   the lowest at 0.3, the rest in proportion between them, and all three
+   at 0.55 when the impacts tie or none is readable. Once `next.decided`
+   only the approved action's chevron stays, solid. While no step is open
+   the single chevron follows `next.direction` (the heading itself when
+   that is unreadable, forward being the default). When a chevron's cell
+   is off the grid it sits pressed against the head's edge pointing out
+   (`.is-wall`), so a wall crash is visible before it happens. In replay
+   the chevron is the entry's `direction`, solid, so scrubbing shows where
+   it went (record in `notes/decisions/ui-conventions.md`).
 2. **The next move** (`.snake-next`), one left-aligned text line, the
    leader's action in words: "Next move: turn left in 0:31" while the step
    is open (the countdown from `next.seconds`, ticking by the second
@@ -2306,10 +2314,38 @@ grid.. and next move.. maybe text"):
 
 Nothing else is in the segment: no tiles, no impact numbers, no status
 line (length, game number, grid size), no quiet line, no trade, no
-commentary, and no button or link other than the replay row's. The
+commentary, and no button or link other than the replay row's and the
+three chevrons on the grid. The
 60-move impacts still arrive on the component (`impactOf` on the state,
 kept in the props of the drawing) so that showing them again is a
 one-line change, but nothing renders them.
+
+**The feed drives the floor** (2026-09-11, Viktor: "make sure the whole
+page is properly dynamic and reactive to the fast updating snake"). A
+floor with a feed reads it every 2 seconds, and that read, not the
+15-second floor poll, is what moves the page: when the feed's open step
+changes or its `next.decided` flips, the floor payload is reloaded at
+once, so the three new proposals are on the board and the ruling is on
+the page within a poll of the feed, never a quarter of a minute later.
+Clicking a chevron selects that proposal exactly as a board row does.
+Opening a proposal, by a row, a chevron or its address, scrolls its head
+into view: the page never lands a reader on a proposal whose title is
+above the fold they are looking at. The proposals board keeps pending
+rows in a stable order (deadline, then pool, then number) so a row does
+not move under the pointer as prices refresh.
+
+**A proposal past its deadline reads as closed before the ruling lands.**
+The moment `decideBy` passes on a pending proposal the ticket closes and
+the two verbs are dead, with one mono line in the ticket's place,
+"Trading closed at the deadline. The ruling lands in a moment; this page
+updates on its own." (on a quiet floor that moment can be the lapse, said
+the same way). When the ruling arrives the head carries it: the status
+pill of the board fold (`.pubws-ballot-status`, approved, declined or
+lapsed) before the number in the title row, and the clock fact reads
+"approved 16:30:58" (the ruling's word and its instant to the second, in
+the viewer's zone) instead of "decided 11 Sep". How the rest of the
+decided page reads is a design in front of Viktor (the decided-proposal
+canvas, 2026-09-11) and is not settled here.
 
 **Telarchy style, not the external board's.** The segment is set in the
 floor's own tokens and nothing else: the board's ground is the chart
