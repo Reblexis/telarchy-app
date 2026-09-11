@@ -7040,8 +7040,13 @@ accent, shaft and head, from just outside the head's cell into the cell
 each of the three actions would move to (<code>open.directions</code>), so it reads
 as a move rather than as a mark floating in a square (revised
 2026-09-11, Viktor: a fat chevron &quot;looks just as shitty&quot;), each one a link to the step's proposal
-on this floor (<code>/{slug}/p/{open.proposal.number}</code>, opened in place,
-never a new tab). <strong>How bright a chevron is follows its action's live
+on this floor (<code>/{slug}/p/{open.proposal.number}?option={action}</code>,
+opened in place, never a new tab). <strong>An arrow opens the world it points
+at</strong>: the ticket trades that action, not the proposal's default option,
+whether the arrow is followed as a link or pressed on the floor, and a
+second arrow on the step already open moves the world with it (revised
+2026-09-11, Viktor: &quot;i click the left arrow and it selects continue
+forward option&quot;). <strong>How bright a chevron is follows its action's live
 number</strong> (Viktor: &quot;make the highlight of the arrows depend on how high
 the predicted impact is&quot;): the highest draws at 0.9, the lowest at 0.3,
 the rest in proportion between them, an unpriced option at 0.3, and all

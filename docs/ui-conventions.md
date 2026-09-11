@@ -2457,8 +2457,13 @@ grid.. and next move.. maybe text"):
    each of the three actions would move to (`open.directions`), so it reads
    as a move rather than as a mark floating in a square (revised
    2026-09-11, Viktor: a fat chevron "looks just as shitty"), each one a link to the step's proposal
-   on this floor (`/{slug}/p/{open.proposal.number}`, opened in place,
-   never a new tab). **How bright a chevron is follows its action's live
+   on this floor (`/{slug}/p/{open.proposal.number}?option={action}`,
+   opened in place, never a new tab). **An arrow opens the world it points
+   at**: the ticket trades that action, not the proposal's default option,
+   whether the arrow is followed as a link or pressed on the floor, and a
+   second arrow on the step already open moves the world with it (revised
+   2026-09-11, Viktor: "i click the left arrow and it selects continue
+   forward option"). **How bright a chevron is follows its action's live
    number** (Viktor: "make the highlight of the arrows depend on how high
    the predicted impact is"): the highest draws at 0.9, the lowest at 0.3,
    the rest in proportion between them, an unpriced option at 0.3, and all
