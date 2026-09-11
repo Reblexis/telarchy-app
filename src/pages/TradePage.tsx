@@ -35,6 +35,7 @@ import type { FloorRef } from '../lib/agent-prompt';
 import type { LeaderboardEntry, LimitOrder, PublicProposal } from '../lib/api';
 import { api, type PublicWorkspace, setActiveWorkspace } from '../lib/api';
 import { withBase } from '../lib/base-path';
+import { type FeedQuotes, overlayFeedQuotes } from '../lib/feed-overlay';
 import { parseFloorHash } from '../lib/floor-hash';
 import {
   buildHorizonViews,
@@ -213,7 +214,12 @@ export function TradePage() {
   const myParticipantId = useMyParticipantId(!!user);
   const navigate = useNavigate();
   const location = useLocation();
-  const [ws, setWs] = useState<PublicWorkspace | null>(null);
+  const [wsRaw, setWs] = useState<PublicWorkspace | null>(null);
+  // The open step's prices read from the feed (docs/ui-conventions.md, "The
+  // feed drives the floor"): the payload with the feed's latest quotes laid
+  // over the pending proposals it names. Everything below reads `ws`.
+  const [feedQuotes, setFeedQuotes] = useState<FeedQuotes>({});
+  const ws = useMemo(() => overlayFeedQuotes(wsRaw, feedQuotes), [wsRaw, feedQuotes]);
   // The name and one-liner the server planted in a share link's HTML
   // (#telarchy-floor), so the headline paints before the payload lands.
   // Only honoured for the floor this address names; read once and dropped.
@@ -1124,7 +1130,7 @@ export function TradePage() {
   // Every five seconds instead while a pending proposal decides within five
   // minutes (docs/ui-conventions.md, "The board is at most five seconds
   // behind the trades"): a one-minute window is watched at the rate it moves.
-  const pollMs = pollIntervalFor(ws?.proposals ?? [], now.getTime());
+  const pollMs = pollIntervalFor(ws?.proposals ?? [], now.getTime(), { fed: !!ws?.liveFeed });
   useEffect(() => {
     const tick = () => {
       if (typeof document === 'undefined' || !document.hidden) pollRef.current();
@@ -2102,6 +2108,7 @@ export function TradePage() {
                            once; a chevron selects its proposal like a row. */
                         onStep={() => reload()}
                         onPickProposal={n => setSelectedJobId(String(n))}
+                        onQuotes={q => setFeedQuotes(q)}
                       />
                     ) : chartView === 'value' ? (
                       <NumberChart

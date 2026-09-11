@@ -106,11 +106,16 @@ vi.mock('../../components/live/LiveView', () => ({
   LiveView: ({
     onStep,
     onPickProposal,
+    onQuotes,
   }: {
     onStep?: (s: { step: number; decided: boolean }) => void;
     onPickProposal?: (n: number) => void;
+    onQuotes?: (q: Record<string, { approved: number | null; declined: number | null }>) => void;
   }) => (
     <div data-testid="live-view">
+      <button type="button" onClick={() => onQuotes?.({ 'p-122': { approved: 3.9, declined: 3.0 } })}>
+        feed-quotes
+      </button>
       <button type="button" onClick={() => onStep?.({ step: 42, decided: true })}>
         feed-decided
       </button>
@@ -209,6 +214,21 @@ describe('the feed drives the floor', () => {
     renderFloor('/snake/p/123');
     await waitFor(() => expect(document.querySelector('.pubws-proposal-title')?.textContent).toContain('#123'));
     await waitFor(() => expect(Element.prototype.scrollIntoView).toHaveBeenCalled());
+  });
+});
+
+describe("the open step's prices read from the feed", () => {
+  test('a quote from the feed moves the world cells and the impact without a floor reload', async () => {
+    renderFloor('/snake/p/122');
+    await waitFor(() => expect(document.querySelector('.pubws-proposal-title')?.textContent).toContain('#122'));
+    const before = floorLoads();
+    fireEvent.click(screen.getByText('feed-quotes'));
+    await waitFor(() => expect(screen.getByLabelText('if approved').textContent).toMatch(/3\.9/));
+    expect(screen.getByLabelText('if declined').textContent).toMatch(/3(\.0+)?(?!\d)/);
+    expect(
+      document.querySelector('.pubws-proposal-head')?.parentElement?.textContent ?? document.body.textContent,
+    ).toMatch(/\+0\.9/);
+    expect(floorLoads()).toBe(before);
   });
 });
 
