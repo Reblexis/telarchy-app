@@ -12079,6 +12079,15 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   border: 1px solid var(--border-color);
   border-radius: 6px;
 }
+/* A move transitions, it does not snap (docs/ui-conventions.md, "The live
+   view is a segment of the chart slot", item 1, 2026-09-11): the band slides
+   to its new cells, the head's group with it, and a chevron fades between
+   its open and its decided shading instead of flipping. Every one of them
+   hangs off the board's own word, which is `reduce` for a reader who asked
+   for less motion, so that reader gets the state change instantly. */
+.snake-board[data-motion='animate'] .snake-snake { transition: d 250ms ease-out; }
+.snake-board[data-motion='animate'] .snake-head-mark { transition: transform 250ms ease-out; }
+.snake-board[data-motion='animate'] .snake-arrow { transition: stroke-opacity 250ms ease-out, stroke 250ms ease-out; }
 .snake-bg { fill: var(--bg-secondary); }
 .snake-cell { fill: none; stroke: var(--border-color); stroke-width: 1; }
 .snake-food { fill: var(--lower); }

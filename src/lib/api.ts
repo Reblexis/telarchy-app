@@ -574,6 +574,9 @@ export interface SnakeState {
   next: { action: SnakeAction; direction: SnakeHeading; decided: boolean; seconds: number } | null;
   open: {
     step: number;
+    /** When the step opened, which is when the move it follows was played:
+     *  the instant of the reading the floor's NOW cell names. */
+    openedAt?: string;
     decideAt: string;
     deadline: string;
     directions: Record<SnakeAction, SnakeHeading>;
