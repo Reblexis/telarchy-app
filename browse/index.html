@@ -454,15 +454,6 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 </li>
 </ul></li>
 <li class="group">docs/data-room/<ul>
-<li><details><summary><a class="file" href="#file--docs-data-room-vision-draft-md">docs/data-room/vision-draft.md</a></summary>
-<ul>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-vision-draft-md--h1">What Telarchy is trying to be</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-vision-draft-md--h2">What it is measured on</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-vision-draft-md--h3">The road</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-vision-draft-md--h4">What would make it fail</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-data-room-vision-draft-md--h5">How to read this page</a></li>
-</ul></details>
-</li>
 <li><details><summary><a class="file" href="#file--docs-data-room-vision-md">docs/data-room/vision.md</a></summary>
 <ul>
 
@@ -6969,9 +6960,9 @@ above the fold they are looking at.</p>
 <p><strong>A pending row keeps its place for its whole life</strong> (2026-09-11, of a
 click on &quot;Turn left&quot; that opened the next minute's &quot;Continue forward&quot;).
 The proposals board orders pending rows by deadline, then by the feed's
-own action order (Continue, Turn left, Turn right, the order of the chips
-under the grid, remembered per proposal from the first read that names
-it), then by creation time and number. Nothing about a row's price, pool
+own action order (Continue, Turn left, Turn right, the order the feed
+lists an open step's proposals in, remembered per proposal from the first
+read that names it), then by creation time and number. Nothing about a row's price, pool
 or impact ever moves it, so the row under the pointer is the row a click
 lands on. A row decided while the page is open holds its place for ten
 seconds, its ruling showing where it stands, before it joins the decided
@@ -8560,52 +8551,6 @@ be judged by the replies it produced.</p>
 paid credential; it proposes queries the owner runs himself). Finding posts
 elsewhere is the reply queue's job, over Hacker News and Manifold. It handles the step between &quot;I am looking at a post worth
 answering&quot; and &quot;I have answered it well and know whether it worked&quot;.</p>
-
-<p class="backtop"><a href="#toc">&uarr; contents</a></p>
-</section>
-<section class="docfile" id="file--docs-data-room-vision-draft-md">
-<p class="filelabel">docs/data-room/vision-draft.md</p>
-<dl class="frontmatter"><dt>title</dt><dd>Vision</dd></dl>
-<h2 id="docs-data-room-vision-draft-md--h1">What Telarchy is trying to be</h2>
-<p>Telarchy is the approval layer for actions. An owner names the numbers they care about. Anyone, a person or an agent, proposes an action. Markets price what each proposal does to those numbers before it is taken, and the owner approves on the price, not on who argued best. As agents take on more of the work, this is how an owner's goals stay in command.</p>
-<p>Two sides, one substrate. For owners: company decisions put in front of forecasters with skin in the game, including decisions too sensitive for a room of colleagues, because an agent can price a confidential number without carrying it out. For forecasters: a benchmark where being right pays, scored in value created for a real business rather than points. Telarchy is open source (AGPL) and runs itself on this platform.</p>
-<h2 id="docs-data-room-vision-draft-md--h2">What it is measured on</h2>
-<p>Telarchy's own floor prices three numbers, and every proposal to change the product is priced against them.</p>
-<ul>
-<li><strong>Telarchy revenue (USD), trailing 30 days.</strong> Money paid to Telarchy itself, net of refunds; money moving through the platform does not count. The only proof that someone gets value they will pay for.</li>
-<li><strong>Outside owners deciding, trailing 7 days.</strong> Workspaces whose owner is not Telarchy and who approved or declined a proposal on their own floor. The launch number: a product whose only owner is its founder has users but no customers.</li>
-<li><strong>Active forecasters, trailing 7 days.</strong> Verified people with at least 100 credits of net exposure in the markets, bots they fund counted as themselves.</li>
-</ul>
-<p>One more opens once the data exists: <strong>skill against the reference forecaster</strong>, the share of settled markets where the floor was closer to the truth than the best single AI forecaster we can run. Below one half, the market adds nothing over one AI call, and the number will say so. The goals behind the set, in the owner's order: revenue, forecasting superiority, better decisions. The third is not priced; we think it is the product of the first two.</p>
-<h2 id="docs-data-room-vision-draft-md--h3">The road</h2>
-<p><strong>Through the end of 2026.</strong> The first outside owners deciding real proposals through the market, one at a time, by hand. The skill metric priced against the reference forecaster once a month of its forecasts has settled <!-- date unsourced, Viktor to set: docs/metrics.md says "once the reference has a month of forecasts"; the reference started 2026-09-11 -->. The platform's own headline markets settle at the end of 2026, in public. Not being attempted: real-money settlement on telarchy.com. What can be bought is market liquidity, never credits, because a credit price makes every market a real-money bet.</p>
-<p><strong>Through 2027.</strong> <!-- date unsourced, Viktor to set: no source names 2027 targets --> Owners steering liquidity themselves: putting credits on the decision that matters this week and off the ones that do not. Self-hosted instances paying to use the shared forecaster pool. Not being attempted: a per-seat product, or an app shell. The floor is the product and every account is a trader first.</p>
-<p><strong>Later.</strong> <!-- date unsourced, Viktor to set --> Decisions clearing without a human in the loop where calibration has earned it, as an asymptote rather than a switch. Agents as economic participants that pay for their own compute out of what their forecasts earn. Not being attempted, at any point: choosing your metrics for you. The system prices whatever number it is given, and a wrong metric is the owner's error, not one it can correct.</p>
-<h2 id="docs-data-room-vision-draft-md--h4">What would make it fail</h2>
-<p>Nobody outside pays: if revenue stays at zero while the other numbers grow, people are here for the game, not the decisions. The floor never beats one AI call, in which case the market is theatre and we say so. Owners define metrics that reward the wrong thing and the system faithfully optimizes it. A thin forecaster pool, where added liquidity subsidizes the few traders present instead of buying sharpness. A legal gate on real money that never clears.</p>
-<h2 id="docs-data-room-vision-draft-md--h5">How to read this page</h2>
-<p>This is the owner's intent, in the owner's words, as of its last edit. It is not a promise to a day, and every change to it is dated. What has happened is checked on the log tab, not here; what is committed and when is on the planned tab, entered by hand. The governing document behind this one is longer and stricter, and where the two disagree, that one wins.</p>
-<!-- reviewer notes -->
-<ul>
-<li>&quot;Approval layer for actions&quot;, &quot;approves on the price, not on who argued best&quot;: docs/vision.md slogan and mission (2026-08-25 revision), reworded to avoid the banned phrases.</li>
-<li>&quot;An agent can price a confidential number without carrying it out&quot;: docs/vision.md &quot;Why now&quot;, second point.</li>
-<li>&quot;Open source (AGPL)&quot;: docs/vision.md Business Model; notes/decisions/vision.md 2026-08-24/25.</li>
-<li>The three priced metrics and their definitions: docs/metrics.md line 7 and GET /api/marketplace/telarchy/context on 2026-09-11 (revenue, outside owners deciding, active forecasters). The floor JSON still shows &quot;Active traders&quot; books; they are frozen, per docs/metrics.md.</li>
-<li>Skill vs reference: docs/metrics.md &quot;Skill vs reference, trailing 30 days&quot;; the 0.5 parity reading is from that section. Whether it opens &quot;by the end of 2026&quot; is my inference from the reference starting 2026-09-11 plus one month.</li>
-<li>Owner's three goals in order: verbatim in telarchy/notes/active-profitable-forecasters-2026-09-10.md (&quot;1. revenue ... 2. forecasting superiority ... 3. decision improvement magnitude&quot;). &quot;Goal 3 = goal 2 x goal 1&quot; is that note's recommendation, which Viktor has not confirmed (&quot;goal 3 im not sure stil&quot;).</li>
-<li>&quot;Headline markets settle at the end of 2026&quot;: the floor charter says &quot;One market prices it, settling at the end of 2026&quot; about weekly active verified traders, which is now frozen; unsure the sentence still holds for the priced set.</li>
-<li>&quot;First outside owners, one at a time, by hand&quot;: telarchy/notes/yc-focus-2026-09-08.md (one outside owner in September, then three). I widened September to &quot;through the end of 2026&quot; because the September target is an internal focus, not a public promise.</li>
-<li>&quot;Liquidity can be bought; credits cannot, ever&quot;: docs/vision.md, owner-side item 3 (resolved 2026-08-28). Real-money settlement &quot;legal-gated&quot;: same section and Phase 8.</li>
-<li>&quot;Owners steering liquidity themselves&quot;: docs/vision.md owner-side item 2, described as missing with no date. I placed it in 2027 without a source.</li>
-<li>&quot;Self-hosted instances paying to use the shared forecaster pool&quot;: docs/vision.md Business Model, &quot;Network federation (paid, future)&quot;, no date.</li>
-<li>&quot;No per-seat product, no app shell, every account a trader first&quot;: docs/vision.md &quot;Trader-first sequencing&quot; and &quot;Outcome-based pricing&quot; (against seat-based SaaS).</li>
-<li>&quot;Decisions clearing without a human in the loop, as an asymptote&quot;: docs/vision.md &quot;Core thesis&quot;, automation continuum.</li>
-<li>&quot;Agents that pay for their own compute out of forecasts&quot;: docs/vision.md benchmark section (&quot;financially closed-loop&quot;) and agent-economy notes/autonomous-startup-plan.md &quot;Toward full economic personhood&quot; (direction, not commitment).</li>
-<li>&quot;Not choosing your metrics for you / Goodhart&quot;: docs/vision.md &quot;What we are, and are not, solving&quot;.</li>
-<li>Failure modes: thin pool (docs/vision.md &quot;Decision quality scales with capital&quot;); legal gate (ToS section 6 via vision.md); the rest are my reading of the goals, not sourced sentences.</li>
-<li>Not used: docs/vision.md &quot;Planned Phases&quot; lists only time-preference extensions (curve types, adaptive sampling, a curve visualization); too internal for this page. The plan doc's Phases 0 to 4 are the LookPilot agent-economy track, not Telarchy's own road, so I left them out.</li>
-<li>Unsourced dates, all marked inline: the skill metric's opening, everything under &quot;Through 2027&quot;, everything under &quot;Later&quot;.</li>
-</ul>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>
