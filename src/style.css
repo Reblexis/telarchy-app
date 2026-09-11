@@ -6366,236 +6366,6 @@ textarea.jobform-line--desc {
 }
 .pubws-rail .pubws-ballot-facts { font-size: 0.72rem; }
 
-/* "What is planned" (docs/owner-on-the-floor.md, "What is planned"): one
-   time axis in the owner's column, one row per item. Hairlines, not cards:
-   the ticks are a row of small mono labels above the rows (no gridlines
-   through the titles, which read as strikes), the past is a wash, and the only filled shapes are the bars,
-   because a bar IS an interval and a wash is the honest way to draw one.
-   The title sits on its own line with the meta at the end, never inside or
-   beside the bar: the column is 280px and a label next to its bar is a
-   label that gets cut. Colour says the kind (accent for a proposal, ink for
-   the owner's own plan, bone for a book); the meta's verb says it again. */
-.pubws-tl-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.35rem 0.75rem;
-  margin: 0.55rem 0 0.7rem;
-}
-/* The control never breaks in the middle: at 253px the date meta drops to
-   its own line under it instead. */
-.pubws-tl-controls .pubws-tl-seg { flex: none; }
-.pubws-tl-controls .pubws-lb-meta { margin-left: auto; }
-.pubws-tl-seg { justify-content: flex-start; }
-.pubws-tl-seg .pubws-seg-btn { padding: 0.32rem 0.55rem; font-size: 0.62rem; }
-.pubws-tl-corner { display: inline-flex; gap: 0.7rem; margin-left: auto; white-space: nowrap; }
-
-.pubws-tl-axis { position: relative; width: 100%; min-width: 0; }
-.pubws-tl-ticks {
-  position: relative;
-  height: 1rem;
-  border-bottom: 1px solid var(--border-color);
-  font-family: var(--font-mono);
-  font-size: 0.58rem;
-  color: var(--text-tertiary);
-}
-.pubws-tl-tick {
-  position: absolute;
-  bottom: 0.12rem;
-  transform: translateX(2px);
-  white-space: nowrap;
-}
-/* The last tick of a window sits on the right edge; keep its label on the axis. */
-.pubws-tl-tick:last-child { transform: translateX(calc(-100% - 2px)); }
-.pubws-tl-tick::before {
-  content: '';
-  position: absolute;
-  left: -2px;
-  bottom: -0.12rem;
-  height: 0.28rem;
-  border-left: 1px solid var(--border-strong);
-}
-.pubws-tl-tick:last-child::before { left: auto; right: -2px; }
-
-.pubws-tl-rows { position: relative; overflow: hidden; min-height: 1.6rem; }
-.pubws-tl-past {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  background: var(--bg-secondary);
-  pointer-events: none;
-}
-.pubws-tl-now {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  border-left: 1px solid var(--accent);
-  opacity: 0.55;
-  pointer-events: none;
-  z-index: 2;
-}
-
-/* One row: 34px, so eight rows are a card and not a page. The title line
-   is one line cut with an ellipsis, the meta stays whole at its end, the
-   bar is a thin fill on the shared axis below. */
-.pubws-tl-list { position: relative; list-style: none; margin: 0; padding: 0; z-index: 1; }
-.pubws-tl-row {
-  position: relative;
-  height: 34px;
-  border-bottom: 1px solid var(--border-color);
-}
-.pubws-tl-rowlink {
-  display: block;
-  width: 100%;
-  height: 100%;
-  padding: 5px 0 0;
-  border: none;
-  background: none;
-  font: inherit;
-  text-align: left;
-  text-decoration: none;
-  color: var(--text-primary);
-  cursor: pointer;
-  box-sizing: border-box;
-}
-.pubws-tl-row:has(.pubws-tl-done) .pubws-tl-rowlink { padding-right: 22px; }
-.pubws-tl-line {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
-  min-width: 0;
-  line-height: 1;
-}
-.pubws-tl-title {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-size: 0.78rem;
-  font-weight: 500;
-}
-.pubws-tl-meta {
-  flex: none;
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.02em;
-  color: var(--text-tertiary);
-  white-space: nowrap;
-}
-.pubws-tl-track { position: relative; display: block; height: 6px; margin-top: 7px; }
-.pubws-tl-bar {
-  position: absolute;
-  top: 0;
-  height: 6px;
-  border-radius: 3px;
-  background: var(--bg-tertiary);
-  border-left: 2px solid var(--border-strong);
-  box-sizing: border-box;
-}
-.pubws-tl-bar--proposal { background: var(--accent-soft); border-left-color: var(--accent); }
-.pubws-tl-bar--decision { background: transparent; border: 1px solid var(--accent); border-left-width: 2px; }
-.pubws-tl-bar--book { background: var(--bg-tertiary); border-left-color: var(--border-strong); }
-.pubws-tl-bar--plan { background: var(--bg-tertiary); border-left-color: var(--text-primary); }
-.pubws-tl-bar--open-left { border-left-width: 0; border-radius: 0 3px 3px 0; }
-.pubws-tl-bar--open-right { border-radius: 3px 0 0 3px; }
-.pubws-tl-bar--open-left.pubws-tl-bar--open-right { border-radius: 0; }
-.pubws-tl-rowlink:hover .pubws-tl-title,
-.pubws-tl-rowlink:focus-visible .pubws-tl-title { color: var(--accent); }
-.pubws-tl-rowlink:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-
-/* The manager's done tick: a hairline square at the row's right edge. */
-.pubws-tl-done {
-  position: absolute;
-  top: 5px;
-  right: 0;
-  width: 15px;
-  height: 15px;
-  padding: 0;
-  border: 1px solid var(--border-strong);
-  border-radius: 3px;
-  background: var(--bg-primary);
-  font: inherit;
-  font-size: 0.6rem;
-  line-height: 1;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  z-index: 3;
-}
-.pubws-tl-done:hover,
-.pubws-tl-done:focus-visible { color: var(--higher); border-color: var(--higher); outline: none; }
-.pubws-tl-undated-row .pubws-tl-done { position: static; }
-
-/* Under the axis: the items with no due point, one hairline row each. */
-.pubws-tl-undated { margin-top: 0.7rem; }
-.pubws-tl-undated-head {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-  padding-bottom: 0.3rem;
-  border-bottom: 1px solid var(--border-color);
-}
-.pubws-tl-undated-list { list-style: none; margin: 0; padding: 0; }
-.pubws-tl-undated-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0;
-  border-bottom: 1px solid var(--border-color);
-  font-size: 0.78rem;
-}
-.pubws-tl-undated-title {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  padding: 0;
-  border: none;
-  background: none;
-  font: inherit;
-  font-weight: 500;
-  text-align: left;
-  text-decoration: none;
-  color: var(--text-primary);
-  cursor: pointer;
-}
-.pubws-tl-undated-title:hover,
-.pubws-tl-undated-title:focus-visible { color: var(--accent); outline: none; }
-
-/* A plan item's own words, opened from its row; and the empty lines. */
-.pubws-tl-words {
-  text-align: left;
-  margin: 0.6rem 0 0;
-  padding: 0.5rem 0 0;
-  border-top: 1px solid var(--border-color);
-  font-size: 0.85rem;
-  line-height: 1.5;
-  color: var(--text-secondary);
-}
-.pubws-tl-words strong { color: var(--text-primary); font-weight: 600; margin-right: 0.35rem; }
-.pubws-tl-empty {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--text-tertiary);
-}
-.pubws-tl-empty--range {
-  position: relative;
-  z-index: 1;
-  padding: 0.3rem 0;
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-}
-.pubws-tl-words-field { min-height: 4.5rem; resize: vertical; }
-.pubws-tl-when { display: flex; flex-wrap: wrap; gap: 0.75rem; }
-.pubws-tl-when .jobform-field { flex: 1 1 12rem; }
-
 .pubws-know {
   margin-top: clamp(2.4rem, 6vh, 3.6rem);
   text-align: left;
@@ -8827,6 +8597,289 @@ textarea.jobform-line--desc {
 }
 
 .dr-clear:hover { color: var(--accent-hover); }
+
+/* ---- What is planned ---------------------------------------------- */
+/* The platform floor's calendar between the stamp and the filter bar
+   (docs/data-room.md, "What is planned"; docs/ui-conventions.md, "The data
+   room"). Hairlines, not cards: the head shares the day rules' anatomy (mono
+   label, the floor's name as meta, a hairline under), the ticks are a row of
+   small mono labels above the rows, the past is a wash, and the only filled
+   shapes are the bars, because a bar IS an interval and a wash is the honest
+   way to draw one. The axis takes the width of the 1180px column and a row
+   is 34px. The title sits on its own line with the meta at the end, never
+   inside or beside the bar: the room reads the same at every width and a
+   label next to its bar is a label that gets cut on a phone. Colour says
+   the kind (accent for a proposal, ink for the owner's own plan, bone for a
+   book); the meta's verb says it again. The room fixes the dark tokens on
+   its root, so every colour here is one the .dr-* rules already use. */
+.dr-planned {
+  padding: 0.2rem 0 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.dr-tl-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 1rem;
+  padding: 1.1rem 0 0.45rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.dr-tl-label {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+}
+.dr-tl-floor {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+.dr-tl-range {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+/* The corner controls ("+ plan", "All N"), in the filter bar's Clear voice. */
+.dr-tl-act {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  cursor: pointer;
+}
+.dr-tl-act:hover { color: var(--accent-hover); }
+.dr-tl-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  margin: 0.55rem 0 0.7rem;
+}
+/* The control never breaks in the middle: at 253px the date meta drops to
+   its own line under it instead. */
+.dr-tl-controls .dr-tl-seg { flex: none; }
+.dr-tl-controls .dr-tl-range { margin-left: auto; }
+.dr-tl-seg { justify-content: flex-start; }
+.dr-tl-seg .pubws-seg-btn { padding: 0.32rem 0.55rem; font-size: 0.62rem; }
+.dr-tl-corner { display: inline-flex; gap: 0.7rem; margin-left: auto; white-space: nowrap; }
+
+.dr-tl-axis { position: relative; width: 100%; min-width: 0; }
+.dr-tl-ticks {
+  position: relative;
+  height: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  color: var(--text-tertiary);
+}
+.dr-tl-tick {
+  position: absolute;
+  bottom: 0.12rem;
+  transform: translateX(2px);
+  white-space: nowrap;
+}
+/* The last tick of a window sits on the right edge; keep its label on the axis. */
+.dr-tl-tick:last-child { transform: translateX(calc(-100% - 2px)); }
+.dr-tl-tick::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  bottom: -0.12rem;
+  height: 0.28rem;
+  border-left: 1px solid var(--border-strong);
+}
+.dr-tl-tick:last-child::before { left: auto; right: -2px; }
+
+.dr-tl-rows { position: relative; overflow: hidden; min-height: 1.6rem; }
+.dr-tl-past {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--bg-secondary);
+  pointer-events: none;
+}
+.dr-tl-now {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid var(--accent);
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* One row: 34px, so eight rows are a section and not a page. The title line
+   is one line cut with an ellipsis, the meta stays whole at its end, the
+   bar is a thin fill on the shared axis below. */
+.dr-tl-list { position: relative; list-style: none; margin: 0; padding: 0; z-index: 1; }
+.dr-tl-row {
+  position: relative;
+  height: 34px;
+  border-bottom: 1px solid var(--border-color);
+}
+.dr-tl-rowlink {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 5px 0 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.dr-tl-row:has(.dr-tl-done) .dr-tl-rowlink { padding-right: 22px; }
+.dr-tl-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+  line-height: 1;
+}
+.dr-tl-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+.dr-tl-meta {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.02em;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+.dr-tl-track { position: relative; display: block; height: 6px; margin-top: 7px; }
+.dr-tl-bar {
+  position: absolute;
+  top: 0;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+  border-left: 2px solid var(--border-strong);
+  box-sizing: border-box;
+}
+.dr-tl-bar--proposal { background: var(--accent-soft); border-left-color: var(--accent); }
+.dr-tl-bar--decision { background: transparent; border: 1px solid var(--accent); border-left-width: 2px; }
+.dr-tl-bar--book { background: var(--bg-tertiary); border-left-color: var(--border-strong); }
+.dr-tl-bar--plan { background: var(--bg-tertiary); border-left-color: var(--text-primary); }
+.dr-tl-bar--open-left { border-left-width: 0; border-radius: 0 3px 3px 0; }
+.dr-tl-bar--open-right { border-radius: 3px 0 0 3px; }
+.dr-tl-bar--open-left.dr-tl-bar--open-right { border-radius: 0; }
+.dr-tl-rowlink:hover .dr-tl-title,
+.dr-tl-rowlink:focus-visible .dr-tl-title { color: var(--accent); }
+.dr-tl-rowlink:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* The manager's done tick: a hairline square at the row's right edge. */
+.dr-tl-done {
+  position: absolute;
+  top: 5px;
+  right: 0;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  background: var(--bg-primary);
+  font: inherit;
+  font-size: 0.6rem;
+  line-height: 1;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  z-index: 3;
+}
+.dr-tl-done:hover,
+.dr-tl-done:focus-visible { color: var(--higher); border-color: var(--higher); outline: none; }
+.dr-tl-undated-row .dr-tl-done { position: static; }
+
+/* Under the axis: the items with no due point, one hairline row each. */
+.dr-tl-undated { margin-top: 0.7rem; }
+.dr-tl-undated-head {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.dr-tl-undated-list { list-style: none; margin: 0; padding: 0; }
+.dr-tl-undated-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.78rem;
+}
+.dr-tl-undated-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  text-decoration: none;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.dr-tl-undated-title:hover,
+.dr-tl-undated-title:focus-visible { color: var(--accent); outline: none; }
+
+/* A plan item's own words, opened from its row; and the empty lines. */
+.dr-tl-words {
+  text-align: left;
+  margin: 0.6rem 0 0;
+  padding: 0.5rem 0 0;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.dr-tl-words strong { color: var(--text-primary); font-weight: 600; margin-right: 0.35rem; }
+.dr-tl-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+.dr-tl-empty--range {
+  position: relative;
+  z-index: 1;
+  padding: 0.3rem 0;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+.dr-tl-words-field { min-height: 4.5rem; resize: vertical; }
+.dr-tl-when { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.dr-tl-when .jobform-field { flex: 1 1 12rem; }
 
 /* ---- The log --------------------------------------------------------- */
 /* Grouped by UTC day under a sticky rule. A row is the time, the kind, the

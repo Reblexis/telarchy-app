@@ -13,7 +13,6 @@ import { FloorComments } from '../components/FloorComments';
 import { FloorLiveView } from '../components/FloorLiveView';
 import { FloorStandings, type ProposalTraderRow, SeasonAdvert, useCurrentSeason } from '../components/FloorRails';
 import { FloorStrip } from '../components/FloorStrip';
-import { FloorTimeline } from '../components/FloorTimeline';
 import { Ghost, GhostRows, LoadingStatus } from '../components/Ghosts';
 import { ClockGlyph, CoinGlyph, DropGlyph, JobsBoard, PersonGlyph, poolOf, splitAsk } from '../components/JobsBoard';
 import { Linkified } from '../components/Linkified';
@@ -2915,14 +2914,6 @@ export function TradePage() {
                 total={ws.announcementCount}
                 canManage={canManage}
               />
-            )}
-            {/* What the owner has committed to and when
-                (docs/owner-on-the-floor.md, "What is planned"): the second
-                block of the owner-prose zone, under the announcements, same
-                disclosure guard. Its own fetch, and it renders nothing on a
-                floor with nothing planned unless the reader can manage. */}
-            {ws.announcementCount !== undefined && (
-              <FloorTimeline idOrSlug={idOrSlug ?? ws.workspaceId} workspaceId={ws.workspaceId} canManage={canManage} />
             )}
           </aside>
         )}

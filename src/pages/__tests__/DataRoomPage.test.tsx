@@ -2,11 +2,22 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+const h = vi.hoisted(() => ({
+  // Who is signed in: null for a visitor, swapped per test for a manager.
+  auth: { user: null as null | { id: string }, loading: false },
+}));
+
 vi.mock('../../lib/api', async importOriginal => ({
   ...(await importOriginal<typeof import('../../lib/api')>()),
-  api: { getActions: vi.fn() },
+  api: {
+    getActions: vi.fn(),
+    getDataRoomPlanned: vi.fn(),
+    getProfile: vi.fn(),
+    createPlan: vi.fn(),
+    updatePlan: vi.fn(),
+  },
 }));
-vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: null, loading: false }) }));
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => h.auth }));
 // The top bar drags in the whole floor page; the log is what this spec is about.
 vi.mock('../TradePage', () => ({ TopBar: () => null }));
 
@@ -57,6 +68,15 @@ const page = (rows: ReturnType<typeof row>[], next: string | null = null) => ({
 });
 
 const getActions = api.getActions as unknown as ReturnType<typeof vi.fn>;
+const getDataRoomPlanned = api.getDataRoomPlanned as unknown as ReturnType<typeof vi.fn>;
+const getProfile = api.getProfile as unknown as ReturnType<typeof vi.fn>;
+
+const PLANNED_WS = { id: 'ws-telarchy', slug: 'telarchy', name: 'Telarchy' };
+const plannedPage = (items: unknown[] = []) => ({
+  workspace: PLANNED_WS,
+  now: '2026-09-10T12:00:00.000Z',
+  items,
+});
 
 function LocationProbe() {
   const loc = useLocation();
@@ -83,6 +103,10 @@ function mount(initial = '/data-room') {
 
 beforeEach(() => {
   getActions.mockReset();
+  getDataRoomPlanned.mockReset();
+  getProfile.mockReset();
+  getDataRoomPlanned.mockResolvedValue(plannedPage());
+  h.auth.user = null;
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -108,8 +132,9 @@ describe('the log', () => {
     expect(
       await screen.findByText('bought 10 higher shares on Active traders (2026-09) for 40 cr, call 4 to 5.2'),
     ).toBeInTheDocument();
-    // Two days, in order, newest first.
-    const days = screen.getAllByRole('heading', { level: 2 });
+    // Two days, in order, newest first (the log's own headings; "What is
+    // planned" above it has one too).
+    const days = within(document.querySelector('.dr-log') as HTMLElement).getAllByRole('heading', { level: 2 });
     expect(days.map(d => d.textContent)).toEqual(['Thursday, 10 September 2026', 'Wednesday, 9 September 2026']);
     const first = screen
       .getByText('bought 10 higher shares on Active traders (2026-09) for 40 cr, call 4 to 5.2')
@@ -255,5 +280,82 @@ describe('the log', () => {
     expect(items[0].className).toMatch(/is-new/);
     expect(items[1]).toHaveTextContent(/bought 10 higher/);
     expect(items[1].className).not.toMatch(/is-new/);
+  });
+});
+
+/**
+ * "What is planned" sits in the room between the stamp and the filter bar
+ * (docs/data-room.md, "What is planned"; docs/ui-conventions.md, "The data
+ * room"). The page draws the room's own read of the platform floor's
+ * calendar; a visitor gets the section without the owner's controls, and a
+ * signed-in reader who manages that floor gets "+ plan".
+ */
+describe('what is planned', () => {
+  test("renders between the stamp and the filters, with the floor's name as its meta", async () => {
+    getActions.mockResolvedValue(page([row()]));
+    getDataRoomPlanned.mockResolvedValue(
+      plannedPage([
+        {
+          kind: 'plan',
+          id: 'pl1',
+          title: 'Write the September results post',
+          start: null,
+          end: '2026-09-14T18:00:00.000Z',
+          href: null,
+          done: false,
+        },
+      ]),
+    );
+    mount();
+    await screen.findByText(/bought 10 higher/);
+    const planned = await screen.findByRole('region', { name: 'What is planned' });
+    expect(planned.className).toContain('dr-planned');
+    expect(planned.querySelector('.dr-tl-floor')?.textContent).toBe('Telarchy');
+    expect(await screen.findByText('Write the September results post')).toBeInTheDocument();
+    // Order in the document: the stamp, then the section, then the filter bar.
+    const stamp = document.querySelector('.dr-stamp')!;
+    const filters = screen.getByRole('group', { name: 'Filter the log' });
+    expect(stamp.compareDocumentPosition(planned) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(planned.compareDocumentPosition(filters) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  test('a visitor sees the section with nothing planned as one line, and no "+ plan"', async () => {
+    getActions.mockResolvedValue(page([row()]));
+    mount();
+    await screen.findByText(/bought 10 higher/);
+    expect(await screen.findByText('Nothing planned yet.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '+ plan' })).toBeNull();
+    // Nobody signed in: the page never asks who they are.
+    expect(getProfile).not.toHaveBeenCalled();
+  });
+
+  test('a signed-in reader is asked about on that floor; one who manages it gets "+ plan"', async () => {
+    h.auth.user = { id: 'u1' };
+    getActions.mockResolvedValue(page([row()]));
+    getProfile.mockResolvedValue({ capabilities: ['read', 'trade', 'manage'] });
+    mount();
+    await screen.findByText('Nothing planned yet.');
+    await waitFor(() => expect(getProfile).toHaveBeenCalledWith('ws-telarchy'));
+    expect(await screen.findByRole('button', { name: '+ plan' })).toBeInTheDocument();
+  });
+
+  test('a signed-in reader without manage on that floor gets no "+ plan"', async () => {
+    h.auth.user = { id: 'u1' };
+    getActions.mockResolvedValue(page([row()]));
+    getProfile.mockResolvedValue({ capabilities: ['read', 'trade'] });
+    mount();
+    await screen.findByText('Nothing planned yet.');
+    await waitFor(() => expect(getProfile).toHaveBeenCalledWith('ws-telarchy'));
+    expect(screen.queryByRole('button', { name: '+ plan' })).toBeNull();
+  });
+
+  test('with no platform floor the page asks nobody anything and the room still opens', async () => {
+    h.auth.user = { id: 'u1' };
+    getActions.mockResolvedValue(page([row()]));
+    getDataRoomPlanned.mockResolvedValue({ workspace: null, now: '2026-09-10T12:00:00.000Z', items: [] });
+    mount();
+    await screen.findByText(/bought 10 higher/);
+    expect(await screen.findByText('Nothing planned yet.')).toBeInTheDocument();
+    expect(getProfile).not.toHaveBeenCalled();
   });
 });

@@ -1,13 +1,13 @@
 /**
- * The geometry of "What is planned" (docs/owner-on-the-floor.md, "What is
+ * The geometry of "What is planned" (docs/data-room.md, "What is
  * planned", "The axis"): one time axis, one row per item with its bar on
  * the shared axis under its title, the soonest end on top. Pure functions
  * of a fixed clock so the component only paints.
  *
- * No lanes and no label measurement, on purpose: the column the card lives
- * in is 280px wide, and a label that has to fit next to its bar is a label
- * that gets cut (measured on the branch preview 2026-09-11, revising the
- * lane layout borrowed from vcihal.com/tasks).
+ * No lanes and no label measurement, on purpose: the room reads the same at
+ * every width, and a label that has to fit next to its bar is a label that
+ * gets cut on a phone (measured on the branch preview 2026-09-11, revising
+ * the lane layout borrowed from vcihal.com/tasks).
  */
 
 export type TimelineKind = 'proposal' | 'decision' | 'book' | 'plan';

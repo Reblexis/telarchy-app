@@ -3,34 +3,37 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
- * "What is planned" on the floor (docs/owner-on-the-floor.md, "What is
- * planned"; docs/ui-conventions.md, the FloorTimeline paragraph). The
- * geometry is the model's spec (timeline-model.test.ts); this pins what a
- * visitor and a manager see, the eight-row fold, and what the two owner
- * controls call.
+ * "What is planned" in the data room (docs/data-room.md, "What is planned";
+ * docs/ui-conventions.md, "The data room", the PlannedTimeline paragraph).
+ * The geometry is the model's spec (timeline-model.test.ts); this pins what a
+ * visitor and a manager see, that the section never disappears, the head's
+ * anatomy (label, the floor's name as meta), the eight-row fold, and what the
+ * two owner controls call.
  */
 
 const h = vi.hoisted(() => ({
-  getWorkspaceTimeline: vi.fn(),
+  getDataRoomPlanned: vi.fn(),
   createPlan: vi.fn(),
   updatePlan: vi.fn(),
 }));
 
 vi.mock('../../lib/api', () => ({
   api: {
-    getWorkspaceTimeline: h.getWorkspaceTimeline,
+    getDataRoomPlanned: h.getDataRoomPlanned,
     createPlan: h.createPlan,
     updatePlan: h.updatePlan,
   },
 }));
 
-import { FloorTimeline } from '../FloorTimeline';
+import { PlannedTimeline } from '../PlannedTimeline';
 
 const NOW = new Date(2026, 8, 11, 10, 0, 0, 0);
 const DAY = 864e5;
 const at = (ms: number) => new Date(NOW.getTime() + ms).toISOString();
 const dayMonth = (ms: number) =>
   new Date(NOW.getTime() + ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
+const WS = { id: 'ws-1', slug: 'telarchy', name: 'Telarchy' };
 
 const ITEMS = [
   {
@@ -39,7 +42,7 @@ const ITEMS = [
     title: 'Daily update for a week',
     start: at(-2 * DAY),
     end: at(DAY),
-    href: '/telarchy?proposal=36',
+    href: '/telarchy/p/36',
   },
   {
     kind: 'proposal',
@@ -47,7 +50,7 @@ const ITEMS = [
     title: 'Ship the results post',
     start: at(-DAY),
     end: at(2 * DAY),
-    href: '/telarchy?proposal=1',
+    href: '/telarchy/p/1',
   },
   {
     kind: 'book',
@@ -90,58 +93,92 @@ const MANY = Array.from({ length: 12 }, (_, i) => ({
   done: false,
 }));
 
-const renderIt = (props: Partial<Parameters<typeof FloorTimeline>[0]> = {}) =>
+const planned = (items: unknown[], workspace: typeof WS | null = WS) => ({
+  workspace,
+  now: NOW.toISOString(),
+  items,
+});
+
+const renderIt = (props: Partial<Parameters<typeof PlannedTimeline>[0]> = {}) =>
   render(
     <MemoryRouter>
-      <FloorTimeline idOrSlug="telarchy" workspaceId="ws-1" canManage={false} initialNow={NOW} {...props} />
+      <PlannedTimeline workspaceId="ws-1" canManage={false} initialNow={NOW} {...props} />
     </MemoryRouter>,
   );
 
+const section = () => document.querySelector('section.dr-planned');
+
 beforeEach(() => {
-  h.getWorkspaceTimeline.mockReset();
+  h.getDataRoomPlanned.mockReset();
   h.createPlan.mockReset();
   h.updatePlan.mockReset();
-  h.getWorkspaceTimeline.mockResolvedValue({ now: NOW.toISOString(), items: ITEMS });
+  h.getDataRoomPlanned.mockResolvedValue(planned(ITEMS));
 });
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('what is planned, on the floor', () => {
-  test('a visitor with nothing planned sees no section at all', async () => {
-    h.getWorkspaceTimeline.mockResolvedValue({ now: NOW.toISOString(), items: [] });
-    const { container } = renderIt();
-    await waitFor(() => expect(h.getWorkspaceTimeline).toHaveBeenCalledWith('telarchy'));
-    await waitFor(() => expect(container.querySelector('section')).toBeNull());
+describe('what is planned, in the data room', () => {
+  test("fetches the room's own read on mount and draws the head: label, the floor's name as meta", async () => {
+    renderIt();
+    await waitFor(() => expect(h.getDataRoomPlanned).toHaveBeenCalledTimes(1));
+    await screen.findByText('Ship the results post');
+    const sec = section()!;
+    expect(sec).toBeTruthy();
+    expect(sec.getAttribute('aria-label')).toBe('What is planned');
+    expect(sec.querySelector('.dr-tl-label')?.textContent).toBe('What is planned');
+    expect(sec.querySelector('.dr-tl-floor')?.textContent).toBe('Telarchy');
+  });
+
+  test('tells the page which floor answered, so it can ask who may manage it', async () => {
+    const onWorkspace = vi.fn();
+    renderIt({ onWorkspace });
+    await waitFor(() => expect(onWorkspace).toHaveBeenCalledWith(WS));
+  });
+
+  test('a visitor with nothing planned still sees the head and one line, and no "+ plan"', async () => {
+    h.getDataRoomPlanned.mockResolvedValue(planned([]));
+    renderIt();
+    expect(await screen.findByText('Nothing planned yet.')).toBeTruthy();
+    expect(section()).toBeTruthy();
+    expect(screen.getByText('What is planned')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '+ plan' })).toBeNull();
   });
 
   test('a manager with nothing planned sees the head, the empty line and "+ plan"', async () => {
-    h.getWorkspaceTimeline.mockResolvedValue({ now: NOW.toISOString(), items: [] });
+    h.getDataRoomPlanned.mockResolvedValue(planned([]));
     renderIt({ canManage: true });
     expect(await screen.findByText('Nothing planned yet.')).toBeTruthy();
-    expect(screen.getByText('What is planned')).toBeTruthy();
     expect(screen.getByRole('button', { name: '+ plan' })).toBeTruthy();
     expect(screen.getByRole('group', { name: 'Range' })).toBeTruthy();
   });
 
-  test('a 403 from the API renders nothing', async () => {
-    h.getWorkspaceTimeline.mockRejectedValue(new Error('403'));
-    const { container } = renderIt({ canManage: false });
-    await waitFor(() => expect(h.getWorkspaceTimeline).toHaveBeenCalled());
-    await waitFor(() => expect(container.querySelector('section')).toBeNull());
+  test('a fresh instance with no platform floor says nothing is planned and names no floor', async () => {
+    h.getDataRoomPlanned.mockResolvedValue(planned([], null));
+    renderIt();
+    expect(await screen.findByText('Nothing planned yet.')).toBeTruthy();
+    expect(section()!.querySelector('.dr-tl-floor')).toBeNull();
+  });
+
+  test('a failed read is a different sentence from nothing planned, and the section stays', async () => {
+    h.getDataRoomPlanned.mockRejectedValue(new Error('boom'));
+    renderIt();
+    expect(await screen.findByText('The calendar would not open.')).toBeTruthy();
+    expect(screen.queryByText('Nothing planned yet.')).toBeNull();
+    expect(section()).toBeTruthy();
   });
 
   test('each item is one row, in end order, and the row is the link to the thing it is', async () => {
     renderIt();
     await screen.findByText('Ship the results post');
-    const titles = Array.from(document.querySelectorAll('.pubws-tl-row .pubws-tl-title')).map(e => e.textContent);
+    const titles = Array.from(document.querySelectorAll('.dr-tl-row .dr-tl-title')).map(e => e.textContent);
     expect(titles).toEqual([
       'Daily update for a week',
       'Ship the results post',
       'Active forecasters, this week',
       'Call with Seer',
     ]);
-    expect(screen.getByText('Ship the results post').closest('a')?.getAttribute('href')).toBe('/telarchy?proposal=1');
+    expect(screen.getByText('Ship the results post').closest('a')?.getAttribute('href')).toBe('/telarchy/p/1');
     expect(screen.getByText('Active forecasters, this week').closest('a')?.getAttribute('href')).toBe(
       '/telarchy#market=b1',
     );
@@ -150,18 +187,15 @@ describe('what is planned, on the floor', () => {
   test('the title line is one line cut with an ellipsis, and the bar carries no words', async () => {
     renderIt();
     const title = await screen.findByText('Ship the results post');
-    expect(title.className).toContain('pubws-tl-title');
-    const row = title.closest('.pubws-tl-row')!;
-    const bar = row.querySelector('.pubws-tl-bar')!;
+    expect(title.className).toContain('dr-tl-title');
+    const row = title.closest('.dr-tl-row')!;
+    const bar = row.querySelector('.dr-tl-bar')!;
     expect(bar.textContent).toBe('');
-    expect(bar.className).toContain('pubws-tl-bar--proposal');
+    expect(bar.className).toContain('dr-tl-bar--proposal');
     // The book began three days ago, before the week window opens: its bar is open on the left.
-    const book = screen
-      .getByText('Active forecasters, this week')
-      .closest('.pubws-tl-row')!
-      .querySelector('.pubws-tl-bar')!;
-    expect(book.className).toContain('pubws-tl-bar--book');
-    expect(book.className).toContain('pubws-tl-bar--open-left');
+    const book = screen.getByText('Active forecasters, this week').closest('.dr-tl-row')!.querySelector('.dr-tl-bar')!;
+    expect(book.className).toContain('dr-tl-bar--book');
+    expect(book.className).toContain('dr-tl-bar--open-left');
   });
 
   test('the meta at the end of the title line names the end per kind', async () => {
@@ -179,13 +213,14 @@ describe('what is planned, on the floor', () => {
     expect(row).toBeTruthy();
     fireEvent.click(row!);
     expect(screen.getByText('Thursday')).toBeTruthy();
+    expect(document.querySelector('.dr-tl-words')).toBeTruthy();
   });
 
   test('undated items are listed under "No date" with no meta', async () => {
     renderIt();
     expect(await screen.findByText('No date')).toBeTruthy();
-    const row = screen.getByText('Write the September post').closest('.pubws-tl-undated-row')!;
-    expect(row.querySelector('.pubws-tl-meta')).toBeNull();
+    const row = screen.getByText('Write the September post').closest('.dr-tl-undated-row')!;
+    expect(row.querySelector('.dr-tl-meta')).toBeNull();
   });
 
   test('a manager gets a done tick on each plan row; a visitor gets none', async () => {
@@ -199,18 +234,25 @@ describe('what is planned, on the floor', () => {
     expect(screen.queryByRole('button', { name: 'Mark done: Ship the results post' })).toBeNull();
   });
 
-  test('the done tick marks the plan done and refetches', async () => {
+  test('the done tick marks the plan done on that floor and refetches', async () => {
     h.updatePlan.mockResolvedValue({ id: 'pl1', doneAt: NOW.toISOString() });
     renderIt({ canManage: true });
     fireEvent.click(await screen.findByRole('button', { name: 'Mark done: Call with Seer' }));
     await waitFor(() => expect(h.updatePlan).toHaveBeenCalledWith('ws-1', 'pl1', { done: true }));
-    await waitFor(() => expect(h.getWorkspaceTimeline).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(h.getDataRoomPlanned).toHaveBeenCalledTimes(2));
+  });
+
+  test('a manager with no floor id yet gets no done tick and no "+ plan": nothing to write to', async () => {
+    renderIt({ canManage: true, workspaceId: null });
+    await screen.findByText('Call with Seer');
+    expect(screen.queryByRole('button', { name: 'Mark done: Call with Seer' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '+ plan' })).toBeNull();
   });
 
   test('the range control switches the meta and marks the chosen range', async () => {
     renderIt();
     await screen.findByText('Call with Seer');
-    const meta = document.querySelector('.pubws-lb-meta')!;
+    const meta = document.querySelector('.dr-tl-range')!;
     const before = meta.textContent;
     const month = screen.getByRole('button', { name: 'Month' });
     fireEvent.click(month);
@@ -222,38 +264,37 @@ describe('what is planned, on the floor', () => {
   test('ticks follow the range: a week has seven day ticks, today has four six-hour ticks', async () => {
     renderIt();
     await screen.findByText('Call with Seer');
-    expect(document.querySelectorAll('.pubws-tl-tick').length).toBe(7);
+    expect(document.querySelectorAll('.dr-tl-tick').length).toBe(7);
     fireEvent.click(screen.getByRole('button', { name: 'Today' }));
-    const labels = Array.from(document.querySelectorAll('.pubws-tl-tick')).map(e => e.textContent);
+    const labels = Array.from(document.querySelectorAll('.dr-tl-tick')).map(e => e.textContent);
     expect(labels).toEqual(['00:00', '06:00', '12:00', '18:00', '00:00']);
   });
 
   test('today shows only what reaches today, the rest waits for the wider range', async () => {
-    h.getWorkspaceTimeline.mockResolvedValue({
-      now: NOW.toISOString(),
-      items: [
+    h.getDataRoomPlanned.mockResolvedValue(
+      planned([
         { kind: 'plan', id: 'far', title: 'Far away', start: at(10 * DAY), end: at(11 * DAY), href: null, done: false },
-      ],
-    });
+      ]),
+    );
     renderIt({ canManage: true });
-    await waitFor(() => expect(h.getWorkspaceTimeline).toHaveBeenCalled());
+    await waitFor(() => expect(h.getDataRoomPlanned).toHaveBeenCalled());
     fireEvent.click(screen.getByRole('button', { name: 'Today' }));
     expect(screen.queryByText('Far away')).toBeNull();
     expect(screen.getByText('Nothing in this range.')).toBeTruthy();
   });
 
   test('eight rows show; "All N" in the corner unfolds the rest and "Fewer" folds them', async () => {
-    h.getWorkspaceTimeline.mockResolvedValue({ now: NOW.toISOString(), items: MANY });
+    h.getDataRoomPlanned.mockResolvedValue(planned(MANY));
     renderIt();
     await screen.findByText('Plan number 0');
-    expect(document.querySelectorAll('.pubws-tl-row').length).toBe(8);
+    expect(document.querySelectorAll('.dr-tl-row').length).toBe(8);
     expect(screen.queryByText('Plan number 8')).toBeNull();
     const all = screen.getByRole('button', { name: 'All 12' });
     fireEvent.click(all);
-    expect(document.querySelectorAll('.pubws-tl-row').length).toBe(12);
+    expect(document.querySelectorAll('.dr-tl-row').length).toBe(12);
     expect(screen.getByText('Plan number 11')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Fewer' }));
-    expect(document.querySelectorAll('.pubws-tl-row').length).toBe(8);
+    expect(document.querySelectorAll('.dr-tl-row').length).toBe(8);
   });
 
   test('eight or fewer rows: no "All N" control', async () => {
@@ -263,14 +304,14 @@ describe('what is planned, on the floor', () => {
   });
 
   test('a manager with many rows has both "+ plan" and "All N" in the corner', async () => {
-    h.getWorkspaceTimeline.mockResolvedValue({ now: NOW.toISOString(), items: MANY });
+    h.getDataRoomPlanned.mockResolvedValue(planned(MANY));
     renderIt({ canManage: true });
     await screen.findByText('Plan number 0');
     expect(screen.getByRole('button', { name: '+ plan' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'All 12' })).toBeTruthy();
   });
 
-  test('"+ plan" opens the form and posting it creates the plan and refetches', async () => {
+  test('"+ plan" opens the form and posting it creates the plan on that floor and refetches', async () => {
     h.createPlan.mockResolvedValue({ id: 'pl9' });
     renderIt({ canManage: true });
     fireEvent.click(await screen.findByRole('button', { name: '+ plan' }));
@@ -286,7 +327,7 @@ describe('what is planned, on the floor', () => {
     expect(body.start).toBeUndefined();
     // datetime-local is wall-clock in the browser's zone; the API gets an instant.
     expect(body.due).toBe(new Date(2026, 8, 14, 18, 0).toISOString());
-    await waitFor(() => expect(h.getWorkspaceTimeline).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(h.getDataRoomPlanned).toHaveBeenCalledTimes(2));
   });
 
   test('the form refuses an empty title', async () => {
@@ -294,5 +335,12 @@ describe('what is planned, on the floor', () => {
     fireEvent.click(await screen.findByRole('button', { name: '+ plan' }));
     fireEvent.click(screen.getByRole('button', { name: 'Add to the plan' }));
     expect(h.createPlan).not.toHaveBeenCalled();
+  });
+
+  test("no class on the section carries the floor's prefix: the room draws it in its own language", async () => {
+    renderIt({ canManage: true });
+    await screen.findByText('Call with Seer');
+    const stray = Array.from(section()!.querySelectorAll('[class*="pubws-tl"]'));
+    expect(stray).toEqual([]);
   });
 });

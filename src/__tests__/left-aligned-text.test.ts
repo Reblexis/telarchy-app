@@ -40,8 +40,6 @@ const PROSE = [
   'pubws-live-caption',
   // the live segment's next-move line (docs/ui-conventions.md, "The live view is a segment of the chart slot")
   'snake-next',
-  // a plan item's own words under the "What is planned" axis
-  'pubws-tl-words',
   'pubws-publish-sub',
   'doors-note',
   // the home board, /owners, /forecast, /for-agents
@@ -55,6 +53,8 @@ const PROSE = [
   'adm-lead',
   'annp-lead',
   'dr-lead',
+  // a plan item's own words under the room's "What is planned" axis
+  'dr-tl-words',
 ];
 
 describe('blocks of text are left-aligned', () => {
