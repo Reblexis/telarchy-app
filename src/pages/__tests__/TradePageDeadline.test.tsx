@@ -244,12 +244,14 @@ describe('the deadline reads at every scale', () => {
     expect((await screen.findByLabelText('Decision deadline')).textContent).toMatch(/in 4h/);
   });
 
-  test('inside the hour it counts down in minutes, in red', async () => {
+  test('inside the hour it counts down by the second, in red', async () => {
+    // Viktor 2026-09-11, of a static "<1h" on a floor that decides once a
+    // minute: "show it realtime up till seconds".
     await withProposal({ decideBy: new Date(Date.now() + 12 * 60_000).toISOString() });
     renderFloor();
     await selectContract();
     const chip = await screen.findByLabelText('Decision deadline');
-    expect(chip.textContent).toMatch(/in 1[23]m/);
+    expect(chip.textContent).toMatch(/in 1[12]:\d\d/);
     expect(chip.className).toContain('is-urgent');
   });
 

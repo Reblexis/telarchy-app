@@ -1212,7 +1212,7 @@ describe('the stat row and the one chart (docs/ui-conventions.md, "The price and
     const settle = call.querySelector('.pubws-settle-in') as HTMLElement;
     expect(settle.textContent).toMatch(/^for 30 Dec · settles in \S+$/);
     expect(settle.textContent).not.toMatch(/UTC|\d{4}/);
-    expect(settle.title).toMatch(/^settles \d+ \w+ \d{4}, \d{2}:\d{2} UTC$/);
+    expect(settle.title).toMatch(/^settles \d+ \w+ \d{4}, \d{2}:\d{2} [A-Z]+$/); // the viewer zone, named once
     expect(container.querySelector('.pubws-settle-at')).toBeNull();
     // The stats live above the chart, not inside either chart's control row.
     expect(container.querySelector('.pubws-numchart .pubws-price')).toBeNull();

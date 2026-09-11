@@ -1,6 +1,7 @@
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, PointerEvent as ReactPointerEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { forecastDayOf } from '../lib/floor-horizons';
+import { clockOf, dayOf } from '../lib/viewer-time';
 import { GEOM } from './MarketChart';
 
 /**
@@ -200,8 +201,9 @@ export function fmt(v: number, unit: string): string {
   return unit + s;
 }
 
+/** The axis day, in the viewer's zone (docs/ui-conventions.md, "Every clock on the floor reads in the viewer's zone"). */
 function dayLabel(t: number): string {
-  return new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  return dayOf(new Date(t));
 }
 
 export function NumberChart({
@@ -337,13 +339,7 @@ export function NumberChart({
         tip = {
           x: x(cursor),
           y: (PAD_T + H - PAD_B) / 2,
-          date: new Date(cursor).toLocaleString('en-GB', {
-            day: 'numeric',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit',
-            timeZone: 'UTC',
-          }),
+          date: `${dayOf(new Date(cursor))}, ${clockOf(new Date(cursor))}`,
           label: 'no reading yet',
           value: '',
         };
@@ -351,13 +347,7 @@ export function NumberChart({
         tip = {
           x: x(new Date(nearest.at).getTime()),
           y: y(nearest.value),
-          date: new Date(nearest.at).toLocaleString('en-GB', {
-            day: 'numeric',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit',
-            timeZone: 'UTC',
-          }),
+          date: `${dayOf(nearest.at)}, ${clockOf(nearest.at)}`,
           label: 'reading',
           value: fmt(nearest.value, unit),
         };
