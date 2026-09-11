@@ -374,10 +374,34 @@ describe('the profile', () => {
     expect(head.textContent).not.toContain('Run by');
   });
 
+  test("A BOT'S PROFILE SAYS WHO OWNS IT, linking to the owner", async () => {
+    const head = await open({
+      bot: true,
+      runBy: 'telarchy',
+      model: 'claude-fable-5-1',
+      owner: { id: 'kkzx', nickname: 'telarchy-agents' },
+    });
+    expect(head.textContent).toContain('Owned by telarchy-agents');
+    expect(head.textContent).toContain('Run by Telarchy on claude-fable-5-1');
+    const link = head.querySelector('a[href="/participants/telarchy-agents"]');
+    expect(link?.textContent).toBe('telarchy-agents');
+  });
+
+  test('an owner without a nickname links by id', async () => {
+    const head = await open({ bot: true, runBy: null, owner: { id: 'abc123', nickname: null } });
+    expect(head.querySelector('a[href="/participants/abc123"]')).toBeTruthy();
+  });
+
+  test('a bot with no owner has no owned line', async () => {
+    const head = await open({ bot: true, runBy: null, owner: null });
+    expect(head.textContent).not.toContain('Owned by');
+  });
+
   test('a person has neither', async () => {
-    const head = await open({ bot: false });
+    const head = await open({ bot: false, owner: null });
     expect(marked(head)).toBe(false);
     expect(head.textContent).not.toContain('Run by');
+    expect(head.textContent).not.toContain('Owned by');
   });
 });
 

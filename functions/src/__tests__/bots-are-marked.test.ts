@@ -109,12 +109,22 @@ async function seed() {
   await db.insert(authUser).values([
     { id: 'u-hana', name: 'Hana', email: 'hana@example.com' },
     { id: 'u-house', name: 'House', email: 'house@example.com' },
+    // An account with no participant row: a bot it owns has no one to link.
+    { id: 'u-ghost', name: 'Ghost', email: 'ghost@example.com' },
   ]);
   await db.insert(agents).values([
     { id: 'owner', apiKeyHash: 'h-owner', balance: 0, authUserId: null },
     { id: 'hana', nickname: 'hana', apiKeyHash: 'h-hana', balance: toUnits(100), authUserId: 'u-hana' },
     { id: 'robo', nickname: 'robo', apiKeyHash: 'h-robo', balance: toUnits(100), ownerUserId: 'u-hana' },
-    { id: 'astra', nickname: 'astra', apiKeyHash: 'h-astra', balance: toUnits(100), platformOperated: true },
+    {
+      id: 'astra',
+      nickname: 'astra',
+      apiKeyHash: 'h-astra',
+      balance: toUnits(100),
+      platformOperated: true,
+      ownerAgentId: 'house',
+    },
+    { id: 'ghostbot', nickname: 'ghostbot', apiKeyHash: 'h-ghostbot', balance: 0, ownerUserId: 'u-ghost' },
     { id: 'quiet', nickname: 'quiet', apiKeyHash: 'h-quiet', balance: toUnits(100), platformOperated: true },
     {
       id: 'house',
@@ -350,6 +360,33 @@ describe('the profile of a bot', () => {
   });
 });
 
+describe("a bot's profile names its owner", () => {
+  test('A BOT CREATED BY A PARTICIPANT NAMES THAT PARTICIPANT', async () => {
+    const res = await request(app).get('/api/agents/astra/public');
+    expect(res.body.owner).toEqual({ id: 'house', nickname: 'house' });
+  });
+
+  test("A BOT A PERSON'S ACCOUNT CREATED NAMES THAT PERSON'S PARTICIPANT", async () => {
+    const res = await request(app).get('/api/agents/robo/public');
+    expect(res.body.owner).toEqual({ id: 'hana', nickname: 'hana' });
+  });
+
+  test('an owning account with no participant is no owner to link', async () => {
+    const res = await request(app).get('/api/agents/ghostbot/public');
+    expect(res.body.owner).toBeNull();
+  });
+
+  test('a bot with no recorded owner has none', async () => {
+    const res = await request(app).get('/api/agents/quiet/public');
+    expect(res.body.owner).toBeNull();
+  });
+
+  test('a person has no owner', async () => {
+    const res = await request(app).get('/api/agents/hana/public');
+    expect(res.body.owner).toBeNull();
+  });
+});
+
 describe('/api/help names the new fields where it describes the reads', () => {
   const flat = (() => {
     const groups = (HELP as { endpoints?: unknown }).endpoints;
@@ -366,7 +403,7 @@ describe('/api/help names the new fields where it describes the reads', () => {
     ['/api/marketplace/:idOrSlug/market-activity', ['bot']],
     ['/api/marketplace/:idOrSlug/comments', ['fromBot']],
     ['/api/marketplace/:workspaceId', ['proposedByBot', 'botTraders']],
-    ['/api/agents/:idOrNickname/public', ['bot', 'runBy', 'model']],
+    ['/api/agents/:idOrNickname/public', ['bot', 'runBy', 'model', 'owner']],
   ])('%s names %j', (path, fields) => {
     for (const f of fields) expect(d(path)).toMatch(new RegExp(`\\b${f}\\b`));
   });
