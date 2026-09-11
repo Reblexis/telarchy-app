@@ -3,7 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import type { PublicProposal } from '../lib/api';
 import { api } from '../lib/api';
 import { horizonLabel } from '../lib/floor-horizons';
-import { MAX_OPTION_LABEL, MAX_OPTIONS, optionLead, optionsFromLabels, pairPool } from '../lib/proposal-options';
+import {
+  isPricedOption,
+  MAX_OPTION_LABEL,
+  MAX_OPTIONS,
+  optionLead,
+  optionsFromLabels,
+  pairPool,
+} from '../lib/proposal-options';
 import { countdownTo, instantOf, tickIntervalFor } from '../lib/viewer-time';
 import { BotMark } from './BotMark';
 import { FloorModal } from './FloorModal';
@@ -42,6 +49,11 @@ interface Props {
    *  the proposal and opens the ticket on that side. Absent on a board that
    *  is only a list, where no row grows verbs. */
   onTrade?: (id: string, direction: 'higher' | 'lower') => void;
+  /** An option row names its options instead of Higher and Lower
+   *  (docs/ui-conventions.md, "An option row names its options instead of
+   *  Higher and Lower"): pressing an option's chip opens that proposal with
+   *  that option's world selected. */
+  onOpenOption?: (id: string, optionId: string) => void;
   /** A manage-capable session rules from the row (docs/ui-conventions.md,
    *  "The proposals board", 2026-09-09): four pending proposals is a
    *  morning's work, not four page loads. Absent for everyone else. */
@@ -335,6 +347,7 @@ export function JobsBoard({
   selectedId,
   onSelect,
   onTrade,
+  onOpenOption,
   canManage = false,
   onRule,
   onPropose,
@@ -697,7 +710,27 @@ export function JobsBoard({
               </button>
             </span>
           )}
-          {tradeable && (
+          {optioned && onOpenOption && isPending(p) && (
+            <span className="pubws-prow-acts pubws-optchips">
+              {optionList.map(o => {
+                const quote = (rowPair ?? p.markets[0])?.options?.find(q => q.id === o.id) ?? null;
+                const value = quote && isPricedOption(quote) && quote.consensus !== null ? quote.consensus : null;
+                const leads = leaderId === o.id;
+                return (
+                  <button
+                    key={o.id}
+                    type="button"
+                    className={`pubws-dir pubws-dir--mini pubws-optchip${leads ? ' is-leader' : ''}`}
+                    onClick={() => onOpenOption(p.id, o.id)}
+                  >
+                    <span className="pubws-optchip-label">{o.label}</span>{' '}
+                    <span className="pubws-optchip-value">{value === null ? 'open' : fmtVal(value, unit)}</span>
+                  </button>
+                );
+              })}
+            </span>
+          )}
+          {tradeable && !optioned && (
             <span className="pubws-prow-acts">
               <button
                 type="button"

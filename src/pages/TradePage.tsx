@@ -419,6 +419,11 @@ export function TradePage() {
   // proposal with options. Null is the default world: approved, or the
   // leader (else the first priced option) until the reader presses a cell.
   const [worldPick, setWorldPick] = useState<string | null>(null);
+  /* The world an option chip on the board asked for (docs/ui-conventions.md,
+     "An option row names its options instead of Higher and Lower"). Switching
+     proposals resets the pick below; this is what it resets to instead of
+     null, once, so the chip's option is the world that opens. */
+  const pendingWorldRef = useRef<string | null>(null);
   // Which clock the page is showing and the ticket trades, held as a MARKET
   // Every world's own history on the selected row, by market id.
   const [condHistory, setCondHistory] = useState<Record<
@@ -670,7 +675,8 @@ export function TradePage() {
     setRemoveArmed(false);
     setDeclineReason(null);
     setDecideErr('');
-    setWorldPick(null);
+    setWorldPick(pendingWorldRef.current);
+    pendingWorldRef.current = null;
     setDescExpanded(false);
     setCondHistory(null);
   }, [selectedJobId]);
@@ -3045,6 +3051,14 @@ export function TradePage() {
                 horizonMetricId={hero.metricId}
                 selectedId={selectedJobId}
                 onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
+                onOpenOption={(id, optionId) => {
+                  if (selectedJobId === id) {
+                    setWorldPick(optionId);
+                    return;
+                  }
+                  pendingWorldRef.current = optionId;
+                  setSelectedJobId(id);
+                }}
                 /* Trade a proposal from the row it is read on: select it and
                    open the ticket on that side, exactly as pressing the row
                    and then a verb would (docs/ui-conventions.md, "The

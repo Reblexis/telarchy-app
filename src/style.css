@@ -3174,6 +3174,16 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   font-size: 0.8rem;
 }
 
+/* An option row names its options instead of Higher and Lower
+   (docs/ui-conventions.md): one chip per option, its label and its own
+   value; the leader in the approved green, a tie with none. */
+.pubws-optchips { flex-wrap: wrap; }
+.pubws-optchip { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pubws-optchip-value { color: var(--text-secondary); }
+.pubws-optchip.is-leader { color: var(--higher); border-color: var(--higher); }
+.pubws-optchip.is-leader .pubws-optchip-value { color: var(--higher); }
+.pubws-optchip:hover:not(:disabled) { background: var(--higher-soft); border-color: var(--higher); }
+
 .pubws-position {
   margin-top: 0.9rem;
   font-size: 0.82rem;
