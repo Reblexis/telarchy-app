@@ -7035,9 +7035,11 @@ marked (a lighter disc and two eyes on the side it moves towards), the
 food a round dot, and <strong>one shadow arrow per open action</strong>
 (<code>.snake-arrow</code>, revised 2026-09-11, Viktor: &quot;show 'shadow' arrows on
 the visualization of the snake that when clicked go to the
-corresponding proposal on which i can trade&quot;): a short chevron in the
-accent from the head into the cell each of the three actions would
-move to (<code>open.directions</code>), each one a link to the step's proposal
+corresponding proposal on which i can trade&quot;): a thin arrow in the
+accent, shaft and head, from just outside the head's cell into the cell
+each of the three actions would move to (<code>open.directions</code>), so it reads
+as a move rather than as a mark floating in a square (revised
+2026-09-11, Viktor: a fat chevron &quot;looks just as shitty&quot;), each one a link to the step's proposal
 on this floor (<code>/{slug}/p/{open.proposal.number}</code>, opened in place,
 never a new tab). <strong>How bright a chevron is follows its action's live
 number</strong> (Viktor: &quot;make the highlight of the arrows depend on how high
@@ -7045,7 +7047,7 @@ the predicted impact is&quot;): the highest draws at 0.9, the lowest at 0.3,
 the rest in proportion between them, an unpriced option at 0.3, and all
 three at 0.55 when fewer than two are priced or they tie. Once
 <code>next.decided</code> only the chosen action's chevron stays, solid. While no step is open
-the single chevron follows <code>next.direction</code> (the heading itself when
+the single arrow follows <code>next.direction</code> (the heading itself when
 that is unreadable, forward being the default). When a move's cell
 is off the grid there is no cell to draw a chevron in, so it is drawn
 as a bar along that wall instead (<code>.is-wall</code>, two points across the
@@ -7054,12 +7056,12 @@ and keeps the mark clickable; <strong>nothing is ever painted outside the
 board</strong>, strokes included, which is what the chevron pressed on the
 edge used to do (revised 2026-09-11, Viktor: &quot;make better design and
 mainly so it doesnt behave weirdly near corners&quot;). In replay
-the chevron is the entry's <code>direction</code>, solid, so scrubbing shows where
+the arrow is the entry's <code>direction</code>, solid, so scrubbing shows where
 it went (record in <code>notes/decisions/ui-conventions.md</code>). <strong>A move
 transitions, it does not snap</strong>: the band and the head are drawn as
 paths that transition to their new cells over 250ms (<code>transition: d</code>
 and <code>transition: transform</code> on <code>.snake-snake</code> and <code>.snake-head-mark</code>),
-and a chevron fades between its open and its decided shading rather
+and an arrow fades between its open and its decided shading rather
 than flipping (<code>transition: stroke-opacity</code>). Under
 <code>prefers-reduced-motion: reduce</code> none of that animates and every state
 change is instant. The grid keeps the last state it read while a poll
@@ -7084,10 +7086,10 @@ game&quot;.
 Nothing else is in the segment: no tiles, no status line (length, game
 number, grid size), no why line, no row of picks (both drawn and removed
 on 2026-09-11, Viktor: &quot;remove this whole thing from there its redundant
-imo&quot;, the chevrons on the grid already show the three moves and which
+imo&quot;, the arrows on the grid already show the three moves and which
 leads), no plain line under the title, no trade, no commentary, and no
-button or link other than the three chevrons on the grid and the replay
-row's. No impact number is printed in the segment: the chevrons' shading
+button or link other than the three arrows on the grid and the replay
+row's. No impact number is printed in the segment: the arrows' shading
 is the only reading of the impacts.</li>
 </ol>
 <p><strong>The feed drives the floor</strong> (2026-09-11, Viktor: &quot;make sure the whole

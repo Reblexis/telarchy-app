@@ -1,3 +1,4 @@
+import type React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -127,10 +128,10 @@ vi.mock('../../../lib/api', () => ({
 const { SnakeLive } = await import('../SnakeLive');
 const { api } = await import('../../../lib/api');
 
-function renderLive() {
+function renderLive(props: Partial<React.ComponentProps<typeof SnakeLive>> = {}) {
   return render(
     <MemoryRouter>
-      <SnakeLive slug="snake" />
+      <SnakeLive slug="snake" {...props} />
     </MemoryRouter>,
   );
 }
@@ -210,15 +211,15 @@ describe('the grid', () => {
 });
 
 /** The arrow's points in cell units, as [x, y] pairs. */
+/** Every coordinate pair in a mark's path, in cells. */
 function arrowPoints(container: HTMLElement, sel = '.snake-arrow'): Array<[number, number]> {
   const cell = Number(container.querySelector('rect.snake-cell')?.getAttribute('width'));
-  const arrow = container.querySelector(sel) as SVGPolylineElement | null;
+  const arrow = container.querySelector(sel) as SVGPathElement | null;
   if (!arrow) return [];
-  return (arrow.getAttribute('points') ?? '')
-    .trim()
-    .split(/\s+/)
-    .map(p => p.split(',').map(Number) as [number, number])
-    .map(([x, y]) => [x / cell, y / cell]);
+  const nums = (arrow.getAttribute('d') ?? '').match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+  const out: Array<[number, number]> = [];
+  for (let i = 0; i + 1 < nums.length; i += 2) out.push([nums[i] / cell, nums[i + 1] / cell]);
+  return out;
 }
 
 describe('THE GRID SHOWS AN ARROW IN THE CELL THE SNAKE MOVES TO NEXT', () => {
@@ -306,7 +307,7 @@ describe('THE GRID SHOWS AN ARROW IN THE CELL THE SNAKE MOVES TO NEXT', () => {
     const { container } = renderLive();
     await waitFor(() => expect(container.querySelector('.snake-arrow.is-wall')).toBeTruthy());
     const pts = arrowPoints(container, '.snake-arrow.is-wall');
-    // Two points, not three: a bar along the wall, never a chevron over the snake.
+    // Two points: a bar along the wall, never an arrow over the snake.
     expect(pts.length).toBe(2);
     const [a, b] = pts;
     expect(a[0]).toBeCloseTo(b[0], 5); // vertical, on the right wall
@@ -342,10 +343,12 @@ describe('THE GRID SHOWS AN ARROW IN THE CELL THE SNAKE MOVES TO NEXT', () => {
       const cell = Number(container.querySelector('rect.snake-cell')?.getAttribute('width'));
       const side = grid * cell;
       for (const el of Array.from(container.querySelectorAll('.snake-arrow'))) {
-        const w = Number((el as SVGPolylineElement).getAttribute('stroke-width'));
+        const w = Number((el as SVGPathElement).getAttribute('stroke-width'));
         const pad = w / 2;
-        for (const p of (el.getAttribute('points') ?? '').trim().split(/\s+/)) {
-          const [px, py] = p.split(',').map(Number);
+        const nums = (el.getAttribute('d') ?? '').match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+        expect(nums.length).toBeGreaterThan(0);
+        for (let i = 0; i + 1 < nums.length; i += 2) {
+          const [px, py] = [nums[i], nums[i + 1]];
           expect(px - pad).toBeGreaterThanOrEqual(-0.01);
           expect(py - pad).toBeGreaterThanOrEqual(-0.01);
           expect(px + pad).toBeLessThanOrEqual(side + 0.01);
@@ -766,10 +769,10 @@ describe('THE GRID SHOWS ONE SHADOW ARROW PER OPEN ACTION, SHADED BY IMPACT', ()
     await waitFor(() => expect(arrows(container).length).toBe(3));
     const link = byAction(container).left.closest('a') as SVGAElement | null;
     expect(link).toBeTruthy();
-    expect(link?.getAttribute('href')).toBe('/snake/p/122');
+    expect(link?.getAttribute('href')).toBe('/snake/p/122?option=left');
     expect(link?.getAttribute('target')).toBeNull();
     const ev = fireEvent.click(link as Element);
-    expect(onPickProposal).toHaveBeenCalledWith(122);
+    expect(onPickProposal).toHaveBeenCalledWith(122, 'left');
     expect(ev).toBe(false); // default prevented: no full navigation
   });
 
@@ -846,5 +849,50 @@ describe("the open step's prices read from the feed, and a stale feed says so", 
     expect(line.textContent).toMatch(/turn left/);
     expect(container.querySelector('.snake-clock')).toBeNull();
     vi.useRealTimers();
+  });
+});
+
+describe("AN ARROW NAMES THE OPTION IT POINTS AT (Viktor, 2026-09-11: 'i click the left arrow and it selects continue forward option')", () => {
+  test("each arrow's link carries its own option, not the proposal alone", async () => {
+    vi.mocked(api.getLiveState).mockImplementation(async () => {
+      const s = h.state();
+      s.game.snake = [
+        { x: 5, y: 5 },
+        { x: 4, y: 5 },
+      ];
+      s.next = { action: 'forward', direction: 'right', decided: false, seconds: 31 };
+      return s as never;
+    });
+    const { container } = renderLive();
+    await waitFor(() => expect(container.querySelector('.snake-arrow')).toBeTruthy());
+    const hrefs = Array.from(container.querySelectorAll('a.snake-arrow-link')).map(a => a.getAttribute('href'));
+    expect(hrefs.length).toBe(3);
+    for (const action of ['forward', 'left', 'right']) {
+      expect(hrefs.some(href => href?.endsWith(`?option=${action}`))).toBe(true);
+    }
+    // Each link names exactly one option, and never the bare proposal.
+    expect(hrefs.every(href => /\?option=(forward|left|right)$/.test(href ?? ''))).toBe(true);
+  });
+
+  test('picking an arrow reports the proposal AND its option', async () => {
+    vi.mocked(api.getLiveState).mockImplementation(async () => {
+      const s = h.state();
+      s.game.snake = [
+        { x: 5, y: 5 },
+        { x: 4, y: 5 },
+      ];
+      s.next = { action: 'forward', direction: 'right', decided: false, seconds: 31 };
+      return s as never;
+    });
+    const picks: Array<[number, string | undefined]> = [];
+    const { container } = renderLive({ onPickProposal: (n, o) => picks.push([n, o as string | undefined]) });
+    await waitFor(() => expect(container.querySelector('.snake-arrow')).toBeTruthy());
+    const left = Array.from(container.querySelectorAll('a.snake-arrow-link')).find(a =>
+      a.getAttribute('href')?.endsWith('?option=left'),
+    ) as HTMLElement;
+    expect(left).toBeTruthy();
+    fireEvent.click(left);
+    expect(picks.length).toBe(1);
+    expect(picks[0][1]).toBe('left');
   });
 });

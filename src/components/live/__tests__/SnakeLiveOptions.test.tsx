@@ -127,7 +127,8 @@ describe("ONE PROPOSAL PER STEP: the feed's `open.proposal` and per-option `pric
     await waitFor(() => expect(arrows(container).length).toBe(3));
     const a = byAction(container);
     for (const action of ['forward', 'left', 'right']) {
-      expect(a[action].closest('a')?.getAttribute('href')).toBe('/snake/p/129');
+      // The link names the option it points at, so the ticket opens on it.
+      expect(a[action].closest('a')?.getAttribute('href')).toBe(`/snake/p/129?option=${action}`);
     }
     expect(opacityOf(a.left)).toBeCloseTo(0.9, 5);
     expect(opacityOf(a.right)).toBeCloseTo(0.3, 5);
@@ -135,7 +136,7 @@ describe("ONE PROPOSAL PER STEP: the feed's `open.proposal` and per-option `pric
     expect(mid).toBeGreaterThan(0.3);
     expect(mid).toBeLessThan(0.9);
     fireEvent.click(a.forward.closest('a') as Element);
-    expect(onPickProposal).toHaveBeenCalledWith(129);
+    expect(onPickProposal).toHaveBeenCalledWith(129, 'forward');
   });
 
   test('an option with a null price is unquoted: its chevron is drawn at the faint end', async () => {
@@ -172,7 +173,7 @@ describe("ONE PROPOSAL PER STEP: the feed's `open.proposal` and per-option `pric
     const only = arrows(container)[0];
     expect(only.getAttribute('data-action')).toBe('left');
     expect(opacityOf(only)).toBe(1);
-    expect(only.closest('a')?.getAttribute('href')).toBe('/snake/p/129');
+    expect(only.closest('a')?.getAttribute('href')).toMatch(/^\/snake\/p\/129\?option=(forward|left|right)$/);
   });
 
   test('a proposal without a number takes it from the url', async () => {
@@ -181,7 +182,7 @@ describe("ONE PROPOSAL PER STEP: the feed's `open.proposal` and per-option `pric
     vi.mocked(api.getLiveState).mockImplementation(async () => s as never);
     const { container } = renderLive();
     await waitFor(() => expect(arrows(container).length).toBe(3));
-    expect(byAction(container).forward.closest('a')?.getAttribute('href')).toBe('/snake/p/130');
+    expect(byAction(container).forward.closest('a')?.getAttribute('href')).toBe('/snake/p/130?option=forward');
   });
 });
 
@@ -204,10 +205,12 @@ describe('the old feed shape still reads', () => {
     const { container } = renderLive({ onQuotes });
     await waitFor(() => expect(arrows(container).length).toBe(3));
     const a = byAction(container);
+    // Even on the older per-proposal shape the link names the action, so the
+    // ticket opens on the world the arrow points at.
     expect(['forward', 'left', 'right'].map(k => a[k].closest('a')?.getAttribute('href'))).toEqual([
-      '/snake/p/121',
-      '/snake/p/122',
-      '/snake/p/123',
+      '/snake/p/121?option=forward',
+      '/snake/p/122?option=left',
+      '/snake/p/123?option=right',
     ]);
     expect(onQuotes).toHaveBeenLastCalledWith({
       p1: { approved: 7.2, declined: 6 },
