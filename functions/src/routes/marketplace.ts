@@ -3,6 +3,7 @@ import { and, asc, desc, eq, gt, gte, inArray, isNull, ne, sql } from 'drizzle-o
 import { Router } from 'express';
 import { db } from '../db/client';
 import {
+  agents,
   announcements,
   floorQuestions,
   liquidityEvents,
@@ -25,7 +26,7 @@ import { type ContractorEntry, type ContractorJobPair, computeContractors } from
 import { periodEndInstant, periodStartInstant, resolutionInstant, settlesOn } from '../lib/date-utils';
 import { historyQuery, type LiveEndpoint, LiveFeedError, readLiveFeed } from '../lib/live-feed';
 import { branchIsShown } from '../lib/market-pairs';
-import { getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
+import { botIds, getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
 import { restrictedToMembers } from '../lib/public-read';
 import { listPublicSeasons, type PublicSeason } from '../lib/public-seasons';
 import { AGENT_SIGNUP_CREDITS, SIGNUP_CREDITS } from '../lib/validation';
@@ -667,6 +668,10 @@ async function buildFloorPayload(ws: PublicWs) {
   // (PUT /api/metrics/:id needs the id; owner ask 2026-08-18).
   let heroMetricIdOut: string | null | undefined;
   let tradesThisWeek: number | undefined;
+  // Distinct bots with a trade here in the trailing seven days: the line
+  // under the standings footers (docs/ui-conventions.md, "A bot says it is
+  // one"). Zero draws no line.
+  let botTraders = 0;
   let marketHistory: Array<{ at: Date; consensus: number | null }> | undefined;
   let marketHistoryMarketId: string | undefined;
   // The most recent owner disclosure, inline so the floor's first paint shows
@@ -828,6 +833,19 @@ async function buildFloorPayload(ws: PublicWs) {
       // and counting its two rows would inflate the week by a factor.
       .where(and(eq(trades.workspaceId, workspaceId), gte(trades.createdAt, weekAgo), ne(trades.kind, 'redeem')));
     tradesThisWeek = tradeCount?.n ?? 0;
+    const [botCount] = await db
+      .select({ n: sql<number>`count(distinct ${trades.agentId})::int` })
+      .from(trades)
+      .innerJoin(agents, eq(agents.id, trades.agentId))
+      .where(
+        and(
+          eq(trades.workspaceId, workspaceId),
+          gte(trades.createdAt, weekAgo),
+          ne(trades.kind, 'redeem'),
+          sql`${agents.authUserId} is null`,
+        ),
+      );
+    botTraders = botCount?.n ?? 0;
   }
   if (publicCaps.includes('read')) {
     // All non-withdrawn jobs (pending + decided) in one list, so the board can
@@ -846,6 +864,7 @@ async function buildFloorPayload(ws: PublicWs) {
       .orderBy(desc(proposals.createdAt))
       .limit(40);
     const names = await getParticipantDisplayNames(pending.map(p => p.proposedBy));
+    const proposerBots = await botIds(pending.map(p => p.proposedBy));
     // When each proposal was last edited, so the floor can say "edited" beside
     // one whose words or price moved after people started pricing it
     // (docs/market-integrity.md, I1b). The log itself is behind
@@ -1046,6 +1065,7 @@ async function buildFloorPayload(ws: PublicWs) {
         closedAt: p.closedAt ?? null,
         lapsedAt: p.lapsedAt ?? null,
         proposedByName: names.get(p.proposedBy) ?? null,
+        proposedByBot: proposerBots.has(p.proposedBy),
         // The linkable handle for the public profile page: prefer the
         // unique nickname, fall back to the raw participant id, which the
         // profile endpoint also resolves (owner ask 2026-08-11).
@@ -1146,6 +1166,7 @@ async function buildFloorPayload(ws: PublicWs) {
     // resolving baseline market), so every contractor score is in one unit.
     const heroMetricId = (primaryMarket(marketList)?.metricId as string | undefined) ?? null;
     const contractorNames = await getParticipantDisplayNames(liveJobs.map(j => j.proposedBy));
+    const contractorBots = await botIds(liveJobs.map(j => j.proposedBy));
     topContractors = computeContractors(
       liveJobs.map(j => ({
         proposalId: j.id,
@@ -1164,7 +1185,7 @@ async function buildFloorPayload(ws: PublicWs) {
       // Ten, matching the trader rail beside it (owner direction
       // 2026-08-17).
       10,
-    );
+    ).map(c => ({ ...c, bot: contractorBots.has(c.id) }));
   }
 
   // Platform-wide count of linked Manifold accounts, paid or not. Public on
@@ -1210,6 +1231,7 @@ async function buildFloorPayload(ws: PublicWs) {
     metricCount: metricCountRow?.n ?? 0,
     openMarketCount: marketList.length,
     participantCount: participantIds.size,
+    botTraders,
     manifoldImportCount,
     proposalStats,
     markets: marketList,
@@ -1779,10 +1801,12 @@ marketplaceRouter.get(
         .orderBy(asc(marketMessages.createdAt));
     }
     const names = await getParticipantDisplayNames(rows.map(m => m.from));
+    const bots = await botIds(rows.map(m => m.from));
     res.json(
       rows.slice(-200).map(m => ({
         id: m.id,
         fromName: names.get(m.from) ?? 'anonymous',
+        fromBot: bots.has(m.from),
         content: m.content,
         createdAt: m.createdAt,
       })),
@@ -1904,12 +1928,14 @@ marketplaceRouter.get(
     ];
     const names = await getParticipantDisplayNames(ids);
     const handle = (id: string) => names.get(id) ?? id;
+    const bots = await botIds(ids);
 
     res.json({
       consensus: c ?? null,
       positions: posRows.map(r => ({
         handle: handle(r.agentId),
         id: r.agentId,
+        bot: bots.has(r.agentId),
         direction: r.direction,
         shares: r.shares,
         cost: r.totalCost,
@@ -1919,6 +1945,7 @@ marketplaceRouter.get(
       trades: tradeRows.map(r => ({
         id: r.id,
         handle: handle(r.agentId),
+        bot: bots.has(r.agentId),
         direction: r.direction,
         // A negative cost is a sell (proceeds); the sign carries the kind.
         kind: r.cost < 0 ? 'sell' : 'buy',
@@ -1935,6 +1962,7 @@ marketplaceRouter.get(
           id: r.id,
           // Null on the platform's own initial liquidity, which has no funder.
           handle: r.agentId ? handle(r.agentId) : null,
+          bot: r.agentId ? bots.has(r.agentId) : false,
           kind: r.type === 'initial' ? 'opened' : 'deepened',
           // What the funder put in, which is the number they were charged.
           amount: r.poolContribution ?? r.amount,

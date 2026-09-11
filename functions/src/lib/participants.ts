@@ -392,6 +392,26 @@ export async function claimNickname(tx: DbOrTx, participantId: string, nickname:
 }
 
 /**
+ * Which of these participants are bots: the ones with no browser account
+ * (docs/ui-conventions.md, "A bot says it is one"). Registered through the
+ * API by themselves, by a person's account, or by another participant. A
+ * browser account is never a bot, even a house one a person signs in to.
+ *
+ * One reader for one fact, so the board, the market's lists, the comments,
+ * the proposals and the profile can never disagree about who is a bot. An
+ * id that does not exist is not in the set.
+ */
+export async function botIds(agentIds: string[]): Promise<Set<string>> {
+  const unique = [...new Set(agentIds.filter(Boolean))];
+  if (unique.length === 0) return new Set();
+  const rows = await db
+    .select({ id: agents.id, authUserId: agents.authUserId })
+    .from(agents)
+    .where(inArray(agents.id, unique));
+  return new Set(rows.filter(r => !r.authUserId).map(r => r.id));
+}
+
+/**
  * Which of these participants are operated by us.
  *
  * One reader for one fact: the season's standings projection, the public

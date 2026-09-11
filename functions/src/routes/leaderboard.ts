@@ -4,6 +4,7 @@ import { db } from '../db/client';
 import { agents, authUser, prizeSeasons, recordLinks, seasonEntries, workspaces } from '../db/schema';
 import { loadBoard, loadSeasonMarked, loadSeasonSettled } from '../lib/board';
 import {
+  botIds,
   getParticipantDisplayNames,
   payoutHandlesById,
   platformOperatedIds,
@@ -164,6 +165,7 @@ function cachedSeasonSettled(
  *  the board itself knows nothing about names. */
 async function decorate(agentIds: string[]) {
   const displayNames = await getParticipantDisplayNames(agentIds);
+  const bots = await botIds(agentIds);
 
   const agentRows = await db
     .select({ id: agents.id, authUserId: agents.authUserId })
@@ -196,6 +198,7 @@ async function decorate(agentIds: string[]) {
       return uid ? (imageByUid.get(uid) ?? null) : null;
     })(),
     manifoldUsername: manifoldNameByAgent.get(id) ?? null,
+    bot: bots.has(id),
   });
 }
 

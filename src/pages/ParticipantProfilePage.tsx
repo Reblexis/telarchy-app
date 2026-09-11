@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { BotMark } from '../components/BotMark';
 import { ManifoldLogo } from '../components/ManifoldLogo';
 import { MarketChart } from '../components/MarketChart';
 import { PageTopBar } from '../components/PageTopBar';
@@ -299,6 +300,7 @@ export function ParticipantProfilePage() {
               <div className="prof-id">
                 <h1 className="prof-name">
                   {handle}
+                  <BotMark bot={profile.bot} />
                   {profile.manifoldUsername && (
                     <a
                       className="prof-manifold"
@@ -311,6 +313,11 @@ export function ParticipantProfilePage() {
                     </a>
                   )}
                 </h1>
+                {/* Who runs it and on what (docs/ui-conventions.md, "A bot says it
+                    is one"): only for a bot the platform runs. */}
+                {profile.bot && profile.runBy === 'telarchy' && (
+                  <p className="prof-since prof-runby">Run by Telarchy{profile.model ? ` on ${profile.model}` : ''}</p>
+                )}
                 <p className="prof-since">
                   Trading since {since}
                   {profile.stats.rank !== null && <>{` · #${profile.stats.rank} on the leaderboard`}</>}

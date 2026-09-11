@@ -4,6 +4,7 @@ import type { LeaderboardEntry, PublicContractor } from '../lib/api';
 import { api, type PrizeSeason } from '../lib/api';
 import { pickCurrentSeason } from '../lib/season-clock';
 import { useSeasonClock } from '../lib/useSeasonClock';
+import { BotMark } from './BotMark';
 import { ManifoldLogo } from './ManifoldLogo';
 
 /**
@@ -133,11 +134,17 @@ function TraderRow({
         </span>
         {e.positionLine ? (
           <span className="pubws-lb-stack">
-            <span className="pubws-lb-name">{name}</span>
+            <span className="pubws-lb-name">
+              {name}
+              <BotMark bot={e.bot} />
+            </span>
             <span className="pubws-lb-sub">{e.positionLine}</span>
           </span>
         ) : (
-          <span className="pubws-lb-name">{name}</span>
+          <span className="pubws-lb-name">
+            {name}
+            <BotMark bot={e.bot} />
+          </span>
         )}
         {e.manifoldUsername && (
           <span className="pubws-lb-manifold" title={`Linked Manifold account: @${e.manifoldUsername}`}>
@@ -158,6 +165,7 @@ export function FloorStandings({
   meId = null,
   season = null,
   proposalTraders,
+  botTraders,
 }: {
   /** THIS workspace's own board (owner decision 2026-08-22: local by
    *  default; the season and global boards live on /leaderboard, behind
@@ -177,6 +185,10 @@ export function FloorStandings({
    *  yet; null means still loading). Undefined when no proposal is
    *  selected, which is the workspace board. */
   proposalTraders?: ProposalTraderRow[] | null;
+  /** Distinct bots with a trade on this floor in the last seven days; the
+   *  line under the footers (docs/ui-conventions.md, "A bot says it is
+   *  one"). Zero or absent draws nothing. */
+  botTraders?: number;
 }) {
   const onProposal = proposalTraders !== undefined;
   // A row for someone who has never traded is a name and a zero: noise.
@@ -253,7 +265,10 @@ export function FloorStandings({
                           <span>{initialOf(name)}</span>
                         </span>
                         <span className="pubws-lb-stack">
-                          <span className="pubws-lb-name">{name}</span>
+                          <span className="pubws-lb-name">
+                            {name}
+                            <BotMark bot={c.bot} />
+                          </span>
                           <span className="pubws-lb-sub">{contractorSubline(c)}</span>
                         </span>
                       </Link>
@@ -289,6 +304,12 @@ export function FloorStandings({
           "show full leaderboard should lead to a new page"). One link under
           the pair it extends; the season's control is in the season advert
           in the left column. */}
+      {botTraders ? (
+        <p className="pubws-lb-bots">
+          {botTraders === 1 ? '1 bot trades here.' : `${botTraders} bots trade here.`}{' '}
+          <Link to="/agents">Build your own</Link>
+        </p>
+      ) : null}
       <Link className="pubws-lb-more" to="/leaderboard">
         Show full leaderboard
       </Link>

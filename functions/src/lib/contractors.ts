@@ -39,6 +39,8 @@ export interface ContractorJob {
 export interface ContractorEntry {
   id: string;
   name: string | null;
+  /** No browser account (docs/ui-conventions.md, "A bot says it is one"). */
+  bot?: boolean;
   /** Sum of priced impact over the poster's live jobs, in the hero metric's
    *  own unit. Signed: a job the market thinks hurts the number subtracts.
    *  null only when the workspace has no hero metric to price against, in

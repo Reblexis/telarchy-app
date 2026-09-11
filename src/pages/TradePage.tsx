@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import { AccountMenu } from '../components/AccountMenu';
 import { AgentDoors } from '../components/AgentDoors';
 import { AnimatedNumber } from '../components/AnimatedNumber';
+import { BotMark } from '../components/BotMark';
 import { FloorAnnouncements } from '../components/FloorAnnouncements';
 import { FloorChat } from '../components/FloorChat';
 import { FloorChecklist } from '../components/FloorChecklist';
@@ -174,6 +175,7 @@ export function holdersOf(
   positions: Array<{
     id: string;
     handle: string;
+    bot?: boolean;
     direction: 'higher' | 'lower';
     cost: number;
     worth: number | null;
@@ -181,9 +183,9 @@ export function holdersOf(
   }>,
   board: LeaderboardEntry[],
 ): ProposalTraderRow[] {
-  const byId = new Map<string, { handle: string; profit: number; lines: string[] }>();
+  const byId = new Map<string, { handle: string; bot: boolean; profit: number; lines: string[] }>();
   for (const p of positions) {
-    const row = byId.get(p.id) ?? { handle: p.handle, profit: 0, lines: [] };
+    const row = byId.get(p.id) ?? { handle: p.handle, bot: !!p.bot, profit: 0, lines: [] };
     row.profit += (p.worth ?? p.cost) - p.cost;
     row.lines.push(`bet ${p.direction} if ${p.branch}`);
     byId.set(p.id, row);
@@ -195,6 +197,7 @@ export function holdersOf(
         ...(known ?? { calibration: null, accuracy: null, resolvedMarkets: 0, lastTradeAt: null }),
         id,
         nickname: r.handle,
+        bot: r.bot,
         rank: null,
         totalEarnings: r.profit,
         totalTrades: r.lines.length,
@@ -1912,6 +1915,7 @@ export function TradePage() {
                       <span title={`Proposed by ${selectedJob.proposedByName}`}>
                         <PersonGlyph />
                         {selectedJob.proposedByName}
+                        <BotMark bot={selectedJob.proposedByBot} />
                       </span>
                     )}
                     <span title={!jobAskUsd ? 'No payment asked' : `$${jobAskUsd} to them if you approve it`}>
@@ -3054,6 +3058,7 @@ export function TradePage() {
               meId={myParticipantId}
               season={season}
               proposalTraders={selectedJob ? pairHolders : undefined}
+              botTraders={ws.botTraders}
             />
           )}
           {/* Placement C (owner pick, 2026-08-31): a manager's two doors sit
