@@ -658,3 +658,36 @@ describe('the settle instant reads in the viewer zone', () => {
     expect(settleInstant('garbage')).toBe('');
   });
 });
+
+describe('a rolling minute horizon is one tab, the newest open cell', () => {
+  // Three cells of one +60min horizon, one opened per step; the snake on 2026-09-11.
+  const cells = [
+    cell('len-39', 'len', 'Reached length', 1, '2026-09-11T14:39', '2026-09-11T14:40:00Z'),
+    cell('len-42', 'len', 'Reached length', 1, '2026-09-11T14:42', '2026-09-11T14:43:00Z'),
+    cell('len-44', 'len', 'Reached length', 1, '2026-09-11T14:44', '2026-09-11T14:45:00Z'),
+    cell('rev-sep', 'rev', REV, 2, '2026-09', '2026-10-01T00:00:00Z'),
+    cell('rev-day', 'rev', REV, 2, '2026-09-11', '2026-09-12T00:00:00Z'),
+  ];
+  const views = buildHorizonViews(ws({ markets: cells, horizonHistories: [] }), new Date('2026-09-11T13:45:00Z'));
+
+  test('the strip lists the newest cell alone; day and month cells are untouched', () => {
+    expect(datesOf(views, 'len').map(v => v.targetDate)).toEqual(['2026-09-11T14:44']);
+    expect(datesOf(views, 'rev').map(v => v.targetDate)).toEqual(['2026-09', '2026-09-11']);
+  });
+
+  test('the cell a selected proposal is priced on is listed beside the newest', () => {
+    expect(datesOf(views, 'len', ['2026-09-11T14:42']).map(v => v.targetDate)).toEqual([
+      '2026-09-11T14:44',
+      '2026-09-11T14:42',
+    ]);
+    // The newest itself, or an unknown cell, adds nothing.
+    expect(datesOf(views, 'len', ['2026-09-11T14:44', '2026-09-11T14:00']).map(v => v.targetDate)).toEqual([
+      '2026-09-11T14:44',
+    ]);
+  });
+
+  test('cellOf falls to the newest cell, and finds a kept older one', () => {
+    expect(cellOf(views, 'len', '2026-09-11T14:39')?.targetDate).toBe('2026-09-11T14:44');
+    expect(cellOf(views, 'len', '2026-09-11T14:39', ['2026-09-11T14:39'])?.targetDate).toBe('2026-09-11T14:39');
+  });
+});

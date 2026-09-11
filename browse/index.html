@@ -780,6 +780,48 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 </ul></details>
 </li>
 </ul></li>
+<li class="group">docs/reviews/<ul>
+<li><details><summary><a class="file" href="#file--docs-reviews-2026-09-11-snake-design-critic-md">docs/reviews/2026-09-11-snake-design-critic.md</a></summary>
+<ul>
+<li><a href="#docs-reviews-2026-09-11-snake-design-critic-md--h1">Target and evidence scope</a></li>
+<li><a href="#docs-reviews-2026-09-11-snake-design-critic-md--h2">Coverage</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h3">Covered</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h4">Not covered and why</a></li>
+<li><a href="#docs-reviews-2026-09-11-snake-design-critic-md--h5">Blockers</a></li>
+<li><a href="#docs-reviews-2026-09-11-snake-design-critic-md--h6">Visual design</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h7">Score</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h8">Evidence</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h9">Moves to 8</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h10">Moves to 9</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h11">Moves to 10</a></li>
+<li><a href="#docs-reviews-2026-09-11-snake-design-critic-md--h12">Friction</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h13">Score</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h14">Evidence</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h15">Moves to 8</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h16">Moves to 9</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h17">Moves to 10</a></li>
+<li><a href="#docs-reviews-2026-09-11-snake-design-critic-md--h18">Intuitiveness</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h19">Score</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h20">Evidence</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h21">Moves to 8</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h22">Moves to 9</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h23">Moves to 10</a></li>
+<li><a href="#docs-reviews-2026-09-11-snake-design-critic-md--h24">Bugs and weird behaviour</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h25">Score</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h26">Evidence</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h27">Moves to 8</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h28">Moves to 9</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h29">Moves to 10</a></li>
+<li><a href="#docs-reviews-2026-09-11-snake-design-critic-md--h30">Fun</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h31">Score</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h32">Evidence</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h33">Moves to 8</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h34">Moves to 9</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-11-snake-design-critic-md--h35">Moves to 10</a></li>
+<li><a href="#docs-reviews-2026-09-11-snake-design-critic-md--h36">Overall</a></li>
+</ul></details>
+</li>
+</ul></li>
 </ul>
 </nav>
 <section class="docfile" id="file--docs-readme-md">
@@ -5110,7 +5152,14 @@ dates soonest first, each tab the clock's name (&quot;THIS WEEK&quot;, &quot;THI
 <code>dateSegmentOf</code>) over that date's call. The settle day it used to carry
 moves to the stat row's caption, which already says &quot;FOR 30 SEP · SETTLES
 IN 21D&quot; and is the only place it needs to be said. One open date draws no
-strip.</p>
+strip. <strong>A rolling minute or hour horizon is one tab, the newest open
+cell</strong> (2026-09-11, Viktor, of a snake strip reading 14:39 · 14:42 ·
+14:44: &quot;there shouldve been the one only the reached length&quot;): a floor
+whose operator opens a new cell every step would otherwise list an
+hour of minutes as if they were horizons. The older cells still trade
+and settle, and the one a selected proposal is priced on is listed
+beside the newest while that proposal is open on the page, so its pair
+is never hidden from the reader looking at it.</p>
 </li>
 <li>
 <p><strong>A tab with no price prints a dash</strong>, never a borrowed number: an
@@ -12856,6 +12905,173 @@ standings rather than making it silently.</p>
 <p>These Terms are governed by the laws of the State of Delaware, USA; disputes belong exclusively to the state or federal courts located in Delaware.</p>
 <h2 id="docs-legal-terms-of-service-md--h12">10. Contact</h2>
 <p><code>viktor.cihal@gmail.com</code></p>
+
+<p class="backtop"><a href="#toc">&uarr; contents</a></p>
+</section>
+<section class="docfile" id="file--docs-reviews-2026-09-11-snake-design-critic-md">
+<p class="filelabel">docs/reviews/2026-09-11-snake-design-critic.md</p>
+<h1 id="docs-reviews-2026-09-11-snake-design-critic-md--h1">Target and evidence scope</h1>
+<p>Target: https://telarchy.com/snake, public live deployment observed on 11 September 2026, approximately 13:13 to 13:29 UTC. No build identifier was visible or verified. This is an independent first-visit critique, not measured user research. The reviewer had the task brief but no implementation history or requested target score.</p>
+<p>Device: rented da-linux-web-interactive-1, Chromium, Linux desktop at 1024 × 768. Narrow testing used Chromium's iPhone 12 Pro viewport, 390 × 844 CSS pixels, displayed at 100% with its lower portion outside the available desktop height. A roughly 500-pixel ordinary window was also inspected. Signed out throughout. No signup, bet submission, post, or purchase occurred.</p>
+<p>Screenshots: <code>/home/cihalvi/.cache/codex-design-critic/20260911-151251-codex/shots/</code>, numbered 01 through 58. References below identify these files by number and descriptive suffix. All product observations come from rendered UI and real clicks. Developer tools were opened only to configure the responsive viewport; incidental source text in the adjacent panel is not evidence for this report. No source inspection or DOM extraction informed the findings.</p>
+<p>Browser setup artifacts 21 and 27–35 are excluded from product judgments. A malformed address-bar entry was a tooling mistake. Temporary clipping during responsive setup disappeared after resetting browser zoom and reloading. It is not reported as a product defect. Tool round trips varied from about one to five seconds, so elapsed flow times below include observation and automation overhead and are not page-performance benchmarks.</p>
+<h1 id="docs-reviews-2026-09-11-snake-design-critic-md--h2">Coverage</h1>
+<p>The initial checklist was: signed-out landing and title information; NOW and MARKET'S CALL; LIVE board, food, arrow, countdown and decision/move transitions; replay selection, scrub, Play, speed and Live; VALUE and CALL charts; current and decided proposal lists; proposal conditional prices and ticket; floor ticket; repeat landing, live/replay and proposal inspection at phone width; look for populated, empty, stale and error states.</p>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h3">Covered</h2>
+<ul>
+<li>[x] Desktop landing, headline, NOW, MARKET'S CALL and segment row: 01, 22. The page was populated by the first screenshot, roughly several seconds after opening. Exact first-paint time was not measured.</li>
+<li>[x] Title information on desktop and phone: 02, 17, 37, 57. One click opens it, but the underlying headline is drawn across the explanation.</li>
+<li>[x] Desktop LIVE board, snake, food and arrow: 03–04. Reaching the countdown required seven wheel notches in two scroll actions. The board cannot fit with its controls at this desktop height.</li>
+<li>[x] Countdown changes and movement across minutes: 04–05, 10, 39–50. At phone width the snake grew after reaching food, later turned, and advanced upward after a decided state. The arrow agreed with forward relative to its current heading.</li>
+<li>[x] Decision-to-move transition: 48 shows a countdown, 49 says “Next move: continue forward, decided,” and 50 shows the snake one cell farther upward and a restarted countdown. Exact synchronization to wall-clock :58 and :00 was not measured; screenshot and remote-control latency preclude that claim.</li>
+<li>[x] Desktop replay: open selector, select Game 1, drag scrubber, Play, change 1x to 10x, return Live: 05–10. Six actions, about 80 seconds including screenshot inspection. Labels advanced from Step 202 to 251, 252 and 271. No empty replay occurred.</li>
+<li>[x] Phone replay: the same six actions, about 50 seconds: 41–46. Board positions and food changed with replay. The status line wrapping shifted the controls.</li>
+<li>[x] VALUE and CALL render populated charts: 23–25. One click per segment; visible response by the next screenshot. VALUE shows historical changes between approximately 1, 2 and 3. CALL shows a flat 2 and a time axis. CALL also rendered at narrow width: 26, 36.</li>
+<li>[x] Floor ticket: Higher default, select Lower, drag stake, inspect preview, without submitting: 11–13. Two input actions, about 35 seconds. Selecting Lower changes the selected color; dragging previews 4 cr and 1.01 with a payoff strip. The ticket is below the board at 1024 pixels, not in a visible right column.</li>
+<li>[x] Three current proposals and decided disclosure: 14–15. Show expands declined rows and their “open” links. The three direction choices refresh with the minute.</li>
+<li>[x] Desktop proposal navigation and conditional prices: 16–19. Navigation retains the prior scroll position; a separate Ctrl+Home was needed to find the title and 2.00 approved/2.00 declined values. Two actions, about 25 seconds.</li>
+<li>[x] Phone landing and information at 390 pixels: 36–38. Headline fits after browser setup; settlement metadata is ellipsized.</li>
+<li>[x] Phone current proposals and Turn left detail: 51–58. One scroll sequence from the floor ticket exposes all three choices. Opening Turn left retains the old scroll position. Scrolling upward finds the ticket, with Higher selected and “if approved.” Dragging previews 6 cr → 4.71 and a payoff range from -6 cr to +114 cr. Later, the decided page shows 3.00 approved and 3.00 declined.</li>
+<li>[x] Populated, zero-activity and expiring states: initial floor had zero volume and zero participants; selected replay was populated; proposal countdowns reached “now”; the Turn left ticket vanished as the proposal decided: 54–56. Read age reached 1m and later returned to just now: 24–25, 36–37. No observed 5m stale read, captcha, 403, or visible error screen.</li>
+</ul>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h4">Not covered and why</h2>
+<ul>
+<li>[ ] Exact second-level :58 approval and :00 movement accuracy. The state sequence was observed, but remote screenshots were not a continuous timed recording.</li>
+<li>[ ] A desktop proposal ticket's side and stake interactions before expiration. The inspected desktop proposal decided while being explored. The live Higher stake interaction was exercised on the phone viewport instead.</li>
+<li>[ ] Switching the phone proposal ticket to Lower. The attempted click coincided with the ticket disappearing on decision, so success is not claimed. Floor Lower was verified separately.</li>
+<li>[ ] A separate earlier game. The selector offered only Game 1; its recorded earlier steps were tested.</li>
+<li>[ ] Empty replay, network failure, lapsed proposal and prolonged stale-read recovery. These did not naturally occur; no failures were manufactured.</li>
+<li>[ ] Physical touchscreen, screen reader, keyboard-only completion and contrast measurement. Small text and layout observations are visual findings, not a completed accessibility audit.</li>
+<li>[ ] Signed-in flows and transaction execution, deliberately outside scope.</li>
+</ul>
+<p>Coverage is substantial but partial. Scores are provisional for the untested behavior above.</p>
+<h1 id="docs-reviews-2026-09-11-snake-design-critic-md--h5">Blockers</h1>
+<ol>
+<li>The primary onboarding explanation is materially obscured. On desktop and phone the headline paints across the open information popup (02, 37, 57). A newcomer asking what the market-controlled game means receives overlapping text at the exact point of explanation. Give the popup an opaque surface above all page content, or use an inline disclosure that moves the headline.</li>
+<li>The proposal ticket does not explain the consequence of Higher at the point of selection. “Turn left,” “if approved,” a credit-to-number arrow and a distant settlement paragraph must be combined to infer what is being bought (53–55). For a first-time visitor, interpreting Higher as support for turning left is a material risk. Add a plain sentence stating the conditional reached-length exposure, the preview's meaning and what happens if the proposal is declined. No erroneous transaction was performed or inferred.</li>
+</ol>
+<h1 id="docs-reviews-2026-09-11-snake-design-critic-md--h6">Visual design</h1>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h7">Score</h2>
+<p>6/10, provisional.</p>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h8">Evidence</h2>
+<p>The warm serif headings, dark surface, monospaced market numbers and orange emphasis form a coherent identity (01, 23–25). The green snake with eyes and coral food are immediately recognizable (03, 39). The page is pleasant to look at.</p>
+<p>Hierarchy does not consistently serve the game. At 1024 × 768 the header and question occupy enough space that only the top of the board appears in the first screen. The 12 × 12 board then exceeds the useful viewport height (01, 03–04). Small muted uppercase metadata is harder to scan than the oversized numbers. At 390 pixels the settlement information is truncated (36), and the popup collision spoils otherwise restrained styling (37).</p>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h9">Moves to 8</h2>
+<ul>
+<li>Size the desktop board against available viewport height so the snake, countdown and replay controls fit together.</li>
+<li>Fix the information popup's stacking and opaque background.</li>
+<li>Wrap the market settlement label on narrow screens and increase the size and contrast of essential timing text.</li>
+</ul>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h10">Moves to 9</h2>
+<ul>
+<li>Put each direction first in proposal rows, with game, attempt and move in secondary metadata.</li>
+<li>Keep a stable two-line space for live and replay status so adjacent controls never move.</li>
+</ul>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h11">Moves to 10</h2>
+<ul>
+<li>Tune the game, proposal and chart layouts as one responsive system across short desktops and phones, including long labels and expanded help, with no clipping or competing fixed overlays.</li>
+</ul>
+<h1 id="docs-reviews-2026-09-11-snake-design-critic-md--h12">Friction</h1>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h13">Score</h2>
+<p>5/10, provisional.</p>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h14">Evidence</h2>
+<p>Replay and chart actions need few clicks and visibly respond (05–10, 23–25). Signed-out stake previews are available without signup (13, 55), which supports exploration.</p>
+<p>The main cost is distance and lost context. The desktop countdown is seven wheel notches below landing. The floor ticket and proposals require still more scrolling (01–14). Both desktop and phone proposal navigation preserve a deep scroll position, requiring an explicit return upward to understand the destination (16–17, 53–54). Exploration competes with a one-minute decision window; the ticket disappears before the user finishes inspecting it (55–56). The observed six-action replay loop took about 80 seconds on desktop and 50 seconds on phone, including remote-tool and screenshot overhead.</p>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h15">Moves to 8</h2>
+<ul>
+<li>Keep the board, live status and three active direction summaries together.</li>
+<li>Scroll new proposal navigation to its heading and expose a clear return-to-game link.</li>
+<li>Replace an expired ticket in place with its decision status and a link to the next move's proposal, preserving the user's context.</li>
+</ul>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h16">Moves to 9</h2>
+<ul>
+<li>Provide a compact proposal preview beside or below the game that includes conditional prices and the explanatory stake preview.</li>
+<li>Add replay jump points for attempt starts, food and deaths, reducing trial-and-error scrubbing.</li>
+</ul>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h17">Moves to 10</h2>
+<ul>
+<li>Preserve replay selection and preview settings across inspection and return, with clear labels showing what is historical and what is live.</li>
+</ul>
+<h1 id="docs-reviews-2026-09-11-snake-design-critic-md--h18">Intuitiveness</h1>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h19">Score</h2>
+<p>4/10, provisional.</p>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h20">Evidence</h2>
+<p>Within ten seconds, the title establishes Snake and the two large values establish current versus forecast numbers. It does not clearly establish why a market controls this snake, what “reached length” means across deaths, or why a future time matters (01). The info popup should bridge that gap but overlaps the question (02).</p>
+<p>The detailed settlement explanation is useful once found far below the game (14). The proposal body explains approval and refund of the counterfactual market (16, 53). On Turn left, Higher therefore means exposure to higher reached length in the approved scenario, not simply voting for left. That interpretation is assembled across disconnected UI. “6 cr → 4.71” does not name what the right-hand number represents (55). The signed-out floor says “250 cr, all you have,” presenting a balance-like claim without explaining that this is a preview (13).</p>
+<p>The live arrow and relative heading do agree (39–50). However, replay begins at “Step 202: start” without explaining whether this is a recording window, attempt start or game start (06, 42). Equal proposal impacts and zero participation provide little visible reason for a selected move (14, 52).</p>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h21">Moves to 8</h2>
+<ul>
+<li>Add one visible sentence above the game: the market chooses a direction each minute based on predicted reached length; clarify the decision and movement times.</li>
+<li>Add a contextual Higher/Lower sentence naming the measured outcome and approved or declined scenario, plus the refund rule.</li>
+<li>Label both sides of the stake preview and explicitly identify signed-out credits as illustrative.</li>
+<li>Explain the winning proposal and tie/default rule beside Next move.</li>
+</ul>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h22">Moves to 9</h2>
+<ul>
+<li>Distinguish attempt length, record length and settlement horizon with short labels near NOW.</li>
+<li>Label replay start with attempt and recorded time, and show whether earlier history is unavailable.</li>
+</ul>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h23">Moves to 10</h2>
+<ul>
+<li>Offer an optional worked example using the current three directions and their conditional prices, ending in a plainly explained decision without requiring a bet.</li>
+</ul>
+<h1 id="docs-reviews-2026-09-11-snake-design-critic-md--h24">Bugs and weird behaviour</h1>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h25">Score</h2>
+<p>5/10, provisional.</p>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h26">Evidence</h2>
+<p>The important engine-facing UI works: countdowns tick, the board moves, replay changes frames, chart segments load, and stake previews recalculate (04–13, 23–25, 39–55). No visible network error or empty replay occurred.</p>
+<p>The information popup has a reproducible overlap on both sizes (02, 37). Route changes retain scroll unexpectedly (16, 53). Status wrapping moves replay controls (43–45, 49–50). A proposal's ticket disappears while being inspected, leaving a large change in page content without an in-place outcome notice (55–56). The active proposal list refreshed around the first desktop click, and the opened proposal differed from the previously observed row, a timing hazard rather than a proven incorrect link (15–17). Exact minute synchronization remains unverified.</p>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h27">Moves to 8</h2>
+<ul>
+<li>Fix popup layering and route scroll restoration.</li>
+<li>Reserve stable status and ticket space; replace expiring content with an explicit result rather than removing it abruptly.</li>
+<li>Keep proposal identity stable under the pointer during refresh, or temporarily disable changing rows with a clear updating state.</li>
+</ul>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h28">Moves to 9</h2>
+<ul>
+<li>Show separate “decision locked” and “moves in” states, with a clear stale-connection indicator if live updates stop.</li>
+<li>Exercise keyboard focus through proposal expiration and replay status changes so controls do not vanish underneath focus.</li>
+</ul>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h29">Moves to 10</h2>
+<ul>
+<li>Verify uninterrupted behavior under reconnects, empty recordings and delayed server decisions, with visible recovery and no misleading live claim.</li>
+</ul>
+<h1 id="docs-reviews-2026-09-11-snake-design-critic-md--h30">Fun</h1>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h31">Score</h2>
+<p>6/10, provisional.</p>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h32">Evidence</h2>
+<p>The snake is charming, the arrow gives anticipation, and seeing it eat, grow and later turn provides a small satisfying payoff (39–46). Replay at 10x is the strongest immediate exploration feature because it compresses waiting (09, 45).</p>
+<p>The live minute feels quiet. Zero visible participants and volume, flat market values and equal impacts make the social decision process hard to feel (14, 25, 52). “Decided” acknowledges a transition but offers little celebration or explanation (49). A visitor from Twitch or X must scroll and wait before discovering the interesting part.</p>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h33">Moves to 8</h2>
+<ul>
+<li>Show the current three directions and winning rationale beside the snake throughout the countdown.</li>
+<li>Add concise, optional visual feedback for food, death, new attempts and a record.</li>
+<li>Expose a “watch the last attempt” replay shortcut near the first screen.</li>
+</ul>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h34">Moves to 9</h2>
+<ul>
+<li>Add a small recent-events strip linking memorable outcomes to their replay positions.</li>
+<li>Explain low-activity or tied rounds honestly so the game still tells a coherent story when no one trades.</li>
+</ul>
+<h2 id="docs-reviews-2026-09-11-snake-design-critic-md--h35">Moves to 10</h2>
+<ul>
+<li>Make an entire attempt understandable as a short replay story with decisions, growth and outcome, while retaining reduced-motion and quiet viewing options.</li>
+</ul>
+<h1 id="docs-reviews-2026-09-11-snake-design-critic-md--h36">Overall</h1>
+<p><strong>5.2/10</strong>, the arithmetic mean of 6, 5, 4, 5 and 6. This is a heuristic assessment of the observed experience, not a measurement of real users. The game and market controls work in the tested states, but onboarding, context and expiry behavior make a first visit harder than the visual polish suggests. Status: <strong>PARTIAL</strong>, because the exact timing and some proposal-ticket interactions remain unverified.</p>
+<p>The ten highest-leverage changes, ranked:</p>
+<ol>
+<li>Explain Higher/Lower's conditional outcome and refund rule directly in the proposal ticket.</li>
+<li>Repair the title information popup so its explanation is readable on desktop and phone.</li>
+<li>Fit the live board, countdown and direction choices in one useful viewport.</li>
+<li>Open proposal routes at their title and provide an obvious return to the game.</li>
+<li>Replace expiring tickets in place with a decision result and next-step link.</li>
+<li>Show why the next move won, including equal-price and default cases.</li>
+<li>Clarify reached length, attempt resets and settlement time beside the primary values.</li>
+<li>Rename the stake preview quantities and mark signed-out credit balances as illustrative.</li>
+<li>Keep replay controls stationary and add attempt, food and death jump points.</li>
+<li>Lead proposal rows with the direction and wrap essential timing metadata on phones.</li>
+</ol>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>
