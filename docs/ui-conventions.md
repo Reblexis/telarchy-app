@@ -2210,24 +2210,99 @@ external, new tab. A manager edits the text in place (the `SubjectAbout`
 editor pattern: hairlines, `jobform-line` textarea, ticket buttons). Its
 last line is the row that opens Otto (see "Otto").
 
-**The live view** (`FloorLiveView`) is the owner's own picture of the
-thing the market steers, embedded on the floor: a workspace whose setting
-`liveViewUrl` (PUT /api/workspaces/:id/settings, plain `manage`, https
-only, at most 500 characters, null to clear; served on the public floor
-payload as `liveViewUrl`) names a page gets that page rendered in a 16:9
-box in the owner-prose column, directly above "What is <name>?", and a
-floor whose setting is null renders nothing there and nothing else on the
-page moves. It sits there rather than over the chart because the floor
-leads with its price (the number, the chart, the two priced sides come
-first) and the live view is owner material, read after the market like the
-rest of that column. The box is the column's width, so full width on a
-phone. The embed is a sandboxed iframe: `sandbox="allow-scripts
-allow-same-origin"` and nothing more (no forms, no popups, no top
-navigation), `loading="lazy"`, `referrerpolicy="no-referrer"`. Under it,
-one left-aligned line in the muted meta style, "Live view, published by the
-owner", and a link that opens the URL in a new tab. It is the owner's
-content, not Telarchy's: the floor frames it and vouches for nothing inside
-it, and the app sets no Content-Security-Policy, so any https origin frames.
+**The live view is a segment of the chart slot** (`LiveView`, revised
+2026-09-11). The owner's own picture of the thing the market steers is
+drawn natively on the floor, from the owner's feed, in the one chart's
+slot: a workspace whose setting `liveFeed` names a feed gets a third
+segment button in the chart's control row, LIVE, beside VALUE and CALL,
+and LIVE is the segment such a floor opens on (a mode remembered for the
+session still wins on a later load; a remembered LIVE on a floor with no
+feed falls back to VALUE). A floor whose `liveFeed` is null has two
+segments, exactly as before, and nothing else on the page moves. The
+owner asked for this in place of the framed page on another host (Viktor,
+2026-09-11: "it should all be doable within the telarchy.com it should
+replace the snake.telarchy.com.. i dont like it being there separately";
+record in `notes/decisions/ui-conventions.md`).
+
+The setting is `liveFeed` on `PUT /api/workspaces/:id/settings`, plain
+`manage`: `{ kind, url }` or null to clear, where `kind` names the feed's
+shape from a short allow-list (today only `snake`) and `url` is the https
+origin the feed is served from, at most 500 characters. Anything else
+(http, an unknown kind, a bare string, a missing field) is 400 and leaves
+the stored value alone. It is served on the public floor payload as
+`liveFeed` (`{ kind, url }` or null). The older `liveViewUrl` (an https
+page framed in a sandboxed iframe above "What is <name>?", `FloorLiveView`)
+is deprecated: it still works for a floor that has only it, and it renders
+nothing once `liveFeed` is set, so a floor never shows the game twice.
+
+The browser never reads the owner's host. The app proxies the feed on the
+marketplace router, public with no key, and the bodies are the upstream's
+JSON passed through with `cache-control: no-store` to the browser:
+
+- `GET /api/marketplace/:slug/live` is `${url}/state`, cached in memory for
+  2 seconds per workspace with never more than one upstream fetch in
+  flight per workspace, a 5-second upstream timeout, and a 502 JSON
+  (`{ error }`) when the upstream fails, times out, or answers non-JSON.
+- `GET /api/marketplace/:slug/live/games` is `${url}/games`, cached 30
+  seconds per workspace.
+- `GET /api/marketplace/:slug/live/history?game=&from=&limit=` is
+  `${url}/history` with those three query fields passed through, cached
+  30 seconds per workspace and query; `limit` is capped at 2000.
+
+A floor with no feed answers 404 on all three; a private floor 403.
+
+**The snake feed** (`kind: "snake"`, `SnakeLive`) is the shape the
+telarchy-snake service publishes (its `docs/snake.md`, "The feed").
+`/state` carries `game: { snake: [{x,y}] (head first), food: {x,y},
+heading, length, step, deaths, complete, size, gameNumber }`, `grid` (the
+board's side in cells), `gameNumber`, `next: { action, direction, decided,
+seconds }`, `open: { step, decideAt, deadline, cells, directions:
+{forward,left,right}, proposals: {forward:{id,title,url},left,right},
+quotes: {forward:{m1,m5,m60:{approved,declined}},left,right} }`,
+`recentDecisions[]`, `recentTrades[]` (newest first, `{ handle, action,
+cost, ... }`), `commentary`, `complete`, `nextGameAt`. `/games` is
+`{ games: [{ number, size, startedAt, endedAt|null, steps, bestLength,
+deaths }] }`; `/history` is `{ game: {number,size,startedAt,endedAt},
+total, from, steps: [{ step, at, snake, food, heading, action, direction,
+undecided, impact:{forward,left,right}, length, deaths }] }`, each step the
+state after its move.
+
+What LIVE draws, top to bottom, in the chart's slot under the same control
+row (the segment toggle in the left cell, the metric caption centred):
+
+1. **The grid** (`.snake-board`, an svg sized by `grid`): a near-black
+   board with soft grid lines, one cell per square, the snake as one
+   rounded green band along its cells with a lighter head and two dark
+   eyes on the side it moves towards, the food a round red dot.
+2. **The next move** (`.snake-next`), one line: the arrow of the compass
+   direction and the action, "→ Turn left", with the countdown from
+   `next.seconds` as a clock beside it, "0:31", in the accent while the
+   step is open; once `next.decided` the clock reads "decided" and the
+   line takes the snake's green.
+3. **Three tiles** (`.snake-tiles`), Continue, Turn left, Turn right: the
+   compass arrow, the name, and the 60-move impact (approved minus
+   declined on `m60`, signed, one decimal, "—" while unreadable). The
+   leader, the highest impact, carries the accent (`is-lead`). Each tile
+   is a link to its proposal on this floor: `/<slug>/p/<number>` when the
+   proposal's url ends in a number, else the url as given.
+4. **One status line** (`.snake-status`): "Length 7 · Game 1 · 12x12".
+5. **One quiet line** (`.snake-quiet`, left-aligned): the newest trade
+   ("philipp-gl bet 5 on Turn left"), else the commentary; never both.
+
+It polls `/live` every 2 seconds while the LIVE segment is on screen and
+the tab is visible, and stops when the segment is left or the tab hidden.
+
+**Replay** sits under the live block (`.snake-replay`): a game picker
+(from `/live/games`, newest first, "Game 3 · 12x12 · best 9"), a thin
+scrubber (a range input over the game's `total` steps), play/pause, a
+speed (1x is one step per second, 10x), and a LIVE button that returns to
+realtime. Touching the scrubber or the picker leaves realtime: the view
+loads the history window around that step (`from`/`limit` 300, further
+windows fetched as the scrubber reaches them) and draws that step's snake
+and food on the same grid, with the step's own length and the action the
+market took in the status line. Play advances one step per tick at the
+chosen speed and pauses at the game's last recorded step. No library: the
+range input and a timer.
 
 ### The announcements page
 

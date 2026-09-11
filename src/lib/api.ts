@@ -542,6 +542,81 @@ export interface HomePayload {
   listings: HomeListing[];
 }
 
+/** `{ kind, url }`: the feed's shape (today only "snake") and its https origin. */
+export interface LiveFeed {
+  kind: string;
+  url: string;
+}
+
+/** A cell of a snake board. */
+export interface SnakeCell {
+  x: number;
+  y: number;
+}
+export type SnakeAction = 'forward' | 'left' | 'right';
+export type SnakeHeading = 'up' | 'down' | 'left' | 'right';
+/** The telarchy-snake service's /state, passed through GET /api/marketplace/:slug/live. */
+export interface SnakeState {
+  game: {
+    snake: SnakeCell[];
+    food: SnakeCell | null;
+    heading: SnakeHeading;
+    length: number;
+    step: number;
+    deaths: number;
+    complete: boolean;
+    size: number;
+    gameNumber: number;
+  };
+  grid: number;
+  gameNumber: number;
+  next: { action: SnakeAction; direction: SnakeHeading; decided: boolean; seconds: number } | null;
+  open: {
+    step: number;
+    decideAt: string;
+    deadline: string;
+    directions: Record<SnakeAction, SnakeHeading>;
+    proposals: Record<SnakeAction, { id: string; title: string; url: string } | null>;
+    quotes: Record<
+      SnakeAction,
+      { m60?: { approved: number | null; declined: number | null } } & Record<string, unknown>
+    >;
+  } | null;
+  recentTrades?: Array<{ handle: string; action: SnakeAction; cost: number; kind?: string }>;
+  commentary?: string | null;
+  complete?: boolean;
+  nextGameAt?: string | null;
+}
+export interface SnakeGame {
+  number: number;
+  size: number;
+  startedAt: string;
+  endedAt: string | null;
+  steps: number;
+  bestLength: number;
+  deaths: number;
+  partial?: boolean;
+}
+export interface SnakeHistoryStep {
+  step: number;
+  at: string;
+  snake: SnakeCell[];
+  food: SnakeCell | null;
+  heading: SnakeHeading;
+  action: SnakeAction | null;
+  direction: SnakeHeading;
+  undecided: boolean;
+  impact: Record<SnakeAction, number | null>;
+  length: number;
+  deaths: number;
+}
+export interface SnakeHistory {
+  game: { number: number; size: number; startedAt: string; endedAt: string | null };
+  total: number;
+  from: number;
+  steps: SnakeHistoryStep[];
+}
+
 export interface PublicWorkspace {
   workspaceId: string;
   name: string;
@@ -559,6 +634,10 @@ export interface PublicWorkspace {
   /** The owner's live picture of what the market steers, framed on the floor
    *  above "What is <name>?" as a sandboxed iframe; null = no box. */
   liveViewUrl?: string | null;
+  /** The owner's feed of the thing the market steers, drawn natively on the
+   *  floor's LIVE segment; null = no segment (docs/ui-conventions.md, "The
+   *  live view is a segment of the chart slot"). Supersedes liveViewUrl. */
+  liveFeed?: LiveFeed | null;
   /** When the owner says this workspace started running on Telarchy (ISO), or
       null. The floor's year chart marks it with one dashed line. */
   telarchyStartedOn?: string | null;
@@ -2289,6 +2368,34 @@ export const api = {
     return res.json();
   },
   /**
+   * The owner's live feed, proxied (docs/ui-conventions.md, "The live view is
+   * a segment of the chart slot"): the present state, the recorded games,
+   * and one game's steps. Bodies are the feed kind's own shape.
+   */
+  getLiveState: async (slug: string): Promise<SnakeState> => {
+    const res = await fetch(`${API_BASE}/api/marketplace/${encodeURIComponent(slug)}/live`);
+    if (!res.ok) throw new Error(`Live feed request failed: ${res.status}`);
+    return res.json();
+  },
+  getLiveGames: async (slug: string): Promise<{ games: SnakeGame[] }> => {
+    const res = await fetchGetWithRetry(`${API_BASE}/api/marketplace/${encodeURIComponent(slug)}/live/games`);
+    if (!res.ok) throw new Error(`Live games request failed: ${res.status}`);
+    return res.json();
+  },
+  getLiveHistory: async (
+    slug: string,
+    q: { game: number | string; from?: number; limit?: number },
+  ): Promise<SnakeHistory> => {
+    const params = new URLSearchParams({ game: String(q.game) });
+    if (q.from !== undefined) params.set('from', String(q.from));
+    if (q.limit !== undefined) params.set('limit', String(q.limit));
+    const res = await fetchGetWithRetry(
+      `${API_BASE}/api/marketplace/${encodeURIComponent(slug)}/live/history?${params.toString()}`,
+    );
+    if (!res.ok) throw new Error(`Live history request failed: ${res.status}`);
+    return res.json();
+  },
+  /**
    * The home page in one call (docs/ui-conventions.md, "While a page loads"):
    * the seasons and every public listing with its floor payload, the same
    * body the server inlines into the served HTML as #telarchy-home.
@@ -2579,8 +2686,11 @@ export const api = {
       description?: string | null;
       charter?: string | null;
       subjectAbout?: string | null;
-      /** https only, <=500 chars, null clears (docs/ui-conventions.md, "The live view"). */
+      /** Deprecated: https only, <=500 chars, null clears; hidden once liveFeed is set. */
       liveViewUrl?: string | null;
+      /** { kind, url } from the allow-list, https only; null clears (docs/ui-conventions.md,
+       *  "The live view is a segment of the chart slot"). */
+      liveFeed?: LiveFeed | null;
       telarchyStartedOn?: string | null;
       autoFundNewMarkets?: boolean;
       newMarketLiquidityCredits?: number;

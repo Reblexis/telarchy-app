@@ -11677,3 +11677,134 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .agents-page .agent-card .manual-commands, .agents-page .agent-card .manual-commands pre { max-width: 100%; }
 .agents-page .agent-card .builder-key { display: block; overflow-wrap: anywhere; }
 .agents-page .agent-columns > .agent-section { min-width: 0; }
+/* The LIVE segment of the chart slot (docs/ui-conventions.md, "The live view
+   is a segment of the chart slot"): the owner's feed drawn natively where
+   the chart would be. The board is the feed's own near-black; the words
+   around it are the floor's. Wide: the board left, the move and tiles
+   right; a phone stacks them. */
+.mchart--live .mchart-ranges { margin-bottom: 0.6rem; }
+.snake-live { display: flex; flex-direction: column; gap: 0.7rem; }
+.snake-main {
+  display: grid;
+  grid-template-columns: minmax(200px, 300px) minmax(0, 1fr);
+  gap: 1.1rem;
+  align-items: start;
+}
+.snake-board-box { max-width: 100%; }
+.snake-board {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  max-width: 100%;
+}
+.snake-bg { fill: #111419; }
+.snake-cell { fill: #111419; stroke: #22262c; stroke-width: 1; }
+.snake-food { fill: #f87171; }
+.snake-snake { stroke: #4ade80; }
+.snake-head { fill: #bbf7d0; }
+.snake-eye { fill: #0b0d10; }
+.snake-side { display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; }
+.snake-next {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
+.snake-next-move {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.snake-clock { font-size: 1.5rem; font-weight: 600; line-height: 1.1; color: var(--text-primary); flex-shrink: 0; }
+.snake-next.is-decided .snake-next-move { color: #16a34a; }
+.snake-next.is-decided .snake-clock { font-size: 0.8rem; font-weight: 400; color: #16a34a; }
+.snake-next.is-idle .snake-next-move { color: var(--text-tertiary); font-size: 1rem; font-weight: 500; }
+.snake-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+.snake-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.6rem 0.65rem 0.55rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  text-decoration: none;
+  min-width: 0;
+  transition: border-color 0.12s ease;
+}
+a.snake-tile:hover { border-color: var(--text-tertiary); }
+.snake-tile-arrow { font-size: 0.95rem; line-height: 1; color: var(--text-tertiary); }
+.snake-tile-impact {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+.snake-tile-name {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.snake-tile.is-lead { border-color: var(--accent); color: var(--accent); }
+.snake-tile.is-lead .snake-tile-arrow,
+.snake-tile.is-lead .snake-tile-name { color: var(--accent); }
+.snake-status {
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.snake-quiet {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+  text-align: left;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+/* The replay row: picker, scrubber, play, speed, LIVE. */
+.snake-replay { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; }
+.snake-games,
+.snake-btn {
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.snake-games { max-width: 100%; }
+.snake-btn:hover { color: var(--text-primary); }
+.snake-btn:disabled { opacity: 0.5; cursor: default; }
+.snake-btn:focus-visible,
+.snake-games:focus-visible,
+.snake-scrub:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.snake-btn.is-active { color: var(--accent); border-color: var(--accent); }
+.snake-scrub { flex: 1 1 140px; min-width: 100px; accent-color: var(--accent); height: 4px; }
+@media (max-width: 640px) {
+  .snake-main { grid-template-columns: minmax(0, 1fr); }
+  .snake-board-box { max-width: 100%; }
+}
