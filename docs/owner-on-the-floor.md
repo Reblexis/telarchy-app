@@ -237,6 +237,62 @@ does not pay out returns to the wallet, and buying is not entry into the
 prize season (which the operator is ineligible for either way). Placing the
 credits stays on the floor, beside the price each pool moves.
 
+## What is planned
+
+The floor says what the owner has committed to and when, as one time axis
+rather than as prose: a "What is planned" card in the owner's zone (the left
+column from 1500px, otherwise beside the announcements in the tail). It
+answers the trader's question the ballot cannot: not "what would this do if
+approved" but "what is actually happening, and by when". Design record in
+the telarchy umbrella, `notes/floor-timeline-proposal-2026-09-11.md`.
+
+**The axis.** One horizontal time axis with a now-line and the past shaded,
+three ranges picked by a segmented control (today, week, month), a bar per
+item packed into lanes, the lane whose bar ends soonest on top. A bar is a
+committed interval: it starts when the commitment began and ends when it is
+due. Bars are things the floor already holds, plus the owner's own items:
+
+| bar | starts | ends | drawn from |
+|---|---|---|---|
+| an approved proposal not yet delivered | the approval | the earliest horizon it is priced on that has not yet resolved; a proposal whose every horizon has resolved has no bar | `proposals` approved with `deliveredAt` null |
+| a pending proposal | when it was posted | its decision deadline | `proposals` pending, `decideBy` |
+| an open baseline book | the start of its period | the day it resolves | `markets` with no proposal, open |
+| a plan item | the owner's start | the owner's due date | `plans` |
+
+A delivered proposal, a decided or lapsed proposal, a settled or voided book
+and a done plan item leave the axis: their interval is over, and history
+lives in the actions log, not here. An item with no start begins at the
+left edge of whatever range is shown (it can be worked on now); an item
+with no due date has no bar and is listed under the axis as "no date".
+Tapping a bar opens the thing it is: a proposal's address, the book, or the
+plan item's own words. The card renders nothing when there is nothing
+planned and the visitor cannot manage the floor, the same rule as the
+announcements.
+
+**Plan items** are the owner's commitments that are not proposals ("write
+the September results post", "call with Seer, Thursday"). One is a title,
+what it is (markdown, optional), a start (optional) and a due point
+(optional, day or minute precision), and it is either open or done. A
+manager adds one from the card's corner control ("+ plan"): one form, the
+four fields, one ink button. Each open plan bar carries a done tick for a
+manager; done stamps `doneAt` and the bar leaves the axis. Edits keep the
+words free and are recorded, as with announcements: a plan item is never
+deleted, only done or edited, so nothing planned in public can be quietly
+unplanned. Every add, edit and completion is a `plan` action on the data
+room's log (`docs/data-room.md`).
+
+**API.** `GET /api/marketplace/:idOrSlug/timeline` returns
+`{ now, items: [{ kind, id, title, start, end, href, done? }] }` with
+`kind` one of `proposal`, `decision`, `book`, `plan`, newest end last,
+under the same disclosure rule as the announcements (403 on a private floor
+or where the Public group does not hold read). The floor page and Otto read
+this and nothing else; no bar is computed on the client. Plan items are
+written by `POST /api/workspaces/:id/plans` (`{ title, description?,
+start?, due? }`, 201 with the row), edited by `PUT
+/api/workspaces/:id/plans/:planId` (any of the four fields, or
+`{ done: true|false }`), both requiring `manage`; the row carries
+`createdAt`, `editedAt`, `doneAt` and `createdBy`. No delete route exists.
+
 ## What is still open, on the floor itself
 
 An owner who comes back tomorrow sees what their floor has not settled yet,

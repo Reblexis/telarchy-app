@@ -2200,6 +2200,24 @@ page's guarantee sentence says the record holds what the owner, or a
 publisher the owner named, has said. Nothing is printed when `publishedBy`
 is null: the owner's own words stay unlabelled.
 
+**"What is planned"** (`FloorTimeline`) is the owner's calendar, the
+second block of the owner-prose zone after the announcements: one time
+axis with a now-line and shaded past, a segmented control for today, week
+and month, bars packed into lanes with the soonest deadline on top, and
+under it the items without a date. It draws exactly what
+`GET /api/marketplace/:idOrSlug/timeline` returns (`docs/owner-on-the-floor.md`,
+"What is planned"): approved-but-undelivered proposals, pending proposals
+until they decide, open books until they resolve, and the owner's plan
+items. The block shares the `.pubws-lb-head` anatomy (label "What is
+planned", meta naming the range shown), a bar is labelled inside itself
+when it is wide enough and just past its end otherwise, and a bar is a
+link to the thing it is. A manager gets "+ plan" as the corner control and
+a done tick on each plan bar; a visitor gets neither. It renders nothing
+when there is nothing planned and the visitor cannot manage. The left
+column holds it on wide viewports together with the season block and the
+announcements, since like them it is about this floor and never about
+other people.
+
 **"What is <name>?"** (`SubjectAbout`) is the product in its own words plus
 the primary sources: one sentence on what the product IS, then described
 links a forecaster can audit without trusting this page (for LookPilot:

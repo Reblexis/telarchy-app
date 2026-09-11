@@ -774,6 +774,11 @@
     "agent": 404,
     "master": 404
   },
+  "GET /api/marketplace/:workspaceId/timeline": {
+    "anon": 404,
+    "agent": 404,
+    "master": 404
+  },
   "GET /api/marketplace/:workspaceId": {
     "anon": 404,
     "agent": 404,
@@ -1250,6 +1255,16 @@
     "master": 200
   },
   "POST /api/workspaces/:id/members": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "PUT /api/workspaces/:id/plans/:planId": {
+    "anon": 401,
+    "agent": 404,
+    "master": 404
+  },
+  "POST /api/workspaces/:id/plans": {
     "anon": 401,
     "agent": 404,
     "master": 404

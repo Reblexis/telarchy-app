@@ -41,6 +41,7 @@ export const KINDS: readonly ActionKind[] = [
   { id: 'delivery', label: 'Deliveries', description: 'A proposer reported delivery.' },
   { id: 'comment', label: 'Comments', description: 'A message on a proposal or on a book.' },
   { id: 'announcement', label: 'Announcements', description: 'An owner published or edited an announcement.' },
+  { id: 'plan', label: 'Plans', description: 'An owner added, edited or completed a plan item.' },
   { id: 'reading', label: 'Readings', description: "A metric's value changed." },
   { id: 'metric', label: 'Metrics', description: 'A metric was added or its definition changed.' },
   { id: 'market', label: 'Books', description: 'A baseline book opened, settled, or was voided.' },
@@ -354,6 +355,34 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
       ORDER BY a.edited_at DESC, id DESC LIMIT ${take}`,
   );
 
+  // One plan item is up to three rows: it was added, its words or dates were
+  // edited, it was finished. Each reads the row's own instant, so the log
+  // says when each happened rather than when the row was last touched.
+  add(
+    'plan',
+    sql`SELECT 'plan:' || pl.id AS id, pl.created_at AS at, 'plan' AS kind, pl.workspace_id, pl.created_by AS actor_id,
+      jsonb_build_object('event', 'added', 'title', pl.title, 'start', pl.start, 'due', pl.due) AS payload
+      FROM plans pl
+      WHERE ${common(sql`pl.created_at`, sql`'plan:' || pl.id`, sql`pl.workspace_id`, sql`pl.created_by`)}
+      ORDER BY pl.created_at DESC, id DESC LIMIT ${take}`,
+  );
+  add(
+    'plan',
+    sql`SELECT 'plan:' || pl.id || ':edit' AS id, pl.edited_at AS at, 'plan' AS kind, pl.workspace_id, pl.created_by AS actor_id,
+      jsonb_build_object('event', 'edited', 'title', pl.title) AS payload
+      FROM plans pl
+      WHERE pl.edited_at IS NOT NULL AND ${common(sql`pl.edited_at`, sql`'plan:' || pl.id || ':edit'`, sql`pl.workspace_id`, sql`pl.created_by`)}
+      ORDER BY pl.edited_at DESC, id DESC LIMIT ${take}`,
+  );
+  add(
+    'plan',
+    sql`SELECT 'plan:' || pl.id || ':done' AS id, pl.done_at AS at, 'plan' AS kind, pl.workspace_id, pl.created_by AS actor_id,
+      jsonb_build_object('event', 'done', 'title', pl.title) AS payload
+      FROM plans pl
+      WHERE pl.done_at IS NOT NULL AND ${common(sql`pl.done_at`, sql`'plan:' || pl.id || ':done'`, sql`pl.workspace_id`, sql`pl.created_by`)}
+      ORDER BY pl.done_at DESC, id DESC LIMIT ${take}`,
+  );
+
   add(
     'reading',
     sql`SELECT 'reading:' || u.id AS id, u."timestamp" AS at, 'reading' AS kind, u.workspace_id, NULL AS actor_id,
@@ -650,6 +679,17 @@ function renderRow(
       text = p.event === 'edited' ? `edited an announcement: ${excerpt(p.body)}` : `announced: ${excerpt(p.body)}`;
       detail = { event: p.event };
       href = `/${slug}/announcements`;
+      break;
+    }
+    case 'plan': {
+      // The due day, not the instant: "due 2026-09-17" is what a reader
+      // scanning the log wants, and the timeline carries the exact point.
+      const due = p.due ? ` (due ${String(p.due).slice(0, 10)})` : '';
+      if (p.event === 'done') text = `finished a plan: ${p.title}`;
+      else if (p.event === 'edited') text = `edited a plan: ${p.title}`;
+      else text = `planned: ${p.title}${due}`;
+      detail = { event: p.event, title: p.title, start: p.start ?? null, due: p.due ?? null };
+      href = `/${slug}`;
       break;
     }
     case 'reading': {

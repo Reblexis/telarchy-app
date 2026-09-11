@@ -6366,6 +6366,239 @@ textarea.jobform-line--desc {
 }
 .pubws-rail .pubws-ballot-facts { font-size: 0.72rem; }
 
+/* "What is planned" (docs/owner-on-the-floor.md, "What is planned"): one
+   time axis in the owner's column. Hairlines, not cards: the axis is a
+   baseline with tick marks, the past is a faint wash, and the only filled
+   shapes are the bars themselves, because a bar IS an interval and a
+   wash is the honest way to draw one. Colour says the kind (accent for a
+   proposal, ink for the owner's own plan, bone for a book) and the one-word
+   meta on every bar says it again for a reader who cannot see the colour. */
+.pubws-tl-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0.55rem 0 0.7rem;
+}
+.pubws-tl-seg { justify-content: flex-start; }
+.pubws-tl-seg .pubws-seg-btn { padding: 0.32rem 0.55rem; font-size: 0.62rem; }
+
+.pubws-tl-axis { position: relative; width: 100%; min-width: 0; }
+.pubws-tl-ticks {
+  position: relative;
+  height: 1.1rem;
+  border-bottom: 1px solid var(--border-color);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-tertiary);
+}
+.pubws-tl-tick {
+  position: absolute;
+  bottom: 0.15rem;
+  transform: translateX(2px);
+  white-space: nowrap;
+}
+.pubws-tl-tick--major { color: var(--text-secondary); font-weight: 600; }
+.pubws-tl-tick::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  bottom: -0.15rem;
+  height: 0.3rem;
+  border-left: 1px solid var(--border-strong);
+}
+
+.pubws-tl-lanes {
+  position: relative;
+  overflow: hidden;
+  padding: 0.35rem 0 0.25rem;
+  min-height: 1.6rem;
+}
+.pubws-tl-past {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--bg-secondary);
+  pointer-events: none;
+}
+.pubws-tl-grid {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid var(--border-color);
+  opacity: 0.6;
+  pointer-events: none;
+}
+.pubws-tl-grid--major { opacity: 1; }
+.pubws-tl-now {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid var(--accent);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.pubws-tl-lane { position: relative; height: 1.45rem; }
+.pubws-tl-lane + .pubws-tl-lane { margin-top: 3px; }
+.pubws-tl-slot { display: contents; }
+
+/* A bar is one clickable row: the fill is the interval, the label sits over
+   it when the interval can hold the words and just past its end otherwise
+   (the model decides which). Text is one line, cut with an ellipsis. */
+.pubws-tl-bar {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  z-index: 1;
+  min-width: 0;
+}
+.pubws-tl-fill {
+  flex: none;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--bg-tertiary);
+  border-left: 2px solid var(--border-strong);
+  box-sizing: border-box;
+}
+.pubws-tl-bar--proposal .pubws-tl-fill { background: var(--accent-soft); border-left-color: var(--accent); }
+.pubws-tl-bar--decision .pubws-tl-fill {
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-left-width: 2px;
+}
+.pubws-tl-bar--book .pubws-tl-fill { background: var(--bg-tertiary); border-left-color: var(--border-strong); }
+.pubws-tl-bar--plan .pubws-tl-fill { background: var(--bg-tertiary); border-left-color: var(--text-primary); }
+.pubws-tl-bar--open-left .pubws-tl-fill { border-left-width: 0; border-radius: 0 2px 2px 0; }
+.pubws-tl-bar--open-right .pubws-tl-fill { border-radius: 2px 0 0 2px; }
+.pubws-tl-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1;
+}
+.pubws-tl-bar--inside .pubws-tl-label {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+}
+.pubws-tl-kind {
+  display: inline-block;
+  margin-right: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.pubws-tl-bar:hover .pubws-tl-label,
+.pubws-tl-bar:focus-visible .pubws-tl-label { color: var(--accent); }
+.pubws-tl-bar:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* The manager's done tick: a hairline square after the bar's words. */
+.pubws-tl-done {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  background: var(--bg-primary);
+  font: inherit;
+  font-size: 0.6rem;
+  line-height: 1;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  z-index: 3;
+}
+.pubws-tl-done:hover,
+.pubws-tl-done:focus-visible { color: var(--higher); border-color: var(--higher); outline: none; }
+.pubws-tl-undated-row .pubws-tl-done { position: static; transform: none; }
+
+/* Under the axis: the items with no due point, one hairline row each. */
+.pubws-tl-undated { margin-top: 0.7rem; }
+.pubws-tl-undated-head {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.pubws-tl-undated-list { list-style: none; margin: 0; padding: 0; }
+.pubws-tl-undated-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.82rem;
+}
+.pubws-tl-undated-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.pubws-tl-undated-title:hover,
+.pubws-tl-undated-title:focus-visible { color: var(--accent); outline: none; }
+
+/* A plan item's own words, opened from its bar; and the empty lines. */
+.pubws-tl-words {
+  text-align: left;
+  margin: 0.6rem 0 0;
+  padding: 0.5rem 0 0;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.pubws-tl-words strong { color: var(--text-primary); font-weight: 600; margin-right: 0.35rem; }
+.pubws-tl-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+.pubws-tl-empty--range {
+  position: relative;
+  z-index: 1;
+  padding: 0.2rem 0;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+.pubws-tl-words-field { min-height: 4.5rem; resize: vertical; }
+.pubws-tl-when { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.pubws-tl-when .jobform-field { flex: 1 1 12rem; }
+
 .pubws-know {
   margin-top: clamp(2.4rem, 6vh, 3.6rem);
   text-align: left;

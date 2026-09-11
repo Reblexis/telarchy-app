@@ -42,6 +42,7 @@ The kinds, in the order the filter bar lists them:
 | `delivery` | the proposer reported delivery | `proposals.deliveredAt` |
 | `comment` | a message on a proposal or on a book, as an excerpt | `proposal_messages`, `market_messages` |
 | `announcement` | the owner published an announcement, or edited one | `announcements`; an edit is its own row at `editedAt` |
+| `plan` | the owner added a plan item (title, start, due), edited one, or marked one done | `plans`: one row at `createdAt`, one at `editedAt` when set, one at `doneAt` when set (`docs/owner-on-the-floor.md`, "What is planned") |
 | `reading` | a metric's value changed: old, new, and the note that came with it | `updates`, which is written only when the value moved, so a flat number is silence rather than one row per hourly sync |
 | `metric` | a metric was added, or a field of its definition changed | `metrics.createdAt`; `metric_definition_revisions` |
 | `market` | a baseline book opened, settled on a value, or was voided | `markets` with no `proposalId`; a proposal's pair books are implied by its own row and would otherwise print two dozen lines per proposal |
