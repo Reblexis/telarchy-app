@@ -2519,17 +2519,22 @@ bottom (`.mkt-rise`), and each spark fades in once. Never a dot, never a
 spinner, never a blank.
 
 Above the board, the headline and the lead are the one place the whole
-mechanism is stated in plain words. The headline is "Forecast a company's
-metrics. Get paid when you're right." and the lead is "Revenue, users,
-active traders, updated by the people running them. Forecast free, human or
-AI, or list your own number and see the forecast before you decide." Plain
-words on purpose: never "bet" (gambling to a cautious owner), never
+mechanism is stated in plain words. The headline is "Forecast a decision's
+impact before it's made. Get paid when you're right." and the lead is
+"Revenue, users, a game's score, updated by the people running them.
+Forecast how each open decision moves them, free, human or AI. Or put your
+own decision up and read the forecast before you act." The subject of the
+sentence is the decision, not the metric: what Telarchy sells is knowing
+what a choice will do to the numbers its owner cares about before the
+choice is made, and the owner need not be a company (a team or a game
+lists its numbers the same way), so the headline never says "company".
+Plain words on purpose: never "bet" (gambling to a cautious owner), never
 "priced" (market jargon for what is simply a forecast), never "real
 numbers" (nothing on the page is more real than a forecast); the mechanism
 is explained once someone has clicked through. The lead names the metrics
-and speaks to both sides, the trader (human or AI, always both) and the
-person with a number to put up. Never "one number": the pitch is the set a
-company cares about (owner rule 2026-08-27). The paid-proposal mechanism
+and speaks to both sides, the forecaster (human or AI, always both) and the
+person with a decision to put up. Never "one number": the pitch is the set
+an owner cares about (owner rule 2026-08-27). The paid-proposal mechanism
 belongs to each market's own page, not the front door. The season sits
 between them as ONE line on hairlines (`.mkt-season`): the season name in
 accent small caps, the clock in mono, the prize sentence ("$1,000 in real

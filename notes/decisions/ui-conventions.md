@@ -1972,3 +1972,15 @@ tokens: the chart area's ground with a hairline grid, the snake in
 chart's range chips for the replay controls and the ticket slider's
 track for the scrubber; no near-black board, no glow. Spec in
 docs/ui-conventions.md, "The live view is a segment of the chart slot".
+
+**2026-09-11 (Viktor): the headline is about the decision.** Of "Forecast
+a company's metrics. Get paid when you're right." and its lead: "cant we
+improve the slogan to bemore accurate?" ... "i mean th epoint is that you
+forecast how decisions impact the values/ metrics the subject (not
+necessarilly a company) cares about before they are made.. and you get
+paid when youre right.." He picked "Forecast a decision's impact before
+it's made. Get paid when you're right." with the lead "Revenue, users, a
+game's score, updated by the people running them. Forecast how each open
+decision moves them, free, human or AI. Or put your own decision up and
+read the forecast before you act." Spec in docs/ui-conventions.md, "Above
+the board".
