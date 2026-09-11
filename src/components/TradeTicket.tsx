@@ -104,7 +104,27 @@ function fmtShares(v: number): string {
 function fmtCompact(v: number): string {
   if (v >= 1_000_000) return `${Math.round(v / 100_000) / 10}M`;
   if (v >= 1_000) return `${Math.round(v / 100) / 10}k`;
-  return fmt(v);
+  return fmtStake(v);
+}
+
+/** The ticket's stake precision: a millionth of a credit (docs/ui-conventions.md). */
+const STAKE_DECIMALS = 6;
+const STAKE_UNIT = 10 ** STAKE_DECIMALS;
+function roundStake(v: number): number {
+  return Math.round(v * STAKE_UNIT) / STAKE_UNIT;
+}
+/** A stake as typed: up to six decimals, none of them padding ("0.25", "250.75", "1.234568"). */
+function fmtStake(v: number): string {
+  return roundStake(v).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: STAKE_DECIMALS });
+}
+/** What the stake field accepts: digits and one decimal point, six places at most. */
+function cleanStake(raw: string): string {
+  const [whole, ...rest] = raw
+    .replace(/,/g, '.')
+    .replace(/[^0-9.]/g, '')
+    .split('.');
+  if (rest.length === 0) return whole;
+  return `${whole}.${rest.join('').slice(0, STAKE_DECIMALS)}`;
 }
 
 function fmt(v: number): string {
@@ -186,10 +206,13 @@ export function TradeTicket({
   // since 2026-08-30: redemption pays out AFTER the buy, so unlike the
   // liquidation it replaced it cannot fund the buy itself. Someone who
   // wants their position's cash first sells it, which is the panel below.
-  const maxBet = Math.max(1, Math.floor(balance != null && balance > 0 ? balance : 250));
+  // The balance itself, to the ticket's precision: never rounded down, so a
+  // 250.75 balance can be bet in full (docs/ui-conventions.md, "The stake is
+  // typed to a millionth of a credit").
+  const maxBet = roundStake(balance != null && balance > 0 ? balance : 250);
   const earnAvailable = useEarnAvailable(balance != null);
 
-  const amountNum = Math.max(0, Math.floor(parseFloat(amount) || 0));
+  const amountNum = Math.max(0, roundStake(parseFloat(amount) || 0));
   const limitNum = limit.trim() === '' ? null : parseFloat(limit.replace(/,/g, ''));
   const limitDisplay =
     limitNum !== null && Number.isFinite(limitNum) && !limit.endsWith('.')
@@ -390,14 +413,14 @@ export function TradeTicket({
     if (isLimit) {
       if (limitNum === null || limitError) return `Set a price for ${sideWord}`;
       // The whole instruction, in one readable sentence.
-      return `Buy ${sideWord} with ${amountNum} cr ${dir === 'higher' ? 'under' : 'over'} ${unit}${fmtValue(limitNum)}`;
+      return `Buy ${sideWord} with ${fmtStake(amountNum)} cr ${dir === 'higher' ? 'under' : 'over'} ${unit}${fmtValue(limitNum)}`;
     }
     if (target !== null) {
       // A typed target is an instruction about the landing value, and the
       // budget is a ceiling rather than the spend, so say it that way.
-      return `Bet to ${unit}${fmtValue(target)}, up to ${amountNum} cr`;
+      return `Bet to ${unit}${fmtValue(target)}, up to ${fmtStake(amountNum)} cr`;
     }
-    return `Bet ${amountNum} cr on ${sideWord}`;
+    return `Bet ${fmtStake(amountNum)} cr on ${sideWord}`;
   };
 
   /* The pushed-to value is an input: focus it, type a target, and the
@@ -442,7 +465,7 @@ export function TradeTicket({
           );
           if (!r) return;
           setDir(r.direction);
-          setAmount(String(Math.min(maxBet, Math.max(1, Math.ceil(r.cost)))));
+          setAmount(String(Math.min(maxBet, roundStake(r.cost))));
           setTarget(clamped);
         }}
         inputMode="decimal"
@@ -723,12 +746,11 @@ export function TradeTicket({
             <label className="compose-fld">
               <input
                 type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
+                inputMode="decimal"
                 value={amount}
                 style={{ width: `${Math.max(1, amount.length)}ch` }}
                 onChange={e => {
-                  setAmount(e.target.value.replace(/[^0-9]/g, ''));
+                  setAmount(cleanStake(e.target.value));
                   setTarget(null);
                 }}
                 aria-label="Credits to spend"

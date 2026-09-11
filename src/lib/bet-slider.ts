@@ -17,7 +17,8 @@
 export const SLIDER_STEPS = 1000;
 
 export function sliderToAmount(pos: number, maxBet: number): number {
-  if (maxBet <= 1) return 1;
+  // A balance under a credit has one reachable stake, all of it.
+  if (maxBet <= 1) return maxBet;
   const t = Math.min(SLIDER_STEPS, Math.max(0, pos)) / SLIDER_STEPS;
   if (t >= 1) return maxBet;
   const raw = Math.exp(t * Math.log(maxBet));

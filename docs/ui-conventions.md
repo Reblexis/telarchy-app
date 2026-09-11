@@ -1263,6 +1263,17 @@ numeral reads as a chosen stake, not a decoded pixel (1,943); the two
 ends stay exact, 1 cr and the full balance. The mapping lives in
 `src/lib/bet-slider.ts` and nowhere else.
 
+**The stake is typed to a millionth of a credit** (Viktor, 2026-09-11:
+"betting decimal amounts of credits up to 1000000th of a credit for now").
+The numeral keeps a decimal point and up to six places, nothing in the
+ticket rounds a typed stake to a whole credit, the confirm names it as
+typed ("Bet 0.25 cr on Higher"), and the ceiling is the balance itself,
+never the balance rounded down. A budget typed as a target's cost carries
+its decimals too. The slider keeps its ends and its whole-credit snapping:
+a stake under 1 cr is typed, not dragged. The server already keeps credits
+to a nanocredit (docs/guides/creating.md); the sixth decimal is the
+ticket's precision, and the field takes no seventh.
+
 The balance is the only ceiling, and the track ends there. Nothing else may
 limit a stake: a screen that offers a size the server refuses reads as a
 broken product rather than as a rule, so a size the ticket can reach is a size
