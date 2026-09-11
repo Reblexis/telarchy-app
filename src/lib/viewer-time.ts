@@ -108,7 +108,10 @@ export function tickIntervalFor(proposals: readonly Clocked[], now = Date.now())
  * decides within five minutes (docs/ui-conventions.md, "The board is at most
  * five seconds behind the trades"). A lapsed deadline is nothing to watch.
  */
-export function pollIntervalFor(proposals: readonly Clocked[], now = Date.now()): number {
+export function pollIntervalFor(proposals: readonly Clocked[], now = Date.now(), opts: { fed?: boolean } = {}): number {
+  // A fed floor keeps fifteen: the feed reloads the payload at every step
+  // and ruling (docs/ui-conventions.md, "The feed drives the floor").
+  if (opts.fed) return 15_000;
   const ms = soonestPendingMs(proposals, now);
   return ms !== null && ms > 0 && ms <= 5 * 60_000 ? 5000 : 15_000;
 }

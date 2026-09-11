@@ -2332,7 +2332,17 @@ Opening a proposal, by a row, a chevron or its address, scrolls its head
 into view: the page never lands a reader on a proposal whose title is
 above the fold they are looking at. The proposals board keeps pending
 rows in a stable order (deadline, then pool, then number) so a row does
-not move under the pointer as prices refresh.
+not move under the pointer as prices refresh. **The open step's prices
+read from the feed**: while a proposal the feed names is pending and has
+one pair, that pair's approved and declined prices and its impact, on
+the world cells, the impact chip and its board row, are the feed's
+latest 60-move quotes, so a price moves within a feed poll rather than a
+floor poll. A fed floor keeps the 15-second floor poll; the 5-second
+near-deadline poll is for floors with no feed, since here the feed
+reloads the payload at every step and ruling. A feed read older than 8
+seconds says so on the next-move line ("feed 12s old") in place of the
+countdown, which stops rather than count down a minute the page cannot
+see.
 
 **A proposal past its deadline reads as closed before the ruling lands.**
 The moment `decideBy` passes on a pending proposal the ticket closes and

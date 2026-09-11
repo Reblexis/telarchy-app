@@ -730,3 +730,34 @@ describe('THE GRID SHOWS ONE SHADOW ARROW PER OPEN ACTION, SHADED BY IMPACT', ()
     vi.useRealTimers();
   });
 });
+
+describe("the open step's prices read from the feed, and a stale feed says so", () => {
+  test('every read reports the quotes by proposal id', async () => {
+    const onQuotes = vi.fn();
+    render(
+      <MemoryRouter>
+        <SnakeLive slug="snake" onQuotes={onQuotes} />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(onQuotes).toHaveBeenCalled());
+    expect(onQuotes).toHaveBeenLastCalledWith({
+      p1: { approved: 7.2, declined: 6.0 },
+      p2: { approved: 8.9, declined: 6.0 },
+      p3: { approved: 5.1, declined: 6.0 },
+    });
+  });
+
+  test('a feed read older than 8 seconds is said on the next-move line and the countdown stops', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { container } = renderLive();
+    await vi.waitFor(() => expect(container.querySelector('.snake-clock')).toBeTruthy());
+    // The feed goes quiet: every later read hangs.
+    vi.mocked(api.getLiveState).mockImplementation(() => new Promise(() => {}));
+    await vi.advanceTimersByTimeAsync(9_100);
+    const line = container.querySelector('.snake-next') as HTMLElement;
+    expect(line.textContent).toMatch(/feed \d+s old/);
+    expect(line.textContent).toMatch(/turn left/);
+    expect(container.querySelector('.snake-clock')).toBeNull();
+    vi.useRealTimers();
+  });
+});

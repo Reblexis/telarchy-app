@@ -17,6 +17,7 @@ export function LiveView({
   center,
   onPickProposal,
   onStep,
+  onQuotes,
 }: {
   kind: string;
   slug: string;
@@ -26,6 +27,8 @@ export function LiveView({
   onPickProposal?: (number: number) => void;
   /** The feed's step changed or its decision landed: the page reloads at once. */
   onStep?: (s: { step: number; decided: boolean }) => void;
+  /** Every feed read: the open step's quotes by proposal id, for the floor's prices. */
+  onQuotes?: (quotes: Record<string, { approved: number | null; declined: number | null }>) => void;
 }) {
   return (
     <div className="mchart mchart--live">
@@ -34,7 +37,9 @@ export function LiveView({
         <span className="mchart-center">{center}</span>
         <span className="mchart-right" />
       </div>
-      {kind === 'snake' ? <SnakeLive slug={slug} onPickProposal={onPickProposal} onStep={onStep} /> : null}
+      {kind === 'snake' ? (
+        <SnakeLive slug={slug} onPickProposal={onPickProposal} onStep={onStep} onQuotes={onQuotes} />
+      ) : null}
     </div>
   );
 }

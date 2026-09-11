@@ -24,6 +24,8 @@ import {
  */
 
 const POLL_MS = 2_000;
+/** A read older than this is stale: said on the line, no countdown. */
+const STALE_S = 8;
 const WINDOW = 300;
 /** Drawing units per cell; the svg scales to its box. */
 const CELL = 24;
@@ -284,12 +286,15 @@ export function SnakeLive({
   slug,
   onPickProposal,
   onStep,
+  onQuotes,
 }: {
   slug: string;
   /** A chevron was clicked: select that proposal on the floor (docs/ui-conventions.md, "The feed drives the floor"). */
   onPickProposal?: (number: number) => void;
   /** The feed's open step changed or its decision landed, reported as soon as the poll reads it, never for the first read. */
   onStep?: (s: { step: number; decided: boolean }) => void;
+  /** Every read: the open step's 60-move quotes by proposal id, for the floor's prices (docs/ui-conventions.md, "The feed drives the floor"). */
+  onQuotes?: (quotes: Record<string, { approved: number | null; declined: number | null }>) => void;
 }) {
   const [state, setState] = useState<SnakeState | null>(null);
   const [fetchedAt, setFetchedAt] = useState(0);
@@ -297,6 +302,8 @@ export function SnakeLive({
   const [failed, setFailed] = useState(false);
   const onStepRef = useRef(onStep);
   onStepRef.current = onStep;
+  const onQuotesRef = useRef(onQuotes);
+  onQuotesRef.current = onQuotes;
   const stepKeyRef = useRef<string | null>(null);
 
   /* Realtime: one read now, then every 2 seconds while the tab is visible. */
@@ -320,6 +327,15 @@ export function SnakeLive({
           onStepRef.current?.({ step, decided });
         }
         if (key !== null) stepKeyRef.current = key;
+        if (onQuotesRef.current && s.open) {
+          const out: Record<string, { approved: number | null; declined: number | null }> = {};
+          for (const a of ACTIONS) {
+            const id = s.open.proposals?.[a]?.id;
+            const q = s.open.quotes?.[a]?.m60;
+            if (id && q) out[id] = { approved: q.approved ?? null, declined: q.declined ?? null };
+          }
+          onQuotesRef.current(out);
+        }
       } catch {
         if (!stopped) setFailed(true);
       }
@@ -566,6 +582,10 @@ export function SnakeLive({
     line = { text: 'Next move: continue forward (default)', cls: 'is-default' };
   } else if (next.decided) {
     line = { text: `Next move: ${ACTION_WORDS[next.action]}, decided`, cls: 'is-decided' };
+  } else if (elapsed > STALE_S) {
+    /* A feed read older than 8 seconds is said instead of a countdown the
+       page cannot see (docs/ui-conventions.md, "The feed drives the floor"). */
+    line = { text: `Next move: ${ACTION_WORDS[next.action]} · feed ${Math.round(elapsed)}s old`, cls: 'is-idle' };
   } else {
     line = { text: `Next move: ${ACTION_WORDS[next.action]} in `, clock: clock(seconds), cls: 'is-open' };
   }

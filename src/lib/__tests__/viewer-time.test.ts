@@ -63,6 +63,9 @@ describe('the clocks tick and the floor polls at the rate the nearest deadline m
     expect(pollIntervalFor([pending(4 * 60)], now)).toBe(5000);
     expect(pollIntervalFor([pending(6 * 60)], now)).toBe(15_000);
     expect(pollIntervalFor([pending(-10)], now)).toBe(15_000); // lapsed: nothing to watch
+    // A fed floor keeps fifteen: the feed reloads the payload at every step and ruling.
+    expect(pollIntervalFor([pending(4 * 60)], now, { fed: true })).toBe(15_000);
+    expect(pollIntervalFor([pending(4 * 60)], now, { fed: false })).toBe(5000);
     expect(pollIntervalFor([], now)).toBe(15_000);
   });
 });
