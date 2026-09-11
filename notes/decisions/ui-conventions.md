@@ -2025,3 +2025,27 @@ the headline painted over. Not done, by his words: the plain line under
 the title, the ticket's labels, and the rest of the proposal. Specs in
 docs/ui-conventions.md: "The question line", "The stat row", "The live
 view is a segment of the chart slot", "The page ends".
+
+**2026-09-11 (Viktor): the snake floor updates smoothly, the rest stays.**
+Of the two blind design critiques of telarchy.com/snake
+(docs/reviews/2026-09-11-snake-design-critic.md and -2.md): "fix the bugs
+and issues causing it to not update smoothly realtime leave the rest". So,
+and nothing else from either report: a pending row keeps its place for its
+whole life (deadline, then the feed's action order remembered per proposal,
+then creation and number; never price or pool), a row decided under the
+reader holds its place for ten seconds with its ruling before it joins the
+fold, and the next minute's rows arrive under it, because a click on "Turn
+left" with eight seconds left had opened the next minute's "Continue
+forward"; the NOW cell's read age is the newest reading the page holds,
+the feed's own step when that is newer than the floor payload, since the
+cell read "read 1m ago" one second after the reading it names; the snake's
+move and the head transition to their new cells over 250ms and a chevron
+fades between its states, reduced motion respected, instead of the board
+jumping between polls; and the closed line in the ticket's place stays
+through the ruling ("Trading closed. Decided: approved.") instead of the
+rail emptying at the decision. The ticking m:ss countdowns and the fed
+floor's poll rates were already in place from the same day's feed work.
+Specs in docs/ui-conventions.md, "The live view is a segment of the chart
+slot" ("The feed drives the floor", "A pending row keeps its place for its
+whole life", "The reading's age is the newest reading's age", "A proposal
+past its deadline reads as closed before the ruling lands").

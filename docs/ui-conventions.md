@@ -2328,7 +2328,15 @@ grid.. and next move.. maybe text"):
    is off the grid it sits pressed against the head's edge pointing out
    (`.is-wall`), so a wall crash is visible before it happens. In replay
    the chevron is the entry's `direction`, solid, so scrubbing shows where
-   it went (record in `notes/decisions/ui-conventions.md`).
+   it went (record in `notes/decisions/ui-conventions.md`). **A move
+   transitions, it does not snap**: the band and the head are drawn as
+   paths that transition to their new cells over 250ms (`transition: d`
+   and `transition: transform` on `.snake-snake` and `.snake-head-mark`),
+   and a chevron fades between its open and its decided shading rather
+   than flipping (`transition: stroke-opacity`). Under
+   `prefers-reduced-motion: reduce` none of that animates and every state
+   change is instant. The grid keeps the last state it read while a poll
+   is in flight or fails, so it never blanks between reads.
 2. **The next move** (`.snake-next`), one left-aligned text line, the
    leader's action in words: "Next move: turn left in 0:31" while the step
    is open (the countdown from `next.seconds`, ticking by the second
@@ -2357,9 +2365,32 @@ the page within a poll of the feed, never a quarter of a minute later.
 Clicking a chevron selects that proposal exactly as a board row does.
 Opening a proposal, by a row, a chevron or its address, scrolls its head
 into view: the page never lands a reader on a proposal whose title is
-above the fold they are looking at. The proposals board keeps pending
-rows in a stable order (deadline, then pool, then number) so a row does
-not move under the pointer as prices refresh. **The open step's prices
+above the fold they are looking at.
+
+**A pending row keeps its place for its whole life** (2026-09-11, of a
+click on "Turn left" that opened the next minute's "Continue forward").
+The proposals board orders pending rows by deadline, then by the feed's
+own action order (Continue, Turn left, Turn right, the order of the chips
+under the grid, remembered per proposal from the first read that names
+it), then by creation time and number. Nothing about a row's price, pool
+or impact ever moves it, so the row under the pointer is the row a click
+lands on. A row decided while the page is open holds its place for ten
+seconds, its ruling showing where it stands, before it joins the decided
+fold, and the next minute's rows are added under it rather than in front
+of it; a row held that way does not count against the five-row fold.
+
+**Every countdown on the floor reads one clock.** Under an hour a
+deadline is m:ss everywhere it appears and ticks every second: the board
+rows, the proposal head's chip and the next-move line under the grid all
+read the page's clock, which runs at one second while a pending proposal
+decides within the hour and at one minute otherwise.
+
+**The reading's age is the newest reading's age.** The NOW cell's
+"read 1m ago" is the true age of the newest reading the page holds,
+ticking with that same clock. On a fed floor the feed's own step is that
+reading whenever it is newer than the payload's last one (the open step's
+`openedAt` and the game's `length`), so the cell reads "read just now"
+the second the snake moves instead of waiting for the next floor poll. **The open step's prices
 read from the feed**: while a proposal the feed names is pending and has
 one pair, that pair's approved and declined prices and its impact, on
 the world cells, the impact chip and its board row, are the feed's
@@ -2376,7 +2407,11 @@ The moment `decideBy` passes on a pending proposal the ticket closes and
 the two verbs are dead, with one mono line in the ticket's place,
 "Trading closed at the deadline. The ruling lands in a moment; this page
 updates on its own." (on a quiet floor that moment can be the lapse, said
-the same way). When the ruling arrives the head carries it: the status
+the same way). That line is the same element from the close through the
+ruling and it does not leave: when the ruling lands it reads "Trading
+closed. Decided: approved." (declined and lapsed the same way), so the
+rail never empties under a reader who was looking at the ticket. When the
+ruling arrives the head carries it: the status
 pill of the board fold (`.pubws-ballot-status`, approved, declined or
 lapsed) before the number in the title row, and the clock fact reads
 "approved 16:30:58" (the ruling's word and its instant to the second, in
