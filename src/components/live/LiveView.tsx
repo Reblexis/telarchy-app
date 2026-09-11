@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { SnakeState } from '../../lib/api';
 import { SnakeLive } from './SnakeLive';
 
 /**
@@ -13,6 +14,7 @@ import { SnakeLive } from './SnakeLive';
 export function LiveView({
   kind,
   slug,
+  onState,
   corner,
   center,
   onPickProposal,
@@ -21,6 +23,8 @@ export function LiveView({
 }: {
   kind: string;
   slug: string;
+  /** Every polled state, reported up so the floor can name the attempt. */
+  onState?: (state: SnakeState) => void;
   corner?: ReactNode;
   center?: ReactNode;
   /** A chevron was clicked: the page selects that proposal (docs/ui-conventions.md, "The feed drives the floor"). */
@@ -38,7 +42,7 @@ export function LiveView({
         <span className="mchart-right" />
       </div>
       {kind === 'snake' ? (
-        <SnakeLive slug={slug} onPickProposal={onPickProposal} onStep={onStep} onQuotes={onQuotes} />
+        <SnakeLive slug={slug} onPickProposal={onPickProposal} onStep={onStep} onQuotes={onQuotes} onState={onState} />
       ) : null}
     </div>
   );

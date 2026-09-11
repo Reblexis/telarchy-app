@@ -32,7 +32,7 @@ import { type TicketPosition, TradeTicket } from '../components/TradeTicket';
 import { useAuth } from '../hooks/useAuth';
 import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import type { FloorRef } from '../lib/agent-prompt';
-import type { LeaderboardEntry, LimitOrder, PublicProposal } from '../lib/api';
+import type { LeaderboardEntry, LimitOrder, PublicProposal, SnakeState } from '../lib/api';
 import { api, type PublicWorkspace, setActiveWorkspace } from '../lib/api';
 import { withBase } from '../lib/base-path';
 import { type FeedQuotes, overlayFeedQuotes } from '../lib/feed-overlay';
@@ -49,6 +49,7 @@ import {
   horizonById,
   metricLabelOf,
   metricsOf,
+  moveQuestionOf,
   type PriceSeries,
   possessiveOf,
   priceSeriesIsInline,
@@ -401,6 +402,10 @@ export function TradePage() {
   const [descExpanded, setDescExpanded] = useState(false);
   /** The (i) beside the floor's name, for touch: hover and focus are CSS. */
   const [wsWhatOpen, setWsWhatOpen] = useState(false);
+  /* The live feed's latest state, reported up by the LIVE segment so the
+     stat row can name the attempt (docs/ui-conventions.md, "The stat row",
+     2026-09-11). Null until the first poll, and on a floor with no feed. */
+  const [liveState, setLiveState] = useState<SnakeState | null>(null);
   const joinTried = useRef(false);
   // The owner's decision controls (owner ask 2026-08-11: approve from the
   // floor). manage capability on this workspace reveals them on a selected
@@ -690,6 +695,24 @@ export function TradePage() {
   // market chart's row (owner ask 2026-08-28), so the clock never leaves
   // the page.
   const settleLeft = hero ? timeLeftOf(hero, now) : null;
+  /* A game floor asks in the game's unit (docs/ui-conventions.md, "The
+     question line", 2026-09-11): on a snake floor a minute cell reads "in
+     60 moves", never "at 15:53". Every other floor reads as before. */
+  const askDateOf = (v: HorizonView | null) =>
+    liveFeed?.kind === 'snake' ? moveQuestionOf(v, now) : dateQuestionOf(v);
+  /* The attempt the reading belongs to, `deaths + 1`, once the feed has
+     been read (docs/ui-conventions.md, "The stat row"); null otherwise. */
+  const attempt =
+    liveFeed?.kind === 'snake' && typeof liveState?.game?.deaths === 'number' ? liveState.game.deaths + 1 : null;
+  /* The owner's two entries: the last tab of a strip that is drawn, or a
+     button in the owner row when that strip has one option. */
+  const manageMetrics = { label: 'Manage metrics', open: () => setOwnerDialog({ kind: 'metrics' }) };
+  const manageDates = {
+    label: 'Manage dates',
+    open: () => {
+      if (hero) setOwnerDialog({ kind: 'dates', metricId: hero.metricId, metricName: metricLabel });
+    },
+  };
   // What an operator's own agent is told about this market
   // (docs/owner-on-the-floor.md, "Handing it to your own agent"). Built from
   // the payload the page already holds, so the prompt names real ids and
@@ -1451,9 +1474,6 @@ export function TradePage() {
                       <span className="pubws-ws-info-btn" aria-hidden="true">
                         i
                       </span>
-                      <span className="pubws-ws-what" role="tooltip">
-                        {hint.description}
-                      </span>
                     </span>
                   )}
                 </>
@@ -1575,27 +1595,34 @@ export function TradePage() {
             selection: only the instrument below it swaps. */}
           {ws.name && (
             <header className="pubws-ident pubws-enter">
-              <h1 className="pubws-ws-name">{ws.name}</h1>
-              {/* What the company sells, behind an (i) rather than as a line
-                of prose under the name (owner ask 2026-09-10). Hover and
-                keyboard focus open it in CSS; the press is for touch, where
-                neither exists. Outside the h1, so the heading's accessible
-                name stays the company's name. */}
-              {ws.description && (
-                <span className={`pubws-ws-info${wsWhatOpen ? ' is-open' : ''}`}>
-                  <button
-                    type="button"
-                    className="pubws-ws-info-btn"
-                    aria-label={`What ${ws.name} is`}
-                    aria-expanded={wsWhatOpen}
-                    onClick={() => setWsWhatOpen(v => !v)}
-                  >
-                    i
-                  </button>
-                  <span className="pubws-ws-what" role="tooltip">
-                    <Linkified text={ws.description} />
+              <div className="pubws-ident-line">
+                <h1 className="pubws-ws-name">{ws.name}</h1>
+                {/* What the company sells, behind an (i) rather than as a line
+                  of prose under the name (owner ask 2026-09-10). Since
+                  2026-09-11 the press opens it INLINE under the name, in
+                  normal flow, so the headline never paints over it (the
+                  popup it replaced, design critic finding 1). Closed by
+                  default, never on hover. Outside the h1, so the heading's
+                  accessible name stays the company's name. */}
+                {ws.description && (
+                  <span className="pubws-ws-info">
+                    <button
+                      type="button"
+                      className="pubws-ws-info-btn"
+                      aria-label={`What ${ws.name} is`}
+                      aria-expanded={wsWhatOpen}
+                      aria-controls="pubws-ws-what"
+                      onClick={() => setWsWhatOpen(v => !v)}
+                    >
+                      i
+                    </button>
                   </span>
-                </span>
+                )}
+              </div>
+              {ws.description && (
+                <div id="pubws-ws-what" className="pubws-ws-what" hidden={!wsWhatOpen}>
+                  <Linkified text={ws.description} />
+                </div>
               )}
             </header>
           )}
@@ -1708,6 +1735,11 @@ export function TradePage() {
                anything. A (metric, date) pair is a market, so selection is
                still one market id, and the owner's way into the metrics and
                the dates is the last tab of its strip. */}
+              {/* A picker with one option is not rendered, for the owner
+                either (docs/ui-conventions.md, "The question line",
+                2026-09-11); the entries whose strip is gone sit in the
+                owner row under the strips, so the rule hides a picker and
+                never an owner action. */}
               <FloorStrip
                 ariaLabel="Metrics"
                 kind="metric"
@@ -1717,7 +1749,6 @@ export function TradePage() {
                    price", 2026-09-09): a proposal ships a pair for every cell
                    of the grid, and that grid was never on screen before. */
                 tabs={metricHeads.map(m => {
-                  const cell = cellOf(horizons, m.metricId, hero?.targetDate, keptCells);
                   const cellPair = selectedJob ? pairAt(selectedJob, hero?.targetDate, m.metricId) : null;
                   const dry = !!selectedJob && !hasLiquidity(cellPair);
                   return {
@@ -1738,7 +1769,7 @@ export function TradePage() {
                   const cell = cellOf(horizons, id, hero?.targetDate, keptCells);
                   if (cell) setHorizonId(cell.marketId);
                 }}
-                manage={canManage ? { label: 'Manage metrics', open: () => setOwnerDialog({ kind: 'metrics' }) } : null}
+                manage={canManage && metricHeads.length >= 2 ? manageMetrics : null}
               />
               {hero && (
                 <FloorStrip
@@ -1763,16 +1794,30 @@ export function TradePage() {
                     };
                   })}
                   onPick={id => setHorizonId(id)}
-                  manage={
-                    canManage && hero.metricId
-                      ? {
-                          label: 'Manage dates',
-                          open: () =>
-                            setOwnerDialog({ kind: 'dates', metricId: hero.metricId, metricName: metricLabel }),
-                        }
-                      : null
-                  }
+                  manage={canManage && hero.metricId && heroDates.length >= 2 ? manageDates : null}
                 />
+              )}
+              {canManage && hero && (metricHeads.length < 2 || heroDates.length < 2) && (
+                <div className="pubws-strip-owner" role="group" aria-label="Manage this floor">
+                  {metricHeads.length < 2 && (
+                    <button
+                      type="button"
+                      className="pubws-strip-tab pubws-strip-tab--manage"
+                      onClick={manageMetrics.open}
+                    >
+                      <span className="pubws-strip-name">{manageMetrics.label}</span>
+                    </button>
+                  )}
+                  {heroDates.length < 2 && hero.metricId && (
+                    <button
+                      type="button"
+                      className="pubws-strip-tab pubws-strip-tab--manage"
+                      onClick={manageDates.open}
+                    >
+                      <span className="pubws-strip-name">{manageDates.label}</span>
+                    </button>
+                  )}
+                </div>
               )}
               {/* The question line (owner ask 2026-08-28): under the pickers,
                the selected cell stated as the market's own sentence, "What
@@ -1883,12 +1928,12 @@ export function TradePage() {
                  inline-block child ignores a no-break space before it, so
                  the group is held together by nowrap instead. */}{' '}
                   <span className="pubws-ask-tail">
-                    {dateQuestionOf(hero).lead}
+                    {askDateOf(hero).lead}
                     <CycleWord
                       what="Date"
                       options={heroDates.map(d => ({
                         key: d.marketId,
-                        label: dateQuestionOf(d).word,
+                        label: askDateOf(d).word,
                         title: d.resolvesOn ? `settles ${settleInstant(d.resolvesOn)}` : undefined,
                       }))}
                       activeKey={hero.marketId}
@@ -2034,6 +2079,7 @@ export function TradePage() {
                         then the value under it. */}
                         <span className="pubws-stat-what">
                           now
+                          {attempt !== null && ` · attempt ${attempt}`}
                           {lastReading?.at && (
                             <>
                               {' · '}
@@ -2101,6 +2147,7 @@ export function TradePage() {
                       <LiveView
                         kind={liveFeed.kind}
                         slug={ws.slug ?? idOrSlug ?? ws.workspaceId}
+                        onState={setLiveState}
                         corner={chartModeToggle}
                         center={<span className="pubws-chart-cap">{captionLabel(metricLabel, ws.name)}</span>}
                         /* The feed drives the floor (docs/ui-conventions.md): a

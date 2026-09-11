@@ -60,9 +60,10 @@ export function FloorStrip({
     }
   }, [selectedId]);
 
-  // A strip of one is a label. The owner keeps it, because the last tab is
-  // their way into the dialog.
-  if (tabs.length < 2 && !manage) return null;
+  // A picker with one option is not rendered, for anyone (docs/
+  // ui-conventions.md, "The question line", 2026-09-11). The owner's way
+  // into the dialog is the owner row the floor draws under the strips.
+  if (tabs.length < 2) return null;
 
   return (
     <div className={`pubws-strip pubws-strip--${kind}`} role="tablist" aria-label={ariaLabel} ref={ref}>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   api,
   type SnakeAction,
@@ -11,9 +12,10 @@ import {
 
 /**
  * The snake feed, drawn natively on the floor (docs/ui-conventions.md, "The
- * live view is a segment of the chart slot", "The snake feed"): the grid
- * and one next-move line, nothing else; under it the replay: a game
- * picker, a scrubber, play, a speed, and LIVE.
+ * live view is a segment of the chart slot", "The snake feed"): the grid,
+ * one next-move line, the why line and the three picks (2026-09-11);
+ * under them the replay: a game picker, a scrubber, play, a speed, and
+ * LIVE.
  *
  * Realtime polls GET /api/marketplace/:slug/live every 2 seconds while the
  * tab is visible, and keeps polling during replay so LIVE is instant.
@@ -37,6 +39,10 @@ const ACTION_WORDS: Record<SnakeAction, string> = {
   left: 'turn left',
   right: 'turn right',
 };
+/** The action as a pick's name, in the fixed order of the chips. */
+const ACTION_NAMES: Record<SnakeAction, string> = { forward: 'Continue', left: 'Turn left', right: 'Turn right' };
+/** The arrow of a compass direction, on a pick. */
+const ARROWS: Record<SnakeHeading, string> = { up: '\u2191', down: '\u2193', left: '\u2190', right: '\u2192' };
 /** The action in the past, as the replay line prints it. */
 const ACTION_PAST: Record<SnakeAction, string> = {
   forward: 'continued forward',
@@ -54,6 +60,47 @@ function impactOf(state: SnakeState, action: SnakeAction): number | null {
   const q = state.open?.quotes?.[action]?.m60;
   if (!q || typeof q.approved !== 'number' || typeof q.declined !== 'number') return null;
   return q.approved - q.declined;
+}
+
+/** A 60-move impact printed: signed, one decimal, "+0.0" when unquoted. */
+function impactText(v: number | null): string {
+  const n = v === null ? 0 : Number(v.toFixed(1));
+  const z = Object.is(n, -0) || n === 0 ? 0 : n;
+  return `${z < 0 ? '-' : '+'}${Math.abs(z).toFixed(1)}`;
+}
+
+/** The sentence in words, capitalised for the head of the why line. */
+function capital(words: string): string {
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
+ * Why the leader leads, from the three 60-move impacts (docs/ui-conventions.md,
+ * item 3 of what LIVE draws): the leader is the feed's `next.action` when
+ * its impact is the top, else the top impact; a missing quote counts as
+ * 0.0; all equal is a tie, which plays forward.
+ */
+function whyOf(
+  impacts: Record<SnakeAction, number | null>,
+  nextAction: SnakeAction | null,
+): { leader: SnakeAction | null; text: string } {
+  const val = (a: SnakeAction) => impacts[a] ?? 0;
+  const top = Math.max(...ACTIONS.map(val));
+  const tie = ACTIONS.every(a => val(a) === top);
+  if (tie) {
+    return { leader: null, text: 'Nobody has priced this step yet. A tie plays forward. Bet on a turn to change it.' };
+  }
+  const leader = nextAction && val(nextAction) === top ? nextAction : (ACTIONS.find(a => val(a) === top) ?? 'forward');
+  const rest = ACTIONS.filter(a => a !== leader);
+  const runner = rest.reduce((best, a) => (val(a) > val(best) ? a : best), rest[0]);
+  const lead = impactText(val(leader) - val(runner));
+  return { leader, text: `${capital(ACTION_WORDS[leader])} leads by ${lead} over ${ACTION_WORDS[runner]}.` };
+}
+
+/** A proposal's place on THIS floor when its url carries the number, else the url as given. */
+function pickHref(slug: string, url: string): string {
+  const m = url.match(/\/p\/(\d+)(?:[?#]|$)/);
+  return m ? `/${slug}/p/${m[1]}` : url;
 }
 
 /** One cell of travel per compass direction. */
@@ -287,6 +334,7 @@ export function SnakeLive({
   onPickProposal,
   onStep,
   onQuotes,
+  onState,
 }: {
   slug: string;
   /** A chevron was clicked: select that proposal on the floor (docs/ui-conventions.md, "The feed drives the floor"). */
@@ -295,8 +343,12 @@ export function SnakeLive({
   onStep?: (s: { step: number; decided: boolean }) => void;
   /** Every read: the open step's 60-move quotes by proposal id, for the floor's prices (docs/ui-conventions.md, "The feed drives the floor"). */
   onQuotes?: (quotes: Record<string, { approved: number | null; declined: number | null }>) => void;
+  /** Every read, the whole state, for the stat row's attempt (docs/ui-conventions.md, "The stat row"). */
+  onState?: (state: SnakeState) => void;
 }) {
   const [state, setState] = useState<SnakeState | null>(null);
+  const onStateRef = useRef(onState);
+  onStateRef.current = onState;
   const [fetchedAt, setFetchedAt] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [failed, setFailed] = useState(false);
@@ -336,6 +388,7 @@ export function SnakeLive({
           }
           onQuotesRef.current(out);
         }
+        onStateRef.current?.(s);
       } catch {
         if (!stopped) setFailed(true);
       }
@@ -557,12 +610,19 @@ export function SnakeLive({
   const elapsed = fetchedAt ? Math.max(0, (now - fetchedAt) / 1000) : 0;
   const seconds = next ? Math.max(0, next.seconds - elapsed) : 0;
 
-  /* The 60-move impacts, carried on the drawing but not printed (the tiles
-     were cut 2026-09-11); rendering them again is a one-line change here. */
+  /* The 60-move impacts: carried on the drawing, printed once on the picks. */
   const impacts = state ? ACTIONS.map(a => impactOf(state, a)) : [];
   const impactsAttr = impacts.length
     ? impacts.map(v => (v === null ? '' : String(Number(v.toFixed(1))))).join(',')
     : undefined;
+  /* The why line and the three picks: realtime only, while a step is open. */
+  const open = !replay && state?.open ? state.open : null;
+  const why = open
+    ? whyOf(
+        { forward: impacts[0] ?? null, left: impacts[1] ?? null, right: impacts[2] ?? null },
+        next && next.action in ACTION_WORDS ? next.action : null,
+      )
+    : null;
 
   /* The scrubber's game: the one being replayed, else the newest. */
   const scrubGame = replay?.game ?? games[0]?.number;
@@ -611,6 +671,45 @@ export function SnakeLive({
           {line.text}
           {line.clock !== undefined && <span className="snake-clock">{line.clock}</span>}
         </p>
+        {open && why && (
+          <>
+            <p className="snake-why">{why.text}</p>
+            <div className="snake-picks" role="list" aria-label="Directions">
+              {ACTIONS.map((a, i) => {
+                const proposal = open.proposals?.[a] ?? null;
+                const heading = open.directions?.[a];
+                const leader = why.leader === a;
+                const inner = (
+                  <>
+                    <span className="snake-pick-arrow" aria-hidden="true">
+                      {heading && heading in ARROWS ? ARROWS[heading] : ''}
+                    </span>
+                    <span className="snake-pick-name">{ACTION_NAMES[a]}</span>
+                    <span className="snake-pick-impact">{impactText(impacts[i] ?? null)}</span>
+                  </>
+                );
+                const cls = `snake-pick${leader ? ' is-leader' : ''}`;
+                if (!proposal?.url) {
+                  return (
+                    <span key={a} role="listitem" className={cls} aria-current={leader ? 'true' : undefined}>
+                      {inner}
+                    </span>
+                  );
+                }
+                const href = pickHref(slug, proposal.url);
+                return href.startsWith('/') ? (
+                  <Link key={a} role="listitem" to={href} className={cls} aria-current={leader ? 'true' : undefined}>
+                    {inner}
+                  </Link>
+                ) : (
+                  <a key={a} role="listitem" href={href} className={cls} aria-current={leader ? 'true' : undefined}>
+                    {inner}
+                  </a>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
       <div className="snake-replay" role="group" aria-label="Replay">
         <select
