@@ -799,6 +799,11 @@
     "agent": 200,
     "master": 200
   },
+  "POST /api/metrics/:id/settle": {
+    "anon": 401,
+    "agent": 400,
+    "master": 400
+  },
   "DELETE /api/metrics/:id": {
     "anon": 401,
     "agent": 404,

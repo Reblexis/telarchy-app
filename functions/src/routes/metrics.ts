@@ -16,6 +16,7 @@ import { desiredMarketDates, generatesMarkets, getLeafDescendantNames } from '..
 import { fromUnits, liquiditySpendableUnits } from '../lib/validation';
 import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
+import { settleMetricEarly } from '../services/predictions';
 import { emitEvent } from '../services/events';
 import { voidMarketsById, voidOpenMarketsForMetrics } from '../services/markets';
 import * as svc from '../services/metrics';
@@ -288,6 +289,34 @@ metricsRouter.post(
     }
 
     res.status(201).json({ ok: true, id, warnings });
+  }),
+);
+
+/** docs/market-integrity.md, "The answer can arrive before the period ends":
+ *  the owner files the answer and every open book on the metric settles now. */
+metricsRouter.post(
+  '/:id/settle',
+  requireCapability('manage'),
+  wrap(async (req, res) => {
+    const { workspaceId } = req.auth!;
+    const id = req.params.id as string;
+    const body = req.body ?? {};
+    const value = typeof body.value === 'number' ? body.value : Number(body.value);
+    if (body.value === undefined || body.value === null || !Number.isFinite(value)) {
+      res.status(400).json({ error: 'value must be a number' });
+      return;
+    }
+    const reason = typeof body.reason === 'string' ? body.reason : '';
+    let asOf: Date | undefined;
+    if (body.asOf !== undefined && body.asOf !== null) {
+      asOf = new Date(String(body.asOf));
+      if (Number.isNaN(asOf.getTime())) {
+        res.status(400).json({ error: 'asOf must be an ISO instant' });
+        return;
+      }
+    }
+    const result = await settleMetricEarly(id, workspaceId, { value, reason, asOf });
+    res.json({ settled: result.settled, count: result.settled.length, totalPayout: result.totalPayout });
   }),
 );
 

@@ -1,11 +1,13 @@
 import { and, asc, count, eq, gt, gte, inArray, lte, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { agents, liquidityEvents, markets, metricLogs, metrics, positions, proposals, trades } from '../db/schema';
+import { randomUUID } from 'crypto';
+import { agents, liquidityEvents, markets, metricLogs, metrics, positions, proposals, trades, updates } from '../db/schema';
 import { consensus, pHigher, resolutionPayouts } from '../lib/amm';
 import { mapWithConcurrency } from '../lib/concurrency';
 import { periodEndInstant, periodStartInstant, resolutionInstant } from '../lib/date-utils';
-import { onPricesChanged } from '../lib/market-events';
+import { emitPricesChanged, onPricesChanged } from '../lib/market-events';
 import { ttlCache } from '../lib/ttl-cache';
+import { AppError } from '../lib/errors';
 import { toUnits } from '../lib/validation';
 import type { Metric } from '../types';
 import { applyCredits } from './credits';
@@ -34,10 +36,20 @@ export async function resolveSingleMarket(
   return { resolved: !result.skipped, totalPayout: result.totalPayout, skipped: result.skipped };
 }
 
+/** An answer known before the period ends (docs/market-integrity.md, "The
+ *  answer can arrive before the period ends"): the owner's value, when it was
+ *  taken, and why the book is settled now. */
+export interface EarlyFixing {
+  value: number;
+  at: Date;
+  reason: string;
+}
+
 async function resolveMarketRow(
   market: MarketRow,
   metricMap: Map<string, Metric>,
   workspaceId: string,
+  early?: EarlyFixing,
 ): Promise<{ positions: number; totalPayout: number; skipped?: boolean }> {
   const metric = metricMap.get(market.metricId);
   if (!metric) {
@@ -53,12 +65,10 @@ async function resolveMarketRow(
   const boundary = periodEndInstant(market.targetDate);
   // The reading AND when it was taken: the second half is recorded on the
   // market so the settlement can say how old it was (docs/guides/sources.md).
-  const fixing = await metricReadingInPeriod(
-    market.metricId,
-    periodStartInstant(market.targetDate),
-    boundary,
-    workspaceId,
-  );
+  // An early fixing IS the reading: the owner has said the answer is known.
+  const fixing = early
+    ? { value: early.value, at: early.at, na: false }
+    : await metricReadingInPeriod(market.metricId, periodStartInstant(market.targetDate), boundary, workspaceId);
   const rawValue = fixing?.value ?? null;
 
   // The owner said the number does not exist for this period (owner ask
@@ -191,7 +201,13 @@ async function resolveMarketRow(
 
   emitEvent(
     'market:resolved',
-    { marketId: market.id, metricName: market.metricName, targetDate: market.targetDate, actualValue },
+    {
+      marketId: market.id,
+      metricName: market.metricName,
+      targetDate: market.targetDate,
+      actualValue,
+      ...(early ? { settledEarly: true, reason: early.reason } : {}),
+    },
     workspaceId,
   ).catch(e => console.error('emitEvent failed:', e));
 
@@ -200,6 +216,88 @@ async function resolveMarketRow(
   void notifyMarketResolved({ workspaceId, marketId: market.id });
 
   return { positions: positionCount, totalPayout };
+}
+
+/**
+ * Settle a metric early (docs/market-integrity.md, "The answer can arrive
+ * before the period ends"): file the reading at `asOf` and settle every open
+ * book on the metric at that value, floor books and continued proposal
+ * branches alike. Voided and settled books are untouched, so a second call
+ * settles nothing more. Returns the ids of the books settled by this call.
+ */
+export async function settleMetricEarly(
+  metricId: string,
+  workspaceId: string,
+  opts: { value: number; reason: string; asOf?: Date },
+): Promise<{ settled: string[]; totalPayout: number }> {
+  const reason = (opts.reason ?? '').trim();
+  if (!reason) throw new AppError('reason is required: say why the answer is known before the period ends', 400);
+  const value = opts.value;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new AppError('value must be a non-negative number', 400);
+  }
+  const at = opts.asOf ?? new Date();
+  if (Number.isNaN(at.getTime())) throw new AppError('asOf must be an ISO instant', 400);
+  // The future is not a measurement (the same bound as PUT /metrics/:id).
+  if (at.getTime() > Date.now() + 60_000) throw new AppError('asOf cannot be in the future', 400);
+
+  const [metric] = await db
+    .select()
+    .from(metrics)
+    .where(and(eq(metrics.id, metricId), eq(metrics.workspaceId, workspaceId)));
+  if (!metric) throw new AppError('Metric not found', 404);
+
+  // The reading first: the settlement below is the answer to every open
+  // book, and the log is where that answer lives for the chart and for the
+  // next reader. Filed the same way PUT /metrics/:id files a value.
+  await db.transaction(async tx => {
+    await tx.insert(metricLogs).values({
+      id: randomUUID(),
+      workspaceId,
+      metricId,
+      metricName: metric.name,
+      value,
+      outlook: value,
+      timestamp: at,
+    });
+    await tx
+      .update(metrics)
+      .set({ value, updatedAt: new Date() })
+      .where(and(eq(metrics.id, metricId), eq(metrics.workspaceId, workspaceId)));
+    await tx.insert(updates).values({
+      id: randomUUID(),
+      workspaceId,
+      metricName: metric.name,
+      oldValue: metric.value ?? 0,
+      newValue: value,
+      description: `Settled early: ${reason}`,
+      timestamp: new Date(),
+    });
+  });
+
+  const open = await db
+    .select()
+    .from(markets)
+    .where(
+      and(
+        eq(markets.workspaceId, workspaceId),
+        eq(markets.metricId, metricId),
+        eq(markets.resolved, false),
+        eq(markets.voided, false),
+      ),
+    );
+  const metricMap = new Map<string, Metric>((await getAllMetrics(workspaceId)).map(m => [m.id, m]));
+  const settled: string[] = [];
+  let totalPayout = 0;
+  for (const market of open) {
+    const r = await resolveMarketRow(market, metricMap, workspaceId, { value, at, reason });
+    if (!r.skipped) {
+      settled.push(market.id);
+      totalPayout += r.totalPayout;
+    }
+  }
+  emitPricesChanged(workspaceId);
+  return { settled, totalPayout };
 }
 
 /**
