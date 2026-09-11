@@ -11933,6 +11933,12 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .snake-snake { stroke: var(--higher); }
 .snake-head { fill: var(--higher); }
 .snake-eye { fill: var(--bg-secondary); }
+/* The next direction: a chevron in the accent in the cell ahead of the
+   head, faint while the step is open, solid once decided. */
+.snake-arrow { fill: none; stroke: var(--accent); stroke-opacity: 1; }
+.snake-arrow.is-open { stroke-opacity: 0.55; }
+/* Under the wall chevron, so it stands off the head. */
+.snake-arrow-halo { fill: none; stroke: var(--bg-secondary); }
 /* The next move, in the chart's headline type: mono, weight 600, tabular
    numerals, ink; the countdown in the accent while the step is open. */
 .snake-next {

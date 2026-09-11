@@ -197,6 +197,145 @@ describe('the grid', () => {
   });
 });
 
+/** The arrow's points in cell units, as [x, y] pairs. */
+function arrowPoints(container: HTMLElement): Array<[number, number]> {
+  const cell = Number(container.querySelector('rect.snake-cell')?.getAttribute('width'));
+  const arrow = container.querySelector('.snake-arrow') as SVGPolylineElement | null;
+  if (!arrow) return [];
+  return (arrow.getAttribute('points') ?? '')
+    .trim()
+    .split(/\s+/)
+    .map(p => p.split(',').map(Number) as [number, number])
+    .map(([x, y]) => [x / cell, y / cell]);
+}
+
+describe('THE GRID SHOWS AN ARROW IN THE CELL THE SNAKE MOVES TO NEXT', () => {
+  test('the arrow is a chevron in the cell ahead in `next.direction`, from the head', async () => {
+    // Head at (5,5), next.direction up: the arrow sits inside cell (5,4).
+    const { container } = renderLive();
+    await waitFor(() => expect(container.querySelector('.snake-arrow')).toBeTruthy());
+    const pts = arrowPoints(container);
+    expect(pts.length).toBeGreaterThanOrEqual(3);
+    for (const [x, y] of pts) {
+      expect(x).toBeGreaterThanOrEqual(5);
+      expect(x).toBeLessThanOrEqual(6);
+      expect(y).toBeGreaterThanOrEqual(4);
+      expect(y).toBeLessThanOrEqual(5);
+    }
+    // A chevron pointing up: its tip (the middle point) is above its two arms.
+    const [a, tip, b] = pts;
+    expect(tip[1]).toBeLessThan(a[1]);
+    expect(tip[1]).toBeLessThan(b[1]);
+    expect(container.querySelector('.snake-arrow')?.getAttribute('data-direction')).toBe('up');
+    expect(container.querySelector('.snake-arrow.is-wall')).toBeNull();
+  });
+
+  test('the arrow follows the direction: right lands in the cell right of the head', async () => {
+    vi.mocked(api.getLiveState).mockImplementation(async () => {
+      const s = h.state();
+      s.next = { action: 'forward', direction: 'right', decided: false, seconds: 31 };
+      return s as never;
+    });
+    const { container } = renderLive();
+    await waitFor(() => expect(container.querySelector('.snake-arrow')).toBeTruthy());
+    for (const [x, y] of arrowPoints(container)) {
+      expect(x).toBeGreaterThanOrEqual(6);
+      expect(x).toBeLessThanOrEqual(7);
+      expect(y).toBeGreaterThanOrEqual(5);
+      expect(y).toBeLessThanOrEqual(6);
+    }
+    const [a, tip, b] = arrowPoints(container);
+    expect(tip[0]).toBeGreaterThan(a[0]);
+    expect(tip[0]).toBeGreaterThan(b[0]);
+  });
+
+  test('while `next` is unreadable the arrow shows the heading (forward is the default)', async () => {
+    vi.mocked(api.getLiveState).mockImplementation(async () => {
+      const s = h.state();
+      (s as { next: unknown }).next = null;
+      return s as never;
+    });
+    const { container } = renderLive();
+    await waitFor(() => expect(container.querySelector('.snake-arrow')).toBeTruthy());
+    // Heading right from (5,5): the arrow is in (6,5).
+    expect(container.querySelector('.snake-arrow')?.getAttribute('data-direction')).toBe('right');
+    for (const [x] of arrowPoints(container)) expect(x).toBeGreaterThanOrEqual(6);
+    expect(container.querySelector('.snake-arrow.is-decided')).toBeNull();
+  });
+
+  test('the arrow is faint while the step is open and solid once decided', async () => {
+    const { container, unmount } = renderLive();
+    await waitFor(() => expect(container.querySelector('.snake-arrow')).toBeTruthy());
+    expect(container.querySelector('.snake-arrow.is-decided')).toBeNull();
+    expect(container.querySelector('.snake-arrow.is-open')).toBeTruthy();
+    unmount();
+    vi.mocked(api.getLiveState).mockImplementation(async () => {
+      const s = h.state();
+      s.next = { action: 'left', direction: 'up', decided: true, seconds: 0 };
+      return s as never;
+    });
+    const again = renderLive();
+    await waitFor(() => expect(again.container.querySelector('.snake-arrow.is-decided')).toBeTruthy());
+    expect(again.container.querySelector('.snake-arrow.is-open')).toBeNull();
+  });
+
+  test("A WALL AHEAD: the arrow is pressed against the head's edge pointing out of the grid", async () => {
+    vi.mocked(api.getLiveState).mockImplementation(async () => {
+      const s = h.state();
+      s.game.snake = [
+        { x: 11, y: 5 },
+        { x: 10, y: 5 },
+        { x: 9, y: 5 },
+      ];
+      s.next = { action: 'forward', direction: 'right', decided: false, seconds: 31 };
+      return s as never;
+    });
+    const { container } = renderLive();
+    await waitFor(() => expect(container.querySelector('.snake-arrow.is-wall')).toBeTruthy());
+    const pts = arrowPoints(container);
+    // Every point stays on the grid, inside the head's cell, on its right half.
+    for (const [x, y] of pts) {
+      expect(x).toBeGreaterThanOrEqual(11.5);
+      expect(x).toBeLessThanOrEqual(12);
+      expect(y).toBeGreaterThanOrEqual(5);
+      expect(y).toBeLessThanOrEqual(6);
+    }
+    const [a, tip, b] = pts;
+    expect(tip[0]).toBeGreaterThan(a[0]);
+    expect(tip[0]).toBeGreaterThan(b[0]);
+  });
+
+  test('no snake, no arrow', async () => {
+    vi.mocked(api.getLiveState).mockImplementation(async () => {
+      const s = h.state();
+      (s as { game: unknown }).game = null;
+      return s as never;
+    });
+    const { container } = renderLive();
+    await waitFor(() => expect(container.querySelector('svg.snake-board')).toBeTruthy());
+    await waitFor(() => expect(container.querySelector('.snake-next')?.textContent).toBe('Waiting for the next game'));
+    expect(container.querySelector('.snake-arrow')).toBeNull();
+  });
+
+  test("replay draws the entry's own direction from its head, solid", async () => {
+    const { container } = renderLive();
+    await pickGame(container, 1);
+    await waitFor(() => expect(scrub(container).getAttribute('max')).toBe('37'));
+    fireEvent.change(scrub(container), { target: { value: '5' } });
+    // Entry 5 of game 1 is step 207: head at (8,2), direction right, so the arrow is in (9,2).
+    await waitFor(() => expect(headCell(container)).toEqual([8.5, 2.5]));
+    const arrow = container.querySelector('.snake-arrow');
+    expect(arrow?.getAttribute('data-direction')).toBe('right');
+    expect(arrow?.classList.contains('is-decided')).toBe(true);
+    for (const [x, y] of arrowPoints(container)) {
+      expect(x).toBeGreaterThanOrEqual(9);
+      expect(x).toBeLessThanOrEqual(10);
+      expect(y).toBeGreaterThanOrEqual(2);
+      expect(y).toBeLessThanOrEqual(3);
+    }
+  });
+});
+
 describe('THE LIVE SEGMENT SHOWS ONLY THE GRID AND THE NEXT MOVE', () => {
   test('the segment is the board and one next-move line; no tiles, impacts, status, quiet line, links or buttons', async () => {
     const { container } = renderLive();

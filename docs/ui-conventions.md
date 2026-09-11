@@ -2295,7 +2295,17 @@ grid.. and next move.. maybe text"):
 1. **The grid** (`.snake-board`, an svg sized by `grid`): one cell per
    square, the snake as one rounded band along its cells with the head
    marked (a lighter disc and two eyes on the side it moves towards), the
-   food a round dot.
+   food a round dot, and the next direction as an arrow (`.snake-arrow`):
+   a short chevron in the accent, drawn from the head into the cell the
+   snake moves to next (`next.direction`; the heading itself while `next`
+   is unreadable, forward being the default), faint while the step is
+   open and solid once `next.decided`; when that cell is off the grid the
+   chevron sits pressed against the head's edge pointing out (`.is-wall`),
+   so a wall crash is visible before it happens. In replay the chevron is
+   the entry's `direction`, solid, so scrubbing shows where it went (owner
+   ask, Viktor 2026-09-11: "show an arrow in the visualization indicating
+   the next direction it will go in"; record in
+   `notes/decisions/ui-conventions.md`).
 2. **The next move** (`.snake-next`), one left-aligned text line, the
    leader's action in words: "Next move: turn left in 0:31" while the step
    is open (the countdown from `next.seconds`, ticking by the second

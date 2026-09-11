@@ -54,19 +54,44 @@ function impactOf(state: SnakeState, action: SnakeAction): number | null {
   return q.approved - q.declined;
 }
 
+/** One cell of travel per compass direction. */
+const DELTA: Record<SnakeHeading, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+const HEADINGS: SnakeHeading[] = ['up', 'down', 'left', 'right'];
+
+/** The next direction the grid draws: where the snake moves next and
+ *  whether that is decided (solid) or still the open step's leader (faint). */
+type Arrow = { direction: SnakeHeading; decided: boolean };
+
+/** The chevron's three points, in drawing units: two arms behind, the tip
+ *  ahead, centred on (cx, cy) and pointing along `direction`. */
+function chevron(cx: number, cy: number, direction: SnakeHeading, half: number, arm: number): string {
+  const [dx, dy] = DELTA[direction];
+  const [px, py] = [-dy, dx];
+  const pts: Array<[number, number]> = [
+    [cx - dx * half + px * arm, cy - dy * half + py * arm],
+    [cx + dx * half, cy + dy * half],
+    [cx - dx * half - px * arm, cy - dy * half - py * arm],
+  ];
+  return pts.map(([x, y]) => `${Number(x.toFixed(2))},${Number(y.toFixed(2))}`).join(' ');
+}
+
 /** The board: grid x grid cells on the chart area's ground with a hairline
  *  grid, the snake as one rounded band head first, the head a disc with
- *  two eyes on the moving side, the food a round dot. */
+ *  two eyes on the moving side, the food a round dot, and the next
+ *  direction as a chevron in the accent in the cell ahead of the head
+ *  (pressed against the head's edge when that cell is a wall). */
 function Board({
   grid,
   snake,
   food,
   heading,
+  arrow,
 }: {
   grid: number;
   snake: SnakeCell[];
   food: SnakeCell | null;
   heading: SnakeHeading;
+  arrow: Arrow | null;
 }) {
   const side = grid * CELL;
   const centre = (c: SnakeCell) => [(c.x + 0.5) * CELL, (c.y + 0.5) * CELL] as const;
@@ -100,6 +125,31 @@ function Board({
               [hx + off, hy - sidew],
               [hx + off, hy + sidew],
             ];
+  /* The next-direction chevron: in the cell ahead, or, when that cell is
+     off the grid, pressed against the head's edge pointing out. */
+  let next: { points: string; wall: boolean } | null = null;
+  if (head && arrow) {
+    const [dx, dy] = DELTA[arrow.direction];
+    const ahead = { x: head.x + dx, y: head.y + dy };
+    const wall = ahead.x < 0 || ahead.y < 0 || ahead.x >= grid || ahead.y >= grid;
+    if (wall) {
+      /* Larger, its tip on the grid's edge and its arms back over the head. */
+      const half = CELL * 0.2;
+      next = {
+        points: chevron(
+          hx + dx * (CELL * 0.5 - half),
+          hy + dy * (CELL * 0.5 - half),
+          arrow.direction,
+          half,
+          CELL * 0.3,
+        ),
+        wall,
+      };
+    } else {
+      const [ax, ay] = centre(ahead);
+      next = { points: chevron(ax, ay, arrow.direction, CELL * 0.14, CELL * 0.2), wall };
+    }
+  }
   return (
     <svg
       className="snake-board"
@@ -127,6 +177,27 @@ function Board({
       {eyes.map(([ex, ey], i) => (
         <circle key={i} className="snake-eye" cx={ex} cy={ey} r={CELL * 0.07} />
       ))}
+      {next?.wall && (
+        <polyline
+          className="snake-arrow-halo"
+          points={next.points}
+          fill="none"
+          strokeWidth={CELL * 0.26}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+      {next && arrow && (
+        <polyline
+          className={`snake-arrow ${arrow.decided ? 'is-decided' : 'is-open'}${next.wall ? ' is-wall' : ''}`}
+          data-direction={arrow.direction}
+          points={next.points}
+          fill="none"
+          strokeWidth={CELL * 0.12}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
     </svg>
   );
 }
@@ -314,15 +385,32 @@ export function SnakeLive({ slug }: { slug: string }) {
     : (state?.grid ?? game?.size ?? 12);
 
   /* What the board draws: the live game, or the scrubbed entry. */
+  const next = state?.next ?? null;
+  /* The arrow: in replay the entry's own direction, solid; live the leader's
+     `next.direction` (the heading itself while `next` is unreadable, forward
+     being the default), solid once decided. */
+  const isHeading = (d: unknown): d is SnakeHeading => HEADINGS.includes(d as SnakeHeading);
   const drawn = replay
     ? row
-      ? { snake: row.snake, food: row.food, heading: row.heading }
+      ? {
+          snake: row.snake,
+          food: row.food,
+          heading: row.heading,
+          arrow: { direction: isHeading(row.direction) ? row.direction : row.heading, decided: true },
+        }
       : null
     : game
-      ? { snake: game.snake, food: game.food, heading: game.heading }
+      ? {
+          snake: game.snake,
+          food: game.food,
+          heading: game.heading,
+          arrow: {
+            direction: next && isHeading(next.direction) ? next.direction : game.heading,
+            decided: next?.decided === true,
+          },
+        }
       : null;
 
-  const next = state?.next ?? null;
   const elapsed = fetchedAt ? Math.max(0, (now - fetchedAt) / 1000) : 0;
   const seconds = next ? Math.max(0, next.seconds - elapsed) : 0;
 
@@ -360,9 +448,9 @@ export function SnakeLive({ slug }: { slug: string }) {
       <div className="snake-main" data-impacts={impactsAttr}>
         <div className="snake-board-box">
           {drawn ? (
-            <Board grid={grid} snake={drawn.snake} food={drawn.food} heading={drawn.heading} />
+            <Board grid={grid} snake={drawn.snake} food={drawn.food} heading={drawn.heading} arrow={drawn.arrow} />
           ) : (
-            <Board grid={grid} snake={[]} food={null} heading="right" />
+            <Board grid={grid} snake={[]} food={null} heading="right" arrow={null} />
           )}
         </div>
         <p className={`snake-next ${line.cls}`}>
