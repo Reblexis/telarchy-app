@@ -242,3 +242,28 @@ describe('PRESSING AN OPTION CHIP OPENS THAT PROPOSAL WITH THAT OPTION SELECTED 
     expect(container.querySelector('.pubws-proposal-head')).toBeTruthy();
   });
 });
+
+describe("AN ADDRESS THAT NAMES AN OPTION OPENS THE TICKET ON THAT WORLD (Viktor, 2026-09-11: 'i click the left arrow and it selects continue forward option')", () => {
+  // Turn left leads this fixture, so it is the default world: the address has
+  // to name a different one for the test to mean anything.
+  test('/snake/p/129?option=right opens on Turn right, not on the leader', async () => {
+    const { container } = renderFloor('/snake/p/129?option=right');
+    await opened(container);
+    await waitFor(
+      () => {
+        const pressed = cellsOf(container).filter(c => c.getAttribute('aria-pressed') === 'true');
+        expect(pressed).toHaveLength(1);
+        expect(words(pressed[0])).toMatch(/Turn right/);
+      },
+      { timeout: 5000 },
+    );
+  });
+
+  test('an address with no option opens on the leader', async () => {
+    const { container } = renderFloor('/snake/p/129');
+    await opened(container);
+    await waitFor(() => expect(cellsOf(container).length).toBeGreaterThanOrEqual(3), { timeout: 5000 });
+    const pressed = cellsOf(container).filter(c => c.getAttribute('aria-pressed') === 'true');
+    expect(words(pressed[0] ?? null)).toMatch(/Turn left/);
+  });
+});
