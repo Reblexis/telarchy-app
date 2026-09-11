@@ -275,11 +275,12 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li><a href="#docs-owner-on-the-floor-md--h1">The owner works on the floor</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h2">Creating a floor</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h3">The v1 controls: four dialogs</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h4">What is still open, on the floor itself</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h5">What already lived on the floor</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h6">Machinery, and the trap v1 refuses to ship</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h7">Handing it to your own agent</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h8">What is deliberately not here</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h4">What is planned</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h5">What is still open, on the floor itself</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h6">What already lived on the floor</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h7">Machinery, and the trap v1 refuses to ship</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h8">Handing it to your own agent</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h9">What is deliberately not here</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-record-links-md">docs/record-links.md</a></summary>
@@ -1925,6 +1926,11 @@ profile already carries.</p>
 <td><code>announcement</code></td>
 <td>the owner published an announcement, or edited one</td>
 <td><code>announcements</code>; an edit is its own row at <code>editedAt</code></td>
+</tr>
+<tr>
+<td><code>plan</code></td>
+<td>the owner added a plan item (title, start, due), edited one, or marked one done</td>
+<td><code>plans</code>: one row at <code>createdAt</code>, one at <code>editedAt</code> when set, one at <code>doneAt</code> when set (<code>docs/owner-on-the-floor.md</code>, &quot;What is planned&quot;)</td>
 </tr>
 <tr>
 <td><code>reading</code></td>
@@ -3695,7 +3701,84 @@ only into this floor's pools, never into a tradeable balance, what a market
 does not pay out returns to the wallet, and buying is not entry into the
 prize season (which the operator is ineligible for either way). Placing the
 credits stays on the floor, beside the price each pool moves.</p>
-<h2 id="docs-owner-on-the-floor-md--h4">What is still open, on the floor itself</h2>
+<h2 id="docs-owner-on-the-floor-md--h4">What is planned</h2>
+<p>The floor says what the owner has committed to and when, as one time axis
+rather than as prose: a &quot;What is planned&quot; card in the owner's zone (the left
+column from 1500px, otherwise beside the announcements in the tail). It
+answers the trader's question the ballot cannot: not &quot;what would this do if
+approved&quot; but &quot;what is actually happening, and by when&quot;. Design record in
+the telarchy umbrella, <code>notes/floor-timeline-proposal-2026-09-11.md</code>.</p>
+<p><strong>The axis.</strong> One horizontal time axis with a now-line and the past shaded,
+three ranges picked by a segmented control (today, week, month), a bar per
+item packed into lanes, the lane whose bar ends soonest on top. A bar is a
+committed interval: it starts when the commitment began and ends when it is
+due. Bars are things the floor already holds, plus the owner's own items:</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>bar</th>
+<th>starts</th>
+<th>ends</th>
+<th>drawn from</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>an approved proposal not yet delivered</td>
+<td>the approval</td>
+<td>the earliest horizon it is priced on that has not yet resolved; a proposal whose every horizon has resolved has no bar</td>
+<td><code>proposals</code> approved with <code>deliveredAt</code> null</td>
+</tr>
+<tr>
+<td>a pending proposal</td>
+<td>when it was posted</td>
+<td>its decision deadline</td>
+<td><code>proposals</code> pending, <code>decideBy</code></td>
+</tr>
+<tr>
+<td>an open baseline book</td>
+<td>the start of its period</td>
+<td>the day it resolves</td>
+<td><code>markets</code> with no proposal, open</td>
+</tr>
+<tr>
+<td>a plan item</td>
+<td>the owner's start</td>
+<td>the owner's due date</td>
+<td><code>plans</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>A delivered proposal, a decided or lapsed proposal, a settled or voided book
+and a done plan item leave the axis: their interval is over, and history
+lives in the actions log, not here. An item with no start begins at the
+left edge of whatever range is shown (it can be worked on now); an item
+with no due date has no bar and is listed under the axis as &quot;no date&quot;.
+Tapping a bar opens the thing it is: a proposal's address, the book, or the
+plan item's own words. The card renders nothing when there is nothing
+planned and the visitor cannot manage the floor, the same rule as the
+announcements.</p>
+<p><strong>Plan items</strong> are the owner's commitments that are not proposals (&quot;write
+the September results post&quot;, &quot;call with Seer, Thursday&quot;). One is a title,
+what it is (markdown, optional), a start (optional) and a due point
+(optional, day or minute precision), and it is either open or done. A
+manager adds one from the card's corner control (&quot;+ plan&quot;): one form, the
+four fields, one ink button. Each open plan bar carries a done tick for a
+manager; done stamps <code>doneAt</code> and the bar leaves the axis. Edits keep the
+words free and are recorded, as with announcements: a plan item is never
+deleted, only done or edited, so nothing planned in public can be quietly
+unplanned. Every add, edit and completion is a <code>plan</code> action on the data
+room's log (<code>docs/data-room.md</code>).</p>
+<p><strong>API.</strong> <code>GET /api/marketplace/:idOrSlug/timeline</code> returns
+<code>{ now, items: [{ kind, id, title, start, end, href, done? }] }</code> with
+<code>kind</code> one of <code>proposal</code>, <code>decision</code>, <code>book</code>, <code>plan</code>, newest end last,
+under the same disclosure rule as the announcements (403 on a private floor
+or where the Public group does not hold read). The floor page and Otto read
+this and nothing else; no bar is computed on the client. Plan items are
+written by <code>POST /api/workspaces/:id/plans</code> (<code>{ title, description?, start?, due? }</code>, 201 with the row), edited by <code>PUT /api/workspaces/:id/plans/:planId</code> (any of the four fields, or
+<code>{ done: true|false }</code>), both requiring <code>manage</code>; the row carries
+<code>createdAt</code>, <code>editedAt</code>, <code>doneAt</code> and <code>createdBy</code>. No delete route exists.</p>
+<h2 id="docs-owner-on-the-floor-md--h5">What is still open, on the floor itself</h2>
 <p>An owner who comes back tomorrow sees what their floor has not settled yet,
 in the same words <code>GET /api/setup/checklist</code> gives an agent: the decisions
 that are still open, each with the one line the database says about it right
@@ -3710,12 +3793,12 @@ panel saying so, and a checklist that is always on screen stops being read.
 The count of what is decided rides in the head, so progress is visible
 without listing what is done. Nothing here is a control; each line says what
 the floor lacks, and the controls for it are already on the page.</p>
-<h2 id="docs-owner-on-the-floor-md--h5">What already lived on the floor</h2>
+<h2 id="docs-owner-on-the-floor-md--h6">What already lived on the floor</h2>
 <p>The definition edit (words free, every change recorded in
 <code>metric_definition_revisions</code>, though nothing renders those rows to a trader
 yet, <code>docs/market-integrity.md</code>) and the proposal
 decisions (approve, decline, edit) predate this doc and stay as they are.</p>
-<h2 id="docs-owner-on-the-floor-md--h6">Machinery, and the trap v1 refuses to ship</h2>
+<h2 id="docs-owner-on-the-floor-md--h7">Machinery, and the trap v1 refuses to ship</h2>
 <p>A metric created from two fields gets a default range, and the range is what
 its markets price inside. <code>docs/market-integrity.md</code> governs: machinery is
 refused with a 409 while anyone has money in a market, but while every open
@@ -3723,7 +3806,7 @@ market on the metric is untraded, a machinery edit voids them (pools refund
 to their funders) and respawns them at the new machinery. So the two-field
 metric is not a trap: the owner, or Otto, corrects the range any time before
 the first trade, and nobody's money ever moves under a changed rule.</p>
-<h2 id="docs-owner-on-the-floor-md--h7">Handing it to your own agent</h2>
+<h2 id="docs-owner-on-the-floor-md--h8">Handing it to your own agent</h2>
 <p>Everything the four dialogs do is an API call, so the person who would rather
 type at their own coding agent can, and the market says so where they are
 standing. It says it as a pair of rows, because it is one offer made to two
@@ -3798,7 +3881,7 @@ screenshots.</p>
 <p>Otto carries the same handoff. Every Otto conversation has the second row at
 its foot, and the operator door offers the key beside the prompt Otto has
 been writing (owner direction 2026-08-23, <code>services/setup-handoff.ts</code>).</p>
-<h2 id="docs-owner-on-the-floor-md--h8">What is deliberately not here</h2>
+<h2 id="docs-owner-on-the-floor-md--h9">What is deliberately not here</h2>
 <ul>
 <li><strong>Closing a market</strong> is not a floor control: it voids other people's
 positions, which does not belong one click from a button that buys
@@ -6606,6 +6689,23 @@ its timestamp in the same muted meta style as the edited marker. The
 page's guarantee sentence says the record holds what the owner, or a
 publisher the owner named, has said. Nothing is printed when <code>publishedBy</code>
 is null: the owner's own words stay unlabelled.</p>
+<p><strong>&quot;What is planned&quot;</strong> (<code>FloorTimeline</code>) is the owner's calendar, the
+second block of the owner-prose zone after the announcements: one time
+axis with a now-line and shaded past, a segmented control for today, week
+and month, bars packed into lanes with the soonest deadline on top, and
+under it the items without a date. It draws exactly what
+<code>GET /api/marketplace/:idOrSlug/timeline</code> returns (<code>docs/owner-on-the-floor.md</code>,
+&quot;What is planned&quot;): approved-but-undelivered proposals, pending proposals
+until they decide, open books until they resolve, and the owner's plan
+items. The block shares the <code>.pubws-lb-head</code> anatomy (label &quot;What is
+planned&quot;, meta naming the range shown), a bar is labelled inside itself
+when it is wide enough and just past its end otherwise, and a bar is a
+link to the thing it is. A manager gets &quot;+ plan&quot; as the corner control and
+a done tick on each plan bar; a visitor gets neither. It renders nothing
+when there is nothing planned and the visitor cannot manage. The left
+column holds it on wide viewports together with the season block and the
+announcements, since like them it is about this floor and never about
+other people.</p>
 <p><strong>&quot;What is <name>?&quot;</strong> (<code>SubjectAbout</code>) is the product in its own words plus
 the primary sources: one sentence on what the product IS, then described
 links a forecaster can audit without trusting this page (for LookPilot:

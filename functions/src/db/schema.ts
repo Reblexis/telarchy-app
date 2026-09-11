@@ -1224,6 +1224,39 @@ export const announcements = pgTable(
   t => [primaryKey({ columns: [t.id, t.workspaceId] })],
 );
 
+/** Plan items: the owner's commitments that are not proposals, drawn on the
+ *  floor's "What is planned" axis (docs/owner-on-the-floor.md, "What is
+ *  planned"). A row is open while doneAt is null and leaves the axis once
+ *  done. Never deleted (trigger in migration 0121): a commitment made in
+ *  public is done or visibly edited, not quietly unplanned, and every add,
+ *  edit and completion is a `plan` row on the actions log. */
+export const plans = pgTable(
+  'plans',
+  {
+    id: text('id').notNull(),
+    workspaceId: text('workspace_id').notNull(),
+    /** 1..200 characters, enforced by the route. */
+    title: text('title').notNull(),
+    /** Markdown, optional, capped at 5000 chars by the route. */
+    description: text('description'),
+    /** The owner's start; null means "can be worked on now". */
+    start: timestamp('start'),
+    /** The owner's due point; null means listed under the axis as "no date". */
+    due: timestamp('due'),
+    /** Stamped by a done tick, cleared by undoing it. */
+    doneAt: timestamp('done_at'),
+    /** The participant who added it; the actions log's actor. */
+    createdBy: text('created_by'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    /** Stamped on every edit of the words or the dates, never by a done tick. */
+    editedAt: timestamp('edited_at'),
+  },
+  t => [
+    primaryKey({ columns: [t.id, t.workspaceId] }),
+    index('plans_workspace_open_idx').on(t.workspaceId, t.due).where(sql`${t.doneAt} is null`),
+  ],
+);
+
 export const updates = pgTable(
   'updates',
   {

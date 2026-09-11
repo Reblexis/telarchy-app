@@ -13,6 +13,7 @@ import {
   metricLogs,
   metrics,
   permissionGroups,
+  plans,
   positions,
   proposalMessages,
   proposals,
@@ -920,6 +921,212 @@ workspacesRouter.put(
   }),
 );
 
+const PLAN_TITLE_MAX_CHARS = 200;
+const PLAN_DESCRIPTION_MAX_CHARS = 5000;
+
+/** The public shape of a plan item, identical on add and on edit, with every
+ *  instant as an ISO string so the client never guesses the zone. */
+function planPayload(row: typeof plans.$inferSelect) {
+  const iso = (d: Date | null) => (d ? d.toISOString() : null);
+  return {
+    id: row.id,
+    workspaceId: row.workspaceId,
+    title: row.title,
+    description: row.description ?? null,
+    start: iso(row.start),
+    due: iso(row.due),
+    doneAt: iso(row.doneAt),
+    createdBy: row.createdBy ?? null,
+    createdAt: row.createdAt.toISOString(),
+    editedAt: iso(row.editedAt),
+  };
+}
+
+type PlanFields = { title?: string; description?: string | null; start?: Date | null; due?: Date | null };
+
+/**
+ * Read the plan fields a body carries, refusing anything it cannot mean.
+ * Absent keys are left absent (a PUT edits only what it names); `null` on
+ * description, start or due clears the field. Dates are anything Date can
+ * parse, day or minute precision alike (docs/owner-on-the-floor.md, "Plan
+ * items").
+ */
+function readPlanFields(
+  body: Record<string, unknown>,
+): { ok: true; fields: PlanFields } | { ok: false; error: string } {
+  const fields: PlanFields = {};
+  if ('title' in body) {
+    const t = body.title;
+    if (typeof t !== 'string' || t.trim().length === 0) return { ok: false, error: 'title must be a non-empty string' };
+    if (t.trim().length > PLAN_TITLE_MAX_CHARS) {
+      return { ok: false, error: `title must be at most ${PLAN_TITLE_MAX_CHARS} characters` };
+    }
+    fields.title = t.trim();
+  }
+  if ('description' in body) {
+    const d = body.description;
+    if (d === null || d === '') fields.description = null;
+    else if (typeof d !== 'string') return { ok: false, error: 'description must be a string' };
+    else if (d.length > PLAN_DESCRIPTION_MAX_CHARS) {
+      return { ok: false, error: `description must be at most ${PLAN_DESCRIPTION_MAX_CHARS} characters` };
+    } else fields.description = d;
+  }
+  for (const key of ['start', 'due'] as const) {
+    if (!(key in body)) continue;
+    const v = body[key];
+    if (v === null || v === '') {
+      fields[key] = null;
+      continue;
+    }
+    const d = typeof v === 'string' ? new Date(v) : null;
+    if (!d || Number.isNaN(d.getTime())) return { ok: false, error: `${key} must be an ISO date or instant` };
+    fields[key] = d;
+  }
+  return { ok: true, fields };
+}
+
+/** A due before its start is not an interval. Checked against the stored
+ *  other end on an edit, so a PUT that names only one of them cannot cross. */
+function dueBeforeStart(start: Date | null | undefined, due: Date | null | undefined): boolean {
+  return !!start && !!due && due.getTime() < start.getTime();
+}
+
+/**
+ * POST /api/workspaces/:id/plans
+ *
+ * Add a plan item: an owner commitment that is not a proposal, drawn on the
+ * floor's "What is planned" axis (docs/owner-on-the-floor.md). Body
+ * { title, description?, start?, due? }. `createdAt` is the database clock
+ * and `doneAt` starts null whatever the body says: the log is worth something
+ * only if the owner cannot pre-date a commitment or add it already done.
+ */
+workspacesRouter.post(
+  '/:id/plans',
+  requireCapability('manage'),
+  wrap(async (req, res) => {
+    const wsId = req.params.id as string;
+    const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, wsId));
+    if (!ws) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+    if (!(await canManagePathWorkspace(req.auth!, wsId))) {
+      res.status(403).json({ error: 'Forbidden: this identity lacks the "manage" capability in this workspace.' });
+      return;
+    }
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    if (!('title' in body)) {
+      res.status(400).json({ error: 'title is required' });
+      return;
+    }
+    const parsed = readPlanFields(body);
+    if (!parsed.ok) {
+      res.status(400).json({ error: parsed.error });
+      return;
+    }
+    const { title, description = null, start = null, due = null } = parsed.fields;
+    if (dueBeforeStart(start, due)) {
+      res.status(400).json({ error: 'due must not be before start' });
+      return;
+    }
+    const [row] = await db
+      .insert(plans)
+      .values({
+        id: randomUUID(),
+        workspaceId: wsId,
+        title: title!,
+        description,
+        start,
+        due,
+        createdBy: req.auth!.agentId ?? null,
+        // The same clock editedAt and doneAt use, so the three log rows of one
+        // plan order the way they happened.
+        createdAt: new Date(),
+      })
+      .returning();
+    res.status(201).json(planPayload(row));
+  }),
+);
+
+/**
+ * PUT /api/workspaces/:id/plans/:planId
+ *
+ * Edit a plan item, or tick it done. Body: any of { title, description,
+ * start, due } and/or { done: boolean }. An edit of the words or the dates
+ * stamps `editedAt`, which is what the actions log's "edited a plan" row
+ * reads; done: true stamps `doneAt` once (a second tick keeps the first
+ * instant) and done: false clears it, and neither touches `editedAt`,
+ * because finishing something is not correcting it. There is no delete: the
+ * database refuses one (migration 0121), so a commitment made in public is
+ * done or edited, never quietly unplanned.
+ */
+workspacesRouter.put(
+  '/:id/plans/:planId',
+  requireCapability('manage'),
+  wrap(async (req, res) => {
+    const wsId = req.params.id as string;
+    const planId = req.params.planId as string;
+    const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, wsId));
+    if (!ws) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+    if (!(await canManagePathWorkspace(req.auth!, wsId))) {
+      res.status(403).json({ error: 'Forbidden: this identity lacks the "manage" capability in this workspace.' });
+      return;
+    }
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const editable = ['title', 'description', 'start', 'due'].filter(k => k in body);
+    if (editable.length === 0 && !('done' in body)) {
+      res.status(400).json({ error: 'Nothing to change: name one of title, description, start, due or done.' });
+      return;
+    }
+    if ('done' in body && typeof body.done !== 'boolean') {
+      res.status(400).json({ error: 'done must be true or false' });
+      return;
+    }
+    const parsed = readPlanFields(body);
+    if (!parsed.ok) {
+      res.status(400).json({ error: parsed.error });
+      return;
+    }
+
+    const [existing] = await db
+      .select()
+      .from(plans)
+      .where(and(eq(plans.workspaceId, wsId), eq(plans.id, planId)));
+    if (!existing) {
+      res.status(404).json({ error: 'Plan not found' });
+      return;
+    }
+
+    const start = 'start' in parsed.fields ? parsed.fields.start : existing.start;
+    const due = 'due' in parsed.fields ? parsed.fields.due : existing.due;
+    if (dueBeforeStart(start, due)) {
+      res.status(400).json({ error: 'due must not be before start' });
+      return;
+    }
+
+    const patch: Partial<typeof plans.$inferInsert> = {};
+    if (editable.length > 0) {
+      Object.assign(patch, parsed.fields);
+      patch.editedAt = new Date();
+    }
+    if (body.done === true && !existing.doneAt) patch.doneAt = new Date();
+    if (body.done === false) patch.doneAt = null;
+    if (Object.keys(patch).length === 0) {
+      res.json(planPayload(existing));
+      return;
+    }
+    const [row] = await db
+      .update(plans)
+      .set(patch)
+      .where(and(eq(plans.workspaceId, wsId), eq(plans.id, planId)))
+      .returning();
+    res.json(planPayload(row));
+  }),
+);
+
 workspacesRouter.post(
   '/:id/join',
   requireIdentity,
@@ -1109,6 +1316,7 @@ workspacesRouter.delete(
       // append-only otherwise.
       await allowLedgerAdmin(tx);
       await tx.delete(announcements).where(eq(announcements.workspaceId, wsId));
+      await tx.delete(plans).where(eq(plans.workspaceId, wsId));
       await tx.delete(liquidityEvents).where(eq(liquidityEvents.workspaceId, wsId));
       await tx.delete(positions).where(eq(positions.workspaceId, wsId));
       await tx.delete(trades).where(eq(trades.workspaceId, wsId));

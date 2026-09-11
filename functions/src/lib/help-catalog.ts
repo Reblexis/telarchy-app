@@ -893,6 +893,20 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     },
     {
       method: 'POST',
+      path: '/api/workspaces/:id/plans',
+      auth: 'admin',
+      description:
+        'Add a plan item: an owner commitment that is not a proposal ("write the September results post", "call with Seer, Thursday"), drawn as a bar on the floor\'s "What is planned" time axis beside the approved proposals, the pending decisions and the open books (docs/owner-on-the-floor.md, "What is planned"). Body: { title: string, 1..200 chars, required; description?: markdown, <=5000 chars; start?: ISO date or instant; due?: ISO date or instant, day or minute precision }. due before start is 400. Returns 201 { id, workspaceId, title, description, start, due, doneAt: null, createdBy, createdAt, editedAt: null } with every instant as an ISO string. createdAt is the database clock and doneAt starts null whatever the body says. A plan with no start begins at the left edge of the axis; one with no due is listed under it as "no date". Read publicly at GET /api/marketplace/:idOrSlug/timeline. There is no delete: the database refuses one, so a plan made in public is done or edited, never quietly unplanned. Every add, edit and completion is a plan row on GET /api/data-room/actions.',
+    },
+    {
+      method: 'PUT',
+      path: '/api/workspaces/:id/plans/:planId',
+      auth: 'admin',
+      description:
+        'Edit a plan item or tick it done (docs/owner-on-the-floor.md, "What is planned"). Body: any of { title, description, start, due } (same rules as POST; null clears description, start or due) and/or { done: true|false }. An edit of the words or the dates stamps editedAt; done: true stamps doneAt once and takes the bar off the axis, done: false clears doneAt and puts it back; neither tick touches editedAt, because finishing something is not correcting it. createdAt never moves. An empty body, a bad title, an unparsable date, due before start (checked against the stored other end) or a non-boolean done is 400; an unknown plan is 404. Returns the updated row in the POST shape. No delete route exists.',
+    },
+    {
+      method: 'POST',
       path: '/api/workspaces/:id/announcements',
       auth: 'admin',
       description:
@@ -1052,7 +1066,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/data-room/actions',
       auth: false,
       description:
-        "The public actions log: every public action on Telarchy, newest first, assembled at read time from the live tables (never a second store). Query: kinds (comma list of trade, order, liquidity, proposal, decision, delivery, comment, announcement, reading, metric, market, purchase, grant, transfer, season, join, link, workspace), workspace (a public floor's slug), participant (handle or id), after/before (ISO instants, strict), limit (default 50, max 200), cursor (the previous page's next), floors ('all' to include floors a platform admin hid from the log by default, such as a machine-run floor; otherwise those floors appear only when named by workspace= or reached through participant=). Returns { generatedAt, kinds: [{ id, label, description }], workspaces: [{ slug, name, hidden }], rows: [{ id, at, kind, workspace: { slug, name } | null, actor: { id, handle } | null, text, detail, href }], next }. text is one sentence that never restates the actor or the floor; detail is the structured version; href is the address on this site. Private floors contribute nothing; redemptions and removed proposals are never rows; a row whose book or metric was since removed stays, saying so. An unknown kind, a non-public workspace, an unknown participant or a bad instant is a 400 naming the parameter. Open to every origin, no key. The same parameters on telarchy.com/data-room show the same list. Spec: docs/data-room.md.",
+        "The public actions log: every public action on Telarchy, newest first, assembled at read time from the live tables (never a second store). Query: kinds (comma list of trade, order, liquidity, proposal, decision, delivery, comment, announcement, plan, reading, metric, market, purchase, grant, transfer, season, join, link, workspace), workspace (a public floor's slug), participant (handle or id), after/before (ISO instants, strict), limit (default 50, max 200), cursor (the previous page's next), floors ('all' to include floors a platform admin hid from the log by default, such as a machine-run floor; otherwise those floors appear only when named by workspace= or reached through participant=). Returns { generatedAt, kinds: [{ id, label, description }], workspaces: [{ slug, name, hidden }], rows: [{ id, at, kind, workspace: { slug, name } | null, actor: { id, handle } | null, text, detail, href }], next }. text is one sentence that never restates the actor or the floor; detail is the structured version; href is the address on this site. Private floors contribute nothing; redemptions and removed proposals are never rows; a row whose book or metric was since removed stays, saying so. An unknown kind, a non-public workspace, an unknown participant or a bad instant is a 400 naming the parameter. Open to every origin, no key. The same parameters on telarchy.com/data-room show the same list. Spec: docs/data-room.md.",
     },
     {
       method: 'GET',
@@ -1336,6 +1350,13 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       auth: false,
       description:
         'Public read of who holds what and the recent trade history for a market (?marketId=) on an Open public workspace. Returns { consensus, positions: [{ handle, id, direction, shares, cost, worth }] (marked to current price, top 50 by size), trades: [{ id, handle, direction, kind ("buy"|"sell"), shares, cost, createdAt }] (newest 50) }. Trades only: the ledger rows a matched-pair redemption writes are not trades against this market (nothing was bought from anyone, and the price did not move), so they are omitted here and appear once, as a redemption, in the participant\'s own history.',
+    },
+    {
+      method: 'GET',
+      path: '/api/marketplace/:idOrSlug/timeline',
+      auth: false,
+      description:
+        'The floor\'s time axis: what the owner has committed to and by when, as one list of intervals (docs/owner-on-the-floor.md, "What is planned"). Returns { now, items: [{ kind, id, title, start, end, href, done?, description? }] }, soonest end first, items with no end last; now is the server clock, so the now-line agrees with the bars. kind is one of proposal (an approved proposal not yet delivered: from the approval to the earliest horizon it is priced on that has not resolved; a proposal whose every horizon has resolved has no item), decision (a pending proposal: from its posting to its decision deadline), book (an open baseline book: from the start of its period to the instant it settles, titled "<metric> · <date>") and plan (an open plan item: the owner\'s start and due, with its description and done: false). href is the proposal\'s address (/<slug>/p/<number>), the book on the floor (/<slug>#market=<id>) or null for a plan item. A delivered proposal, a decided or lapsed one, a settled or voided book and a done plan are not items: their interval is over and the actions log holds the history. Every bar is computed here; the floor page and Otto draw what they are handed. Same disclosure rule as the announcements: 404 unknown, 403 on a private floor, 403 where the Public group does not hold read.',
     },
     {
       method: 'GET',

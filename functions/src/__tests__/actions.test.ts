@@ -42,6 +42,7 @@ import {
   metricDefinitionRevisions,
   metrics,
   permissionGroups,
+  plans,
   prizeSeasons,
   proposalMessages,
   proposalRevisions,
@@ -408,6 +409,19 @@ async function seedEverything() {
       publishedBy: 'a3',
     },
     { id: 'an9', workspaceId: PRIV, body: 'Private news.', publishedAt: T('2026-08-19T08:00:00Z') },
+  ]);
+  await db.insert(plans).values([
+    {
+      id: 'pl1',
+      workspaceId: PUB,
+      title: 'Write the September results post',
+      due: T('2026-09-20T00:00:00Z'),
+      createdBy: 'a1',
+      createdAt: T('2026-08-20T08:00:00Z'),
+      editedAt: T('2026-08-20T09:00:00Z'),
+      doneAt: T('2026-08-21T10:00:00Z'),
+    },
+    { id: 'pl9', workspaceId: PRIV, title: 'Private plan', createdAt: T('2026-08-20T08:00:00Z') },
   ]);
   await db.insert(updates).values([
     {

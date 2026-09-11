@@ -1,6 +1,7 @@
 import type { TimePreference } from '../types';
 import { BASE_PATH, withBase } from './base-path';
 import { pickCurrentSeason } from './season-clock';
+import type { TimelineItem } from './timeline-model';
 
 /** A guide category, served by GET /api/guides/_categories. */
 export interface GuideCategory {
@@ -725,6 +726,28 @@ export interface Announcement {
    *  owner; null when the owner published it. Print it: a delegate's words
    *  must never read as the owner's. */
   publishedBy: string | null;
+}
+
+/** One bar or listed item on the floor's "What is planned" axis
+ *  (docs/owner-on-the-floor.md, "What is planned"). Computed by the server
+ *  and drawn as returned; the client derives no bar itself. The shape lives
+ *  with the geometry in lib/timeline-model.ts and is re-exported here. */
+export type { TimelineItem };
+
+/** An owner's plan item: a commitment that is not a proposal. Never
+ *  deleted, only done or edited, so nothing planned in public is quietly
+ *  unplanned. */
+export interface Plan {
+  id: string;
+  workspaceId: string;
+  title: string;
+  description: string | null;
+  start: string | null;
+  due: string | null;
+  doneAt: string | null;
+  createdBy: string | null;
+  createdAt: string;
+  editedAt: string | null;
 }
 
 export interface PublicProposalMarketPair {
@@ -2724,6 +2747,27 @@ export const api = {
     request(`/api/workspaces/${workspaceId}/announcements/${announcementId}`, {
       method: 'PUT',
       body: JSON.stringify({ body }),
+    }),
+  /** What the floor has committed to and when, under the announcements'
+   *  disclosure rule (403 on a private floor). */
+  getWorkspaceTimeline: (idOrSlug: string): Promise<{ now: string; items: TimelineItem[] }> =>
+    request(`/api/marketplace/${encodeURIComponent(idOrSlug)}/timeline`),
+  createPlan: (
+    workspaceId: string,
+    body: { title: string; description?: string; start?: string; due?: string },
+  ): Promise<Plan> =>
+    request(`/api/workspaces/${workspaceId}/plans`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updatePlan: (
+    workspaceId: string,
+    planId: string,
+    body: { title?: string; description?: string; start?: string | null; due?: string | null; done?: boolean },
+  ): Promise<Plan> =>
+    request(`/api/workspaces/${workspaceId}/plans/${planId}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
     }),
   // Sources (text + external bridges, unified)
   listSources: () => request('/api/sources'),
