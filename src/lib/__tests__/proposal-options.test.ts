@@ -93,18 +93,18 @@ describe('worldOf: the world key names one market of the row', () => {
 describe("optionLead: the leader's consensus minus the best other PRICED option", () => {
   test('the leader and its lead over the next best', () => {
     const lead = optionLead(optionRow.options as never);
-    expect(lead?.leader.id).toBe('left');
-    expect(lead?.runnerUp.id).toBe('forward');
+    expect(lead?.leader?.id).toBe('left');
+    expect(lead?.tied).toBe(false);
     expect(lead?.lead).toBeCloseTo(1.7, 9);
   });
 
   test('an option with no liquidity has no price and never leads or trails', () => {
     const lead = optionLead([opt('a', 'A', null), opt('b', 'B', 3), opt('c', 'C', 2)] as never);
-    expect(lead?.leader.id).toBe('b');
+    expect(lead?.leader?.id).toBe('b');
     expect(lead?.lead).toBeCloseTo(1, 9);
     // Priced at a number but nothing staked: still unpriced.
     expect(
-      optionLead([opt('a', 'A', 9, { liquidity: 0 }), opt('b', 'B', 3), opt('c', 'C', 2)] as never)?.leader.id,
+      optionLead([opt('a', 'A', 9, { liquidity: 0 }), opt('b', 'B', 3), opt('c', 'C', 2)] as never)?.leader?.id,
     ).toBe('b');
   });
 
@@ -114,10 +114,14 @@ describe("optionLead: the leader's consensus minus the best other PRICED option"
     expect(optionLead(null)).toBeNull();
   });
 
-  test("a tie at the top is a lead of zero, the first in the proposer's order named", () => {
+  test('a tie at the top has no leader: a lead of zero, nobody named, even through float noise', () => {
     const lead = optionLead([opt('a', 'A', 2), opt('b', 'B', 5), opt('c', 'C', 5)] as never);
-    expect(lead?.leader.id).toBe('b');
+    expect(lead?.leader).toBeNull();
+    expect(lead?.tied).toBe(true);
     expect(lead?.lead).toBe(0);
+    const noisy = optionLead([opt('a', 'A', 5 + 1e-12), opt('b', 'B', 5), opt('c', 'C', 2)] as never);
+    expect(noisy?.leader).toBeNull();
+    expect(noisy?.lead).toBe(0);
   });
 });
 

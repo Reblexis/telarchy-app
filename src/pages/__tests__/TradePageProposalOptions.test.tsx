@@ -395,7 +395,9 @@ describe('THE QUESTION NAMES THE OPTION, AND THE WORLD RIDES THE VERB', () => {
     expect(words(ticket)).toMatch(/Turn left/);
     expect(words(ticket)).not.toMatch(/if approved/);
     fireEvent.click(cellsOf(container)[1]);
-    await waitFor(() => expect(words(screen.getByRole('button', { name: /Bet Higher/ }))).toMatch(/Continue/), { timeout: 5000 });
+    await waitFor(() => expect(words(screen.getByRole('button', { name: /Bet Higher/ }))).toMatch(/Continue/), {
+      timeout: 5000,
+    });
     expect(words(container.querySelector('.ticket-subject-ctx'))).toMatch(/Continue/);
   });
 });
@@ -484,7 +486,9 @@ describe('THE DECISION BAR HAS ONE BUTTON PER OPTION', () => {
   test('pressing one is the approve with that option, and nothing asks twice', async () => {
     const { container } = renderFloor();
     await opened(container);
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Choose Continue' })).toBeTruthy(), { timeout: 5000 });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Choose Continue' })).toBeTruthy(), {
+      timeout: 5000,
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Choose Continue' }));
     await waitFor(() => expect(api.approveProposal).toHaveBeenCalledWith('job-1', 'forward'), { timeout: 5000 });
     expect(api.approveProposal).toHaveBeenCalledTimes(1);

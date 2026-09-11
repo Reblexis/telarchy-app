@@ -72,19 +72,28 @@ export function parseProposalOptions(raw: unknown): ParsedOptions {
   return { ok: true, options };
 }
 
+/** How close two consensus values must be to count as the same price, so
+ *  float noise never names a leader. */
+export const TIE_EPSILON = 1e-9;
+
 export interface OptionDeltas {
-  /** The option with the highest consensus among the priced ones; null with fewer than two priced. */
+  /** The unique priced option with the strictly highest consensus; null with
+   *  fewer than two priced, and null on a tie at the top. */
   leaderId: string | null;
   /** Per option id: its consensus minus the best of the other options; null where it, or every other, is unpriced. */
   deltas: Map<string, number | null>;
-  /** The leader's lead, what the row and the floor's strips carry; null without a leader. */
+  /** The leader's lead, what the row and the floor's strips carry: 0 on a
+   *  tie at the top, null with fewer than two priced. */
   rowDelta: number | null;
 }
 
 /**
  * The one arithmetic. An option with no price has no delta; a row where
  * fewer than two options are priced has no leader and no delta at all,
- * because a lead over nobody is not a number.
+ * because a lead over nobody is not a number. A tie at the top (two or more
+ * priced options within TIE_EPSILON of the highest) has no leader either:
+ * the row's delta is 0 and every option's delta is its gap to that shared
+ * top (docs/guides/proposals.md, "The number you are reading").
  */
 export function optionDeltas(entries: Array<{ id: string; consensus: number | null }>): OptionDeltas {
   const priced = entries.filter(e => e.consensus !== null && Number.isFinite(e.consensus));
@@ -105,9 +114,11 @@ export function optionDeltas(entries: Array<{ id: string; consensus: number | nu
       if (o.id === e.id) continue;
       if (bestOther === null || (o.consensus as number) > bestOther) bestOther = o.consensus as number;
     }
-    deltas.set(e.id, bestOther === null ? null : e.consensus - bestOther);
+    const d = bestOther === null ? null : e.consensus - bestOther;
+    deltas.set(e.id, d !== null && Math.abs(d) <= TIE_EPSILON ? 0 : d);
   }
-  return { leaderId: leader.id, deltas, rowDelta: deltas.get(leader.id) ?? null };
+  const rowDelta = deltas.get(leader.id) ?? null;
+  return { leaderId: rowDelta === 0 ? null : leader.id, deltas, rowDelta };
 }
 
 /** The label an option id was posted with, or the id itself for a row whose list no longer names it. */

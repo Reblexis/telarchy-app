@@ -479,7 +479,7 @@ proposalsRouter.post(
     // unknown_option and no_options.
     const option = req.body?.option;
     if (option !== undefined && option !== null && typeof option !== 'string') {
-      res.status(400).json({ error: 'option must be a string: the id of one of the proposal\'s options' });
+      res.status(400).json({ error: "option must be a string: the id of one of the proposal's options" });
       return;
     }
     const result = await approveProposal(proposalId, workspaceId, agentId ?? null, option ?? null);

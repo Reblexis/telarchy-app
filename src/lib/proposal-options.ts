@@ -26,22 +26,31 @@ export function isOptionRow(m: Pick<PublicProposalMarketPair, 'options'> | null 
   return !!m?.options && m.options.length > 0;
 }
 
+/** How close two consensus values must be to count as the same price, so
+ *  float noise never names a leader. */
+export const TIE_EPSILON = 1e-9;
+
 /**
- * Who leads a row and by how much: the leader's consensus minus the best of
- * the other PRICED options. Fewer than two priced options is no leader. A
- * tie at the top is a lead of zero, the first in the proposer's order named.
+ * Who leads a row and by how much: the unique priced option with the
+ * strictly highest consensus, and its consensus minus the best of the other
+ * PRICED options. Fewer than two priced options is no lead at all (null). A
+ * tie at the top (two or more within TIE_EPSILON of the highest) is a lead of
+ * exactly zero with no leader: `leader` is null and `tied` true
+ * (docs/guides/proposals.md, "The number you are reading").
  */
 export function optionLead(
   options: PublicProposalOptionQuote[] | null | undefined,
-): { leader: PublicProposalOptionQuote; runnerUp: PublicProposalOptionQuote; lead: number } | null {
+): { leader: PublicProposalOptionQuote | null; lead: number; tied: boolean } | null {
   const priced = (options ?? []).filter(isPricedOption);
   if (priced.length < 2) return null;
-  let leader = priced[0];
-  for (const o of priced) if ((o.consensus as number) > (leader.consensus as number)) leader = o;
-  const rest = priced.filter(o => o !== leader);
+  let top = priced[0];
+  for (const o of priced) if ((o.consensus as number) > (top.consensus as number)) top = o;
+  const rest = priced.filter(o => o !== top);
   let runnerUp = rest[0];
   for (const o of rest) if ((o.consensus as number) > (runnerUp.consensus as number)) runnerUp = o;
-  return { leader, runnerUp, lead: (leader.consensus as number) - (runnerUp.consensus as number) };
+  const lead = (top.consensus as number) - (runnerUp.consensus as number);
+  if (lead <= TIE_EPSILON) return { leader: null, lead: 0, tied: true };
+  return { leader: top, lead, tied: false };
 }
 
 /** One world of a row, in the shape the page trades and draws. */

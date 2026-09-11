@@ -1025,7 +1025,7 @@ export function TradePage() {
      one, the leader, the first priced option, then the first option. */
   const defaultWorld = jobOptioned
     ? (chosenOption ??
-      optionLeadNow?.leader.id ??
+      optionLeadNow?.leader?.id ??
       pairOptions.find(isPricedOption)?.id ??
       jobOptionList[0]?.id ??
       'approved')
@@ -2167,9 +2167,14 @@ export function TradePage() {
                           {sentenceCase(captionLabel(metricLabel, ws.name))} {dateQuestionOf(hero).lead}
                           {dateQuestionOf(hero).word},{' '}
                           {jobOptioned
-                            ? `${optionLeadNow ? optionLeadNow.leader.label : 'the leader'} over the next best${
-                                selectedJobClosed ? ' \u00b7 at the decision' : ''
-                              }`
+                            ? /* A tie at the top is not a lead: nobody is named
+                                 (docs/ui-conventions.md, "A proposal with
+                                 options shows one world per option"). */
+                              `${
+                                optionLeadNow?.tied
+                                  ? 'tied at the top'
+                                  : `${optionLeadNow?.leader ? optionLeadNow.leader.label : 'the leader'} over the next best`
+                              }${selectedJobClosed ? ' \u00b7 at the decision' : ''}`
                             : 'approved versus declined'}
                         </span>
                         <p
@@ -2218,7 +2223,7 @@ export function TradePage() {
                                  option but the chosen one. */
                               const q = optionQuote(o.id);
                               const priced = !!q && isPricedOption(q);
-                              const leads = !selectedJobRuling && optionLeadNow?.leader.id === o.id;
+                              const leads = !selectedJobRuling && optionLeadNow?.leader?.id === o.id;
                               const chosen = selectedJobRuling === 'approved' && chosenOption === o.id;
                               const struck = !!selectedJobRuling && !chosen;
                               return (
@@ -2893,14 +2898,16 @@ export function TradePage() {
                             /* One button per option, the leader's first and
                                in the accent (docs/ui-conventions.md, "The
                                decision bar has one button per option"):
-                               pressing one is the approve with that option. */
+                               pressing one is the approve with that option.
+                               A tie at the top has no leader, so none is
+                               green and they keep the proposer's order. */
                             [
-                              ...jobOptionList.filter(o => o.id === optionLeadNow?.leader.id),
-                              ...jobOptionList.filter(o => o.id !== optionLeadNow?.leader.id),
+                              ...jobOptionList.filter(o => o.id === optionLeadNow?.leader?.id),
+                              ...jobOptionList.filter(o => o.id !== optionLeadNow?.leader?.id),
                             ].map(o => (
                               <button
                                 key={o.id}
-                                className={`pubws-decide${optionLeadNow?.leader.id === o.id ? ' pubws-decide--approve' : ''}`}
+                                className={`pubws-decide${optionLeadNow?.leader?.id === o.id ? ' pubws-decide--approve' : ''}`}
                                 disabled={decideBusy}
                                 onClick={() => void decide('approve', false, undefined, undefined, o.id)}
                               >
