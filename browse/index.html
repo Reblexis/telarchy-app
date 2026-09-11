@@ -6936,9 +6936,13 @@ is in flight or fails, so it never blanks between reads.</li>
 <li><strong>The next move</strong> (<code>.snake-next</code>), one left-aligned text line, the
 leader's action in words: &quot;Next move: turn left in 0:31&quot; while the step
 is open (the countdown from <code>next.seconds</code>, ticking by the second
-between polls, in <code>.snake-clock</code>), &quot;Next move: turn left, decided&quot; once
-<code>next.decided</code> and until the move, and &quot;Next move: continue forward
-(default)&quot; while nothing is readable (<code>next</code> absent, or its action
+between polls, in <code>.snake-clock</code>), &quot;Next move: turn left, deciding&quot;
+from the moment that countdown reaches zero until the ruling lands
+(the service rules a moment after the step closes and opens the next a
+moment after that, and a line sitting on &quot;in 0:00&quot; for those seconds
+hides the one transition the page exists to show), &quot;Next move: turn
+left, decided&quot; once <code>next.decided</code> and until the move, and &quot;Next move:
+continue forward (default)&quot; while nothing is readable (<code>next</code> absent, or its action
 unreadable). Before the first poll the line reads &quot;Loading&quot;; after a
 failed one &quot;Feed unavailable&quot;; between games &quot;Waiting for the next
 game&quot;.
@@ -6983,7 +6987,10 @@ decides within the hour and at one minute otherwise.</p>
 ticking with that same clock. On a fed floor the feed's own step is that
 reading whenever it is newer than the payload's last one (the open step's
 <code>openedAt</code> and the game's <code>length</code>), so the cell reads &quot;read just now&quot;
-the second the snake moves instead of waiting for the next floor poll. <strong>The open step's prices
+the second the snake moves instead of waiting for the next floor poll.
+The page keeps the newest reading it has SEEN, so the seconds in which
+the feed names no step at all (one closed, the next not yet open) do not
+make the reading it just showed a minute old again. <strong>The open step's prices
 read from the feed</strong>: while a proposal the feed names is pending and has
 one pair, that pair's approved and declined prices and its impact, on
 the world cells, the impact chip and its board row, are the feed's
