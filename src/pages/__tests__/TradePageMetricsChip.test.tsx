@@ -142,11 +142,13 @@ describe("the owner's entries at the end of each strip", () => {
     await waitFor(() => expect(screen.getByRole('dialog', { name: /metrics/i })).toBeTruthy());
   });
 
-  test('"Manage dates" is the last tab of the dates strip, and opens the metric sheet', async () => {
-    renderFloor();
-    // One date on this floor, so the strip exists only because the owner's
-    // entry is on it.
-    await waitFor(() => expect(tabs('Dates').at(-1)).toBe('Manage dates'));
+  test('"Manage dates" sits in the owner row when the metric has one date, and opens the metric sheet', async () => {
+    const { container } = renderFloor();
+    // One date on this floor, so the date strip is not drawn (a picker with
+    // one option, 2026-09-11) and the entry is in the owner row instead.
+    await waitFor(() => expect(container.querySelector('.pubws-strip-owner')).toBeTruthy());
+    expect(screen.queryByLabelText('Dates')).toBeNull();
+    expect(container.querySelector('.pubws-strip-owner')?.textContent).toContain('Manage dates');
     fireEvent.click(screen.getByText('Manage dates'));
     // The dates are rows on the metric's sheet, not a dialog of their own
     // (docs/owner-on-the-floor.md, dialog 2; owner decision 2026-09-04).
@@ -154,10 +156,14 @@ describe("the owner's entries at the end of each strip", () => {
     await waitFor(() => expect(screen.getByRole('dialog', { name: /metric/i })).toBeTruthy());
   });
 
-  test('with one metric the owner still has the strip, because it is the way into the metrics', async () => {
+  test('with one metric the owner has no strip either; "Manage metrics" moves to the owner row (2026-09-11)', async () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(h.workspace(1) as never);
-    renderFloor();
-    await waitFor(() => expect(tabs('Metrics').at(-1)).toBe('Manage metrics'));
-    expect(tabs('Metrics')).toHaveLength(2);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-strip-owner')).toBeTruthy());
+    expect(screen.queryByLabelText('Metrics')).toBeNull();
+    const row = container.querySelector('.pubws-strip-owner') as HTMLElement;
+    expect([...row.querySelectorAll('button')].map(b => b.textContent?.trim())).toContain('Manage metrics');
+    fireEvent.click(screen.getByText('Manage metrics'));
+    await waitFor(() => expect(screen.getByRole('dialog', { name: /metrics/i })).toBeTruthy());
   });
 });

@@ -338,22 +338,28 @@ describe('THE GRID SHOWS AN ARROW IN THE CELL THE SNAKE MOVES TO NEXT', () => {
 });
 
 describe('THE LIVE SEGMENT SHOWS ONLY THE GRID AND THE NEXT MOVE', () => {
-  test('the segment is the board and one next-move line; no tiles, impacts, status, quiet line, links or buttons', async () => {
+  test('the segment is the board, the next-move line, the why line and the three picks; no tiles, status, quiet line or trade', async () => {
     const { container } = renderLive();
     await waitFor(() => expect(container.querySelector('.snake-next')).toBeTruthy());
     const main = container.querySelector('.snake-main') as HTMLElement;
     expect(main.querySelector('svg.snake-board')).toBeTruthy();
-    expect(main.querySelectorAll('p')).toHaveLength(1);
+    expect(main.querySelectorAll('p')).toHaveLength(2);
     expect(main.querySelector('.snake-next')).toBeTruthy();
+    expect(main.querySelector('.snake-why')).toBeTruthy();
     expect(container.querySelector('.snake-tiles')).toBeNull();
     expect(container.querySelector('.snake-tile')).toBeNull();
     expect(container.querySelector('.snake-status')).toBeNull();
     expect(container.querySelector('.snake-quiet')).toBeNull();
-    // The only links are the three chevrons on the grid (2026-09-11), no buttons.
+    // The only links are the three chevrons on the grid and the three picks (2026-09-11), no buttons.
     expect(main.querySelectorAll('button')).toHaveLength(0);
-    expect([...main.querySelectorAll('a')].every(a => a.classList.contains('snake-arrow-link'))).toBe(true);
-    // The impacts, the trade and the commentary are not printed anywhere.
-    expect(main.textContent).not.toMatch(/\+1\.2|\+2\.9|-0\.9|philipp-gl|leans left|Length|Game 2|12x12/);
+    expect(
+      [...main.querySelectorAll('a')].every(
+        a => a.classList.contains('snake-arrow-link') || a.classList.contains('snake-pick'),
+      ),
+    ).toBe(true);
+    expect(main.querySelectorAll('a.snake-pick')).toHaveLength(3);
+    // The trade and the commentary are not printed anywhere.
+    expect(main.textContent).not.toMatch(/philipp-gl|leans left|Length|Game 2|12x12/);
   });
 
   test("the next move is the leader's action in words with the countdown while the step is open", async () => {
@@ -759,5 +765,110 @@ describe("the open step's prices read from the feed, and a stale feed says so", 
     expect(line.textContent).toMatch(/turn left/);
     expect(container.querySelector('.snake-clock')).toBeNull();
     vi.useRealTimers();
+  });
+});
+
+describe('the why line and the three picks (docs/ui-conventions.md, items 3 and 4 of what LIVE draws)', () => {
+  const chips = (container: HTMLElement) => [...container.querySelectorAll('.snake-picks a')] as HTMLAnchorElement[];
+  const text = (el: Element) => (el.textContent ?? '').replace(/\s+/g, ' ').trim();
+
+  test('THE WHY LINE EXPLAINS A LEAD: the leader minus the runner-up, one decimal, in words', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(container.querySelector('.snake-why')).toBeTruthy());
+    // 2.9 (left) minus 1.2 (forward) = +1.7
+    expect(text(container.querySelector('.snake-why') as Element)).toBe(
+      'Turn left leads by +1.7 over continue forward.',
+    );
+  });
+
+  test('THE WHY LINE EXPLAINS A TIE: all equal, or all unquoted', async () => {
+    vi.mocked(api.getLiveState).mockImplementation(async () => {
+      const s = h.state();
+      s.open.quotes = {
+        forward: { m60: { approved: 6, declined: 6 } },
+        left: { m60: { approved: 6, declined: 6 } },
+        right: { m60: { approved: 6, declined: 6 } },
+      } as never;
+      return s as never;
+    });
+    const { container } = renderLive();
+    await waitFor(() => expect(container.querySelector('.snake-why')).toBeTruthy());
+    expect(text(container.querySelector('.snake-why') as Element)).toBe(
+      'Nobody has priced this step yet. A tie plays forward. Bet on a turn to change it.',
+    );
+  });
+
+  test('all three unquoted is a tie too, and every chip prints +0.0', async () => {
+    vi.mocked(api.getLiveState).mockImplementation(async () => {
+      const s = h.state();
+      s.open.quotes = { forward: {}, left: {}, right: {} } as never;
+      return s as never;
+    });
+    const { container } = renderLive();
+    await waitFor(() => expect(container.querySelector('.snake-why')).toBeTruthy());
+    expect(text(container.querySelector('.snake-why') as Element)).toMatch(/^Nobody has priced this step yet/);
+    expect(chips(container).map(c => c.querySelector('.snake-pick-impact')?.textContent)).toEqual([
+      '+0.0',
+      '+0.0',
+      '+0.0',
+    ]);
+  });
+
+  test('THREE CHIPS IN FIXED ORDER LINK TO THEIR PROPOSALS on this floor', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(container.querySelectorAll('.snake-picks a')).toHaveLength(3));
+    const c = chips(container);
+    expect(c.map(x => x.querySelector('.snake-pick-name')?.textContent)).toEqual([
+      'Continue',
+      'Turn left',
+      'Turn right',
+    ]);
+    // The number is taken from the proposal's url and the link stays on this floor.
+    expect(c.map(x => x.getAttribute('href'))).toEqual(['/snake/p/121', '/snake/p/122', '/snake/p/123']);
+    // Each chip carries the arrow of its compass direction (forward: right, left: up, right: down).
+    expect(c.map(x => x.querySelector('.snake-pick-arrow')?.textContent)).toEqual(['→', '↑', '↓']);
+    // And its 60-move impact, signed, one decimal.
+    expect(c.map(x => x.querySelector('.snake-pick-impact')?.textContent)).toEqual(['+1.2', '+2.9', '-0.9']);
+    // No tiles: the chips are the floor's small chip style.
+    expect(container.querySelector('.snake-tile')).toBeNull();
+  });
+
+  test('the leader chip is marked', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(container.querySelectorAll('.snake-picks a')).toHaveLength(3));
+    const c = chips(container);
+    expect(c.map(x => x.classList.contains('is-leader'))).toEqual([false, true, false]);
+    expect(c[1].getAttribute('aria-current')).toBe('true');
+    expect(c[0].getAttribute('aria-current')).toBeNull();
+  });
+
+  test('a url without a number links as given', async () => {
+    vi.mocked(api.getLiveState).mockImplementation(async () => {
+      const s = h.state();
+      s.open.proposals.left = { id: 'p2', title: 'Turn left', url: 'https://telarchy.com/snake#proposal=p2' };
+      return s as never;
+    });
+    const { container } = renderLive();
+    await waitFor(() => expect(container.querySelectorAll('.snake-picks a')).toHaveLength(3));
+    expect(chips(container)[1].getAttribute('href')).toBe('https://telarchy.com/snake#proposal=p2');
+  });
+
+  test('the replay row stays under the chips', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(container.querySelector('.snake-picks')).toBeTruthy());
+    const picks = container.querySelector('.snake-picks') as Element;
+    const replay = container.querySelector('.snake-replay') as Element;
+    expect(picks.compareDocumentPosition(replay) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  test('replay hides the why line and the chips, LIVE brings them back', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(container.querySelector('.snake-picks')).toBeTruthy());
+    await pickGame(container, 2);
+    await waitFor(() => expect(container.querySelector('.snake-next.is-replay')).toBeTruthy());
+    expect(container.querySelector('.snake-picks')).toBeNull();
+    expect(container.querySelector('.snake-why')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Live' }));
+    await waitFor(() => expect(container.querySelector('.snake-picks')).toBeTruthy());
   });
 });

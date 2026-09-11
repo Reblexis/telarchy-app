@@ -2004,3 +2004,24 @@ out, so a crash is visible before the move. Replay draws the entry's own
 stream frame (telarchy-snake, `docs/snake.md`). Spec in
 docs/ui-conventions.md, "The live view is a segment of the chart slot",
 item 1 of what LIVE draws.
+
+**2026-09-11 (Viktor): four picks from the snake floor's design proposal.**
+Of the proposal that followed the design critic's report
+(docs/reviews/2026-09-11-snake-design-critic.md): "1. if there is only one
+metric or one date dont put the selector of that type there .. dont do the
+plain line and regarding 2. yes it makes sense to fall to 2. (after the
+resolution of previous attempt that is) 3. agreed 4. agreed (with the
+design number 4 ... i dont want to change the ticket labels) and dont do
+the rest yet". So: (1) a picker with one option is not rendered for
+anyone, the owner's entry moving to a quiet owner row under the strips;
+(2) a snake floor's headline asks "in 60 moves", never "at 15:53", and its
+NOW caption names the attempt (`deaths + 1`) once the live feed has been
+read; (3) under the grid, a why line ("Turn left leads by +0.4 over
+continue forward.", or the tie sentence) and three small chips, Continue /
+Turn left / Turn right, each its arrow, its 60-move impact and a link to
+its proposal on this floor, the leader in the accent; (4) the title's (i)
+opens inline under the name and pushes the page down instead of a popup
+the headline painted over. Not done, by his words: the plain line under
+the title, the ticket's labels, and the rest of the proposal. Specs in
+docs/ui-conventions.md: "The question line", "The stat row", "The live
+view is a segment of the chart slot", "The page ends".

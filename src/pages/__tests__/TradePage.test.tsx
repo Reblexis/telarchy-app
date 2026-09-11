@@ -671,10 +671,11 @@ test('what the company sells is behind an (i) beside its name, and is optional',
   expect(btn.getAttribute('aria-label')).toBe('What LookPilot is');
   const what = first.container.querySelector('.pubws-ws-what') as HTMLElement;
   expect(what.textContent).toBe('Webcam head tracker for sims.');
-  // Closed until asked, and a press opens it (hover and focus do it in CSS).
-  expect(first.container.querySelector('.pubws-ws-info.is-open')).toBeNull();
+  // Closed until asked, and a press opens it inline under the name
+  // (TradePageInfoDisclosure.test.tsx has the rest, 2026-09-11).
+  expect(what.hidden).toBe(true);
   fireEvent.click(btn);
-  await waitFor(() => expect(first.container.querySelector('.pubws-ws-info.is-open')).toBeTruthy());
+  await waitFor(() => expect((first.container.querySelector('.pubws-ws-what') as HTMLElement).hidden).toBe(false));
   first.unmount();
 
   // A workspace that never wrote one gets no icon at all.
@@ -1495,7 +1496,10 @@ describe('while the floor loads', () => {
     vi.mocked(api.getMarketplaceWorkspace as unknown as () => Promise<unknown>).mockReturnValue(new Promise(() => {}));
     renderFloor(['/lookpilot']);
     expect(screen.getByRole('heading', { level: 1, name: 'LookPilot' })).toBeInTheDocument();
-    expect(screen.getByText('Webcam head tracker for sims.')).toBeInTheDocument();
+    // The (i) is in place; the sentence itself is closed by default, as it
+    // is once the payload lands (2026-09-11, the inline disclosure).
+    expect(document.querySelector('.pubws-ws-info-btn')).toBeTruthy();
+    expect(screen.queryByText('Webcam head tracker for sims.')).toBeNull();
   });
 
   test('a hint for another floor is ignored', async () => {

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { PublicWorkspace } from '../api';
+import type { HorizonView } from '../floor-horizons';
 import {
   buildHorizonViews,
   captionLabel,
@@ -15,6 +16,7 @@ import {
   horizonLabel,
   metricLabelOf,
   metricsOf,
+  moveQuestionOf,
   possessiveOf,
   priceSeriesOf,
   primaryHorizonOf,
@@ -689,5 +691,54 @@ describe('a rolling minute horizon is one tab, the newest open cell', () => {
   test('cellOf falls to the newest cell, and finds a kept older one', () => {
     expect(cellOf(views, 'len', '2026-09-11T14:39')?.targetDate).toBe('2026-09-11T14:44');
     expect(cellOf(views, 'len', '2026-09-11T14:39', ['2026-09-11T14:39'])?.targetDate).toBe('2026-09-11T14:39');
+  });
+});
+
+describe('moveQuestionOf: a game floor asks in moves (docs/ui-conventions.md, "The question line", 2026-09-11)', () => {
+  const minute = (targetDate: string, resolvesOn: string | null) =>
+    ({
+      targetDate,
+      resolvesOn,
+      label: '14:40',
+      settleShort: '11 Sep',
+    }) as unknown as HorizonView;
+
+  test('a minute cell reads "in N moves", N the whole minutes to its settle instant', () => {
+    const now = new Date('2026-09-11T13:40:20Z');
+    expect(moveQuestionOf(minute('2026-09-11T14:39', '2026-09-11T14:40:00Z'), now)).toEqual({
+      word: '60 moves',
+      lead: 'in ',
+    });
+  });
+
+  test('rounds to the minute and never says fewer than one move', () => {
+    expect(
+      moveQuestionOf(minute('2026-09-11T14:39', '2026-09-11T14:40:00Z'), new Date('2026-09-11T14:39:50Z')),
+    ).toEqual({
+      word: '1 move',
+      lead: 'in ',
+    });
+    expect(
+      moveQuestionOf(minute('2026-09-11T14:39', '2026-09-11T14:40:00Z'), new Date('2026-09-11T14:41:00Z')),
+    ).toEqual({
+      word: '1 move',
+      lead: 'in ',
+    });
+    expect(
+      moveQuestionOf(minute('2026-09-11T14:39', '2026-09-11T14:40:00Z'), new Date('2026-09-11T14:37:31Z')).word,
+    ).toBe('2 moves');
+  });
+
+  test("without resolvesOn the cell's own end is the instant", () => {
+    expect(moveQuestionOf(minute('2026-09-11T14:39', null), new Date('2026-09-11T14:35:00Z')).word).toBe('5 moves');
+  });
+
+  test('an hour cell, a day, a week: exactly what dateQuestionOf says', () => {
+    const now = new Date('2026-09-11T13:40:20Z');
+    const hour = { targetDate: '2026-09-11T14', resolvesOn: null, label: 'hour to 15:00', settleShort: '11 Sep' };
+    expect(moveQuestionOf(hour as unknown as HorizonView, now)).toEqual(dateQuestionOf(hour as unknown as HorizonView));
+    const week = { targetDate: '2026-W37', resolvesOn: null, label: 'this week', settleShort: '13 Sep' };
+    expect(moveQuestionOf(week as unknown as HorizonView, now)).toEqual(dateQuestionOf(week as unknown as HorizonView));
+    expect(moveQuestionOf(null, now)).toEqual({ word: '', lead: '' });
   });
 });

@@ -453,6 +453,25 @@ export function dateQuestionOf(v: HorizonView | null): { word: string; lead: '' 
   return { word: v.settleShort || v.targetDate, lead: 'on ' };
 }
 
+/**
+ * The date word on a floor whose feed is a game that moves once a minute
+ * (docs/ui-conventions.md, "The question line", 2026-09-11): a minute cell
+ * reads "in 60 moves", the whole minutes from `now` to the cell's settle
+ * instant (`resolvesOn`, else the cell's own end), rounded and never below
+ * one, because "at 15:53" is a fact about the clock and not about the
+ * snake. Every other cell reads exactly as `dateQuestionOf` says.
+ */
+export function moveQuestionOf(
+  v: HorizonView | null,
+  now: Date = new Date(),
+): { word: string; lead: '' | 'on ' | 'at ' | 'in ' | 'in the hour to ' } {
+  if (!v || cellKindOf(v.targetDate) !== 'minute') return dateQuestionOf(v);
+  const end = v.resolvesOn ? new Date(v.resolvesOn) : cellEndOf(v.targetDate);
+  if (!end || Number.isNaN(end.getTime())) return dateQuestionOf(v);
+  const moves = Math.max(1, Math.round((end.getTime() - now.getTime()) / 60_000));
+  return { word: `${moves} ${moves === 1 ? 'move' : 'moves'}`, lead: 'in ' };
+}
+
 /** 'minute' for 2026-09-11T10:38, 'hour' for 2026-09-11T10, null otherwise. */
 export function cellKindOf(targetDate: string): 'minute' | 'hour' | null {
   if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(targetDate)) return 'minute';

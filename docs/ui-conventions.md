@@ -461,13 +461,19 @@ find out:
   proposal view). A metric is an axis, not a market: whatever number stands
   under its name is really about the date selected on the strip below, and
   reads as though it belonged to the metric. A floor with one metric draws no
-  strip at all, because a strip of one is a label.
+  strip at all, because a strip of one is a label. **A picker with one
+  option is not rendered, for the owner either** (Viktor, 2026-09-11: "if
+  there is only one metric or one date dont put the selector of that type
+  there"): the manager's "Manage metrics" used to keep a one-tab strip
+  alive as its way into the dialog; now it moves to the owner row below the
+  strips instead (see "The owner's two entries").
 - **The date strip** (`.pubws-strip--date`) lists the selected metric's open
   dates soonest first, each tab the clock's name ("THIS WEEK", "THIS MONTH";
   `dateSegmentOf`) over that date's call. The settle day it used to carry
   moves to the stat row's caption, which already says "FOR 30 SEP · SETTLES
   IN 21D" and is the only place it needs to be said. One open date draws no
-  strip. **A rolling minute or hour horizon is one tab, the newest open
+  strip, for a visitor and for the owner alike (2026-09-11; the manager's
+  "Manage dates" moves to the owner row). **A rolling minute or hour horizon is one tab, the newest open
   cell** (2026-09-11, Viktor, of a snake strip reading 14:39 · 14:42 ·
   14:44: "there shouldve been the one only the reached length"): a floor
   whose operator opens a new cell every step would otherwise list an
@@ -488,7 +494,12 @@ find out:
 - **The owner's two entries stay reachable.** "Manage metrics" and "Manage
   dates" are the last tab of their strip, in the accent, for a manager only;
   they open the same dialogs the chips' menus opened (the metrics dialog and
-  the metric's sheet, docs/owner-on-the-floor.md).
+  the metric's sheet, docs/owner-on-the-floor.md). When an axis has one
+  option its strip is not drawn (above), and its entry goes to **the owner
+  row** (`.pubws-strip-owner`, 2026-09-11): one quiet hairline row under
+  the strips, right-aligned, mono small-caps in the accent, carrying only
+  the entries whose strip is gone (one or both). A visitor never sees the
+  row. The rule hides a picker, never an owner action.
 - Each tab is a `button` in a `tablist` with `aria-selected`, so a keyboard
   reader moves along the strip with the arrow keys. The strips scroll
   sideways on a phone rather than wrapping or shrinking their labels; the
@@ -508,6 +519,15 @@ find out:
   an hour cell. A book that settles inside a minute is never titled with a
   day. The date strip's tab and the board's "impact by" use the same
   words (`dateQuestionOf`, `horizonLabel`).
+- **A game's floor asks in the game's unit, not at a clock time** (Viktor,
+  2026-09-11, picking from the snake floor's design proposal). On a floor
+  whose `liveFeed.kind` is `snake` a minute cell reads "in 60 moves"
+  (`moveQuestionOf`): the whole minutes from now to the cell's settle
+  instant (`resolvesOn`, rounded, never below 1), because the game moves
+  once a minute and "at 15:53" is a fact about the clock, not about the
+  snake. The strip's tab keeps the clock, and the number ticks down with
+  the page's minute clock. An hour or day cell, and every other floor,
+  reads exactly as before.
 - **The sentence is "What will be {company}'s {metric} {date}?"** The
   scaffold words sit a register quieter (`.pubws-instrument-ask`); the
   metric and the date are the sentence's ink. The company is named
@@ -951,7 +971,12 @@ the same vertical rhythm.
   "read 25m ago" (`.pubws-updated`, `timeAgoOf` from the latest reading's
   instant, the exact instant as its hover title), because a reading is
   only trustworthy with its age on it. A metric with no reading yet prints
-  "no reading yet" in the value's place and no age.
+  "no reading yet" in the value's place and no age. **On a snake floor the
+  caption names the attempt** (2026-09-11): "NOW · ATTEMPT 41 · READ 5S
+  AGO", the attempt being `game.deaths + 1` from the live feed's latest
+  poll, so the reading is read as "this attempt's length", which is what
+  resets to 1 when the snake dies. Before the first poll (or on a floor
+  with no feed) the caption is the one every floor prints.
 - The market's call (`.pubws-stat--call`, amber): the consensus, "market's
   call", then "for 30 Sep · settles in 27d" (`.pubws-settle-in`: the day
   being forecast, which is the day before the settle instant, exactly as
@@ -2311,14 +2336,33 @@ grid.. and next move.. maybe text"):
    unreadable). Before the first poll the line reads "Loading"; after a
    failed one "Feed unavailable"; between games "Waiting for the next
    game".
+3. **The why line** (`.snake-why`, 2026-09-11, Viktor: "agreed"), one
+   muted left-aligned sentence under the next move saying why the leader
+   leads, from the three 60-move impacts (approved minus declined on
+   `m60`, a missing quote counting as 0.0): when they are all equal
+   (or all missing) it reads "Nobody has priced this step yet. A tie
+   plays forward. Bet on a turn to change it."; otherwise "Turn left
+   leads by +0.4 over continue forward.", the leader's impact minus the
+   runner-up's to one decimal, the actions in words. The leader is
+   `next.action` when the feed names one whose impact is the top; else
+   the top impact.
+4. **The three picks** (`.snake-picks`), one row of three small chips in
+   the fixed order Continue / Turn left / Turn right (`.snake-pick`, the
+   floor's chip style: mono small-caps on a hairline, no tiles), each the
+   arrow of its compass direction (`open.directions`: ↑ ↓ ← →), its name,
+   and its 60-move impact signed to one decimal ("+2.9", "-0.9", "+0.0"
+   when unquoted); the leader in the accent (`.is-leader`,
+   `aria-current`). Each chip is a link to that direction's proposal on
+   THIS floor, `/{slug}/p/{number}` when the proposal's `url` carries the
+   number, else the url as given. The chips show while a step is open in
+   realtime; replay hides them with the why line, since both are about
+   the live step.
 
-Nothing else is in the segment: no tiles, no impact numbers, no status
-line (length, game number, grid size), no quiet line, no trade, no
-commentary, and no button or link other than the replay row's and the
-three chevrons on the grid. The
-60-move impacts still arrive on the component (`impactOf` on the state,
-kept in the props of the drawing) so that showing them again is a
-one-line change, but nothing renders them.
+Nothing else is in the segment: no tiles, no status line (length, game
+number, grid size), no plain line under the title, no trade, no
+commentary, and no button or link other than the three chevrons on the
+grid, the chips' and the replay row's. The impacts are printed once, on
+the chips, and nowhere else.
 
 **The feed drives the floor** (2026-09-11, Viktor: "make sure the whole
 page is properly dynamic and reactive to the fast updating snake"). A
@@ -2377,7 +2421,7 @@ filled to the thumb in `var(--text-secondary)`, a 4px upright thumb in
 next-move line sits under it, the replay row under that and wraps on a
 phone. No multi-line text is centred.
 
-**Replay** sits under the next-move line (`.snake-replay`): a game picker
+**Replay** sits under the chips (`.snake-replay`): a game picker
 (from `/live/games`, newest first, "Game 3 · 12x12 · best 9"), a
 scrubber (a range input), play/pause, a speed (1x is one entry per
 second, 10x), and a LIVE button that returns to realtime.
@@ -2436,11 +2480,19 @@ need comes back.
 fold is the explanation and it SHOWS rather than tells: the company's name,
 the number, its chart, and two priced sides a visitor can act on. **What the
 company sells is behind an (i) beside its name** (owner ask 2026-09-10),
-opening on hover, on keyboard focus and on a press, rather than standing as
-a line of prose under the name: a trader who came for the number reads the
-name and the number, and the one who does not know the company is one
-gesture from the sentence. The identity block is therefore one line tall,
-and "What is <company>?" below the market still carries the full text. Below that, "What is this market?" carries the metric's
+rather than standing as a line of prose under the name: a trader who came
+for the number reads the name and the number, and the one who does not
+know the company is one gesture from the sentence. **The (i) is an inline
+disclosure, not a popup** (2026-09-11, Viktor, of the headline painting
+across the open popup): a press, or Enter on the focused button, opens
+the sentence as a block in normal flow directly under the name
+(`.pubws-ws-what`, left-aligned, the column's width, readable at 400px),
+pushing everything below it down; a second press closes it. Closed by
+default, never on hover (a hover that moves the page is a page that
+jumps), and nothing on the page overlaps it or is painted over by it. The
+button carries `aria-expanded` and `aria-controls` for the block. The
+identity block is therefore one line tall until asked, and "What is
+<company>?" below the market still carries the full text. Below that, "What is this market?" carries the metric's
 own definition, which is the settlement text a trader needs, and "What is
 <company>?" carries the company's. That is already twice; a numbered
 explainer and a pair of cards under it answered the same question a third

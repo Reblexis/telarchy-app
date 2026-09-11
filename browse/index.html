@@ -5144,7 +5144,12 @@ individual markets&quot;, then &quot;but again donet show any numbers here&quot;
 proposal view). A metric is an axis, not a market: whatever number stands
 under its name is really about the date selected on the strip below, and
 reads as though it belonged to the metric. A floor with one metric draws no
-strip at all, because a strip of one is a label.</p>
+strip at all, because a strip of one is a label. <strong>A picker with one
+option is not rendered, for the owner either</strong> (Viktor, 2026-09-11: &quot;if
+there is only one metric or one date dont put the selector of that type
+there&quot;): the manager's &quot;Manage metrics&quot; used to keep a one-tab strip
+alive as its way into the dialog; now it moves to the owner row below the
+strips instead (see &quot;The owner's two entries&quot;).</p>
 </li>
 <li>
 <p><strong>The date strip</strong> (<code>.pubws-strip--date</code>) lists the selected metric's open
@@ -5152,7 +5157,8 @@ dates soonest first, each tab the clock's name (&quot;THIS WEEK&quot;, &quot;THI
 <code>dateSegmentOf</code>) over that date's call. The settle day it used to carry
 moves to the stat row's caption, which already says &quot;FOR 30 SEP · SETTLES
 IN 21D&quot; and is the only place it needs to be said. One open date draws no
-strip. <strong>A rolling minute or hour horizon is one tab, the newest open
+strip, for a visitor and for the owner alike (2026-09-11; the manager's
+&quot;Manage dates&quot; moves to the owner row). <strong>A rolling minute or hour horizon is one tab, the newest open
 cell</strong> (2026-09-11, Viktor, of a snake strip reading 14:39 · 14:42 ·
 14:44: &quot;there shouldve been the one only the reached length&quot;): a floor
 whose operator opens a new cell every step would otherwise list an
@@ -5179,7 +5185,12 @@ gone with it; where there IS liquidity the number stands on its own.</p>
 <p><strong>The owner's two entries stay reachable.</strong> &quot;Manage metrics&quot; and &quot;Manage
 dates&quot; are the last tab of their strip, in the accent, for a manager only;
 they open the same dialogs the chips' menus opened (the metrics dialog and
-the metric's sheet, docs/owner-on-the-floor.md).</p>
+the metric's sheet, docs/owner-on-the-floor.md). When an axis has one
+option its strip is not drawn (above), and its entry goes to <strong>the owner
+row</strong> (<code>.pubws-strip-owner</code>, 2026-09-11): one quiet hairline row under
+the strips, right-aligned, mono small-caps in the accent, carrying only
+the entries whose strip is gone (one or both). A visitor never sees the
+row. The rule hides a picker, never an owner action.</p>
 </li>
 <li>
 <p>Each tab is a <code>button</code> in a <code>tablist</code> with <code>aria-selected</code>, so a keyboard
@@ -5206,6 +5217,17 @@ any other day; &quot;at 12:38&quot; for a minute cell; &quot;in the hour to 13:0
 an hour cell. A book that settles inside a minute is never titled with a
 day. The date strip's tab and the board's &quot;impact by&quot; use the same
 words (<code>dateQuestionOf</code>, <code>horizonLabel</code>).</p>
+</li>
+<li>
+<p><strong>A game's floor asks in the game's unit, not at a clock time</strong> (Viktor,
+2026-09-11, picking from the snake floor's design proposal). On a floor
+whose <code>liveFeed.kind</code> is <code>snake</code> a minute cell reads &quot;in 60 moves&quot;
+(<code>moveQuestionOf</code>): the whole minutes from now to the cell's settle
+instant (<code>resolvesOn</code>, rounded, never below 1), because the game moves
+once a minute and &quot;at 15:53&quot; is a fact about the clock, not about the
+snake. The strip's tab keeps the clock, and the number ticks down with
+the page's minute clock. An hour or day cell, and every other floor,
+reads exactly as before.</p>
 </li>
 <li>
 <p><strong>The sentence is &quot;What will be {company}'s {metric} {date}?&quot;</strong> The
@@ -5633,7 +5655,12 @@ the same vertical rhythm.</p>
 &quot;read 25m ago&quot; (<code>.pubws-updated</code>, <code>timeAgoOf</code> from the latest reading's
 instant, the exact instant as its hover title), because a reading is
 only trustworthy with its age on it. A metric with no reading yet prints
-&quot;no reading yet&quot; in the value's place and no age.</li>
+&quot;no reading yet&quot; in the value's place and no age. <strong>On a snake floor the
+caption names the attempt</strong> (2026-09-11): &quot;NOW · ATTEMPT 41 · READ 5S
+AGO&quot;, the attempt being <code>game.deaths + 1</code> from the live feed's latest
+poll, so the reading is read as &quot;this attempt's length&quot;, which is what
+resets to 1 when the snake dies. Before the first poll (or on a floor
+with no feed) the caption is the one every floor prints.</li>
 <li>The market's call (<code>.pubws-stat--call</code>, amber): the consensus, &quot;market's
 call&quot;, then &quot;for 30 Sep · settles in 27d&quot; (<code>.pubws-settle-in</code>: the day
 being forecast, which is the day before the settle instant, exactly as
@@ -6867,14 +6894,33 @@ between polls, in <code>.snake-clock</code>), &quot;Next move: turn left, decide
 unreadable). Before the first poll the line reads &quot;Loading&quot;; after a
 failed one &quot;Feed unavailable&quot;; between games &quot;Waiting for the next
 game&quot;.</li>
+<li><strong>The why line</strong> (<code>.snake-why</code>, 2026-09-11, Viktor: &quot;agreed&quot;), one
+muted left-aligned sentence under the next move saying why the leader
+leads, from the three 60-move impacts (approved minus declined on
+<code>m60</code>, a missing quote counting as 0.0): when they are all equal
+(or all missing) it reads &quot;Nobody has priced this step yet. A tie
+plays forward. Bet on a turn to change it.&quot;; otherwise &quot;Turn left
+leads by +0.4 over continue forward.&quot;, the leader's impact minus the
+runner-up's to one decimal, the actions in words. The leader is
+<code>next.action</code> when the feed names one whose impact is the top; else
+the top impact.</li>
+<li><strong>The three picks</strong> (<code>.snake-picks</code>), one row of three small chips in
+the fixed order Continue / Turn left / Turn right (<code>.snake-pick</code>, the
+floor's chip style: mono small-caps on a hairline, no tiles), each the
+arrow of its compass direction (<code>open.directions</code>: ↑ ↓ ← →), its name,
+and its 60-move impact signed to one decimal (&quot;+2.9&quot;, &quot;-0.9&quot;, &quot;+0.0&quot;
+when unquoted); the leader in the accent (<code>.is-leader</code>,
+<code>aria-current</code>). Each chip is a link to that direction's proposal on
+THIS floor, <code>/{slug}/p/{number}</code> when the proposal's <code>url</code> carries the
+number, else the url as given. The chips show while a step is open in
+realtime; replay hides them with the why line, since both are about
+the live step.</li>
 </ol>
-<p>Nothing else is in the segment: no tiles, no impact numbers, no status
-line (length, game number, grid size), no quiet line, no trade, no
-commentary, and no button or link other than the replay row's and the
-three chevrons on the grid. The
-60-move impacts still arrive on the component (<code>impactOf</code> on the state,
-kept in the props of the drawing) so that showing them again is a
-one-line change, but nothing renders them.</p>
+<p>Nothing else is in the segment: no tiles, no status line (length, game
+number, grid size), no plain line under the title, no trade, no
+commentary, and no button or link other than the three chevrons on the
+grid, the chips' and the replay row's. The impacts are printed once, on
+the chips, and nowhere else.</p>
 <p><strong>The feed drives the floor</strong> (2026-09-11, Viktor: &quot;make sure the whole
 page is properly dynamic and reactive to the fast updating snake&quot;). A
 floor with a feed reads it every 2 seconds, and that read, not the
@@ -6929,7 +6975,7 @@ filled to the thumb in <code>var(--text-secondary)</code>, a 4px upright thumb i
 <code>var(--text-primary)</code>). The grid takes the column's full width, the
 next-move line sits under it, the replay row under that and wraps on a
 phone. No multi-line text is centred.</p>
-<p><strong>Replay</strong> sits under the next-move line (<code>.snake-replay</code>): a game picker
+<p><strong>Replay</strong> sits under the chips (<code>.snake-replay</code>): a game picker
 (from <code>/live/games</code>, newest first, &quot;Game 3 · 12x12 · best 9&quot;), a
 scrubber (a range input), play/pause, a speed (1x is one entry per
 second, 10x), and a LIVE button that returns to realtime.</p>
@@ -6983,11 +7029,19 @@ need comes back.</p>
 fold is the explanation and it SHOWS rather than tells: the company's name,
 the number, its chart, and two priced sides a visitor can act on. <strong>What the
 company sells is behind an (i) beside its name</strong> (owner ask 2026-09-10),
-opening on hover, on keyboard focus and on a press, rather than standing as
-a line of prose under the name: a trader who came for the number reads the
-name and the number, and the one who does not know the company is one
-gesture from the sentence. The identity block is therefore one line tall,
-and &quot;What is <company>?&quot; below the market still carries the full text. Below that, &quot;What is this market?&quot; carries the metric's
+rather than standing as a line of prose under the name: a trader who came
+for the number reads the name and the number, and the one who does not
+know the company is one gesture from the sentence. <strong>The (i) is an inline
+disclosure, not a popup</strong> (2026-09-11, Viktor, of the headline painting
+across the open popup): a press, or Enter on the focused button, opens
+the sentence as a block in normal flow directly under the name
+(<code>.pubws-ws-what</code>, left-aligned, the column's width, readable at 400px),
+pushing everything below it down; a second press closes it. Closed by
+default, never on hover (a hover that moves the page is a page that
+jumps), and nothing on the page overlaps it or is painted over by it. The
+button carries <code>aria-expanded</code> and <code>aria-controls</code> for the block. The
+identity block is therefore one line tall until asked, and &quot;What is
+<company>?&quot; below the market still carries the full text. Below that, &quot;What is this market?&quot; carries the metric's
 own definition, which is the settlement text a trader needs, and &quot;What is
 <company>?&quot; carries the company's. That is already twice; a numbered
 explainer and a pair of cards under it answered the same question a third
