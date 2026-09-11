@@ -2,6 +2,10 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+// A full page render per test; under a loaded machine one ran past the
+// five-second default. The rules each test checks are unchanged.
+vi.setConfig({ testTimeout: 20_000 });
+
 /**
  * A proposal with options shows one world per option (docs/ui-conventions.md,
  * "A proposal with options shows one world per option"; the API shape is
