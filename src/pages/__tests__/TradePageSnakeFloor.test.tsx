@@ -15,9 +15,13 @@ const h = vi.hoisted(() => {
   /** The newest open cell, settling exactly 60 minutes from the request:
    *  the +60min horizon's cell, built per request so the count holds. */
   const workspace = (feed: { kind: string; url: string } | null, name = 'Snake') => {
-    const end = new Date(Date.now() + 60 * 60_000);
-    const targetDate = new Date(end.getTime() - 60_000).toISOString().slice(0, 16);
-    const resolvesOn = end.toISOString();
+    // The +60min cell of the current minute: it starts 60 minutes after the
+    // current minute and ends a minute later (docs/ui-conventions.md, "The
+    // question line": moves count from the current minute to the cell).
+    const minuteStart = Math.floor(Date.now() / 60_000) * 60_000;
+    const cellStart = new Date(minuteStart + 60 * 60_000);
+    const targetDate = cellStart.toISOString().slice(0, 16);
+    const resolvesOn = new Date(cellStart.getTime() + 60_000).toISOString();
     return {
       workspaceId: 'ws-1',
       name,
