@@ -2338,33 +2338,14 @@ grid.. and next move.. maybe text"):
    unreadable). Before the first poll the line reads "Loading"; after a
    failed one "Feed unavailable"; between games "Waiting for the next
    game".
-3. **The why line** (`.snake-why`, 2026-09-11, Viktor: "agreed"), one
-   muted left-aligned sentence under the next move saying why the leader
-   leads, from the three 60-move impacts (approved minus declined on
-   `m60`, a missing quote counting as 0.0): when they are all equal
-   (or all missing) it reads "Nobody has priced this step yet. A tie
-   plays forward. Bet on a turn to change it."; otherwise "Turn left
-   leads by +0.4 over continue forward.", the leader's impact minus the
-   runner-up's to one decimal, the actions in words. The leader is
-   `next.action` when the feed names one whose impact is the top; else
-   the top impact.
-4. **The three picks** (`.snake-picks`), one row of three small chips in
-   the fixed order Continue / Turn left / Turn right (`.snake-pick`, the
-   floor's chip style: mono small-caps on a hairline, no tiles), each the
-   arrow of its compass direction (`open.directions`: ↑ ↓ ← →), its name,
-   and its 60-move impact signed to one decimal ("+2.9", "-0.9", "+0.0"
-   when unquoted); the leader in the accent (`.is-leader`,
-   `aria-current`). Each chip is a link to that direction's proposal on
-   THIS floor, `/{slug}/p/{number}` when the proposal's `url` carries the
-   number, else the url as given. The chips show while a step is open in
-   realtime; replay hides them with the why line, since both are about
-   the live step.
-
 Nothing else is in the segment: no tiles, no status line (length, game
-number, grid size), no plain line under the title, no trade, no
-commentary, and no button or link other than the three chevrons on the
-grid, the chips' and the replay row's. The impacts are printed once, on
-the chips, and nowhere else.
+number, grid size), no why line, no row of picks (both drawn and removed
+on 2026-09-11, Viktor: "remove this whole thing from there its redundant
+imo", the chevrons on the grid already show the three moves and which
+leads), no plain line under the title, no trade, no commentary, and no
+button or link other than the three chevrons on the grid and the replay
+row's. No impact number is printed in the segment: the chevrons' shading
+is the only reading of the impacts.
 
 **The feed drives the floor** (2026-09-11, Viktor: "make sure the whole
 page is properly dynamic and reactive to the fast updating snake"). A
