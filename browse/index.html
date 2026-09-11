@@ -6781,7 +6781,17 @@ grid.. and next move.. maybe text&quot;):</p>
 <li><strong>The grid</strong> (<code>.snake-board</code>, an svg sized by <code>grid</code>): one cell per
 square, the snake as one rounded band along its cells with the head
 marked (a lighter disc and two eyes on the side it moves towards), the
-food a round dot.</li>
+food a round dot, and the next direction as an arrow (<code>.snake-arrow</code>):
+a short chevron in the accent, drawn from the head into the cell the
+snake moves to next (<code>next.direction</code>; the heading itself while <code>next</code>
+is unreadable, forward being the default), faint while the step is
+open and solid once <code>next.decided</code>; when that cell is off the grid the
+chevron sits pressed against the head's edge pointing out (<code>.is-wall</code>),
+so a wall crash is visible before it happens. In replay the chevron is
+the entry's <code>direction</code>, solid, so scrubbing shows where it went (owner
+ask, Viktor 2026-09-11: &quot;show an arrow in the visualization indicating
+the next direction it will go in&quot;; record in
+<code>notes/decisions/ui-conventions.md</code>).</li>
 <li><strong>The next move</strong> (<code>.snake-next</code>), one left-aligned text line, the
 leader's action in words: &quot;Next move: turn left in 0:31&quot; while the step
 is open (the countdown from <code>next.seconds</code>, ticking by the second

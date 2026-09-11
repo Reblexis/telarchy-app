@@ -1991,3 +1991,16 @@ page". Kept the forecaster-first home page (the board is the evidence, and
 owners have /owners since 2026-09-06), and made the lead's last sentence
 link to /owners so the owner's route is in the first paragraph; measure
 its clicks before more.
+
+**2026-09-11 (Viktor): the grid shows an arrow for the next direction.**
+"show an arrow in the visualization indicating the next direction it will
+go in". The grid gets a short chevron in the accent from the head into
+the cell the snake moves to next (`next.direction`, the current leader;
+the heading itself while `next` is unreadable, since forward is the
+default), faint while the step is open and solid once decided; when that
+cell is a wall the chevron sits pressed against the head's edge pointing
+out, so a crash is visible before the move. Replay draws the entry's own
+`direction`, solid. The same arrow goes on the snake service's board and
+stream frame (telarchy-snake, `docs/snake.md`). Spec in
+docs/ui-conventions.md, "The live view is a segment of the chart slot",
+item 1 of what LIVE draws.
