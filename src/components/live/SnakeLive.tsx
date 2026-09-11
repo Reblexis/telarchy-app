@@ -8,6 +8,7 @@ import {
   type SnakeHistoryStep,
   type SnakeState,
 } from '../../lib/api';
+import type { FeedQuotes } from '../../lib/feed-overlay';
 
 /**
  * The snake feed, drawn natively on the floor (docs/ui-conventions.md, "The
@@ -53,11 +54,40 @@ function clock(seconds: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-/** approved minus declined on the 60-move horizon, or null while unreadable. */
+/**
+ * Whether the open step is ONE proposal with an option per action (the
+ * current feed: `open.proposal`, and per action `price` and `lead`), rather
+ * than the older one two-branch proposal per action (docs/guides/
+ * proposals.md, "More than two options").
+ */
+function isOneProposal(state: SnakeState | null): boolean {
+  return !!state?.open?.proposal?.id;
+}
+
+/**
+ * An action's 60-move number, as the chips print it and the chevrons shade
+ * by: on the one proposal the option's `lead` (its consensus minus the best
+ * other option), on the older per-action pairs approved minus declined. Null
+ * while unreadable.
+ */
 function impactOf(state: SnakeState, action: SnakeAction): number | null {
   const q = state.open?.quotes?.[action]?.m60;
-  if (!q || typeof q.approved !== 'number' || typeof q.declined !== 'number') return null;
+  if (!q) return null;
+  if (isOneProposal(state)) return typeof q.lead === 'number' && Number.isFinite(q.lead) ? q.lead : null;
+  if (typeof q.approved !== 'number' || typeof q.declined !== 'number') return null;
   return q.approved - q.declined;
+}
+
+/** The proposal number an action's chevron and chip link to: the one
+ *  proposal's, or on the older shape that action's own. */
+function numberFor(state: SnakeState | null, action: SnakeAction): number | null {
+  const open = state?.open;
+  if (!open) return null;
+  if (open.proposal?.id) {
+    const n = open.proposal.number;
+    return typeof n === 'number' && Number.isFinite(n) ? n : proposalNumberOf(open.proposal.url);
+  }
+  return proposalNumberOf(open.proposals?.[action]?.url);
 }
 
 /**
@@ -126,6 +156,21 @@ export function arrowOpacities(impacts: Array<number | null>): number[] {
   const max = Math.max(...nums);
   if (max === min) return impacts.map(() => 0.55);
   return nums.map(v => 0.3 + 0.6 * ((v - min) / (max - min)));
+}
+
+/**
+ * The chevrons' brightness on the one proposal: as `arrowOpacities` over the
+ * priced options, and an unpriced option (a null lead) at the faint end,
+ * because nothing is staked on it. Fewer than two priced, or all priced
+ * equal, is the tie's 0.55 for every chevron.
+ */
+export function leadOpacities(leads: Array<number | null>): number[] {
+  const nums = leads.filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+  if (nums.length < 2) return leads.map(() => 0.55);
+  const min = Math.min(...nums);
+  const max = Math.max(...nums);
+  if (max === min) return leads.map(() => 0.55);
+  return leads.map(v => (typeof v === 'number' && Number.isFinite(v) ? 0.3 + 0.6 * ((v - min) / (max - min)) : 0.3));
 }
 
 /** The chevron's three points, in drawing units: two arms behind, the tip
@@ -334,8 +379,11 @@ export function SnakeLive({
   onPickProposal?: (number: number) => void;
   /** The feed's open step changed or its decision landed, reported as soon as the poll reads it, never for the first read. */
   onStep?: (s: { step: number; decided: boolean }) => void;
-  /** Every read: the open step's 60-move quotes by proposal id, for the floor's prices (docs/ui-conventions.md, "The feed drives the floor"). */
-  onQuotes?: (quotes: Record<string, { approved: number | null; declined: number | null }>) => void;
+  /** Every read: the open step's 60-move quotes by proposal id, for the floor's
+   *  prices (docs/ui-conventions.md, "The feed drives the floor"): each
+   *  option's price and lead on the one proposal, or each pair's approved
+   *  and declined on the older per-action shape. */
+  onQuotes?: (quotes: FeedQuotes) => void;
   /** Every read, the whole state, for the stat row's attempt (docs/ui-conventions.md, "The stat row"). */
   onState?: (state: SnakeState) => void;
 }) {
@@ -373,11 +421,21 @@ export function SnakeLive({
         }
         if (key !== null) stepKeyRef.current = key;
         if (onQuotesRef.current && s.open) {
-          const out: Record<string, { approved: number | null; declined: number | null }> = {};
-          for (const a of ACTIONS) {
-            const id = s.open.proposals?.[a]?.id;
-            const q = s.open.quotes?.[a]?.m60;
-            if (id && q) out[id] = { approved: q.approved ?? null, declined: q.declined ?? null };
+          const out: FeedQuotes = {};
+          const one = s.open.proposal?.id;
+          if (one) {
+            const options: Record<string, { price: number | null; lead: number | null }> = {};
+            for (const a of ACTIONS) {
+              const q = s.open.quotes?.[a]?.m60;
+              if (q) options[a] = { price: q.price ?? null, lead: q.lead ?? null };
+            }
+            out[one] = { options };
+          } else {
+            for (const a of ACTIONS) {
+              const id = s.open.proposals?.[a]?.id;
+              const q = s.open.quotes?.[a]?.m60;
+              if (id && q) out[id] = { approved: q.approved ?? null, declined: q.declined ?? null };
+            }
           }
           onQuotesRef.current(out);
         }
@@ -549,8 +607,7 @@ export function SnakeLive({
     if (!game) return [];
     const open = state?.open ?? null;
     if (open && next?.decided && isHeading(next.direction)) {
-      const p = open.proposals?.[next.action];
-      const number = proposalNumberOf(p?.url);
+      const number = numberFor(state, next.action);
       return [
         {
           direction: next.direction,
@@ -564,9 +621,10 @@ export function SnakeLive({
     if (open && !next?.decided) {
       const actions = ACTIONS.filter(a => isHeading(open.directions?.[a]));
       if (actions.length > 0) {
-        const opacities = arrowOpacities(actions.map(a => (state ? impactOf(state, a) : null)));
+        const numbers = actions.map(a => (state ? impactOf(state, a) : null));
+        const opacities = isOneProposal(state) ? leadOpacities(numbers) : arrowOpacities(numbers);
         return actions.map((a, i) => {
-          const number = proposalNumberOf(open.proposals?.[a]?.url);
+          const number = numberFor(state, a);
           return {
             direction: open.directions[a],
             decided: false,

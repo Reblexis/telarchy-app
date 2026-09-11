@@ -5654,8 +5654,9 @@ counting:</p>
 <li><strong>The worlds are the options.</strong> The control under the hero is the &quot;last
 read&quot; cell followed by ONE cell per option, in the proposer's order, each
 captioned with the option's label (&quot;Turn left&quot;, not &quot;if turn left&quot;) over
-its price; the leader's cell wears the accent the approved cell wears
-today, the others are plain. Every priced cell is a button
+its price; the leader's cell wears the green the approved cell wears
+today (&quot;· leads&quot; after its label), the others are plain, and the selected
+cell is underlined in the same green its chart line wears. Every priced cell is a button
 (<code>aria-pressed</code>) that puts that option on the chart and the ticket; an
 unpriced one says &quot;no liquidity&quot; and cannot be pressed, as any pair does.
 Up to six options fit one row on the desktop floor; on a phone the row
@@ -5664,14 +5665,16 @@ declined cell, because there is no declined world.</li>
 <li><strong>The hero is the lead.</strong> The big number is the leader's consensus minus
 the best other option, over the caption &quot;<metric> <date>, <leader label>
 over the next best&quot;. Fewer than two priced options: the hero prints
-&quot;no lead yet&quot; in the place of the number, and the strips print &quot;open&quot; for
-that cell.</li>
+&quot;no lead yet&quot; in the place of the number over the caption &quot;<metric>
+<date>, the leader over the next best&quot;, and the strips print &quot;open&quot; for
+that cell. The page opens on the leader's world, else the first priced
+option's, else the first option's.</li>
 <li><strong>The question names the option</strong>: &quot;With <label>, what will <floor>'s
 <metric> be on <settle day>?&quot;, switching with the selected cell. &quot;With&quot;,
 not &quot;If&quot;: a label is a noun phrase the proposer wrote (&quot;Turn left&quot;,
 &quot;Headline B&quot;), and &quot;if Turn left&quot; is not a sentence.</li>
 <li><strong>The chart draws every option.</strong> One line per option, the selected
-one in the accent and full weight, the others thinner in the muted ink,
+one in the approved world's green and full weight, the others thinner in the muted ink,
 each labelled with its option's name at its right end where the pair
 chart prints its two prices. No baseline &quot;without it&quot; line: with options
 there is no world without the proposal to compare against, and the
@@ -5681,15 +5684,20 @@ and without it.. whatever that means&quot;).</li>
 <li><strong>The world rides the verb</strong>: &quot;Bet Higher · Turn left&quot;. The ticket's
 header names the same option.</li>
 <li><strong>The decision bar has one button per option</strong>, each reading &quot;Choose
-<label>&quot;, the leader's first and in the accent, then Decline as today.
-Pressing one is the approve with that option; nothing asks twice.</li>
+<label>&quot;, the leader's first and in the approve green, then Decline as
+today; with no leader no button is green. Pressing one is the approve
+with that option; nothing asks twice. The ask in the facts row reads
+&quot;$250 if chosen&quot;.</li>
 <li><strong>The board row prints the leader's lead</strong> where a pair prints approved
 minus declined, prefixed with the leader's label in the mono caption
 register (&quot;Turn left +0.4&quot;); &quot;open&quot; until two options are priced. The
-ruling band reads &quot;Chose <label>&quot; in the approved pill's colours.</li>
-<li><strong>A decided proposal with options</strong> strikes through every option cell
-but the chosen one, exactly as the declined world is struck through
-today, and the ruling says which option was chosen.</li>
+ruling band reads &quot;Chose <label>&quot; in the approved pill's colours. A
+manager's row reads &quot;Choose&quot; where it reads &quot;Approve&quot;, and opens the same
+confirm band with one &quot;Choose <label>&quot; per option. The row's Higher and
+Lower trade the leader's book.</li>
+<li><strong>A decided proposal with options</strong> strikes through the price of every
+option cell but the chosen one, captioned &quot;stakes refunded&quot;, and the
+ruling says which option was chosen.</li>
 <li><strong>Posting one</strong>: the creation form has an &quot;Options&quot; row under the pitch,
 closed by default (a two-branch proposal is the default and stays the
 default). Opened, it holds two label fields and an &quot;add option&quot; control
@@ -6971,10 +6979,16 @@ seconds per workspace.</li>
 <p><strong>The snake feed</strong> (<code>kind: &quot;snake&quot;</code>, <code>SnakeLive</code>) is the shape the
 telarchy-snake service publishes (its <code>docs/snake.md</code>, &quot;The feed&quot;).
 <code>/state</code> carries <code>game: { snake: [{x,y}] (head first), food: {x,y}, heading, length, step, deaths, complete, size, gameNumber }</code>, <code>grid</code> (the
-board's side in cells), <code>gameNumber</code>, <code>next: { action, direction, decided, seconds }</code>, <code>open: { step, decideAt, deadline, cells, directions: {forward,left,right}, proposals: {forward:{id,title,url},left,right}, quotes: {forward:{m1,m5,m60:{approved,declined}},left,right} }</code>,
+board's side in cells), <code>gameNumber</code>, <code>next: { action, direction, decided, seconds }</code>, <code>open: { step, decideAt, deadline, cells, directions: {forward,left,right}, proposal: {id,number,url}, quotes: {forward:{m60:{price,lead,marketId,reason?}},left,right} }</code> (one
+proposal a step, an option per action: <code>price</code> the option book's
+consensus, <code>lead</code> its price minus the best other option's, both null while
+unpriced; the page still reads the older shape, one proposal per action
+with <code>approved</code>/<code>declined</code> quotes, and treats approved minus declined as
+the action's number),
 <code>recentDecisions[]</code>, <code>recentTrades[]</code> (newest first, <code>{ handle, action, cost, ... }</code>), <code>commentary</code>, <code>complete</code>, <code>nextGameAt</code>. <code>/games</code> is
-<code>{ games: [{ number, size, startedAt, endedAt|null, steps, bestLength, deaths }] }</code>; <code>/history</code> is <code>{ game: {number,size,startedAt,endedAt}, total, from, steps: [{ step, at, snake, food, heading, action, direction, undecided, impact:{forward,left,right}, length, deaths }] }</code>, each step the
-state after its move.</p>
+<code>{ games: [{ number, size, startedAt, endedAt|null, steps, bestLength, deaths }] }</code>; <code>/history</code> is <code>{ game: {number,size,startedAt,endedAt}, total, from, steps: [{ step, at, snake, food, heading, action, direction, undecided, prices:{forward,left,right}, length, deaths }] }</code>, each step the
+state after its move. Below, an action's <strong>number</strong> is its option's <code>lead</code>
+on <code>m60</code>.</p>
 <p>What LIVE draws, in the chart's slot under the same control row (the
 segment toggle in the left cell, the metric caption centred), is exactly
 two things and then the replay row (revised 2026-09-11, Viktor: &quot;in live
@@ -6989,14 +7003,14 @@ food a round dot, and <strong>one shadow arrow per open action</strong>
 the visualization of the snake that when clicked go to the
 corresponding proposal on which i can trade&quot;): a short chevron in the
 accent from the head into the cell each of the three actions would
-move to (<code>open.directions</code>), each one a link to that action's proposal
-on this floor (the number from <code>open.proposals[action].url</code>, opened in
-place, never a new tab). <strong>How bright a chevron is follows its live
-60-move impact</strong> (Viktor: &quot;make the highlight of the arrows depend on
-how high the predicted impact is&quot;): the highest impact draws at 0.9,
-the lowest at 0.3, the rest in proportion between them, and all three
-at 0.55 when the impacts tie or none is readable. Once <code>next.decided</code>
-only the approved action's chevron stays, solid. While no step is open
+move to (<code>open.directions</code>), each one a link to the step's proposal
+on this floor (<code>/{slug}/p/{open.proposal.number}</code>, opened in place,
+never a new tab). <strong>How bright a chevron is follows its action's live
+number</strong> (Viktor: &quot;make the highlight of the arrows depend on how high
+the predicted impact is&quot;): the highest draws at 0.9, the lowest at 0.3,
+the rest in proportion between them, an unpriced option at 0.3, and all
+three at 0.55 when fewer than two are priced or they tie. Once
+<code>next.decided</code> only the chosen action's chevron stays, solid. While no step is open
 the single chevron follows <code>next.direction</code> (the heading itself when
 that is unreadable, forward being the default). When a chevron's cell
 is off the grid it sits pressed against the head's edge pointing out

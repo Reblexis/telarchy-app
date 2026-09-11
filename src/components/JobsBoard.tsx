@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import type { PublicProposal } from '../lib/api';
 import { api } from '../lib/api';
 import { horizonLabel } from '../lib/floor-horizons';
+import { MAX_OPTION_LABEL, MAX_OPTIONS, optionLead, optionsFromLabels, pairPool } from '../lib/proposal-options';
 import { countdownTo, instantOf, tickIntervalFor } from '../lib/viewer-time';
 import { BotMark } from './BotMark';
 import { FloorModal } from './FloorModal';
@@ -45,8 +46,20 @@ interface Props {
    *  "The proposals board", 2026-09-09): four pending proposals is a
    *  morning's work, not four page loads. Absent for everyone else. */
   canManage?: boolean;
-  onRule?: (id: string, action: 'approve' | 'decline', reason?: string) => void | Promise<void>;
-  onPropose: (title: string, description: string, askUsd: number, decideBy: string) => Promise<void>;
+  /** `option` names the chosen option when a proposal with options is
+   *  approved from its row (docs/guides/proposals.md, "More than two
+   *  options"); a two-branch ruling passes three arguments, as before. */
+  onRule?: (id: string, action: 'approve' | 'decline', reason?: string, option?: string) => void | Promise<void>;
+  /** `options` is present only when the form's Options row holds two or more
+   *  filled labels; otherwise the call has four arguments and posts a
+   *  two-branch proposal. */
+  onPropose: (
+    title: string,
+    description: string,
+    askUsd: number,
+    decideBy: string,
+    options?: Array<{ id: string; label: string }>,
+  ) => Promise<void>;
   /** The floor's own decision window in minutes, the preselected preset on
    *  the form (docs/guides/proposals.md, "The deadline, and the close"). */
   decisionMinutes?: number;
@@ -239,7 +252,26 @@ export const DropGlyph = () => (
 );
 
 export function poolOf(p: PublicProposal): number {
-  return (p.markets ?? []).reduce((sum, m) => sum + (m.approvedPool ?? 0) + (m.declinedPool ?? 0), 0);
+  // Both branches of a pair, or every option of a proposal with options.
+  return (p.markets ?? []).reduce((sum, m) => sum + pairPool(m), 0);
+}
+
+/** The id rule for typed option labels lives in lib/proposal-options. */
+export { optionIdsOf } from '../lib/proposal-options';
+
+/** Whether a proposal carries options instead of the approve/decline pair. */
+export function hasOptions(p: PublicProposal): boolean {
+  return (p.options?.length ?? 0) > 0 || p.markets.some(m => (m.options?.length ?? 0) > 0);
+}
+
+/** The label of a proposal's option by id, or the id itself when unknown. */
+export function optionLabelOf(p: PublicProposal, id: string | null | undefined): string | null {
+  if (!id) return null;
+  return (
+    p.options?.find(o => o.id === id)?.label ??
+    p.markets.flatMap(m => m.options ?? []).find(o => o.id === id)?.label ??
+    id
+  );
 }
 
 /** Round-1 convention: the USD ask is composed into the title ("$80: ...").
@@ -279,11 +311,21 @@ export function deltaAt(
   targetDate: string | null | undefined,
   metricId?: string | null,
 ): number | null {
+  return pairAtHorizon(p, targetDate, metricId)?.delta ?? null;
+}
+
+/** The row a proposal prices for (metric, date), the same match deltaAt uses. */
+export function pairAtHorizon(
+  p: PublicProposal,
+  targetDate: string | null | undefined,
+  metricId?: string | null,
+): PublicProposal['markets'][number] | null {
   if (!targetDate) return null;
-  const pair = p.markets.find(
-    m => m.targetDate === targetDate && (!metricId || m.metricId === undefined || m.metricId === metricId),
+  return (
+    p.markets.find(
+      m => m.targetDate === targetDate && (!metricId || m.metricId === undefined || m.metricId === metricId),
+    ) ?? null
   );
-  return pair?.delta ?? null;
 }
 
 export function JobsBoard({
@@ -343,6 +385,10 @@ export function JobsBoard({
   const [desc, setDesc] = useState('');
   const [formBusy, setFormBusy] = useState(false);
   const [formErr, setFormErr] = useState('');
+  /* The Options row (docs/ui-conventions.md, "Posting one"): closed by
+     default, two label fields when opened, up to six. */
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const [optionLabels, setOptionLabels] = useState<string[]>(['', '']);
   const [placed, setPlaced] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -462,7 +508,11 @@ export function JobsBoard({
     setFormErr('');
     setFormBusy(true);
     try {
-      await onPropose(fullTitle, desc.trim(), askNum, new Date(Date.now() + windowMinutes * 60_000).toISOString());
+      const decideBy = new Date(Date.now() + windowMinutes * 60_000).toISOString();
+      // Fewer than two filled labels is a two-branch proposal.
+      const options = optionsOpen ? optionsFromLabels(optionLabels) : undefined;
+      if (options) await onPropose(fullTitle, desc.trim(), askNum, decideBy, options);
+      else await onPropose(fullTitle, desc.trim(), askNum, decideBy);
       // The green moment: the one place the form earns its color.
       setPlaced(true);
       closeTimer.current = setTimeout(() => {
@@ -471,6 +521,8 @@ export function JobsBoard({
         setCustomOpen(false);
         setTitle('');
         setDesc('');
+        setOptionsOpen(false);
+        setOptionLabels(['', '']);
         setPlaced(false);
         setFormOpen(false);
       }, 900);
@@ -500,6 +552,19 @@ export function JobsBoard({
     // A decided one has nothing left to trade, and an unpriced one has no
     // market to trade against.
     const tradeable = !!onTrade && isPending(p) && delta !== null;
+    /* A proposal with options (docs/ui-conventions.md, "A proposal with
+       options shows one world per option"): the row prints the leader's lead
+       behind its label, and a manager chooses rather than approves. */
+    const optioned = hasOptions(p);
+    const rowPair = horizonDate ? pairAtHorizon(p, horizonDate, horizonMetricId) : null;
+    const lead = optioned ? optionLead((rowPair ?? p.markets[0])?.options) : null;
+    const chosenLabel = p.status === 'approved' ? optionLabelOf(p, p.decidedOption) : null;
+    /* The options in the order a manager meets them: the leader first, then
+       the proposer's order. */
+    const optionList = p.options?.length ? p.options : ((rowPair ?? p.markets[0])?.options ?? []);
+    const choices = lead
+      ? [...optionList.filter(o => o.id === lead.leader.id), ...optionList.filter(o => o.id !== lead.leader.id)]
+      : optionList;
     return (
       <li key={p.id} className={selected ? 'is-open' : ''}>
         <div className={`pubws-prow${selected ? ' is-selected' : ''}`}>
@@ -583,7 +648,7 @@ export function JobsBoard({
               </span>
               {p.status && p.status !== 'pending' && (
                 <span className={`pubws-ballot-status is-${p.lapsedAt ? 'lapsed' : p.status}`}>
-                  {p.lapsedAt ? 'lapsed' : p.status}
+                  {p.lapsedAt ? 'lapsed' : chosenLabel ? `Chose ${chosenLabel}` : p.status}
                 </span>
               )}
             </span>
@@ -591,7 +656,12 @@ export function JobsBoard({
           <span className="pubws-prow-impact pubws-ballot-impact">
             {/* "open" = nobody has priced it yet; a hard 0 means the two
                 worlds are priced the same, which is a statement, not an
-                absence. */}
+                absence. An option proposal names its leader first. */}
+            {delta !== null && lead && (
+              <>
+                <span className="pubws-ballot-lead">{lead.leader.label}</span>{' '}
+              </>
+            )}
             {delta === null ? (
               <span className="pubws-ballot-delta pubws-ballot-delta--open">open</span>
             ) : delta === 0 ? (
@@ -610,7 +680,7 @@ export function JobsBoard({
                 className="pubws-dir pubws-dir--mini pubws-dir--approve"
                 onClick={() => setRuling({ id: p.id, action: 'approve', reason: '' })}
               >
-                Approve
+                {optioned ? 'Choose' : 'Approve'}
               </button>
               <button
                 type="button"
@@ -645,7 +715,12 @@ export function JobsBoard({
              and Decline asks for the reason the charter publishes, with the
              confirm off until one is typed. */
           <div className={`pubws-rule pubws-rule--${ruling.action}`}>
-            {ruling.action === 'approve' ? (
+            {ruling.action === 'approve' && optioned ? (
+              <p className="pubws-rule-what">
+                Choosing one {askUsd ? `pays $${askUsd}, ` : ''}voids every other option and refunds its stakes at what
+                they cost, and records every option at the call standing this instant.
+              </p>
+            ) : ruling.action === 'approve' ? (
               <p className="pubws-rule-what">
                 Approving pays {askUsd === null ? 'nothing' : `$${askUsd}`} and records every pair at the call standing
                 this instant.
@@ -662,20 +737,37 @@ export function JobsBoard({
               </>
             )}
             <div className="pubws-rule-acts">
-              <button
-                type="button"
-                className={`pubws-decide pubws-decide--${ruling.action === 'approve' ? 'approve' : 'decline'}`}
-                disabled={ruling.action === 'decline' && ruling.reason.trim().length === 0}
-                onClick={() => {
-                  const reason = ruling.action === 'decline' ? ruling.reason.trim() : undefined;
-                  setRuling(null);
-                  void onRule?.(p.id, ruling.action, reason);
-                }}
-              >
-                {ruling.action === 'approve'
-                  ? `Approve and pay ${askUsd === null ? 'nothing' : `$${askUsd}`}`
-                  : 'Decline and publish'}
-              </button>
+              {ruling.action === 'approve' &&
+                optioned &&
+                choices.map(o => (
+                  <button
+                    key={o.id}
+                    type="button"
+                    className={`pubws-decide${lead?.leader.id === o.id ? ' pubws-decide--approve' : ''}`}
+                    onClick={() => {
+                      setRuling(null);
+                      void onRule?.(p.id, 'approve', undefined, o.id);
+                    }}
+                  >
+                    Choose {o.label}
+                  </button>
+                ))}
+              {!(ruling.action === 'approve' && optioned) && (
+                <button
+                  type="button"
+                  className={`pubws-decide pubws-decide--${ruling.action === 'approve' ? 'approve' : 'decline'}`}
+                  disabled={ruling.action === 'decline' && ruling.reason.trim().length === 0}
+                  onClick={() => {
+                    const reason = ruling.action === 'decline' ? ruling.reason.trim() : undefined;
+                    setRuling(null);
+                    void onRule?.(p.id, ruling.action, reason);
+                  }}
+                >
+                  {ruling.action === 'approve'
+                    ? `Approve and pay ${askUsd === null ? 'nothing' : `$${askUsd}`}`
+                    : 'Decline and publish'}
+                </button>
+              )}
               <button type="button" className="pubws-decide" onClick={() => setRuling(null)}>
                 Cancel
               </button>
@@ -822,6 +914,48 @@ export function JobsBoard({
                 aria-label="Proposal pitch"
               />
             </label>
+
+            {/* Options (docs/ui-conventions.md, "Posting one"): closed by
+                default, because a two-branch proposal is the default and
+                stays the default. Opened, it holds two label fields and an
+                "add option" control up to six; an emptied label drops its
+                option, and fewer than two filled labels post a two-branch
+                proposal. */}
+            <div className="jobform-field jobform-options">
+              <button
+                type="button"
+                className={`jobform-options-toggle${optionsOpen ? ' is-open' : ''}`}
+                aria-expanded={optionsOpen}
+                onClick={() => setOptionsOpen(v => !v)}
+              >
+                Options
+                <span className="jobform-count">{optionsOpen ? 'choose between these' : 'approve or decline'}</span>
+              </button>
+              {optionsOpen && (
+                <>
+                  {optionLabels.map((label, i) => (
+                    <input
+                      key={i}
+                      className="jobform-line jobform-line--option"
+                      value={label}
+                      maxLength={MAX_OPTION_LABEL}
+                      placeholder={i === 0 ? 'Headline A' : i === 1 ? 'Headline B' : `Option ${i + 1}`}
+                      aria-label={`Option ${i + 1} label`}
+                      onChange={e => setOptionLabels(ls => ls.map((l, j) => (j === i ? e.target.value : l)))}
+                    />
+                  ))}
+                  {optionLabels.length < MAX_OPTIONS && (
+                    <button
+                      type="button"
+                      className="jobform-add-option"
+                      onClick={() => setOptionLabels(ls => [...ls, ''])}
+                    >
+                      + add option
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
 
             {/* A paid job cannot go up without somewhere for the money to
                 go; the warning names the fix and the confirm stays off. */}

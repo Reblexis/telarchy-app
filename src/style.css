@@ -3526,6 +3526,40 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
 }
 .jobform-count.is-near { color: var(--accent); }
 .jobform-count.is-max { color: var(--lower); }
+/* The proposal form's Options row (docs/ui-conventions.md, "Posting one"):
+   a quiet toggle, closed by default, then a label field per option. */
+.jobform-options { gap: 0.45rem; }
+.jobform-options-toggle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  text-align: left;
+  cursor: pointer;
+}
+.jobform-options-toggle.is-open { color: var(--text-primary); }
+.jobform-options-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.jobform-add-option {
+  align-self: flex-start;
+  padding: 0.2rem 0;
+  border: none;
+  background: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+}
 
 /* The underline is the input, exactly as in the ticket, but prose reads
    left-aligned; only the ask gets the centered mono treatment. Every
@@ -4812,6 +4846,19 @@ textarea.jobform-line--desc {
 .nchart-legend-dot--now { background: var(--accent); }
 .nchart-legend-dot--other { background: var(--text-tertiary); opacity: 0.7; }
 .nchart-legend-line { display: inline-block; width: 14px; height: 2px; background: var(--text-primary); margin-right: 6px; vertical-align: middle; }
+/* A proposal with options on the VALUE view: one line per option, the
+   selected in the accent at full weight, the others thinner in the muted
+   ink, each named at its right end. */
+.nchart-series-line { fill: none; stroke: var(--text-tertiary); stroke-width: 1.3; opacity: 0.8; }
+.nchart-series.is-selected .nchart-series-line { stroke: var(--higher); stroke-width: 2.2; opacity: 1; }
+.nchart-series-dot { fill: var(--text-tertiary); }
+.nchart-series.is-selected .nchart-series-dot { fill: var(--higher); stroke: var(--bg-primary); stroke-width: 2; }
+.nchart-options text.nchart-series-label { fill: var(--text-tertiary); font-family: 'JetBrains Mono', monospace; font-size: 10px; paint-order: stroke; stroke: var(--bg-primary); stroke-width: 3.5px; }
+.nchart-options text.nchart-series-label.is-selected { fill: var(--higher); font-weight: 600; }
+.nchart-legend-line--option { background: var(--text-tertiary); height: 1.5px; }
+.nchart-legend .is-selected { color: var(--text-primary); }
+.nchart-legend .is-selected .nchart-legend-line--option { background: var(--accent); height: 2px; }
+.nchart-tip-option { color: var(--text-secondary); }
 .nchart-tip-approved { color: var(--higher); }
 .nchart-tip-declined { color: var(--lower); }
 
@@ -4860,6 +4907,26 @@ textarea.jobform-line--desc {
 }
 .mchart-branch--higher { color: var(--higher); }
 .mchart-branch--lower { color: var(--lower); }
+
+/* The other options of a proposal with options on the CALL view: thinner, in
+   the muted ink, named at their right end (docs/ui-conventions.md, "The chart
+   draws every option"). */
+.mchart-other-line {
+  fill: none;
+  stroke: var(--text-tertiary);
+  stroke-width: 1.2;
+  opacity: 0.75;
+}
+.mchart-other-dot { fill: var(--text-tertiary); opacity: 0.8; }
+.mchart-other-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  fill: var(--text-tertiary);
+  paint-order: stroke;
+  stroke: var(--bg-primary);
+  stroke-width: 3.5px;
+  stroke-linejoin: round;
+}
 
 .mchart-grid {
   stroke: var(--border-color);
@@ -11344,6 +11411,52 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   color: var(--lower);
 }
 
+/* A proposal with options (docs/ui-conventions.md, "A proposal with options
+   shows one world per option"): the last-read cell and one cell per option,
+   up to six on one row on the desktop floor. The leader wears the accent the
+   approved cell wears; the selected one is underlined in the same green
+   its chart line wears; a decided proposal strikes every option but the chosen one. */
+.pubws-worlds--options {
+  grid-template-columns: repeat(var(--world-count, 4), minmax(0, 1fr));
+}
+.pubws-world-cell--option {
+  padding-left: 0.9rem;
+}
+.pubws-world-cell--option.is-active {
+  background: var(--bg-primary);
+  box-shadow: inset 0 -2px 0 var(--higher);
+}
+.pubws-world-cell--option.is-leader,
+.pubws-world-cell--option.is-chosen {
+  background: var(--higher-soft);
+}
+.pubws-world-cell--option.is-leader .pubws-stat-what,
+.pubws-world-cell--option.is-leader .pubws-price,
+.pubws-world-cell--option.is-chosen .pubws-stat-what,
+.pubws-world-cell--option.is-chosen .pubws-price {
+  color: var(--higher);
+}
+.pubws-world-cell--option.is-struck .pubws-price {
+  text-decoration: line-through;
+  color: var(--text-tertiary);
+}
+.pubws-world-note {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+/* The leader's label in front of its lead on the board row, in the mono
+   caption register. */
+.pubws-ballot-lead {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
 /* The board's summary line: what is on it before a row is read
    (docs/ui-conventions.md, "The proposals board", 2026-09-09). */
 .pubws-propsum {
@@ -11431,6 +11544,20 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   .pubws-world-cell--approved,
   .pubws-world-cell--declined {
     padding-left: 0;
+  }
+}
+
+/* On a phone the option row wraps to two cells per line, the last-read cell
+   first; the left column's cells sit on the gutter. */
+@media (max-width: 560px) {
+  .pubws-worlds--options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .pubws-worlds--options > :nth-child(odd) {
+    padding-left: 0;
+  }
+  .pubws-worlds--options > :nth-child(even) {
+    padding-left: 0.9rem;
   }
 }
 

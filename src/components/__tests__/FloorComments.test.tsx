@@ -260,3 +260,42 @@ describe('a trade a profile points at', () => {
     expect(row.textContent).toContain('bought 21,192 at 0.297 cr');
   });
 });
+
+describe('a proposal with options covers every option market, each named by its label', () => {
+  // docs/ui-conventions.md, "A proposal with options shows one world per
+  // option": a label is a noun phrase the proposer wrote, and "if Turn
+  // left" is not a sentence, so an option's rows print its label bare.
+  beforeEach(() => {
+    getMarketActivity.mockImplementation(async (_idOrSlug: string, marketId: string) =>
+      marketId === 'm-left'
+        ? {
+            positions: [{ handle: 'boss', id: 'boss', direction: 'higher', shares: 12, cost: 8, worth: 9 }],
+            trades: [],
+            pool: [],
+          }
+        : { positions: [], trades: [], pool: [] },
+    );
+  });
+
+  test("an option's position reads its label, never 'if <label>'", async () => {
+    const { getByText } = render(
+      <MemoryRouter>
+        <FloorComments
+          {...props}
+          subject={{
+            proposalId: 'prop-1',
+            markets: [
+              { marketId: 'm-forward', label: 'Continue' },
+              { marketId: 'm-left', label: 'Turn left' },
+            ],
+          }}
+        />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(getByText('Positions (1)')).toBeInTheDocument());
+    getByText('Positions (1)').click();
+    const row = (await screen.findByText('boss')).closest('li')!;
+    expect(row.querySelector('.pubws-mkt-branch')?.textContent).toBe('Turn left');
+    expect(row.textContent).not.toMatch(/if Turn left/);
+  });
+});

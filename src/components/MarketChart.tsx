@@ -48,6 +48,18 @@ interface Props {
     label: string;
     tone: 'higher' | 'lower';
   } | null;
+  /** The other options of a proposal with options, each a thinner muted
+      line labelled at its right end with its price and its name
+      (docs/ui-conventions.md, "The chart draws every option"). The primary
+      series is the selected option; there is no baseline line. */
+  others?: Array<{
+    series: Array<{ at: string; consensus: number | null }>;
+    consensus: number;
+    label: string;
+  }> | null;
+  /** The name printed after the call's own price at the line's right end:
+      the selected option's label ("9 Turn left"). */
+  endLabel?: string;
   height?: number;
   /** Ink instead of amber: for a series that is not a market's call (the
    *  profile's balance, docs/ui-conventions.md "The participant profile"). */
@@ -120,6 +132,8 @@ export function MarketChart({
   preview = null,
   orders = [],
   secondary = null,
+  others = null,
+  endLabel,
   height,
   ranges,
   corner,
@@ -191,6 +205,23 @@ export function MarketChart({
       secPts = carried ? [{ t: cutoff, v: carried.v }, ...inside] : inside;
     }
 
+    // Every other option shares the domain the same way.
+    const otherPts = (others ?? []).map(o => {
+      let op = o.series
+        .filter(p => p.consensus !== null)
+        .map(p => ({ t: new Date(p.at).getTime(), v: p.consensus as number }))
+        .filter(p => Number.isFinite(p.t))
+        .sort((a, b) => a.t - b.t);
+      if (range !== null && op.length > 0) {
+        const cutoff = now - range;
+        const carried = [...op].reverse().find(p => p.t <= cutoff);
+        const inside = op.filter(p => p.t > cutoff);
+        op = carried ? [{ t: cutoff, v: carried.v }, ...inside] : inside;
+      }
+      return { o, op };
+    });
+    const firstOther = Math.min(...otherPts.map(({ op }) => op[0]?.t ?? Number.POSITIVE_INFINITY));
+
     // A selected window pins the axis to [now - range, now] regardless of
     // where the data starts; ALL spans the data. The right edge is always
     // max(now, newest point), NEVER the future: the 60-second minimum span
@@ -200,7 +231,7 @@ export function MarketChart({
     // yet, and stranded the primary line mid-chart while the secondary drew
     // to the domain edge (owner report 2026-08-13).
     const t1 = Math.max(now, pts[pts.length - 1].t);
-    const t0 = range !== null ? now - range : Math.min(pts[0].t, secPts[0]?.t ?? pts[0].t, t1 - 60_000);
+    const t0 = range !== null ? now - range : Math.min(pts[0].t, secPts[0]?.t ?? pts[0].t, firstOther, t1 - 60_000);
     const span = t1 - t0;
 
     // In ALL mode the step line enters the window at the call in force at
@@ -222,6 +253,7 @@ export function MarketChart({
     // are simply clipped to the plot instead of rescaling everything.
     const seriesValues = extended.map(p => p.v);
     if (secondary) for (const p of secPts) seriesValues.push(p.v);
+    for (const { op } of otherPts) for (const p of op) seriesValues.push(p.v);
     // MUST-SHOW values are single facts the reader needs on the canvas: the
     // live call, a composed bet's ghost, resting orders, the other branch.
     // These always widen the domain, never get clipped.
@@ -229,6 +261,7 @@ export function MarketChart({
     if (preview) mustShow.push(preview.value);
     for (const o of orders) mustShow.push(o.limitValue);
     if (secondary) mustShow.push(secondary.consensus);
+    for (const { o } of otherPts) mustShow.push(o.consensus);
 
     const sorted = [...seriesValues].sort((a, b) => a - b);
     const quantile = (p: number) =>
@@ -290,6 +323,23 @@ export function MarketChart({
       secEnd = sec[sec.length - 1];
     }
 
+    const otherLines = otherPts.map(({ o, op }) => {
+      const oLead = range === null && op.length > 0 && op[0].t > t0 ? [{ t: t0, v: op[0].v }] : [];
+      const line =
+        op.length > 0
+          ? [...oLead, ...op, { t: t1, v: o.consensus }]
+          : [
+              { t: t0, v: o.consensus },
+              { t: t1, v: o.consensus },
+            ];
+      let od = `M${x(line[0].t).toFixed(1)},${y(line[0].v).toFixed(1)}`;
+      for (let i = 1; i < line.length; i++) {
+        od += ` L${x(line[i].t).toFixed(1)},${y(line[i - 1].v).toFixed(1)}`;
+        od += ` L${x(line[i].t).toFixed(1)},${y(line[i].v).toFixed(1)}`;
+      }
+      return { label: o.label, consensus: o.consensus, d: od, end: line[line.length - 1] };
+    });
+
     // Round-number gridlines.
     const rawStep = (vMax - vMin) / 4;
     const mag = 10 ** Math.floor(Math.log10(rawStep || 1));
@@ -326,6 +376,7 @@ export function MarketChart({
       end,
       secD,
       secEnd,
+      otherLines,
       t0,
       t1,
       span,
@@ -337,7 +388,7 @@ export function MarketChart({
       fmt,
       open: extended[0],
     };
-  }, [series, consensus, preview, orders, secondary, range, H, W, PAD_L, PAD_R]);
+  }, [series, consensus, preview, orders, secondary, others, range, H, W, PAD_L, PAD_R]);
 
   // A window wider than the market's whole life falls back to ALL. This used
   // to run during render, which is a state update mid-render and forces React
@@ -361,7 +412,7 @@ export function MarketChart({
   );
 
   if (!model) return null;
-  const { extended, d, areaPath, end, secD, secEnd, x, y, gridVals, ticks, fmt } = model;
+  const { extended, d, areaPath, end, secD, secEnd, otherLines, x, y, gridVals, ticks, fmt } = model;
   const cNum = (v: number) => `${unit}${compactNum(v)}`;
   const fNum = (v: number) => `${unit}${fullNum(v)}`;
   // The call and ghost labels live at the right edge; when a label is too
@@ -504,6 +555,38 @@ export function MarketChart({
             );
           })()}
 
+        {otherLines.length > 0 &&
+          (() => {
+            /* Each other option's end label keeps 13 units from the call's
+               own label and from each other, nearest the call first. */
+            const callY = y(end.v);
+            const taken = [callY];
+            const placed = otherLines
+              .map((l, i) => ({ l, i, at: y(l.end.v) }))
+              .sort((a, b) => Math.abs(a.at - callY) - Math.abs(b.at - callY))
+              .map(p => {
+                let ly = p.at;
+                const dir = ly >= callY ? 13 : -13;
+                for (let k = 0; k < 12 && taken.some(t => Math.abs(t - ly) < 13); k++) ly += dir;
+                taken.push(ly);
+                return { ...p, ly };
+              })
+              .sort((a, b) => a.i - b.i);
+            return placed.map(({ l, i, ly }) => {
+              const text = `${fNum(l.consensus)} ${l.label}`;
+              const lb = edgeLabel(x(l.end.t), text);
+              return (
+                <g key={`${l.label}-${i}`} className="mchart-other">
+                  <path d={l.d} className="mchart-other-line" clipPath={`url(#${clipId})`} />
+                  <circle cx={x(l.end.t)} cy={y(l.end.v)} r="3" className="mchart-other-dot" />
+                  <text className="mchart-other-label" x={lb.x} y={ly + 4} textAnchor={lb.anchor}>
+                    {text}
+                  </text>
+                </g>
+              );
+            });
+          })()}
+
         <g className="mchart-market">
           <g clipPath={`url(#${clipId})`}>
             <path d={areaPath} className="mchart-fill-area" fill={`url(#${fillId})`} stroke="none" />
@@ -514,10 +597,11 @@ export function MarketChart({
           <circle cx={x(end.t)} cy={y(end.v)} r="5" className="mchart-callhalo" />
           <circle cx={x(end.t)} cy={y(end.v)} r="5" className="mchart-calldot" />
           {(() => {
-            const lb = edgeLabel(x(end.t), fNum(consensus));
+            const callText = endLabel ? `${fNum(consensus)} ${endLabel}` : fNum(consensus);
+            const lb = edgeLabel(x(end.t), callText);
             return (
               <text className="mchart-calllabel" x={lb.x} y={y(end.v) + 4} textAnchor={lb.anchor}>
-                {fNum(consensus)}
+                {callText}
               </text>
             );
           })()}

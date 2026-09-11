@@ -566,6 +566,15 @@ export interface SnakeCell {
 }
 export type SnakeAction = 'forward' | 'left' | 'right';
 export type SnakeHeading = 'up' | 'down' | 'left' | 'right';
+/** One action's 60-move quote on the feed, in either shape. */
+export interface SnakeQuote60 {
+  price?: number | null;
+  lead?: number | null;
+  marketId?: string | null;
+  reason?: string;
+  approved?: number | null;
+  declined?: number | null;
+}
 /** The telarchy-snake service's /state, passed through GET /api/marketplace/:slug/live. */
 export interface SnakeState {
   game: {
@@ -590,11 +599,15 @@ export interface SnakeState {
     decideAt: string;
     deadline: string;
     directions: Record<SnakeAction, SnakeHeading>;
-    proposals: Record<SnakeAction, { id: string; title: string; url: string } | null>;
-    quotes: Record<
-      SnakeAction,
-      { m60?: { approved: number | null; declined: number | null } } & Record<string, unknown>
-    >;
+    /** The step's ONE proposal with an option per action. `number` may be
+     *  absent, when the url carries it. */
+    proposal?: { id: string; url: string; number?: number | null } | null;
+    /** The older shape: one two-branch proposal per action. */
+    proposals?: Record<SnakeAction, { id: string; title: string; url: string } | null> | null;
+    /** Per action, the 60-move quote: `price` (the option's consensus) and
+     *  `lead` (its consensus minus the best other option) on the one
+     *  proposal, or `approved` / `declined` on the older per-action pairs. */
+    quotes: Record<SnakeAction, { m60?: SnakeQuote60 } & Record<string, unknown>>;
   } | null;
   recentTrades?: Array<{ handle: string; action: SnakeAction; cost: number; kind?: string }>;
   commentary?: string | null;
@@ -765,6 +778,46 @@ export interface Plan {
   editedAt: string | null;
 }
 
+/** One option of a proposal with options (docs/guides/proposals.md, "More
+ *  than two options"): a short handle and the words a reader chooses. */
+export interface ProposalOption {
+  id: string;
+  label: string;
+}
+
+/** One option's book on a row of a proposal with options: the price shape
+ *  the pair carries per branch, per option. `delta` is the option's
+ *  consensus minus the best of the other priced options (the leader's is its
+ *  lead, positive; every other option's is how far it trails); null for an
+ *  unpriced option and for every option of a row with fewer than two
+ *  priced. */
+export interface PublicProposalOptionQuote {
+  id: string;
+  label: string;
+  marketId: string | null;
+  consensus: number | null;
+  probability: number | null;
+  liquidity: number | null;
+  pool: number | null;
+  traders: number | null;
+  volume: number | null;
+  delta: number | null;
+}
+
+/** One option on a row of GET /api/proposals/:id. */
+export interface ProposalDetailOption {
+  id: string;
+  label: string;
+  marketId: string | null;
+  consensus: number | null;
+  liquidity: number | null;
+  tradeCount: number;
+  resolved: boolean;
+  voided: boolean;
+  actualValue: number | null;
+  delta: number | null;
+}
+
 export interface PublicProposalMarketPair {
   metricId?: string;
   metricName: string;
@@ -797,6 +850,11 @@ export interface PublicProposalMarketPair {
   declinedVolume: number | null;
   rangeMin: number;
   rangeMax: number;
+  /** A proposal with options: one book per option in place of the pair, and
+   *  then every approved and declined field above is null and `delta` is the
+   *  leader's lead (null with fewer than two options priced). Null or absent
+   *  on a two-branch proposal. */
+  options?: PublicProposalOptionQuote[] | null;
 }
 
 export interface PublicProposal {
@@ -839,6 +897,12 @@ export interface PublicProposal {
    *  the payload started shipping every pair of the metric x date grid. */
   marketPairCount: number;
   markets: PublicProposalMarketPair[];
+  /** The options a reader chooses between, in the proposer's order; null or
+   *  absent on a two-branch proposal (docs/guides/proposals.md, "More than
+   *  two options"). */
+  options?: ProposalOption[] | null;
+  /** The chosen option's id once an option is chosen (status `approved`). */
+  decidedOption?: string | null;
 }
 
 export interface PublicDecidedProposal {
@@ -1721,6 +1785,9 @@ export const api = {
     /** The decision deadline, an ISO instant in the future; the floor's
      *  decisionMinutes from now when omitted. */
     decideBy?: string;
+    /** Two to six options make a proposal with options (docs/guides/
+     *  proposals.md, "More than two options"); absent is a two-branch one. */
+    options?: ProposalOption[];
   }) => request('/api/proposals', { method: 'POST', body: JSON.stringify(body) }),
   /** Edit a proposal's definition: words and price both, published as
    *  revisions; a traded pair keeps its markets and positions untouched
@@ -1910,7 +1977,12 @@ export const api = {
         at: string;
       }>;
     }>,
-  approveProposal: (id: string) => request(`/api/proposals/${id}/approve`, { method: 'POST' }),
+  /** Approve a proposal; on a proposal with options, `option` names the
+   *  chosen option's id and is required (400 option_required without it). */
+  approveProposal: (id: string, option?: string) =>
+    option
+      ? request(`/api/proposals/${id}/approve`, { method: 'POST', body: JSON.stringify({ option }) })
+      : request(`/api/proposals/${id}/approve`, { method: 'POST' }),
   /** `declineReason` is published permanently on the proposal. Required by the
    *  backend when the workspace has a charter, since that is the promise. */
   /** Admin: take a job off the board entirely (refunds every stake first). */

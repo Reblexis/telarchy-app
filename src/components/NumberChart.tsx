@@ -31,6 +31,24 @@ export interface NumberMarker {
   pair?: { approved: number | null; declined: number | null } | null;
 }
 
+/**
+ * One option of a proposal with options, drawn as its own line
+ * (docs/ui-conventions.md, "A proposal with options shows one world per
+ * option", "The chart draws every option"): its market's call over time,
+ * held to the settle instant at its call now, and labelled there with its
+ * price and its name. The selected option (`emphasis`) is the green at full
+ * weight, the others thinner in the muted ink. An option with no price
+ * (`consensus` null) is not drawn.
+ */
+export interface NumberSeries {
+  id: string;
+  label: string;
+  /** The option market's call over time, oldest first. */
+  points: NumberPoint[];
+  consensus: number | null;
+  emphasis: boolean;
+}
+
 interface Props {
   points: NumberPoint[];
   markers: NumberMarker[];
@@ -65,6 +83,10 @@ interface Props {
    *  market's call would move, drawn on its marker in the market chart's
    *  own ghost vocabulary. */
   preview?: { value: number; direction: 'higher' | 'lower' } | null;
+  /** A proposal with options on screen: every option as a line. With any
+   *  priced, the selected date's marker draws no unconditional call and no
+   *  pair, and the legend names the options. */
+  series?: NumberSeries[] | null;
 }
 
 export type Granularity = 'day' | 'week' | 'month' | 'other';
@@ -202,6 +224,10 @@ export function fmt(v: number, unit: string): string {
 }
 
 /** The axis day, in the viewer's zone (docs/ui-conventions.md, "Every clock on the floor reads in the viewer's zone"). */
+function nowTOf(d: Date): number {
+  return d.getTime();
+}
+
 function dayLabel(t: number): string {
   return dayOf(new Date(t));
 }
@@ -221,6 +247,7 @@ export function NumberChart({
   now: nowProp,
   height,
   preview = null,
+  series = null,
 }: Props) {
   // Anchored once per mount, never per render: a per-render default was a
   // fresh advancing timestamp that moved the tween target every render,
@@ -268,7 +295,27 @@ export function NumberChart({
     const t = new Date(m.resolvesOn).getTime();
     return t >= x0 && t <= x1;
   });
+  /* The options, each a line through its market's call history (inside the
+     window, carried in at the window's start) held to the settle instant.
+     No baseline: with options there is no world without the proposal. */
+  const settleT = new Date(selectedResolvesOn).getTime();
+  const drawnSeries = (series ?? [])
+    .filter((s): s is NumberSeries & { consensus: number } => typeof s.consensus === 'number')
+    .map(s => {
+      const pts = s.points
+        .map(p => ({ t: new Date(p.at).getTime(), v: p.value }))
+        .filter(p => Number.isFinite(p.t) && Number.isFinite(p.v) && p.t < settleT)
+        .sort((a, b) => a.t - b.t);
+      const carried = pts.filter(p => p.t < x0).pop();
+      const inside = pts.filter(p => p.t >= x0);
+      const traced = carried ? [{ t: x0, v: carried.v }, ...inside] : inside;
+      // Untraded: a held line from now, never a lone dot at the settle instant.
+      const start = traced.length > 0 ? traced : [{ t: Math.max(x0, Math.min(nowTOf(now), settleT)), v: s.consensus }];
+      return { ...s, line: [...start, { t: settleT, v: s.consensus }] };
+    });
+  const optionMode = drawnSeries.length > 0;
   const ys = [
+    ...drawnSeries.flatMap(s => s.line.map(p => p.v)),
     ...drawn.map(p => p.value),
     ...inWindow.flatMap(m => (m.consensus === null ? [] : [m.consensus])),
     ...inWindow.flatMap(m => [m.pair?.approved, m.pair?.declined].filter((v): v is number => typeof v === 'number')),
@@ -324,7 +371,7 @@ export function NumberChart({
     date: string;
     label: string;
     value: string;
-    extra?: Array<{ label: string; value: string; tone: 'approved' | 'declined' }>;
+    extra?: Array<{ label: string; value: string; tone: 'approved' | 'declined' | 'option' }>;
   } | null = null;
   if (cursor !== null) {
     if (cursor <= nowT) {
@@ -366,15 +413,18 @@ export function NumberChart({
           // The settle instant is the first moment after the period; the day a
           // reader is forecasting is the one before it, as the picker says.
           date: dayLabel(new Date(near.resolvesOn).getTime() - 1),
-          label: near.selected ? 'the market says' : 'another market says',
-          value: fmt(near.consensus, unit),
+          label:
+            optionMode && near.selected ? 'the options say' : near.selected ? 'the market says' : 'another market says',
+          value: optionMode && near.selected ? '' : fmt(near.consensus, unit),
           extra:
-            near.pair && near.pair.approved !== null && near.pair.declined !== null
-              ? [
-                  { label: 'if approved', value: fmt(near.pair.approved, unit), tone: 'approved' },
-                  { label: 'if declined', value: fmt(near.pair.declined, unit), tone: 'declined' },
-                ]
-              : undefined,
+            optionMode && near.selected
+              ? drawnSeries.map(s => ({ label: s.label, value: fmt(s.consensus, unit), tone: 'option' }))
+              : near.pair && near.pair.approved !== null && near.pair.declined !== null
+                ? [
+                    { label: 'if approved', value: fmt(near.pair.approved, unit), tone: 'approved' },
+                    { label: 'if declined', value: fmt(near.pair.declined, unit), tone: 'declined' },
+                  ]
+                : undefined,
         };
       }
     }
@@ -442,9 +492,12 @@ export function NumberChart({
         ))}
         {inWindow.map(m => {
           const mx = x(new Date(m.resolvesOn).getTime());
-          const my = m.consensus === null ? null : y(m.consensus);
-          const ap = m.pair?.approved ?? null;
-          const dc = m.pair?.declined ?? null;
+          const my = m.consensus === null || (optionMode && m.selected) ? null : y(m.consensus);
+          // With options on screen, the selected date's marker is the settle
+          // instant only: no unconditional call, no pair (the lines carry it).
+          const bare = optionMode && m.selected;
+          const ap = bare ? null : (m.pair?.approved ?? null);
+          const dc = bare ? null : (m.pair?.declined ?? null);
           const hasPair = ap !== null && dc !== null;
           const ay = ap === null ? null : y(ap);
           const dy = dc === null ? null : y(dc);
@@ -572,6 +625,42 @@ export function NumberChart({
             </g>
           );
         })}
+        {optionMode && (
+          <g className="nchart-options">
+            {[...drawnSeries.filter(s => !s.emphasis), ...drawnSeries.filter(s => s.emphasis)].map(s => {
+              const d = s.line.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p.t)} ${y(p.v)}`).join(' ');
+              return (
+                <g key={s.id} className={`nchart-series${s.emphasis ? ' is-selected' : ''}`} data-option={s.id}>
+                  <path className="nchart-series-line" d={d} />
+                  <circle className="nchart-series-dot" cx={x(settleT)} cy={y(s.consensus)} r={s.emphasis ? 4.5 : 3} />
+                </g>
+              );
+            })}
+            {/* Each line named at its right end, where the pair chart prints
+               its two prices: the price, then the option. */}
+            {dodge(
+              drawnSeries.map(s => ({ key: s.id, at: y(s.consensus), s })),
+              PAD_T + 4,
+              H - PAD_B - 4,
+            ).map(l => {
+              const sx = x(settleT);
+              const moved = Math.abs(l.y - l.at) > 4;
+              return (
+                <g key={l.key}>
+                  {moved && <line className="nchart-leader" x1={sx - 6} x2={sx - 34} y1={l.at} y2={l.y} />}
+                  <text
+                    className={`nchart-series-label${l.s.emphasis ? ' is-selected' : ''}`}
+                    x={sx - (moved ? 38 : 9)}
+                    y={l.y + 4}
+                    textAnchor="end"
+                  >
+                    {`${fmt(l.s.consensus, unit)} ${l.s.label}`}
+                  </text>
+                </g>
+              );
+            })}
+          </g>
+        )}
         {points.length === 0 && (
           <text
             className="nchart-empty"
@@ -592,7 +681,17 @@ export function NumberChart({
           {dayLabel(x0)}
         </text>
       </svg>
-      {!legend && marksLegend && (
+      {optionMode && (
+        <div className="nchart-legend" aria-label="Legend">
+          {drawnSeries.map(s => (
+            <span key={s.id} className={s.emphasis ? 'is-selected' : undefined}>
+              <i className="nchart-legend-line nchart-legend-line--option" />
+              {s.label}
+            </span>
+          ))}
+        </div>
+      )}
+      {!optionMode && !legend && marksLegend && (
         <div className="nchart-legend" aria-label="Legend">
           <span>
             <i className="nchart-legend-line" />
@@ -610,7 +709,7 @@ export function NumberChart({
           )}
         </div>
       )}
-      {legend && (
+      {!optionMode && legend && (
         <div className="nchart-legend" aria-label="Legend">
           <span>
             <i className="nchart-legend-dot nchart-legend-dot--approved" />
@@ -633,7 +732,7 @@ export function NumberChart({
             {tip.label} <span className="mchart-tip-v">{tip.value}</span>
           </div>
           {tip.extra?.map(e => (
-            <div key={e.tone} className={`nchart-tip-${e.tone}`}>
+            <div key={`${e.tone}-${e.label}`} className={`nchart-tip-${e.tone}`}>
               {e.label} <span className="mchart-tip-v">{e.value}</span>
             </div>
           ))}

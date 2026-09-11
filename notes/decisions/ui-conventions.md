@@ -2074,4 +2074,9 @@ imo obv in the graph show all options not just the one selected and
 without it.. whatever that means", so the chart draws every option and
 drops the baseline line. Spec: docs/ui-conventions.md, "A
 proposal with options shows one world per option"; contract:
-docs/guides/proposals.md, "More than two options".
+docs/guides/proposals.md, "More than two options". The selected option's line and underline are the approved world's
+green, as on the canvas he approved, not the amber accent; the spec's
+remaining open points (no-leader caption, default world, "$X if chosen",
+the board row's Choose band, the struck price captioned "stakes
+refunded") were settled in the spec the same day.
+

@@ -15,7 +15,17 @@ import { FloorLiveView } from '../components/FloorLiveView';
 import { FloorStandings, type ProposalTraderRow, SeasonAdvert, useCurrentSeason } from '../components/FloorRails';
 import { FloorStrip } from '../components/FloorStrip';
 import { Ghost, GhostRows, LoadingStatus } from '../components/Ghosts';
-import { ClockGlyph, CoinGlyph, DropGlyph, JobsBoard, PersonGlyph, poolOf, splitAsk } from '../components/JobsBoard';
+import {
+  ClockGlyph,
+  CoinGlyph,
+  DropGlyph,
+  hasOptions,
+  JobsBoard,
+  optionLabelOf,
+  PersonGlyph,
+  poolOf,
+  splitAsk,
+} from '../components/JobsBoard';
 import { Linkified } from '../components/Linkified';
 import { Logo } from '../components/Logo';
 import { LiveView } from '../components/live/LiveView';
@@ -24,7 +34,7 @@ import { MarketChart } from '../components/MarketChart';
 import { MarketFacts, MarketMoney } from '../components/MarketFacts';
 import { MetricsDialog } from '../components/MetricsDialog';
 import { NotificationsBell } from '../components/NotificationsBell';
-import { granularityOf, NumberChart } from '../components/NumberChart';
+import { granularityOf, NumberChart, type NumberSeries } from '../components/NumberChart';
 import { AddDateDialog, InjectLiquidityDialog, NewMetricDialog, ReportValueDialog } from '../components/OwnerDialogs';
 import { PositionSummary } from '../components/PositionSummary';
 import { SubjectAbout } from '../components/SubjectAbout';
@@ -65,6 +75,7 @@ import { dropInline, readInline } from '../lib/inline-data';
 import { maxWinLabel } from '../lib/market-quote';
 import { authPath } from '../lib/nextPath';
 import { periodGapOf } from '../lib/period-gap';
+import { isPricedOption, optionLead, worldOf } from '../lib/proposal-options';
 import { clockSecondsOf, countdownTo, dayOf, instantOf, pollIntervalFor, tickIntervalFor } from '../lib/viewer-time';
 
 /**
@@ -144,16 +155,36 @@ function pairAt(job: PublicProposal, targetDate: string | undefined, metricId: s
  * and the tab is dead (owner ask 2026-09-09, replacing the "untraded" note
  * of the same day).
  */
-function hasLiquidity(pair: { approvedLiquidity: number | null; declinedLiquidity: number | null } | null): boolean {
+function hasLiquidity(
+  pair: {
+    approvedLiquidity: number | null;
+    declinedLiquidity: number | null;
+    options?: Array<{ liquidity: number | null }> | null;
+  } | null,
+): boolean {
   if (!pair) return false;
+  // A proposal with options: anything staked on any option.
+  if (pair.options?.length) return pair.options.some(o => (o.liquidity ?? 0) > 0);
   return (pair.approvedLiquidity ?? 0) > 0 || (pair.declinedLiquidity ?? 0) > 0;
 }
 
 /** What a proposal does to one cell, as a strip tab reads it. */
 function impactLabel(
-  pair: { approvedConsensus: number | null; declinedConsensus: number | null } | null,
+  pair: {
+    approvedConsensus: number | null;
+    declinedConsensus: number | null;
+    options?: Parameters<typeof optionLead>[0];
+  } | null,
   unit: string,
 ): string | null {
+  // A proposal with options: the leader's lead, "open" until two are priced
+  // (docs/ui-conventions.md, "A proposal with options shows one world per
+  // option").
+  if (pair?.options?.length) {
+    const lead = optionLead(pair.options);
+    if (!lead) return 'open';
+    return lead.lead === 0 ? `\u00b1${unit}0` : formatDelta(lead.lead, unit);
+  }
   if (!pair || pair.approvedConsensus === null || pair.declinedConsensus === null) return null;
   const d = pair.approvedConsensus - pair.declinedConsensus;
   return d === 0 ? `\u00b1${unit}0` : formatDelta(d, unit);
@@ -179,7 +210,9 @@ export function holdersOf(
     direction: 'higher' | 'lower';
     cost: number;
     worth: number | null;
-    branch: 'approved' | 'declined';
+    branch: string;
+    /** An option's own label, printed bare; a pair branch reads "if <branch>". */
+    label?: string;
   }>,
   board: LeaderboardEntry[],
 ): ProposalTraderRow[] {
@@ -187,7 +220,7 @@ export function holdersOf(
   for (const p of positions) {
     const row = byId.get(p.id) ?? { handle: p.handle, bot: !!p.bot, profit: 0, lines: [] };
     row.profit += (p.worth ?? p.cost) - p.cost;
-    row.lines.push(`bet ${p.direction} if ${p.branch}`);
+    row.lines.push(p.label ? `bet ${p.direction} \u00b7 ${p.label}` : `bet ${p.direction} if ${p.branch}`);
     byId.set(p.id, row);
   }
   return [...byId.entries()]
@@ -381,12 +414,17 @@ export function TradePage() {
   // Which world the one view is showing (owner decision 2026-08-10: both
   // branches are on the page; the toggle picks which one the ticket trades,
   // and the chart draws the other as a quiet second line).
-  const [branch, setBranch] = useState<'approved' | 'declined'>('approved');
+  // A world KEY (docs/ui-conventions.md, "A proposal with options shows one
+  // world per option"): 'approved' / 'declined' on a pair, an option id on a
+  // proposal with options. Null is the default world: approved, or the
+  // leader (else the first priced option) until the reader presses a cell.
+  const [worldPick, setWorldPick] = useState<string | null>(null);
   // Which clock the page is showing and the ticket trades, held as a MARKET
-  const [condHistory, setCondHistory] = useState<{
-    approved: Array<{ at: string; consensus: number | null }>;
-    declined: Array<{ at: string; consensus: number | null }>;
-  } | null>(null);
+  // Every world's own history on the selected row, by market id.
+  const [condHistory, setCondHistory] = useState<Record<
+    string,
+    Array<{ at: string; consensus: number | null }>
+  > | null>(null);
   // Price replays for horizons other than the one the payload carries inline,
   // keyed by market id. The payload ships the primary market's series (so the
   // first paint needs no second request) and names it; a reader who switches
@@ -572,7 +610,14 @@ export function TradePage() {
       .catch(() => {});
   }, [canManage, ws?.workspaceId]);
 
-  const decide = async (action: 'approve' | 'decline', refund = false, id?: string, reason?: string) => {
+  const decide = async (
+    action: 'approve' | 'decline',
+    refund = false,
+    id?: string,
+    reason?: string,
+    /** The chosen option, on a proposal with options (docs/guides/proposals.md). */
+    option?: string,
+  ) => {
     /* The id is explicit so a ruling can come from the board's own row
        (docs/ui-conventions.md, "The proposals board", 2026-09-09) without
        selecting the proposal first; the bar on the proposal's page passes
@@ -583,7 +628,8 @@ export function TradePage() {
     setDecideBusy(true);
     try {
       if (action === 'approve') {
-        await api.approveProposal(jobId);
+        if (option) await api.approveProposal(jobId, option);
+        else await api.approveProposal(jobId);
       } else {
         await api.declineProposal(jobId, (reason ?? declineReason ?? '').trim(), refund);
       }
@@ -624,7 +670,7 @@ export function TradePage() {
     setRemoveArmed(false);
     setDeclineReason(null);
     setDecideErr('');
-    setBranch('approved');
+    setWorldPick(null);
     setDescExpanded(false);
     setCondHistory(null);
   }, [selectedJobId]);
@@ -897,25 +943,6 @@ export function TradePage() {
     (selectedJob.status ?? 'pending') === 'pending' &&
     (canManage || (!!myAgentId && selectedJob.proposedByHandle === myAgentId));
 
-  /* What the ticket says it trades, in the card (docs/ui-conventions.md,
-     "The rails, and the standings under the verbs", revised 2026-09-09):
-     a quiet line of context over the bold subject. */
-  const ticketSubject = (() => {
-    if (selectedJob) {
-      const bits = [`#${selectedJob.number}`, `if ${branch}`];
-      if (selectedJob.decideBy) bits.push(`decides ${dayOf(selectedJob.decideBy)}`);
-      return { context: bits.join(' · '), title: selectedJob.title };
-    }
-    if (!hero) return undefined;
-    const clock = /^(today|this week|this month)$/.test(hero.label) ? hero.label : '';
-    const subject = captionLabel(metricLabel, ws?.name);
-    const title = `${subject.charAt(0).toUpperCase()}${subject.slice(1)}${clock ? `, ${clock}` : ''}`;
-    /* The floor and nothing else: the clock is in the title already, and a
-       settle day beside it said the same date twice (owner report
-       2026-09-09, "ther eis twice the date"). */
-    return { context: ws?.name ?? '', title };
-  })();
-
   const saveJobEdit = async () => {
     if (!selectedJob || !ws) return;
     setJobSaving(true);
@@ -979,6 +1006,56 @@ export function TradePage() {
         : selectedJobClosed
           ? 'lapsed'
           : null;
+  /* A proposal with options (docs/ui-conventions.md, "A proposal with
+     options shows one world per option"): the options in the proposer's
+     order, the row's quote for each, who leads, and what was chosen. */
+  const jobOptioned = !!selectedJob && hasOptions(selectedJob);
+  const pairOptions = jobOptioned ? (pair?.options ?? []) : [];
+  const jobOptionList = jobOptioned
+    ? selectedJob?.options?.length
+      ? selectedJob.options
+      : pairOptions.map(o => ({ id: o.id, label: o.label }))
+    : [];
+  const optionQuote = (id: string) => pairOptions.find(o => o.id === id) ?? null;
+  const optionLeadNow = jobOptioned ? optionLead(pairOptions) : null;
+  const chosenOption = selectedJob?.status === 'approved' ? (selectedJob.decidedOption ?? null) : null;
+  const chosenLabel = selectedJob && chosenOption ? optionLabelOf(selectedJob, chosenOption) : null;
+  /* The world on screen: the reader's pick while it names a world of this
+     proposal, else the default: approved on a pair; on options the chosen
+     one, the leader, the first priced option, then the first option. */
+  const defaultWorld = jobOptioned
+    ? (chosenOption ??
+      optionLeadNow?.leader.id ??
+      pairOptions.find(isPricedOption)?.id ??
+      jobOptionList[0]?.id ??
+      'approved')
+    : 'approved';
+  const pickValid =
+    worldPick !== null &&
+    (jobOptioned ? jobOptionList.some(o => o.id === worldPick) : worldPick === 'approved' || worldPick === 'declined');
+  const branch: string = pickValid ? (worldPick as string) : defaultWorld;
+  /** The world said beside a verb: "if approved", or the option's label. */
+  const worldLabel = jobOptioned ? (jobOptionList.find(o => o.id === branch)?.label ?? branch) : null;
+  const worldWord = worldLabel ?? `if ${branch}`;
+  /* What the ticket says it trades, in the card (docs/ui-conventions.md,
+     "The rails, and the standings under the verbs", revised 2026-09-09):
+     a quiet line of context over the bold subject. */
+  const ticketSubject = (() => {
+    if (selectedJob) {
+      const bits = [`#${selectedJob.number}`, worldWord];
+      if (selectedJob.decideBy) bits.push(`decides ${dayOf(selectedJob.decideBy)}`);
+      return { context: bits.join(' · '), title: selectedJob.title };
+    }
+    if (!hero) return undefined;
+    const clock = /^(today|this week|this month)$/.test(hero.label) ? hero.label : '';
+    const subject = captionLabel(metricLabel, ws?.name);
+    const title = `${subject.charAt(0).toUpperCase()}${subject.slice(1)}${clock ? `, ${clock}` : ''}`;
+    /* The floor and nothing else: the clock is in the title already, and a
+       settle day beside it said the same date twice (owner report
+       2026-09-09, "ther eis twice the date"). */
+    return { context: ws?.name ?? '', title };
+  })();
+
   // Opening a proposal, by a row, a chevron or its address, scrolls its head
   // into view (docs/ui-conventions.md, "The feed drives the floor").
   const scrolledToRef = useRef<string | null>(null);
@@ -1008,15 +1085,15 @@ export function TradePage() {
   // liquidity. Admin must inject liquidity before trading"). Borrowing the
   // baseline's liquidity made an unfunded branch look tradeable, so the
   // floor offered a bet the server had to refuse at submit time.
-  const branchShape = (b: 'approved' | 'declined') => {
+  const branchShape = (b: string) => {
     if (!pair) return null;
-    const marketId = b === 'approved' ? pair.approvedMarketId : pair.declinedMarketId;
-    if (!marketId) return null;
-    const ownLiquidity = (b === 'approved' ? pair.approvedLiquidity : pair.declinedLiquidity) ?? 0;
+    const w = worldOf(pair, b);
+    if (!w) return null;
+    const ownLiquidity = w.liquidity ?? 0;
     return {
-      marketId,
-      consensus: (b === 'approved' ? pair.approvedConsensus : pair.declinedConsensus) ?? hero?.consensus ?? null,
-      probability: (b === 'approved' ? pair.approvedProbability : pair.declinedProbability) ?? hero?.probability ?? 0.5,
+      marketId: w.marketId,
+      consensus: w.consensus ?? hero?.consensus ?? null,
+      probability: w.probability ?? hero?.probability ?? 0.5,
       liquidity: ownLiquidity > 0 ? ownLiquidity : (hero?.liquidity ?? 1),
       funded: ownLiquidity > 0,
       // The branch's own three facts, never borrowed from the baseline the way
@@ -1024,12 +1101,12 @@ export function TradePage() {
       // other and says what IT holds (docs/ui-conventions.md, "What a market
       // says about itself"). An unspawned branch has no numbers, a spawned
       // one nobody has touched has zeroes.
-      pool: (b === 'approved' ? pair.approvedPool : pair.declinedPool) ?? 0,
-      traders: (b === 'approved' ? pair.approvedTraders : pair.declinedTraders) ?? 0,
-      volume: (b === 'approved' ? pair.approvedVolume : pair.declinedVolume) ?? 0,
+      pool: w.pool ?? 0,
+      traders: w.traders ?? 0,
+      volume: w.volume ?? 0,
       rangeMin: pair.rangeMin,
       rangeMax: pair.rangeMax,
-      history: condHistory?.[b] ?? [],
+      history: condHistory?.[w.marketId] ?? [],
     };
   };
   // The one market the page is showing and the ticket is trading: the
@@ -1051,7 +1128,18 @@ export function TradePage() {
           history: priceSeriesOf(hero.marketId, ws, horizonPrices),
         }
       : null);
-  const otherBranch = pair ? branchShape(branch === 'approved' ? 'declined' : 'approved') : null;
+  // Only a pair has an other BRANCH; the other options are drawn as options.
+  const otherBranch = pair && !jobOptioned ? branchShape(branch === 'approved' ? 'declined' : 'approved') : null;
+  /* Every world market of the selected row: the two branches, or every
+     option's book. Their histories draw the chart's lines and their holders
+     fill "Traders on this proposal". */
+  const worldMarkets: Array<{ marketId: string; branch: string; label?: string }> = jobOptioned
+    ? pairOptions.flatMap(o => (o.marketId ? [{ marketId: o.marketId, branch: o.id, label: o.label }] : []))
+    : [
+        ...(pair?.approvedMarketId ? [{ marketId: pair.approvedMarketId, branch: 'approved' }] : []),
+        ...(pair?.declinedMarketId ? [{ marketId: pair.declinedMarketId, branch: 'declined' }] : []),
+      ];
+  const worldMarketsKey = worldMarkets.map(m => m.marketId).join(',');
   const activeMarketId = active?.marketId ?? null;
 
   // Both branches' own histories, so the main chart keeps meaning something
@@ -1064,17 +1152,14 @@ export function TradePage() {
   // last would otherwise paint the previous job's lines.
   const condReqRef = useRef(0);
   condHistoryRef.current = () => {
-    const aid = pair?.approvedMarketId;
-    const did = pair?.declinedMarketId;
+    const ids = worldMarkets.map(m => m.marketId);
     const token = ++condReqRef.current;
-    if (!aid || !ws) return;
+    // A pair's history is pulled once its approved branch exists, as before.
+    if (ids.length === 0 || !ws || (!jobOptioned && !pair?.approvedMarketId)) return;
     const slug = ws.slug || ws.workspaceId;
-    Promise.all([
-      api.getPublicMarketHistory(slug, aid),
-      did ? api.getPublicMarketHistory(slug, did) : Promise.resolve([]),
-    ])
-      .then(([a, d]) => {
-        if (token === condReqRef.current) setCondHistory({ approved: a, declined: d });
+    Promise.all(ids.map(id => api.getPublicMarketHistory(slug, id)))
+      .then(parts => {
+        if (token === condReqRef.current) setCondHistory(Object.fromEntries(ids.map((id, i) => [id, parts[i]])));
       })
       .catch(e => console.error('conditional history fetch failed:', e));
   };
@@ -1119,7 +1204,7 @@ export function TradePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     condHistoryRef.current();
-  }, [pair?.approvedMarketId, pair?.declinedMarketId, wsKey]);
+  }, [worldMarketsKey, wsKey]);
 
   // The traders on the selected proposal (docs/ui-conventions.md, "The
   // rails, and the standings under the verbs"): every account holding a
@@ -1130,10 +1215,7 @@ export function TradePage() {
   // the previous proposal never paints the wrong holders.
   const pairHoldersRef = useRef<() => void>(() => {});
   pairHoldersRef.current = () => {
-    const branches = [
-      { marketId: pair?.approvedMarketId, branch: 'approved' as const },
-      { marketId: pair?.declinedMarketId, branch: 'declined' as const },
-    ].filter((b): b is { marketId: string; branch: 'approved' | 'declined' } => !!b.marketId);
+    const branches = worldMarkets;
     const token = ++pairHoldersReq.current;
     if (!idOrSlug || branches.length === 0) {
       // A proposal with no books yet has nobody on it.
@@ -1144,7 +1226,7 @@ export function TradePage() {
       branches.map(b =>
         api
           .getMarketActivity(idOrSlug, b.marketId)
-          .then(a => (a.positions ?? []).map(p => ({ ...p, branch: b.branch })))
+          .then(a => (a.positions ?? []).map(p => ({ ...p, branch: b.branch, label: b.label })))
           .catch(e => {
             console.error('pair positions fetch failed:', e);
             return [];
@@ -1159,7 +1241,7 @@ export function TradePage() {
   useEffect(() => {
     setPairHolders(null);
     pairHoldersRef.current();
-  }, [pair?.approvedMarketId, pair?.declinedMarketId, selectedJobId, wsKey]);
+  }, [worldMarketsKey, selectedJobId, wsKey]);
 
   const refreshMoney = () => {
     if (activeMarketId && ws) {
@@ -1300,8 +1382,9 @@ export function TradePage() {
      what is behind its pairs. */
   const jobAskUsd = selectedJob ? (selectedJob.askUsd ?? splitAsk(selectedJob.title).ask) : null;
   const jobPool = selectedJob ? poolOf(selectedJob) : null;
-  const jobImpact =
-    pair && pair.approvedConsensus !== null && pair.declinedConsensus !== null
+  const jobImpact = jobOptioned
+    ? (optionLeadNow?.lead ?? null)
+    : pair && pair.approvedConsensus !== null && pair.declinedConsensus !== null
       ? branch === 'declined'
         ? pair.declinedConsensus - pair.approvedConsensus
         : pair.approvedConsensus - pair.declinedConsensus
@@ -1453,6 +1536,41 @@ export function TradePage() {
           }
         : null,
     [selectedJob, otherBranch, branch],
+  );
+
+  /* A proposal with options on the CALL view: the selected option is the
+     loud line and every other priced option a quiet one, named at its end
+     (docs/ui-conventions.md, "The chart draws every option"). */
+  const chartOthers = useMemo(
+    () =>
+      jobOptioned
+        ? jobOptionList.flatMap(o => {
+            const q = pairOptions.find(x => x.id === o.id);
+            if (o.id === branch || !q || !isPricedOption(q) || q.consensus === null) return [];
+            return [
+              { series: (q.marketId && condHistory?.[q.marketId]) || [], consensus: q.consensus, label: o.label },
+            ];
+          })
+        : null,
+    [jobOptioned, jobOptionList, pairOptions, branch, condHistory],
+  );
+  /* The same options on the VALUE view, one line each. */
+  const optionSeries: NumberSeries[] | null = useMemo(
+    () =>
+      jobOptioned
+        ? jobOptionList.map(o => {
+            const q = pairOptions.find(x => x.id === o.id);
+            const history = (q?.marketId && condHistory?.[q.marketId]) || [];
+            return {
+              id: o.id,
+              label: o.label,
+              points: history.flatMap(p => (p.consensus === null ? [] : [{ at: p.at, value: p.consensus }])),
+              consensus: q && isPricedOption(q) ? q.consensus : null,
+              emphasis: o.id === branch,
+            };
+          })
+        : null,
+    [jobOptioned, jobOptionList, pairOptions, branch, condHistory],
   );
 
   // Year chart: the hero metric's REAL value over the calendar year (solid),
@@ -1905,7 +2023,9 @@ export function TradePage() {
                 <div className="pubws-proposal-head pubws-enter pubws-enter--1">
                   <h2 className="pubws-proposal-title">
                     {selectedJobRuling && (
-                      <span className={`pubws-ballot-status is-${selectedJobRuling}`}>{selectedJobRuling}</span>
+                      <span className={`pubws-ballot-status is-${selectedJobRuling}`}>
+                        {chosenLabel && selectedJobRuling === 'approved' ? `Chose ${chosenLabel}` : selectedJobRuling}
+                      </span>
                     )}
                     {selectedJob.number ? <span className="pubws-ballot-num">#{selectedJob.number}</span> : null}
                     {splitAsk(selectedJob.title).rest}
@@ -1920,7 +2040,7 @@ export function TradePage() {
                     )}
                     <span title={!jobAskUsd ? 'No payment asked' : `$${jobAskUsd} to them if you approve it`}>
                       <CoinGlyph />
-                      {!jobAskUsd ? 'no payment asked' : `$${jobAskUsd} if approved`}
+                      {!jobAskUsd ? 'no payment asked' : `$${jobAskUsd} if ${jobOptioned ? 'chosen' : 'approved'}`}
                     </span>
                     {selectedJobClosed ? (
                       <span
@@ -1933,7 +2053,7 @@ export function TradePage() {
                         {/* The ruling's word and its instant to the second
                             (docs/ui-conventions.md, "A proposal past its
                             deadline reads as closed before the ruling lands"). */}
-                        {selectedJobRuling ?? 'decided'}{' '}
+                        {chosenLabel && selectedJobRuling === 'approved' ? 'chosen' : (selectedJobRuling ?? 'decided')}{' '}
                         {clockSecondsOf(
                           selectedJob.resolvedAt ?? selectedJob.lapsedAt ?? selectedJob.closedAt ?? null,
                         ) || dayOf(selectedJob.resolvedAt ?? selectedJob.closedAt ?? null)}
@@ -2045,7 +2165,12 @@ export function TradePage() {
                           the ask was paid (review 2026-09-10). */}
                         <span className="pubws-impact-what">
                           {sentenceCase(captionLabel(metricLabel, ws.name))} {dateQuestionOf(hero).lead}
-                          {dateQuestionOf(hero).word}, approved versus declined
+                          {dateQuestionOf(hero).word},{' '}
+                          {jobOptioned
+                            ? `${optionLeadNow ? optionLeadNow.leader.label : 'the leader'} over the next best${
+                                selectedJobClosed ? ' \u00b7 at the decision' : ''
+                              }`
+                            : 'approved versus declined'}
                         </span>
                         <p
                           className={`pubws-impact-hero${
@@ -2053,13 +2178,24 @@ export function TradePage() {
                           }`}
                         >
                           {jobImpact === null
-                            ? 'not yet priced'
+                            ? jobOptioned
+                              ? 'no lead yet'
+                              : 'not yet priced'
                             : jobImpact === 0
                               ? `\u00b1${impactUnit}0`
                               : formatDelta(jobImpact, impactUnit)}
                         </p>
                       </div>
-                      <div className="pubws-worlds" role="group" aria-label="Which world">
+                      <div
+                        className={`pubws-worlds${jobOptioned ? ' pubws-worlds--options' : ''}`}
+                        style={
+                          jobOptioned
+                            ? ({ '--world-count': jobOptionList.length + 1 } as React.CSSProperties)
+                            : undefined
+                        }
+                        role="group"
+                        aria-label="Which world"
+                      >
                         <div className="pubws-world-cell pubws-world-cell--now">
                           {/* The last logged READING. It said "now" until
                             2026-09-10, when the chart's baseline said "now"
@@ -2071,52 +2207,102 @@ export function TradePage() {
                             {nowReading !== null ? `${unit}${formatValue(nowReading)}` : 'no reading yet'}
                           </span>
                         </div>
-                        <button
-                          type="button"
-                          className={`pubws-world-cell pubws-world-cell--approved${branch === 'approved' ? ' is-active' : ''}`}
-                          /* The cell's own words carry the settle note and the
+                        {jobOptioned
+                          ? jobOptionList.map(o => {
+                              /* One cell per option, in the proposer's order,
+                                 captioned with its label over its price
+                                 (docs/ui-conventions.md, "A proposal with
+                                 options shows one world per option"). An
+                                 unpriced one says "no liquidity" and cannot
+                                 be pressed; a decided proposal strikes every
+                                 option but the chosen one. */
+                              const q = optionQuote(o.id);
+                              const priced = !!q && isPricedOption(q);
+                              const leads = !selectedJobRuling && optionLeadNow?.leader.id === o.id;
+                              const chosen = selectedJobRuling === 'approved' && chosenOption === o.id;
+                              const struck = !!selectedJobRuling && !chosen;
+                              return (
+                                <button
+                                  key={o.id}
+                                  type="button"
+                                  className={`pubws-world-cell pubws-world-cell--option${branch === o.id ? ' is-active' : ''}${
+                                    leads ? ' is-leader' : ''
+                                  }${chosen ? ' is-chosen' : ''}${struck ? ' is-struck' : ''}`}
+                                  aria-label={o.label}
+                                  aria-pressed={branch === o.id}
+                                  disabled={!priced}
+                                  onClick={() => setWorldPick(o.id)}
+                                >
+                                  <span className="pubws-stat-what">
+                                    {o.label}
+                                    {leads
+                                      ? ' \u00b7 leads'
+                                      : chosen
+                                        ? ' \u00b7 chosen'
+                                        : struck
+                                          ? ' \u00b7 voided'
+                                          : ''}
+                                  </span>
+                                  <span className="pubws-price">
+                                    {priced && q?.consensus !== null && q?.consensus !== undefined
+                                      ? `${unit}${formatValue(q.consensus)}`
+                                      : 'no liquidity'}
+                                  </span>
+                                  {struck && <span className="pubws-world-note">stakes refunded</span>}
+                                </button>
+                              );
+                            })
+                          : null}
+                        {!jobOptioned && (
+                          <>
+                            <button
+                              type="button"
+                              className={`pubws-world-cell pubws-world-cell--approved${branch === 'approved' ? ' is-active' : ''}`}
+                              /* The cell's own words carry the settle note and the
                              price; the branch is what the control IS, so it is
                              what a screen reader and a test are told. */
-                          aria-label="if approved"
-                          aria-pressed={branch === 'approved'}
-                          onClick={() => setBranch('approved')}
-                        >
-                          <span className="pubws-stat-what">
-                            if approved
-                            {selectedJobClosed
-                              ? ' \u00b7 at the decision'
-                              : hero?.resolvesOn
-                                ? ` \u00b7 ${forecastDayOf(hero.resolvesOn)}`
-                                : null}
-                          </span>
-                          <span className="pubws-price">
-                            {pair?.approvedConsensus !== null && pair?.approvedConsensus !== undefined
-                              ? `${unit}${formatValue(pair.approvedConsensus)}`
-                              : 'no price yet'}
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          className={`pubws-world-cell pubws-world-cell--declined${branch === 'declined' ? ' is-active' : ''}`}
-                          aria-label="if declined"
-                          aria-pressed={branch === 'declined'}
-                          disabled={!pair?.declinedMarketId}
-                          onClick={() => setBranch('declined')}
-                        >
-                          <span className="pubws-stat-what">
-                            if declined
-                            {selectedJobClosed
-                              ? ' \u00b7 at the decision'
-                              : hero?.resolvesOn
-                                ? ` \u00b7 ${forecastDayOf(hero.resolvesOn)}`
-                                : null}
-                          </span>
-                          <span className="pubws-price">
-                            {pair?.declinedConsensus !== null && pair?.declinedConsensus !== undefined
-                              ? `${unit}${formatValue(pair.declinedConsensus)}`
-                              : 'no price yet'}
-                          </span>
-                        </button>
+                              aria-label="if approved"
+                              aria-pressed={branch === 'approved'}
+                              onClick={() => setWorldPick('approved')}
+                            >
+                              <span className="pubws-stat-what">
+                                if approved
+                                {selectedJobClosed
+                                  ? ' \u00b7 at the decision'
+                                  : hero?.resolvesOn
+                                    ? ` \u00b7 ${forecastDayOf(hero.resolvesOn)}`
+                                    : null}
+                              </span>
+                              <span className="pubws-price">
+                                {pair?.approvedConsensus !== null && pair?.approvedConsensus !== undefined
+                                  ? `${unit}${formatValue(pair.approvedConsensus)}`
+                                  : 'no price yet'}
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              className={`pubws-world-cell pubws-world-cell--declined${branch === 'declined' ? ' is-active' : ''}`}
+                              aria-label="if declined"
+                              aria-pressed={branch === 'declined'}
+                              disabled={!pair?.declinedMarketId}
+                              onClick={() => setWorldPick('declined')}
+                            >
+                              <span className="pubws-stat-what">
+                                if declined
+                                {selectedJobClosed
+                                  ? ' \u00b7 at the decision'
+                                  : hero?.resolvesOn
+                                    ? ` \u00b7 ${forecastDayOf(hero.resolvesOn)}`
+                                    : null}
+                              </span>
+                              <span className="pubws-price">
+                                {pair?.declinedConsensus !== null && pair?.declinedConsensus !== undefined
+                                  ? `${unit}${formatValue(pair.declinedConsensus)}`
+                                  : 'no price yet'}
+                              </span>
+                            </button>
+                          </>
+                        )}
                       </div>
                       {/* The question the two markets answer, UNDER the worlds
                         and above the chart (docs/ui-conventions.md, "A
@@ -2126,8 +2312,8 @@ export function TradePage() {
                         conditional sentence this restores was removed for
                         putting all of it in one clause ahead of any number. */}
                       <p className="pubws-proposal-q">
-                        If {branch}, what will {ws.name}'s {sentenceCase(captionLabel(metricLabel, ws.name))} be{' '}
-                        {dateQuestionOf(hero).lead}
+                        {jobOptioned ? `With ${worldLabel}` : `If ${branch}`}, what will {ws.name}'s{' '}
+                        {sentenceCase(captionLabel(metricLabel, ws.name))} be {dateQuestionOf(hero).lead}
                         {dateQuestionOf(hero).word}?
                       </p>
                     </>
@@ -2162,11 +2348,11 @@ export function TradePage() {
                       delta (owner ask 2026-08-28). */}
                       <div
                         className="pubws-stat-block pubws-stat--call"
-                        aria-label={selectedJob ? `Market's call if ${branch}` : undefined}
+                        aria-label={selectedJob ? `Market's call ${worldWord}` : undefined}
                       >
                         <span className="pubws-stat-what">
                           market's call
-                          {selectedJob ? ` if ${branch}` : ''}
+                          {selectedJob ? ` ${worldWord}` : ''}
                           {selectedJobClosed ? ' at the decision' : ''}
                           {settleNote && <>{' · '}</>}
                           {settleNote}
@@ -2235,14 +2421,18 @@ export function TradePage() {
                               resolvesOn: d.resolvesOn,
                               consensus: d.consensus,
                               selected: d.marketId === hero.marketId,
-                              pair: pr ? { approved: pr.approvedConsensus, declined: pr.declinedConsensus } : null,
+                              pair:
+                                pr && !jobOptioned
+                                  ? { approved: pr.approvedConsensus, declined: pr.declinedConsensus }
+                                  : null,
                             },
                           ];
                         })}
-                        impactFrom={branch}
+                        impactFrom={branch === 'declined' ? 'declined' : 'approved'}
                         marksLegend
+                        series={optionSeries}
                         legend={
-                          selectedJob
+                          selectedJob && !jobOptioned
                             ? {
                                 approved: `if ${selectedJob.proposedByName ?? 'someone'} is paid $${selectedJob.askUsd ?? splitAsk(selectedJob.title).ask ?? 0}`,
                                 declined: 'if not',
@@ -2270,6 +2460,8 @@ export function TradePage() {
                         preview={chartPreview}
                         orders={chartOrders}
                         secondary={chartSecondary}
+                        others={chartOthers}
+                        endLabel={worldLabel ?? undefined}
                       />
                     )}
                   </div>
@@ -2405,7 +2597,7 @@ export function TradePage() {
                       Bet Higher ↑
                       <span className="pubws-bet-max">
                         {selectedJob
-                          ? `if ${branch}${higherCeiling !== null ? ` · up to ${higherCeiling}` : ''}`
+                          ? `${worldWord}${higherCeiling !== null ? ` · up to ${higherCeiling}` : ''}`
                           : higherCeiling !== null
                             ? `up to ${higherCeiling}`
                             : ''}
@@ -2419,7 +2611,7 @@ export function TradePage() {
                       Bet Lower ↓
                       <span className="pubws-bet-max">
                         {selectedJob
-                          ? `if ${branch}${lowerCeiling !== null ? ` · up to ${lowerCeiling}` : ''}`
+                          ? `${worldWord}${lowerCeiling !== null ? ` · up to ${lowerCeiling}` : ''}`
                           : lowerCeiling !== null
                             ? `up to ${lowerCeiling}`
                             : ''}
@@ -2647,20 +2839,44 @@ export function TradePage() {
                   {!editingJob && (
                     <div className="pubws-decides">
                       <h3 className="pubws-know-head">How this decides</h3>
-                      <p className="pubws-decides-p">
-                        {!jobAskUsd
-                          ? `Approving commits ${ws.name} to the work.`
-                          : `Approving pays ${selectedJob.proposedByName ?? 'the proposer'} $${jobAskUsd} and commits ${ws.name} to the work.`}{' '}
-                        Every number this floor prices gets two markets for this proposal, one as if it is approved and
-                        one as if it is declined; the gap between them is what the market says the work is worth.
-                      </p>
-                      <p className="pubws-decides-p">
-                        When the owner rules, the world that did not happen is voided and every credit in it is refunded
-                        at what it cost, while the other keeps trading until the number itself settles.
-                        {selectedJob.decideBy && !selectedJobDecided
-                          ? ` Undecided by ${dayOf(selectedJob.decideBy)}, the proposal lapses and counts as declined.`
-                          : ' A proposal nobody rules on by its deadline lapses and counts as declined.'}
-                      </p>
+                      {jobOptioned ? (
+                        <>
+                          <p className="pubws-decides-p">
+                            {!jobAskUsd
+                              ? `Choosing an option commits ${ws.name} to it.`
+                              : `Choosing an option pays ${selectedJob.proposedByName ?? 'the proposer'} $${jobAskUsd} and commits ${ws.name} to it.`}{' '}
+                            Every number this floor prices gets one market per option for this proposal, each as if that
+                            option is chosen; the gap between the leader and the next best is what the market says the
+                            choice is worth.
+                          </p>
+                          <p className="pubws-decides-p">
+                            When the owner chooses, every other option is voided and every credit in it is refunded at
+                            what it cost, while the chosen one keeps trading until the number itself settles. Declining
+                            voids them all.
+                            {selectedJob.decideBy && !selectedJobDecided
+                              ? ` Undecided by ${dayOf(selectedJob.decideBy)}, the proposal lapses and counts as declined.`
+                              : ' A proposal nobody rules on by its deadline lapses and counts as declined.'}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="pubws-decides-p">
+                            {!jobAskUsd
+                              ? `Approving commits ${ws.name} to the work.`
+                              : `Approving pays ${selectedJob.proposedByName ?? 'the proposer'} $${jobAskUsd} and commits ${ws.name} to the work.`}{' '}
+                            Every number this floor prices gets two markets for this proposal, one as if it is approved
+                            and one as if it is declined; the gap between them is what the market says the work is
+                            worth.
+                          </p>
+                          <p className="pubws-decides-p">
+                            When the owner rules, the world that did not happen is voided and every credit in it is
+                            refunded at what it cost, while the other keeps trading until the number itself settles.
+                            {selectedJob.decideBy && !selectedJobDecided
+                              ? ` Undecided by ${dayOf(selectedJob.decideBy)}, the proposal lapses and counts as declined.`
+                              : ' A proposal nobody rules on by its deadline lapses and counts as declined.'}
+                          </p>
+                        </>
+                      )}
                     </div>
                   )}
                   {/* The owner's press, on the floor itself (owner ask
@@ -2672,19 +2888,40 @@ export function TradePage() {
                         <>
                           {/* Approve and decline are decisions, so they only
                         apply while the job is still on the ballot. */}
+                          {!selectedJobDecided &&
+                            jobOptioned &&
+                            /* One button per option, the leader's first and
+                               in the accent (docs/ui-conventions.md, "The
+                               decision bar has one button per option"):
+                               pressing one is the approve with that option. */
+                            [
+                              ...jobOptionList.filter(o => o.id === optionLeadNow?.leader.id),
+                              ...jobOptionList.filter(o => o.id !== optionLeadNow?.leader.id),
+                            ].map(o => (
+                              <button
+                                key={o.id}
+                                className={`pubws-decide${optionLeadNow?.leader.id === o.id ? ' pubws-decide--approve' : ''}`}
+                                disabled={decideBusy}
+                                onClick={() => void decide('approve', false, undefined, undefined, o.id)}
+                              >
+                                Choose {o.label}
+                              </button>
+                            ))}
                           {!selectedJobDecided && (
                             <>
-                              <button
-                                className="pubws-decide pubws-decide--approve"
-                                disabled={decideBusy}
-                                onClick={() => void decide('approve')}
-                              >
-                                {decideBusy
-                                  ? 'Deciding…'
-                                  : splitAsk(selectedJob.title).ask !== null
-                                    ? `Approve, pay $${splitAsk(selectedJob.title).ask}`
-                                    : 'Approve'}
-                              </button>
+                              {!jobOptioned && (
+                                <button
+                                  className="pubws-decide pubws-decide--approve"
+                                  disabled={decideBusy}
+                                  onClick={() => void decide('approve')}
+                                >
+                                  {decideBusy
+                                    ? 'Deciding…'
+                                    : splitAsk(selectedJob.title).ask !== null
+                                      ? `Approve, pay $${splitAsk(selectedJob.title).ask}`
+                                      : 'Approve'}
+                                </button>
+                              )}
                               <button
                                 className="pubws-decide pubws-decide--decline"
                                 disabled={decideBusy}
@@ -2814,7 +3051,9 @@ export function TradePage() {
                    proposals board", 2026-09-09). The same call the bar on
                    the proposal's own page makes. */
                 canManage={canManage}
-                onRule={canManage ? (id, action, reason) => decide(action, false, id, reason) : undefined}
+                onRule={
+                  canManage ? (id, action, reason, option) => decide(action, false, id, reason, option) : undefined
+                }
                 viewerId={user?.id ?? null}
                 signedIn={!!user}
                 onRequireSignup={() => navigate(authPath('signup', location))}
@@ -2823,7 +3062,7 @@ export function TradePage() {
                 proposalReward={ws.proposalReward}
                 metricNames={metricNames}
                 decisionMinutes={ws.decisionMinutes ?? 1440}
-                onPropose={async (title, description, askUsd, decideBy) => {
+                onPropose={async (title, description, askUsd, decideBy, options) => {
                   // Anonymous proposers go through the signup door; the board
                   // itself is public information (Open workspace ballot).
                   // Payment details come from the account (owner decision
@@ -2837,7 +3076,13 @@ export function TradePage() {
                   // side of the marketplace half a newcomer's starting balance
                   // to make an offer is spam defence aimed the wrong way; add
                   // it back if someone actually spams.
-                  const created = (await api.createProposal({ title, description, askUsd, decideBy })) as {
+                  const created = (await api.createProposal({
+                    title,
+                    description,
+                    askUsd,
+                    decideBy,
+                    ...(options ? { options } : {}),
+                  })) as {
                     id?: string;
                   };
                   reload();
@@ -2995,7 +3240,7 @@ export function TradePage() {
                              into one of the two worlds, and injecting into
                              the wrong one is invisible until someone trades
                              it. */
-                          marketLabel: `${metricLabel} · ${dateSegmentOf(hero)}${selectedJob ? ` · if ${branch}` : ''}`,
+                          marketLabel: `${metricLabel} · ${dateSegmentOf(hero)}${selectedJob ? ` · ${worldWord}` : ''}`,
                           pool: active.pool,
                           traders: active.traders,
                           /* A branch never respawns, so only a baseline
@@ -3027,14 +3272,11 @@ export function TradePage() {
                   selectedJob
                     ? {
                         proposalId: selectedJob.id,
-                        markets: [
-                          ...(pair?.approvedMarketId
-                            ? [{ marketId: pair.approvedMarketId, branch: 'approved' as const }]
-                            : []),
-                          ...(pair?.declinedMarketId
-                            ? [{ marketId: pair.declinedMarketId, branch: 'declined' as const }]
-                            : []),
-                        ],
+                        markets: worldMarkets.map(m =>
+                          m.label
+                            ? { marketId: m.marketId, label: m.label }
+                            : { marketId: m.marketId, branch: m.branch as 'approved' | 'declined' },
+                        ),
                       }
                     : hero
                       ? { marketId: hero.marketId }

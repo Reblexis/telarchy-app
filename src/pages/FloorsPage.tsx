@@ -8,6 +8,7 @@ import type { HomeListing, HomePayload, PrizeSeason, PublicWorkspace } from '../
 import { api } from '../lib/api';
 import { buildHorizonViews, priceSeriesOf, primaryHorizonOf } from '../lib/floor-horizons';
 import { dropInline, readInline } from '../lib/inline-data';
+import { pairPool } from '../lib/proposal-options';
 import { pickCurrentSeason } from '../lib/season-clock';
 import { useSeasonClock } from '../lib/useSeasonClock';
 import { TopBar } from './TradePage';
@@ -75,7 +76,11 @@ function poolLiquidityOf(ws: {
   proposals?: Array<{
     status?: string;
     closedAt?: string | null;
-    markets?: Array<{ approvedPool?: number | null; declinedPool?: number | null }>;
+    markets?: Array<{
+      approvedPool?: number | null;
+      declinedPool?: number | null;
+      options?: Array<{ pool?: number | null }> | null;
+    }>;
   }>;
 }): number | null {
   const markets = ws.markets ?? [];
@@ -83,7 +88,15 @@ function poolLiquidityOf(ws: {
   if (markets.length === 0 && onBallot.length === 0) return null;
   const baseline = markets.reduce((sum, m) => sum + (m.pool ?? 0), 0);
   const ballot = onBallot.reduce(
-    (sum, p) => sum + (p.markets ?? []).reduce((s, m) => s + (m.approvedPool ?? 0) + (m.declinedPool ?? 0), 0),
+    // A proposal with options has no pair: its books are its options'.
+    (sum, p) =>
+      sum +
+      (p.markets ?? []).reduce(
+        (s, m) =>
+          s +
+          pairPool({ approvedPool: m.approvedPool ?? null, declinedPool: m.declinedPool ?? null, options: m.options }),
+        0,
+      ),
     0,
   );
   return baseline + ballot;
