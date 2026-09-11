@@ -557,6 +557,111 @@ describe('liquidity on the cell', () => {
     expect(screen.queryByText(/6,059|1,443|4,617/)).toBeNull();
   });
 
+  // The drop counts every open book on the floor, not only the baseline
+  // markets: both branches of every proposal still on the ballot are books a
+  // trader can win from too (owner ask 2026-09-11, docs/ui-conventions.md,
+  // "The marketplace").
+  const pair = (approvedPool: number | null, declinedPool: number | null) => ({
+    metricId: 'met-1',
+    metricName: 'LookPilot revenue (monthly, USD)',
+    targetDate: '2026-08',
+    approvedPool,
+    declinedPool,
+  });
+  const proposal = (id: string, extra: Record<string, unknown>) => ({
+    id,
+    number: 1,
+    title: 'Ship the thing',
+    description: '',
+    proposedByName: 'ann',
+    createdAt: '2026-09-01T00:00:00.000Z',
+    marketPairCount: 1,
+    ...extra,
+  });
+
+  test('the drop counts the branch pools of every proposal on the ballot as well as the baseline markets', async () => {
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
+      ...payload,
+      markets: [{ ...payload.markets[0], pool: 1000 }],
+      proposals: [
+        proposal('p-1', { status: 'pending', closedAt: null, markets: [pair(300, 200)] }),
+        proposal('p-2', { status: 'pending', closedAt: null, markets: [pair(50, 50), pair(100, 0)] }),
+      ],
+    } as never);
+    renderPage();
+    expect(await screen.findByTitle(/1,700 credits in the pools/)).toHaveTextContent('1,700');
+    expect(screen.queryByTitle(/^1,000 credits in the pools/)).toBeNull();
+  });
+
+  test('a proposal without a status is on the ballot and counts', async () => {
+    // Older payloads carry no status on a pending proposal.
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
+      ...payload,
+      markets: [{ ...payload.markets[0], pool: 1000 }],
+      proposals: [proposal('p-1', { markets: [pair(300, 200)] })],
+    } as never);
+    renderPage();
+    expect(await screen.findByTitle(/1,500 credits in the pools/)).toHaveTextContent('1,500');
+  });
+
+  test('a decided, lapsed or closed proposal counts nothing', async () => {
+    // Settled or voided books hold nothing a trader can still win; a pending
+    // proposal whose trading has closed is on its way to the same place.
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
+      ...payload,
+      markets: [{ ...payload.markets[0], pool: 1000 }],
+      proposals: [
+        proposal('p-1', { status: 'approved', closedAt: '2026-09-02T00:00:00.000Z', markets: [pair(300, 200)] }),
+        proposal('p-2', { status: 'declined', closedAt: '2026-09-02T00:00:00.000Z', markets: [pair(300, 200)] }),
+        proposal('p-3', { status: 'lapsed', lapsedAt: '2026-09-02T00:00:00.000Z', markets: [pair(300, 200)] }),
+        proposal('p-4', { status: 'pending', closedAt: '2026-09-02T00:00:00.000Z', markets: [pair(300, 200)] }),
+      ],
+    } as never);
+    renderPage();
+    expect(await screen.findByTitle(/^1,000 credits in the pools/)).toHaveTextContent('1,000');
+  });
+
+  test('a branch with no book yet counts nothing rather than breaking the sum', async () => {
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
+      ...payload,
+      markets: [{ ...payload.markets[0], pool: 1000 }],
+      proposals: [proposal('p-1', { status: 'pending', closedAt: null, markets: [pair(null, null), pair(250, null)] })],
+    } as never);
+    renderPage();
+    expect(await screen.findByTitle(/1,250 credits in the pools/)).toHaveTextContent('1,250');
+  });
+
+  test('a floor with no baseline market but a live proposal still shows the drop', async () => {
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
+      ...payload,
+      markets: [],
+      proposals: [proposal('p-1', { status: 'pending', closedAt: null, markets: [pair(300, 200)] })],
+    } as never);
+    renderPage();
+    expect(await screen.findByTitle(/^500 credits in the pools/)).toHaveTextContent('500');
+  });
+
+  test('the grid orders on the total including proposal pools', async () => {
+    vi.mocked(api.getPublicWorkspaces).mockResolvedValue([
+      { ...listing, workspaceId: 'ws-base', slug: 'base', name: 'Base' },
+      { ...listing, workspaceId: 'ws-ballot', slug: 'ballot', name: 'Ballot' },
+    ] as never);
+    vi.mocked(api.getMarketplaceWorkspace).mockImplementation(async key => {
+      if (key === 'base') return { ...payload, markets: [{ ...payload.markets[0], pool: 900 }] } as never;
+      return {
+        ...payload,
+        markets: [{ ...payload.markets[0], pool: 100 }],
+        proposals: [proposal('p-1', { status: 'pending', closedAt: null, markets: [pair(600, 600)] })],
+      } as never;
+    });
+    renderPage();
+    await screen.findByTitle(/1,300 credits in the pools/);
+    await screen.findByTitle(/^900 credits in the pools/);
+    const cells = screen.getAllByTitle(/credits in the pools/);
+    expect(cells[0]).toHaveTextContent('1,300');
+    expect(cells[1]).toHaveTextContent('900');
+  });
+
   test('a deep pool takes the short form the market page uses', async () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
       ...payload,
