@@ -737,8 +737,8 @@ describe('moveQuestionOf: a game floor asks in moves (docs/ui-conventions.md, "T
     ).toBe('2 moves');
   });
 
-  test("without resolvesOn the cell's own end is the instant", () => {
-    expect(moveQuestionOf(minute('2026-09-11T14:39', null), new Date('2026-09-11T14:35:00Z')).word).toBe('5 moves');
+  test("without resolvesOn the cell's own minute counts: 14:39 from 14:35 is four moves", () => {
+    expect(moveQuestionOf(minute('2026-09-11T14:39', null), new Date('2026-09-11T14:35:00Z')).word).toBe('4 moves');
   });
 
   test('an hour cell, a day, a week: exactly what dateQuestionOf says', () => {
