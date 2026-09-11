@@ -2059,3 +2059,18 @@ Specs in docs/ui-conventions.md, "The live view is a segment of the chart
 slot" ("The feed drives the floor", "A pending row keeps its place for its
 whole life", "The reading's age is the newest reading's age", "A proposal
 past its deadline reads as closed before the ruling lands").
+
+**2026-09-11 (Viktor): proposals with options.** Telarchy proposal 40
+("Add support for multiple choice proposals": "with the snake worksapce it
+is 'What move should I make next?' proposal that would have 3 differnt
+options. This saves liuqidiity and makes it easier and more fun for
+traders to trade") and, the same day, "shouldnt we do this now to make
+the snake workspace more interesting" then "no you can code it up quite
+quickly.. if you figure out the best /design". Built on branch
+`multiple-choice-proposals`. The page counts instead of assuming two: one
+world cell per option, the hero is the leader's lead over the next best,
+the chart draws only the selected option against the baseline, one
+"Choose <label>" button per option. Spec: docs/ui-conventions.md, "A
+proposal with options shows one world per option"; contract:
+docs/guides/proposals.md, "More than two options".
+

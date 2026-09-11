@@ -1,6 +1,6 @@
 ---
 title: Decide a proposal on the number
-description: What the two prices mean, what each of the four buttons does to the money, and what the record says afterwards.
+description: What the two prices mean, what a proposal with more than two options prices, what each button does to the money, and what the record says afterwards.
 category: run
 order: 60
 ---
@@ -213,6 +213,65 @@ everyone is refunded.
 
 *(Until 2026-08-30 the resolver voided a declined proposal's surviving branch
 too, so a decline paid nobody. Fixed; the behaviour above is what runs.)*
+
+## More than two options
+
+A decision is not always yes or no. "Which way should the snake turn" has
+three answers, "which of these four headlines do we ship" has four, and
+posting each answer as its own approve-or-decline proposal spends twice the
+liquidity and asks the reader to compare numbers across pages. A proposal
+can therefore carry **options**: `POST /api/proposals { title, description,
+options: [{ id, label }, ...] }`, two to six of them, each `id` a short
+handle (1 to 24 of `a-z 0-9 -`, unique within the proposal, and never
+`approved` or `declined`), each `label` up to 40 characters, the words a
+reader chooses between. A proposal without `options` is the ordinary
+two-branch proposal above; everything in this section is about one with
+them.
+
+**One world per option.** Where a two-branch proposal spawns an approved
+and a declined market per priced metric and date, a proposal with options
+spawns **one market per option** per priced metric and date, `branch` set
+to the option's `id`, every one of them opening at the baseline price (less
+the ask on a metric that burns dollars, the way the approved branch does,
+because choosing any option owes the ask). There is no declined world: the
+options are the worlds, and "none of these" is a decline, below. Funding is
+per market as before, so a three-option proposal is three books per date,
+not six, and `POST /api/predictions/markets/liquidity/bulk { amount,
+proposalId }` puts `amount` into each of them.
+
+**The number you are reading** is each option's own consensus, side by
+side. `GET /api/proposals/:id` returns `markets[]` rows with `options[]` in
+place of `approved`/`declined`: one entry per option with `id`, `label`,
+`marketId`, `consensus`, `liquidity`, `tradeCount`, plus `delta`, which for
+an option is **its consensus minus the best of the other options**: the
+leader's `delta` is its lead, positive, and every other option's is how far
+it trails, negative. The row's own `delta` is the leader's lead, and
+`approved` and `declined` are `null`. An option with no liquidity has no
+price and no `delta`, and a row where fewer than two options are priced has
+no leader. The floor's board and strips carry the leader's lead where a
+two-branch proposal carries approved minus declined.
+
+**Deciding is choosing.** `POST /api/proposals/:id/approve { option }`
+names the option's `id`; without it the call fails with 400
+`option_required`, and naming one on a two-branch proposal fails with 400
+`no_options`. The chosen option's markets stay live and settle on the
+metric's actual value at their dates; every other option's markets void and
+refund at net cash. Everything else approving does, it does here: the ask
+is owed, the proposer's stake is bought out, `proposalReward` is paid, the
+reward is checked first, trading closes at the press. The proposal's status
+is `approved` and `decidedOption` names the winner; `decidedPricing` records
+every option's consensus at the moment of the choice.
+
+`POST /api/proposals/:id/decline` is "none of these": there is no branch to
+keep, so every option voids and refunds whatever `refund` says, and the
+charter rule on `declineReason` applies unchanged. Decline as spam, remove,
+withdraw and the lapse at the deadline void every option, as they void both
+branches today. The deadline, the close and the reminder are exactly as
+above; a proposal with options only spawns on dates that settle after its
+deadline, like any other.
+
+The [data room](/data-room) records the option labels on the `proposal`
+action and the chosen option on the `decision` action.
 
 ## Two habits that make the delta mean something
 
