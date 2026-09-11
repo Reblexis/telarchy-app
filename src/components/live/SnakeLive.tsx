@@ -173,26 +173,35 @@ export function leadOpacities(leads: Array<number | null>): number[] {
   return leads.map(v => (typeof v === 'number' && Number.isFinite(v) ? 0.3 + 0.6 * ((v - min) / (max - min)) : 0.3));
 }
 
-/** The stroke every mark is drawn with, and the room it needs inside the
- *  board so no stroke bleeds over the edge. */
-const ARROW_STROKE = CELL * 0.1;
+/** The stroke every mark is drawn with. Thin: the mark is a pointer, not a
+ *  block, and at a four-cell board one cell is most of the picture. */
+const ARROW_STROKE = CELL * 0.055;
 
-/** The chevron's three points, in drawing units: two arms behind, the tip
- *  ahead, centred on (cx, cy) and pointing along `direction`. */
-function chevron(cx: number, cy: number, direction: SnakeHeading, half: number, arm: number): string {
+/** The arrow, as path data: a shaft from just outside the head's cell to
+ *  three quarters into the cell the move leads to, and a head at its end.
+ *  It points from the snake to where that move would take it, so it reads
+ *  as a move rather than as a mark floating in a square. */
+function arrowPath(hx: number, hy: number, direction: SnakeHeading): string {
   const [dx, dy] = DELTA[direction];
   const [px, py] = [-dy, dx];
-  const pts: Array<[number, number]> = [
-    [cx - dx * half + px * arm, cy - dy * half + py * arm],
-    [cx + dx * half, cy + dy * half],
-    [cx - dx * half - px * arm, cy - dy * half - py * arm],
-  ];
-  return pts.map(([x, y]) => `${Number(x.toFixed(2))},${Number(y.toFixed(2))}`).join(' ');
+  const fx = hx + dx * CELL * 0.56;
+  const fy = hy + dy * CELL * 0.56;
+  const tx = hx + dx * CELL * 1.24;
+  const ty = hy + dy * CELL * 1.24;
+  const a = CELL * 0.15;
+  const n = (v: number) => Number(v.toFixed(2));
+  return [
+    `M ${n(fx)} ${n(fy)} L ${n(tx)} ${n(ty)}`,
+    `M ${n(tx - dx * a + px * a * 0.8)} ${n(ty - dy * a + py * a * 0.8)}`,
+    `L ${n(tx)} ${n(ty)}`,
+    `L ${n(tx - dx * a - px * a * 0.8)} ${n(ty - dy * a - py * a * 0.8)}`,
+  ].join(' ');
 }
 
-/** The bar's two points: a segment hugging the board's edge across the
- *  head's cell, inset by half a stroke so nothing is painted outside the
- *  board (docs/ui-conventions.md, "The snake feed"). */
+/** The wall, as path data: a bar hugging the board's edge across the head's
+ *  cell, inset by half a stroke so nothing is painted outside the board
+ *  (docs/ui-conventions.md, "The snake feed"). A move with no cell to point
+ *  into is drawn as the wall it would hit. */
 function wallBar(hx: number, hy: number, direction: SnakeHeading): string {
   const [dx, dy] = DELTA[direction];
   const [px, py] = [-dy, dx];
@@ -203,11 +212,8 @@ function wallBar(hx: number, hy: number, direction: SnakeHeading): string {
   const half = CELL * 0.34;
   const cx = hx + dx * off;
   const cy = hy + dy * off;
-  const pts: Array<[number, number]> = [
-    [cx + px * half, cy + py * half],
-    [cx - px * half, cy - py * half],
-  ];
-  return pts.map(([x, y]) => `${Number(x.toFixed(2))},${Number(y.toFixed(2))}`).join(' ');
+  const n = (v: number) => Number(v.toFixed(2));
+  return `M ${n(cx + px * half)} ${n(cy + py * half)} L ${n(cx - px * half)} ${n(cy - py * half)}`;
 }
 
 /** The board: grid x grid cells on the chart area's ground with a hairline
@@ -229,7 +235,7 @@ function Board({
   food: SnakeCell | null;
   heading: SnakeHeading;
   arrows: Arrow[];
-  onPick?: (n: number) => void;
+  onPick?: (n: number, option?: SnakeAction) => void;
 }) {
   const side = grid * CELL;
   const centre = (c: SnakeCell) => [(c.x + 0.5) * CELL, (c.y + 0.5) * CELL] as const;
@@ -274,8 +280,8 @@ function Board({
         const ahead = { x: head.x + dx, y: head.y + dy };
         const wall = ahead.x < 0 || ahead.y < 0 || ahead.x >= grid || ahead.y >= grid;
         if (wall) return { arrow, wall, points: wallBar(hx, hy, arrow.direction) };
-        const [ax, ay] = centre(ahead);
-        return { arrow, wall, points: chevron(ax, ay, arrow.direction, CELL * 0.15, CELL * 0.22) };
+        void ahead;
+        return { arrow, wall, points: arrowPath(hx, hy, arrow.direction) };
       });
   return (
     <svg
@@ -313,11 +319,11 @@ function Board({
         const key = arrow.action ?? arrow.direction;
         const mark = (
           <>
-            <polyline
+            <path
               className={`snake-arrow ${arrow.decided ? 'is-decided' : 'is-open'}${wall ? ' is-wall' : ''}`}
               data-direction={arrow.direction}
               data-action={arrow.action}
-              points={points}
+              d={points}
               fill="none"
               style={{ strokeOpacity: arrow.opacity }}
               strokeWidth={ARROW_STROKE}
@@ -338,12 +344,12 @@ function Board({
             onClick={e => {
               if (!onPick) return;
               e.preventDefault();
-              onPick(arrow.number as number);
+              onPick(arrow.number as number, arrow.action ?? undefined);
             }}
           >
-            <polyline
+            <path
               className="snake-arrow-hit"
-              points={points}
+              d={points}
               fill="none"
               stroke="transparent"
               strokeWidth={CELL * 0.7}
@@ -377,7 +383,7 @@ export function SnakeLive({
 }: {
   slug: string;
   /** A chevron was clicked: select that proposal on the floor (docs/ui-conventions.md, "The feed drives the floor"). */
-  onPickProposal?: (number: number) => void;
+  onPickProposal?: (number: number, option?: SnakeAction) => void;
   /** The feed's open step changed or its decision landed, reported as soon as the poll reads it, never for the first read. */
   onStep?: (s: { step: number; decided: boolean }) => void;
   /** Every read: the open step's 60-move quotes by proposal id, for the floor's
@@ -615,7 +621,7 @@ export function SnakeLive({
           decided: true,
           opacity: 1,
           action: next.action,
-          ...(number !== null ? { number, href: `/${slug}/p/${number}` } : {}),
+          ...(number !== null ? { number, href: `/${slug}/p/${number}?option=${next.action}` } : {}),
         },
       ];
     }
@@ -631,7 +637,7 @@ export function SnakeLive({
             decided: false,
             opacity: opacities[i],
             action: a,
-            ...(number !== null ? { number, href: `/${slug}/p/${number}` } : {}),
+            ...(number !== null ? { number, href: `/${slug}/p/${number}?option=${a}` } : {}),
           };
         });
       }

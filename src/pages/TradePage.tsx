@@ -386,6 +386,13 @@ export function TradePage() {
   useEffect(() => {
     if (params.number && /^\d+$/.test(params.number)) setSelectedJobId(cur => cur ?? params.number!);
   }, [params.number]);
+  /* `?option=` on the address opens the ticket on that world, so a link from
+     an arrow on the grid (or a shared link) lands where it points rather than
+     on the proposal's default option. */
+  useEffect(() => {
+    const want = new URLSearchParams(location.search).get('option');
+    if (want) setWorldPick(cur => cur ?? want);
+  }, [location.search]);
   // The hash lands before the payload does, so the number waits here as the
   // selection until the proposals arrive and one of them answers to it.
   /* A number nobody answers to (docs/ui-conventions.md, "An address that
@@ -2413,7 +2420,14 @@ export function TradePage() {
                            step or a ruling on the feed reloads the payload at
                            once; a chevron selects its proposal like a row. */
                         onStep={() => reload()}
-                        onPickProposal={n => setSelectedJobId(String(n))}
+                        /* An arrow names the option it points at, so the
+                           ticket opens on that world, not on the default
+                           (Viktor, 2026-09-11: "i click the left arrow and it
+                           selects continue forward option"). */
+                        onPickProposal={(n, option) => {
+                          setSelectedJobId(String(n));
+                          if (option) setWorldPick(option);
+                        }}
                         onQuotes={q => setFeedQuotes(q)}
                       />
                     ) : chartView === 'value' ? (
