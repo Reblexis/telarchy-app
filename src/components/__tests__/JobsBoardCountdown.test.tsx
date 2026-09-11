@@ -85,10 +85,12 @@ describe('the row clock under an hour', () => {
     });
     expect(clock().textContent).toBe('5d');
   });
-  test('the hover names the instant in the viewer zone, never in UTC words', () => {
+  test('the hover names the instant in the viewer zone, in the floor words, not a raw UTC string', () => {
     const { container } = board([proposal('2026-09-11T10:44:00Z')]);
     const title = (container.querySelector('.pubws-ballot-clock') as HTMLElement).getAttribute('title') ?? '';
-    expect(title).not.toMatch(/GMT|UTC/);
+    // Never toUTCString's "Fri, 11 Sep 2026 10:44:00 GMT"; the zone is the
+    // viewer's (which on a UTC machine is named "UTC", and that is right).
+    expect(title).not.toMatch(/GMT|\d\d:\d\d:\d\d/);
     expect(title).toMatch(/decides by 11 Sep 2026, \d\d:\d\d [A-Z]/);
   });
   test('"impact by" names the cell as a local clock, not a UTC one', () => {
