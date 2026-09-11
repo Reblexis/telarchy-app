@@ -2440,9 +2440,14 @@ grid.. and next move.. maybe text"):
    three at 0.55 when fewer than two are priced or they tie. Once
    `next.decided` only the chosen action's chevron stays, solid. While no step is open
    the single chevron follows `next.direction` (the heading itself when
-   that is unreadable, forward being the default). When a chevron's cell
-   is off the grid it sits pressed against the head's edge pointing out
-   (`.is-wall`), so a wall crash is visible before it happens. In replay
+   that is unreadable, forward being the default). When a move's cell
+   is off the grid there is no cell to draw a chevron in, so it is drawn
+   as a bar along that wall instead (`.is-wall`, two points across the
+   head's cell, inset by half a stroke), which reads as the wall it is
+   and keeps the mark clickable; **nothing is ever painted outside the
+   board**, strokes included, which is what the chevron pressed on the
+   edge used to do (revised 2026-09-11, Viktor: "make better design and
+   mainly so it doesnt behave weirdly near corners"). In replay
    the chevron is the entry's `direction`, solid, so scrubbing shows where
    it went (record in `notes/decisions/ui-conventions.md`). **A move
    transitions, it does not snap**: the band and the head are drawn as

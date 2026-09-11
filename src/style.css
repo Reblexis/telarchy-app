@@ -12248,8 +12248,6 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 /* The next direction: a chevron in the accent in the cell ahead of the
    head, faint while the step is open, solid once decided. */
 .snake-arrow { fill: none; stroke: var(--accent); stroke-opacity: 1; }
-/* Under the wall chevron, so it stands off the head. */
-.snake-arrow-halo { fill: none; stroke: var(--bg-secondary); }
 /* The chevrons are links to their proposals (docs/ui-conventions.md, "The snake feed"): a hand, and a
    brighter stroke under the pointer so the shading reads as live, not as a broken icon. */
 .snake-arrow-link { cursor: pointer; }

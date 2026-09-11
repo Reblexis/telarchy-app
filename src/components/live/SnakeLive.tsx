@@ -173,6 +173,10 @@ export function leadOpacities(leads: Array<number | null>): number[] {
   return leads.map(v => (typeof v === 'number' && Number.isFinite(v) ? 0.3 + 0.6 * ((v - min) / (max - min)) : 0.3));
 }
 
+/** The stroke every mark is drawn with, and the room it needs inside the
+ *  board so no stroke bleeds over the edge. */
+const ARROW_STROKE = CELL * 0.1;
+
 /** The chevron's three points, in drawing units: two arms behind, the tip
  *  ahead, centred on (cx, cy) and pointing along `direction`. */
 function chevron(cx: number, cy: number, direction: SnakeHeading, half: number, arm: number): string {
@@ -186,11 +190,31 @@ function chevron(cx: number, cy: number, direction: SnakeHeading, half: number, 
   return pts.map(([x, y]) => `${Number(x.toFixed(2))},${Number(y.toFixed(2))}`).join(' ');
 }
 
+/** The bar's two points: a segment hugging the board's edge across the
+ *  head's cell, inset by half a stroke so nothing is painted outside the
+ *  board (docs/ui-conventions.md, "The snake feed"). */
+function wallBar(hx: number, hy: number, direction: SnakeHeading): string {
+  const [dx, dy] = DELTA[direction];
+  const [px, py] = [-dy, dx];
+  // A full stroke in from the edge, so the bar reads as its own mark and does
+  // not merge with the board's own border line.
+  const off = CELL * 0.5 - ARROW_STROKE;
+  const half = CELL * 0.28;
+  const cx = hx + dx * off;
+  const cy = hy + dy * off;
+  const pts: Array<[number, number]> = [
+    [cx + px * half, cy + py * half],
+    [cx - px * half, cy - py * half],
+  ];
+  return pts.map(([x, y]) => `${Number(x.toFixed(2))},${Number(y.toFixed(2))}`).join(' ');
+}
+
 /** The board: grid x grid cells on the chart area's ground with a hairline
  *  grid, the snake as one rounded band head first, the head a disc with
- *  two eyes on the moving side, the food a round dot, and the next
- *  direction as a chevron in the accent in the cell ahead of the head
- *  (pressed against the head's edge when that cell is a wall). */
+ *  two eyes on the moving side, the food a round dot, and each candidate
+ *  move as a chevron in the cell it leads to. A move into a wall has no
+ *  cell to draw in, so it is a bar along that edge instead: it reads as
+ *  the wall it is, and nothing is ever painted outside the board. */
 function Board({
   grid,
   snake,
@@ -240,31 +264,17 @@ function Board({
               [off, -sidew],
               [off, sidew],
             ];
-  /* Each chevron: in the cell its direction leads to, or, when that cell is
-     off the grid, pressed against the head's edge pointing out. */
+  /* Each mark: a chevron in the cell its direction leads to, or, when that
+     cell is off the grid, a bar along the wall it would hit. */
   const drawnArrows = !head
     ? []
     : arrows.map(arrow => {
         const [dx, dy] = DELTA[arrow.direction];
         const ahead = { x: head.x + dx, y: head.y + dy };
         const wall = ahead.x < 0 || ahead.y < 0 || ahead.x >= grid || ahead.y >= grid;
-        if (wall) {
-          /* Larger, its tip on the grid's edge and its arms back over the head. */
-          const half = CELL * 0.2;
-          return {
-            arrow,
-            wall,
-            points: chevron(
-              hx + dx * (CELL * 0.5 - half),
-              hy + dy * (CELL * 0.5 - half),
-              arrow.direction,
-              half,
-              CELL * 0.3,
-            ),
-          };
-        }
+        if (wall) return { arrow, wall, points: wallBar(hx, hy, arrow.direction) };
         const [ax, ay] = centre(ahead);
-        return { arrow, wall, points: chevron(ax, ay, arrow.direction, CELL * 0.14, CELL * 0.2) };
+        return { arrow, wall, points: chevron(ax, ay, arrow.direction, CELL * 0.15, CELL * 0.22) };
       });
   return (
     <svg
@@ -302,16 +312,6 @@ function Board({
         const key = arrow.action ?? arrow.direction;
         const mark = (
           <>
-            {wall && (
-              <polyline
-                className="snake-arrow-halo"
-                points={points}
-                fill="none"
-                strokeWidth={CELL * 0.26}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            )}
             <polyline
               className={`snake-arrow ${arrow.decided ? 'is-decided' : 'is-open'}${wall ? ' is-wall' : ''}`}
               data-direction={arrow.direction}
@@ -319,7 +319,7 @@ function Board({
               points={points}
               fill="none"
               style={{ strokeOpacity: arrow.opacity }}
-              strokeWidth={CELL * 0.12}
+              strokeWidth={ARROW_STROKE}
               strokeLinecap="round"
               strokeLinejoin="round"
             />
