@@ -234,3 +234,14 @@ describe('the window is the trailing seven days', () => {
     expect(await activeForecasters7d(NOW)).toBe(0);
   });
 });
+
+describe('house is one definition for every metric', () => {
+  test("houseAgentIds resolves the chain: flagged rows, bots they own, and those bots' bots", async () => {
+    const { houseAgentIds } = await import('../services/platform-stats');
+    const house = await houseAgentIds();
+    expect([...house].sort()).toEqual(['house', 'house-bot']);
+    await db.insert(agents).values({ id: 'house-grandbot', apiKeyHash: 'hg', balance: 0, ownerAgentId: 'house-bot' });
+    expect((await houseAgentIds()).has('house-grandbot')).toBe(true);
+    expect((await houseAgentIds()).has('alice-bot')).toBe(false);
+  });
+});
