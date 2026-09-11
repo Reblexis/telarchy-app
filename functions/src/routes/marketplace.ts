@@ -25,9 +25,9 @@ import { type BaselineOrderKey, compareSoonestFirst, primaryOf } from '../lib/ba
 import { type ContractorEntry, type ContractorJobPair, computeContractors, pairDelta } from '../lib/contractors';
 import { periodEndInstant, periodStartInstant, resolutionInstant, settlesOn } from '../lib/date-utils';
 import { historyQuery, type LiveEndpoint, LiveFeedError, readLiveFeed } from '../lib/live-feed';
-import { isOptionBranch, optionDeltas } from '../lib/proposal-options';
 import { branchIsShown } from '../lib/market-pairs';
 import { botIds, getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
+import { isOptionBranch, optionDeltas } from '../lib/proposal-options';
 import { restrictedToMembers } from '../lib/public-read';
 import { listPublicSeasons, type PublicSeason } from '../lib/public-seasons';
 import { AGENT_SIGNUP_CREDITS, SIGNUP_CREDITS } from '../lib/validation';
@@ -2103,6 +2103,7 @@ export async function resolveProposalShare(
 
   let impact: number | null = null;
   let leaderLabel: string | null = null;
+  let tied = false;
   let metricLabel = ws.name;
   let unit = '';
   if (hero) {
@@ -2134,11 +2135,11 @@ export async function resolveProposalShare(
         declinedConsensus: null,
         options: Object.fromEntries(p.options.map((o, i) => [o.id, prices[i].price])),
       });
-      // The leader is named only where a lead exists: two or more priced.
-      const priced = prices.filter((x): x is { label: string; price: number } => x.price !== null);
-      if (impact !== null && priced.length >= 2) {
-        leaderLabel = priced.reduce((best, x) => (x.price > best.price ? x : best)).label;
-      }
+      // The leader is named only where a lead exists: two or more priced,
+      // one strictly on top. A tie at the top names nobody and says tied.
+      const r = optionDeltas(p.options.map((o, i) => ({ id: o.id, consensus: prices[i].price })));
+      leaderLabel = impact !== null && r.leaderId ? (p.options.find(o => o.id === r.leaderId)?.label ?? null) : null;
+      tied = impact !== null && r.rowDelta === 0 && r.leaderId === null;
     } else {
       const pa = priceOf(a);
       const pd = priceOf(d);
@@ -2165,6 +2166,7 @@ export async function resolveProposalShare(
     decided: p.status === 'approved' || p.status === 'declined' ? p.status : null,
     options: !!(p.options && p.options.length > 0),
     leaderLabel,
+    tied,
     chosenLabel: p.decidedOption ? (p.options?.find(o => o.id === p.decidedOption)?.label ?? null) : null,
   };
 }

@@ -19,6 +19,7 @@
 
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '../db/client';
+import type { ProposalOption } from '../db/schema';
 import {
   announcements,
   markets,
@@ -32,7 +33,6 @@ import {
 } from '../db/schema';
 import { consensus } from '../lib/amm';
 import { resolutionInstant } from '../lib/date-utils';
-import type { ProposalOption } from '../db/schema';
 import { branchIsShown, horizonSettled } from '../lib/market-pairs';
 import { getParticipantDisplayNames } from '../lib/participants';
 import { getProposalMarketSummariesForProposals, getTradeCountMap, optionSummariesWithDeltas } from './proposals';
@@ -130,7 +130,13 @@ export interface WorkspaceContext {
       /** Trades behind each branch's price. Zero means nobody has traded it. */
       approvedTrades: number | null;
       declinedTrades: number | null;
-      options: Array<{ id: string; label: string; consensus: number | null; trades: number; delta: number | null }> | null;
+      options: Array<{
+        id: string;
+        label: string;
+        consensus: number | null;
+        trades: number;
+        delta: number | null;
+      }> | null;
     }>;
     recentComments: Array<{ from: string; content: string; at: string }>;
   }>;
@@ -495,13 +501,19 @@ export function renderContextMarkdown(ctx: WorkspaceContext): string {
       if (i.options) {
         // One line per option, side by side, then who leads and by how much
         // (docs/guides/proposals.md, "The number you are reading").
-        const leader = i.options.find(o => o.delta !== null && o.delta >= 0) ?? null;
+        // A tie at the top (the row's delta 0) has no leader: say so.
+        const leader = i.delta !== null && i.delta > 0 ? (i.options.find(o => o.delta === i.delta) ?? null) : null;
+        const tiedAtTop = i.delta === 0 ? i.options.filter(o => o.delta === 0).map(o => o.label) : [];
         const lead =
           leader && i.delta !== null
             ? `Leader: ${leader.label} leads by ${num(i.delta)}.`
-            : 'No leader yet: fewer than two options are priced.';
+            : tiedAtTop.length > 0
+              ? `No leader: ${tiedAtTop.join(', ')} are tied at the top.`
+              : 'No leader yet: fewer than two options are priced.';
         const perOption = i.options
-          .map(o => `${o.label}${c.decidedOption === o.id ? ' (chosen)' : ''}: ${num(o.consensus)} (${trades(o.trades)})`)
+          .map(
+            o => `${o.label}${c.decidedOption === o.id ? ' (chosen)' : ''}: ${num(o.consensus)} (${trades(o.trades)})`,
+          )
           .join('; ');
         out.push(
           `Priced impact on ${name} ${i.targetDate}, by option: ${perOption}. ${lead} ${when(i.resolvesOn, i.settled)}.${baseline}`,

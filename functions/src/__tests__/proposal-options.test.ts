@@ -48,6 +48,7 @@ import { apiErrorHandler } from '../lib/api-error-handler';
 import { branchIsShown } from '../lib/market-pairs';
 import { provisionWorkspace } from '../lib/participants';
 import { optionDeltas, parseProposalOptions } from '../lib/proposal-options';
+import { proposalMetaText } from '../lib/share-meta';
 import { toUnits } from '../lib/validation';
 import { authMiddleware } from '../middleware/auth';
 import { dataRoomRouter } from '../routes/data-room';
@@ -58,10 +59,10 @@ import { clearDataRoomCache } from '../services/data-room';
 import { voidMarket } from '../services/markets';
 import { conditionalBranchToSettle } from '../services/predictions';
 import {
+  declineProposalAsSpam,
   editProposalDefinition,
   lapseOverdueProposals,
   removeProposal,
-  declineProposalAsSpam,
   withdrawProposal,
 } from '../services/proposals';
 import { buildWorkspaceContext, renderContextMarkdown } from '../services/workspace-context';
@@ -333,7 +334,12 @@ describe('one world per option', () => {
     // A metric the ask burns out of, so the approved-like anchor differs
     // from the declined one and the rule is observable.
     await seed('Net revenue (USD)');
-    const plain = await post({ title: '$10: plain', askUsd: 10, payoutHandle: 'pay@example.com', liquiditySubsidy: 30 });
+    const plain = await post({
+      title: '$10: plain',
+      askUsd: 10,
+      payoutHandle: 'pay@example.com',
+      liquiditySubsidy: 30,
+    });
     expect(plain.status).toBe(201);
     const withOptions = await postOptions({ title: '$10: which', askUsd: 10, payoutHandle: 'pay@example.com' });
     const approved = priceOf(await branchRow(plain.body.id, 'approved'));
@@ -370,7 +376,12 @@ describe('one world per option', () => {
     await seed('Net revenue (USD)');
     const { id } = await postOptions({ title: '$10: which', askUsd: 10, payoutHandle: 'pay@example.com' });
     const before = priceOf(await branchRow(id, 'left'));
-    const result = await editProposalDefinition(id, WS, { title: '$40: which', askUsd: 40 }, { agentId: PROPOSER, canManage: false });
+    const result = await editProposalDefinition(
+      id,
+      WS,
+      { title: '$40: which', askUsd: 40 },
+      { agentId: PROPOSER, canManage: false },
+    );
     expect(result.reanchored).toBe(true);
     const live = (await marketsOf(id)).filter(m => !m.voided);
     expect(live.map(m => m.branch).sort()).toEqual(['left', 'right', 'up']);
@@ -410,6 +421,47 @@ describe('the number you are reading', () => {
     expect(none.rowDelta).toBeNull();
     expect(none.deltas.get('a')).toBeNull();
     expect(optionDeltas([]).rowDelta).toBeNull();
+  });
+
+  test('a tie at the top has no leader: the row delta is 0 and every option delta is its gap to that shared top', () => {
+    const two = optionDeltas([
+      { id: 'a', consensus: 50 },
+      { id: 'b', consensus: 50 },
+      { id: 'c', consensus: 30 },
+    ]);
+    expect(two.leaderId).toBeNull();
+    expect(two.rowDelta).toBe(0);
+    expect(two.deltas.get('a')).toBe(0);
+    expect(two.deltas.get('b')).toBe(0);
+    expect(two.deltas.get('c')).toBeCloseTo(-20, 9);
+    const three = optionDeltas([
+      { id: 'a', consensus: 7 },
+      { id: 'b', consensus: 7 },
+      { id: 'c', consensus: 7 },
+    ]);
+    expect(three.leaderId).toBeNull();
+    expect(three.rowDelta).toBe(0);
+    for (const id of ['a', 'b', 'c']) expect(three.deltas.get(id)).toBe(0);
+  });
+
+  test('a tie at the top has no leader even through float noise: a gap under 1e-9 is a tie, and reads exactly 0', () => {
+    const r = optionDeltas([
+      { id: 'a', consensus: 30 },
+      { id: 'b', consensus: 50 },
+      { id: 'c', consensus: 50 + 1e-12 },
+    ]);
+    expect(r.leaderId).toBeNull();
+    expect(r.rowDelta).toBe(0);
+    expect(r.deltas.get('b')).toBe(0);
+    expect(r.deltas.get('c')).toBe(0);
+    expect(r.deltas.get('a')).toBeCloseTo(-20, 9);
+    // A real lead, however small, is still a lead.
+    const led = optionDeltas([
+      { id: 'a', consensus: 50 },
+      { id: 'b', consensus: 50.001 },
+    ]);
+    expect(led.leaderId).toBe('b');
+    expect(led.rowDelta).toBeCloseTo(0.001, 9);
   });
 
   test('GET /api/proposals/:id rows carry options with per-option delta and the leader lead, approved and declined null', async () => {
@@ -616,7 +668,10 @@ describe('deciding is choosing', () => {
   test('a broke owner is refused before anything moves, all three options still open', async () => {
     await seed();
     await db.update(workspaces).set({ proposalReward: 25 }).where(eq(workspaces.id, WS));
-    await db.update(agents).set({ balance: toUnits(0) }).where(eq(agents.id, OWNER));
+    await db
+      .update(agents)
+      .set({ balance: toUnits(0) })
+      .where(eq(agents.id, OWNER));
     const { id } = await postOptions();
     const res = await approve(id, { option: 'left' });
     expect(res.status).toBe(409);
@@ -830,6 +885,40 @@ describe('what a reader is shown', () => {
     expect(share!.chosenLabel).toBeNull();
     const res = await request(app).get(`/api/marketplace/${slug}/card.png`);
     expect(res.status).toBe(200);
+  });
+
+  test('a tie at the top has no leader on the link: an untraded proposal names no leader, reads 0, and says tied', async () => {
+    await seed();
+    const { id } = await postOptions();
+    const pair = (await detail(id)).markets[0];
+    // Every option untraded: one price, so the row's lead is zero and nobody leads.
+    expect(pair.delta).toBe(0);
+    for (const o of pair.options) expect(o.delta).toBe(0);
+    const p = await proposalRow(id);
+    const share = await resolveProposalShare(slug, p.number as number);
+    expect(share!.leaderLabel).toBeNull();
+    expect(share!.impact).toBe(0);
+    expect(share!.tied).toBe(true);
+    expect(proposalMetaText(share!).title).toMatch(/The market has the options tied\.$/);
+  });
+
+  test('a clear leader on the link is not tied', async () => {
+    await seed();
+    const { id } = await postOptions();
+    await setShares(id, 'left', [0, 25]);
+    const p = await proposalRow(id);
+    const share = await resolveProposalShare(slug, p.number as number);
+    expect(share!.tied).toBe(false);
+  });
+
+  test('a tie at the top has no leader in the brief: it says the options are tied at the top, never who leads', async () => {
+    await seed();
+    const { id } = await postOptions();
+    const md = renderContextMarkdown((await buildWorkspaceContext(WS))!);
+    const block = md.slice(md.indexOf('Priced impact on'));
+    expect(block).toMatch(/tied at the top/);
+    expect(block).not.toMatch(/leads by|Leader:/);
+    expect(id).toBeTruthy();
   });
 
   test('the proposal link names no leader while fewer than two options are priced', async () => {

@@ -560,10 +560,12 @@ export function JobsBoard({
     const lead = optioned ? optionLead((rowPair ?? p.markets[0])?.options) : null;
     const chosenLabel = p.status === 'approved' ? optionLabelOf(p, p.decidedOption) : null;
     /* The options in the order a manager meets them: the leader first, then
-       the proposer's order. */
+       the proposer's order; a tie at the top has no leader, so the
+       proposer's order alone. */
     const optionList = p.options?.length ? p.options : ((rowPair ?? p.markets[0])?.options ?? []);
-    const choices = lead
-      ? [...optionList.filter(o => o.id === lead.leader.id), ...optionList.filter(o => o.id !== lead.leader.id)]
+    const leaderId = lead?.leader?.id ?? null;
+    const choices = leaderId
+      ? [...optionList.filter(o => o.id === leaderId), ...optionList.filter(o => o.id !== leaderId)]
       : optionList;
     return (
       <li key={p.id} className={selected ? 'is-open' : ''}>
@@ -657,12 +659,16 @@ export function JobsBoard({
             {/* "open" = nobody has priced it yet; a hard 0 means the two
                 worlds are priced the same, which is a statement, not an
                 absence. An option proposal names its leader first. */}
-            {delta !== null && lead && (
+            {delta !== null && lead?.leader && (
               <>
                 <span className="pubws-ballot-lead">{lead.leader.label}</span>{' '}
               </>
             )}
-            {delta === null ? (
+            {/* A tie at the top is not a lead: "tied" where the row would
+                print "<leader> +lead" (docs/ui-conventions.md). */}
+            {delta !== null && lead?.tied ? (
+              <span className="pubws-ballot-delta pubws-ballot-delta--open">tied</span>
+            ) : delta === null ? (
               <span className="pubws-ballot-delta pubws-ballot-delta--open">open</span>
             ) : delta === 0 ? (
               <span className="pubws-ballot-delta pubws-ballot-delta--open">±{unit}0</span>
@@ -743,7 +749,7 @@ export function JobsBoard({
                   <button
                     key={o.id}
                     type="button"
-                    className={`pubws-decide${lead?.leader.id === o.id ? ' pubws-decide--approve' : ''}`}
+                    className={`pubws-decide${leaderId === o.id ? ' pubws-decide--approve' : ''}`}
                     onClick={() => {
                       setRuling(null);
                       void onRule?.(p.id, 'approve', undefined, o.id);

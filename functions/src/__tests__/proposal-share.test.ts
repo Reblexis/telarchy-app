@@ -107,8 +107,16 @@ describe('what a link to a proposal with options says (docs/ui-conventions.md, "
 
   test('a proposal with options names the leader and its lead, never "if approved"', () => {
     const { title } = proposalMetaText(opts);
-    expect(title).toBe('Should Telarchy do: Game 1, attempt 57, move 3? The market says Turn left leads by +0.40 reached length.');
+    expect(title).toBe(
+      'Should Telarchy do: Game 1, attempt 57, move 3? The market says Turn left leads by +0.40 reached length.',
+    );
     expect(title).not.toContain('if approved');
+  });
+
+  test('a tie at the top has no leader: the link says the market has the options tied', () => {
+    const { title } = proposalMetaText({ ...opts, impact: 0, leaderLabel: null, tied: true });
+    expect(title).toBe('Should Telarchy do: Game 1, attempt 57, move 3? The market has the options tied.');
+    expect(title).not.toMatch(/leads|Nobody/);
   });
 
   test('a proposal with options and no leader says nobody has priced it', () => {
@@ -127,4 +135,3 @@ describe('what a link to a proposal with options says (docs/ui-conventions.md, "
     expect(description).not.toContain('if approved');
   });
 });
-

@@ -115,8 +115,10 @@ export interface ShareMetaProposal {
    *  options"): `impact` is then the leader's lead over the next best, and
    *  the words name options instead of worlds. */
   options?: boolean;
-  /** The leading option's label, null while fewer than two are priced. */
+  /** The leading option's label, null while fewer than two are priced and on a tie. */
   leaderLabel?: string | null;
+  /** Two or more options share the top price: nobody leads. */
+  tied?: boolean;
   /** The chosen option's label once an option proposal is approved. */
   chosenLabel?: string | null;
 }
@@ -149,11 +151,13 @@ export function proposalMetaText(p: ShareMetaProposal): { title: string; descrip
         ? `${p.floorName} ${p.decided} #${p.number}: ${p.title}`
         : `Should ${p.floorName} ${verb}: ${p.title}?`;
   const says =
-    p.impact === null || (opts && !p.leaderLabel)
-      ? 'Nobody has priced it yet.'
-      : opts
-        ? `The market says ${p.leaderLabel} leads by ${fmtImpact(p.impact, p.unit)} ${p.metricLabel}.`
-        : `The market says ${fmtImpact(p.impact, p.unit)} ${p.metricLabel} if approved.`;
+    p.impact !== null && opts && p.tied === true
+      ? 'The market has the options tied.'
+      : p.impact === null || (opts && !p.leaderLabel)
+        ? 'Nobody has priced it yet.'
+        : opts
+          ? `The market says ${p.leaderLabel} leads by ${fmtImpact(p.impact, p.unit)} ${p.metricLabel}.`
+          : `The market says ${fmtImpact(p.impact, p.unit)} ${p.metricLabel} if approved.`;
   const title = `${head} ${says}`.replace(/\s+/g, ' ').trim();
   const parts = [
     ask ? `${ask} to the proposer if ${opts ? 'chosen' : 'approved'}.` : 'No payment asked.',
