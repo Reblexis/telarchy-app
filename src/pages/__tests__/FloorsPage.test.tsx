@@ -131,7 +131,10 @@ describe('marketplace', () => {
     // (notes/decisions/ui-conventions.md).
     renderPage();
     expect(
-      screen.getByRole('heading', { level: 1, name: "Forecast a decision's impact before it's made. Get paid when you're right." }),
+      screen.getByRole('heading', {
+        level: 1,
+        name: "Forecast a decision's impact before it's made. Get paid when you're right.",
+      }),
     ).toBeInTheDocument();
     expect(screen.queryByText(/\bbet\b/i)).toBeNull();
     expect(screen.queryByText(/priced/i)).toBeNull();
