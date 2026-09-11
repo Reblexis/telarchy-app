@@ -467,7 +467,14 @@ find out:
   `dateSegmentOf`) over that date's call. The settle day it used to carry
   moves to the stat row's caption, which already says "FOR 30 SEP · SETTLES
   IN 21D" and is the only place it needs to be said. One open date draws no
-  strip.
+  strip. **A rolling minute or hour horizon is one tab, the newest open
+  cell** (2026-09-11, Viktor, of a snake strip reading 14:39 · 14:42 ·
+  14:44: "there shouldve been the one only the reached length"): a floor
+  whose operator opens a new cell every step would otherwise list an
+  hour of minutes as if they were horizons. The older cells still trade
+  and settle, and the one a selected proposal is priced on is listed
+  beside the newest while that proposal is open on the page, so its pair
+  is never hidden from the reader looking at it.
 - **A tab with no price prints a dash**, never a borrowed number: an
   unfunded book is a book nobody has priced, and a strip that invents a
   value for it is worse than one that admits it.

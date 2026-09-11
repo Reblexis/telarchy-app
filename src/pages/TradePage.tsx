@@ -631,7 +631,13 @@ export function TradePage() {
   // line".
   const metricHeads = metricsOf(horizons);
   // Soonest first in the cycle: today, this week, this month, then anything absolute.
-  const heroDates = hero ? [...datesOf(horizons, hero.metricId)].reverse() : [];
+  // The cells the selected proposal is priced on stay on the strip while it
+  // is open on the page (docs/ui-conventions.md, "The date strip").
+  const keptCells = useMemo(() => {
+    const p = ws?.proposals?.find(x => x.id === selectedJobId);
+    return p ? p.markets.map(m => m.targetDate) : [];
+  }, [ws, selectedJobId]);
+  const heroDates = hero ? [...datesOf(horizons, hero.metricId, keptCells)].reverse() : [];
   // One clock for the page, so the countdown and every settle tooltip agree.
   const [now, setNow] = useState(() => new Date());
   /* ONE chart, and how the call moved is a mode of it (docs/ui-conventions.md,
@@ -1675,7 +1681,7 @@ export function TradePage() {
                    price", 2026-09-09): a proposal ships a pair for every cell
                    of the grid, and that grid was never on screen before. */
                 tabs={metricHeads.map(m => {
-                  const cell = cellOf(horizons, m.metricId, hero?.targetDate);
+                  const cell = cellOf(horizons, m.metricId, hero?.targetDate, keptCells);
                   const cellPair = selectedJob ? pairAt(selectedJob, hero?.targetDate, m.metricId) : null;
                   const dry = !!selectedJob && !hasLiquidity(cellPair);
                   return {
@@ -1693,7 +1699,7 @@ export function TradePage() {
                   };
                 })}
                 onPick={id => {
-                  const cell = cellOf(horizons, id, hero?.targetDate);
+                  const cell = cellOf(horizons, id, hero?.targetDate, keptCells);
                   if (cell) setHorizonId(cell.marketId);
                 }}
                 manage={canManage ? { label: 'Manage metrics', open: () => setOwnerDialog({ kind: 'metrics' }) } : null}
@@ -1818,7 +1824,7 @@ export function TradePage() {
                     }))}
                     activeKey={hero.metricId}
                     onStep={metricId => {
-                      const cell = cellOf(horizons, metricId, hero?.targetDate);
+                      const cell = cellOf(horizons, metricId, hero?.targetDate, keptCells);
                       if (cell) setHorizonId(cell.marketId);
                     }}
                   />
@@ -2051,7 +2057,7 @@ export function TradePage() {
                     ) : chartView === 'value' ? (
                       <NumberChart
                         points={hero.metricHistory}
-                        markers={datesOf(horizons, hero.metricId).flatMap(d => {
+                        markers={datesOf(horizons, hero.metricId, keptCells).flatMap(d => {
                           if (!d.resolvesOn) return [];
                           // The open proposal's pair on this date, by (metric, date).
                           const pr = selectedJob?.markets.find(

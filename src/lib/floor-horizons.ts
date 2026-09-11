@@ -355,8 +355,16 @@ export function metricsOf(views: HorizonView[]): HorizonView[] {
 }
 
 /** The open dates of one metric, furthest first. */
-export function datesOf(views: HorizonView[], metricId: string): HorizonView[] {
-  return views.filter(v => v.metricId === metricId);
+export function datesOf(views: HorizonView[], metricId: string, keep: readonly string[] = []): HorizonView[] {
+  const all = views.filter(v => v.metricId === metricId);
+  // A rolling minute or hour horizon is one tab, the newest open cell
+  // (docs/ui-conventions.md, "The date strip"): an operator opening a cell a
+  // step would otherwise list an hour of minutes as horizons. A cell named
+  // in `keep` (the one a selected proposal is priced on) stays listed.
+  const rolling = all.filter(v => cellKindOf(v.targetDate) !== null);
+  if (rolling.length <= 1) return all;
+  const newest = rolling[0]; // furthest-resolving first, so the newest cell
+  return all.filter(v => cellKindOf(v.targetDate) === null || v === newest || keep.includes(v.targetDate));
 }
 
 /**
@@ -503,8 +511,9 @@ export function cellOf(
   views: HorizonView[],
   metricId: string,
   targetDate: string | null | undefined,
+  keep: readonly string[] = [],
 ): HorizonView | null {
-  const dates = datesOf(views, metricId);
+  const dates = datesOf(views, metricId, keep);
   return dates.find(v => v.targetDate === targetDate) ?? dates[0] ?? null;
 }
 
