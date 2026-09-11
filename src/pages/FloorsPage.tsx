@@ -54,21 +54,39 @@ interface Listing {
   } | null;
   participants: number | null;
   tradesThisWeek: number | null;
-  /** Credits actually in the pools of the open markets, summed; null until
-   *  the payload lands. Never the LMSR parameter (docs/ui-conventions.md,
-   *  "The marketplace"). The grid orders on it. */
+  /** Credits actually in the pools of the open markets and of both branches
+   *  of every proposal on the ballot, summed; null until the payload lands.
+   *  Never the LMSR parameter (docs/ui-conventions.md, "The marketplace").
+   *  The grid orders on it. */
   liquidity: number | null;
   /** Set for the caller's own floors: 'unlisted' | 'private' badges the card
    *  "Yours · not public yet"; a public own floor is a card like any other. */
   mineVisibility?: string;
 }
 
-/** Credits in the pools of the open markets, summed. An empty market list
- *  is "nothing to say" rather than zero, so the card stays quiet. */
-function poolLiquidityOf(ws: { markets?: Array<{ pool?: number }> }): number | null {
+/** Credits in the pools of every open book on the floor, summed: the
+ *  baseline markets and both branches of every proposal still on the ballot
+ *  (docs/ui-conventions.md, "The marketplace"; owner ask 2026-09-11). A
+ *  decided, lapsed or closed proposal's books are settled or voided and
+ *  count nothing; a branch with no book yet counts nothing. No open book at
+ *  all is "nothing to say" rather than zero, so the card stays quiet. */
+function poolLiquidityOf(ws: {
+  markets?: Array<{ pool?: number }>;
+  proposals?: Array<{
+    status?: string;
+    closedAt?: string | null;
+    markets?: Array<{ approvedPool?: number | null; declinedPool?: number | null }>;
+  }>;
+}): number | null {
   const markets = ws.markets ?? [];
-  if (markets.length === 0) return null;
-  return markets.reduce((sum, m) => sum + (m.pool ?? 0), 0);
+  const onBallot = (ws.proposals ?? []).filter(p => (p.status ?? 'pending') === 'pending' && !p.closedAt);
+  if (markets.length === 0 && onBallot.length === 0) return null;
+  const baseline = markets.reduce((sum, m) => sum + (m.pool ?? 0), 0);
+  const ballot = onBallot.reduce(
+    (sum, p) => sum + (p.markets ?? []).reduce((s, m) => s + (m.approvedPool ?? 0) + (m.declinedPool ?? 0), 0),
+    0,
+  );
+  return baseline + ballot;
 }
 
 /** Deepest liquidity first; cards without it yet, and ties, keep their
@@ -167,7 +185,9 @@ function ActivityFacts({ r }: { r: Listing }) {
         </span>
       )}
       {r.liquidity !== null && (
-        <span title={`${short(r.liquidity)} credits in the pools of its open markets, which winnings come out of`}>
+        <span
+          title={`${short(r.liquidity)} credits in the pools of its open markets and live proposals, which winnings come out of`}
+        >
           <Drop /> {short(r.liquidity)}
         </span>
       )}

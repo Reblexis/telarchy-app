@@ -2483,7 +2483,13 @@ row (`MarketFacts`): icons and bare numbers, never a sentence. Four facts
 in this order, each a hover title that says what it counts: people =
 participants, drop = the credits actually sitting in the pools of the
 workspace's open markets (never the LMSR parameter), bars = trades this
-week, page = proposals priced now. Numbers take the facts row's short form
+week, page = proposals priced now. The drop counts every open book on the
+floor: the baseline markets AND both branches of every proposal still on
+the ballot (pending, trading open), since the credits behind a live
+proposal are as much a trader's to win as the credits behind the baseline.
+A decided or lapsed proposal's books are settled or voided and count
+nothing; a floor whose ballot the payload does not carry (counts only)
+sums its baseline markets alone. Numbers take the facts row's short form
 (`4,200`, `25k`, `1.2m`). A fact that has not arrived yet is left out of
 the row rather than shown as zero; the proposals cell appears only when
 there are any. Hovering a cell lifts its background to `bg-secondary`;
