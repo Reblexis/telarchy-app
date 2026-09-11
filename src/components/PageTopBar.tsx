@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Logo } from './Logo';
-import { ThemeToggle } from './ThemeToggle';
 import { TopBarAuth } from './TopBarAuth';
+import { TopBarShortcuts } from './TopBarShortcuts';
 
 /**
  * The top bar every page that is not a market wears.
@@ -30,7 +30,7 @@ export function PageTopBar() {
         </span>
       </Link>
       <div className="pubws-topbar-right">
-        <ThemeToggle />
+        <TopBarShortcuts />
         <TopBarAuth />
       </div>
     </nav>

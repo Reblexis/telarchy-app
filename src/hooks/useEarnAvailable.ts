@@ -20,14 +20,15 @@ import { api } from '../lib/api';
  * (the bet ticket's ceiling line, the balance chip, the first-run line)
  * and it changes only when something is claimed.
  */
-let cache: { at: number; value: number | null } | null = null;
+const caches = new Map<string, { at: number; value: number | null }>();
 const TTL_MS = 60_000;
 
 export function clearEarnAvailableCache(): void {
-  cache = null;
+  caches.clear();
 }
 
-export function useEarnAvailable(signedIn: boolean): number | null {
+export function useEarnAvailable(signedIn: boolean, accountId = 'session'): number | null {
+  const cache = caches.get(accountId);
   const [available, setAvailable] = useState<number | null>(cache?.value ?? null);
 
   useEffect(() => {
@@ -48,20 +49,20 @@ export function useEarnAvailable(signedIn: boolean): number | null {
         const streak = r.streak && !r.streak.earnedToday ? r.streak.nextCredits : 0;
         const total = r.available + streak;
         const value = total > 0 ? total : null;
-        cache = { at: Date.now(), value };
+        caches.set(accountId, { at: Date.now(), value });
         if (!cancelled) setAvailable(value);
       })
       .catch(e => {
         // Silence, not an error surface: this drives a hint, and a hint
         // that fails should simply not appear.
         console.error('earn availability fetch failed:', e);
-        cache = { at: Date.now(), value: null };
+        caches.set(accountId, { at: Date.now(), value: null });
         if (!cancelled) setAvailable(null);
       });
     return () => {
       cancelled = true;
     };
-  }, [signedIn]);
+  }, [signedIn, accountId]);
 
   return available;
 }

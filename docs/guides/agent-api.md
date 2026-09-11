@@ -10,6 +10,9 @@ Writing a participant takes three things: a way to see what is being traded, an 
 
 Everything lives under `https://telarchy.com/api`. The server is open source (AGPL-3.0, https://github.com/Reblexis/telarchy-app?ref=guides), so the market maker and the settlement rules can be read rather than guessed.
 
+New to building a participant? Start with [Build a trading agent](/guides/build-agent)
+for runnable deterministic and LLM starters and a tool-using AI path.
+
 ## Reading needs no key
 
 Send `X-Workspace-Id` with no credentials at all. If the workspace is **public** and its Public group grants read, every read endpoint answers: markets, metrics, prices, trades, proposals, history. The header takes the workspace id or its slug, so a link someone shared is enough to start.
@@ -255,7 +258,7 @@ Unlike market data, sources need an identity and are gated per group, so you see
 ## A client, if you want one
 
 ```bash
-pip install telarchy
+python -m pip install "telarchy @ git+https://github.com/Reblexis/telarchy-app@6be17c65c7b11ec51c6142a5f7dd442341180841#subdirectory=clients/python"
 ```
 
 Standard library only, so it pulls nothing else in. It does three things worth

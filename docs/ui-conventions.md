@@ -398,21 +398,26 @@ viewport's own margins.
 The logo is never what gives way. Whatever the viewport, the logo on it
 keeps its own proportions and its full height: it is not squeezed narrower
 than it is drawn, and a bar too tight for everything on it narrows the
-controls instead. In order, the row sheds the Manifold door (under 560px,
-its pitch being the least urgent thing on a phone, and 560 being the width
-that first holds the row it sits in) and then the credit balance (under
-480px, the account popover beside it printing the same figure with the
-earned line under it). Every control survives every width, and no width
-pushes the bar past the edge of the screen.
+controls instead. The signed-out Manifold pitch folds under 560px. The
+credit balance and agent destination stay visible on phones; labels shorten
+before the controls disappear. Below 480px, the secondary Discord and bug-report shortcuts yield their space to account controls. No width pushes the bar past the screen.
 
-Left of the account, on every top bar, sits the theme toggle: one quiet
-icon in the same sliding-label treatment as the Discord and report
-buttons, showing the theme it would switch TO (a moon on a light page, a
-sun on a dark one). The site follows the OS theme until the visitor
-touches it; a click flips between light and dark and the choice is kept
-per browser (localStorage `telarchy-theme`, applied as `data-theme` on
-the html element before first paint, so a reload never flashes the other
-theme). Clearing the stored value returns to following the OS.
+Left of the account, on every top bar, sits the **Agents & API** destination:
+a line-drawn bot icon with an Agents label on desktop and the icon on mobile.
+It is a normal link with an accessible name and tooltip. Signed-in visitors
+land on `/agents`; signed-out visitors also land on `/agents`.
+The current agent page marks it active. It replaces the top-bar theme toggle.
+
+Every page, including Agents and guides, retains the shared Discord, feedback and Agents shortcuts in the same order. Signed-in visitors also retain the notifications bell. Shared shortcuts come from one component so moving between the floor and document pages cannot omit them. All signed-in top bars use the same account menu and credits link. The balance
+is one compact two-line link to `/earn`: current credits above, **Earn +N**
+below when N is available, otherwise **Get credits**. The amount available is
+never added to the balance. A failed availability read shows no invented
+amount. Both lines remain visible on phones. There is no separate Earn credits
+button in the top bar. Liquidity stays a separate, explicitly labeled wallet.
+
+Theme switching lives in the account menu. The site follows the OS until a
+visitor chooses a theme; the per-browser `telarchy-theme` choice and before-
+paint application remain unchanged.
 
 The picture is saved via POST /api/auth/profile { image }: there is no
 blob store in this stack, so the account dialog renders the pick to a
@@ -1814,8 +1819,8 @@ public leaderboard, not here), and the password change, collapsed behind a
 link because most sessions open this dialog for a picture or a payout
 address. All of it is in the ticket language.
 
-The dialog is FILED, not stacked. Five underline tabs across the top,
-Profile, Money, Notifications, Your AI, Security, one section on screen at
+The dialog is FILED, not stacked. Four underline tabs across the top,
+Profile, Money, Notifications, Security, one section on screen at
 a time. The rail is the table of contents the long form never had: a
 setting becomes something a reader can see exists instead of something
 they have to scroll into. Underline tabs, not pills, so the rail cannot be
@@ -1831,32 +1836,9 @@ with `#account`. `<floor>#account` opens the dialog; `<floor>#emails`
 opens it on the notifications section and is what every notification
 email links to.
 
-**Your AI** (tab id `ai`) answers two different questions that share a
-name. Above: the prompt for an agent YOU run, a copyable block that points
-it at the floor's public brief. Below: the agents Telarchy runs for you
-(`MyAgents`), which are separate participants with their own balance and
-their own rank on the public leaderboard.
-
-Each owned agent is one row, in the order an owner asks: has it done
-anything, what has it earned, what has it got left. A bot that has never
-traded says "no trades yet" rather than showing 0.00 profit, because most
-of them have never traded and a confident zero reads as a result rather
-than as a state. The earned number is the leaderboard's own number, so
-this private view and the public board cannot disagree. Each row funds in
-place: an amount and Send, out of the owner's balance, and the list
-reloads afterwards so the balance on screen is the balance that exists.
-
-Creating one is here too, with a starting-credits field, because the
-credits leave the owner's balance in the same call that creates the bot
-(`initialCredits`) and there is no other moment at which a bot is
-reliably funded. The returned key gets a panel of its own that says it is
-shown once: the server keeps only a hash, so a key not copied off that
-screen is a key nobody can recover.
-
-There is no button to take credits BACK. Transfers are self-initiated by
-the API, so an owner cannot pull from a bot and the default bot key has
-no wallet scope, which means a button would fail silently. Whether that
-should change is an open rules question, not an oversight.
+Agent setup, owned bots, funding, and API-key management live on `/agents`,
+not inside account settings. The account menu links to **Agents & keys** at
+`/agents`. The page follows `docs/audience-pages.md`. Its two local task links, Your connections and Set up an agent, switch the contents of one document column. This is a focused task switch, with no console navigation or sidebar. The first visit opens setup without requiring login. Agents uses the floor’s compact visual register: a modest Fraunces page title, mono uppercase task-strip labels, existing `.pubws-seg` controls, small section labels and hairline rows with actions alongside their facts. It has no oversized poster heading or illustration.
 
 Payment details are STRUCTURED (providers, not one broad text field): a
 pill row picks the provider (PayPal, Bank, Crypto, Revolut, Wise, Other),
@@ -2320,6 +2302,10 @@ no market at this address"; a crawl of the live site found it. A link the
 site advertises and does not serve is worse than no link, so the routes and
 the advertisements change together.
 
+### Guide document rendering
+
+Each guide uses one 760px document column, with readable heading levels, paragraph spacing, lists, blockquotes and inline code. GitHub-flavored Markdown tables and fenced code render structurally. Wide tables and code scroll inside their own containers on small screens. Internal guide links retain the current preview base; relative Markdown guide links resolve to the corresponding guide route. The index and articles share the site top bar.
+
 ## Text contrast
 
 The three text tokens meet WCAG AA for normal text (4.5:1) against
@@ -2660,7 +2646,7 @@ nothing more" true by construction rather than by review.
 Discovery goes where the lack is felt, not where attention is cheapest
 (owner ask 2026-08-30; design
 https://claude.ai/code/artifact/9794469a-2222-4fb9-938a-c519b412d771).
-Three surfaces, no banners:
+Two surfaces, no banners:
 
 - **The bet ticket's ceiling.** The stake slider maxes at the balance, so
   a trader meets that wall the first time they try to say something
@@ -2668,7 +2654,6 @@ Three surfaces, no banners:
   balance, and names the number they could have rather than the tasks.
 - **The balance itself.** Everywhere the balance is shown it links to
   `/earn` and carries what is unclaimed in the accent colour.
-- **The top bar's earn door**, for signed-in accounts only.
 
 The Manifold link dialog is one action a step: name the account, then put
 the code in the bio, with the code as the subject of its own step rather
@@ -2692,9 +2677,9 @@ finished the one-time list, though trading that day was still worth 25 to
 100 credits to them; a door that cannot see a recurring earn is a door
 that retires the moment the platform starts paying for habit.
 
-Every one of them renders nothing when the account has nothing left to
-earn, and nothing when the read fails. That absence is the rule: a
-permanent "earn credits" affordance is furniture, while one that appears
-because there is money on the table and leaves once it is taken is
-information. A signed-out visitor keeps the Manifold pitch in the top bar
+The numeric earning hint disappears when nothing is available or the read
+fails. The balance itself remains a Get credits link; it never claims an
+unavailable reward. A signed-out visitor keeps the Manifold pitch in the top bar
 instead, because that is the recruiting line that brought them.
+
+Agents carries a visible Back link beside its heading. Entry through the shared Agents shortcut records the previous internal path, query and fragment; switching agent tasks preserves that destination. Direct entry falls back to the floor. All setup and management actions use the floor’s control radii, input surfaces, typography and focus states, including expanded key and funding forms.

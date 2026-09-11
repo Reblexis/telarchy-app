@@ -23,7 +23,12 @@ vi.mock('../../lib/api', async importOriginal => {
   const mod = await importOriginal<typeof import('../../lib/api')>();
   return {
     ...mod,
-    api: { ...mod.api, getStats: mocks.getStats, getMarketplaceWorkspace: mocks.getMarketplaceWorkspace },
+    api: {
+      ...mod.api,
+      getPublicWorkspaces: vi.fn(async () => []),
+      getStats: mocks.getStats,
+      getMarketplaceWorkspace: mocks.getMarketplaceWorkspace,
+    },
   };
 });
 
@@ -517,4 +522,12 @@ describe('the other audience pages keep the document layout', () => {
     const { container } = renderRoute('/for-agents');
     expect(container.querySelectorAll('svg.viz')).toHaveLength(names.length);
   });
+});
+
+test('agent builders can find the starter guide without an account or scrolling', () => {
+  const { container } = renderRoute('/for-agents');
+  expect(container.querySelector('.agent-builder')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Copy setup prompt' })).toBeNull();
+  expect(screen.getAllByRole('link', { name: 'Build an agent' })[0]).toHaveAttribute('href', '/agents#agent-setup');
+  expect(screen.getByRole('link', { name: 'Read the build guide' })).toBeInTheDocument();
 });

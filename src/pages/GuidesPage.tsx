@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Link, Navigate, useParams } from 'react-router-dom';
+import remarkGfm from 'remark-gfm';
 import { PageTopBar } from '../components/PageTopBar';
 import { api, type GuideCategory, type GuideSection } from '../lib/api';
 import { withBase } from '../lib/base-path';
@@ -85,7 +86,7 @@ function OneGuide({ section }: { section: string }) {
   return (
     <div className="pubws">
       <PageTopBar />
-      <main className="pubws-main">
+      <main className="pubws-doc">
         <p className="pubws-h2">
           <Link to="/guides">All guides</Link>
         </p>
@@ -97,9 +98,34 @@ function OneGuide({ section }: { section: string }) {
             </p>
           </>
         ) : (
-          <div className="pubws-doc" style={{ opacity: body ? 1 : 0.5, transition: 'opacity 0.1s' }}>
-            {body ? <ReactMarkdown>{body}</ReactMarkdown> : <p>{meta?.title ?? 'Loading the guide'}</p>}
-          </div>
+          <article className="guide-prose" style={{ opacity: body ? 1 : 0.5, transition: 'opacity 0.1s' }}>
+            {body ? (
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  a: ({ href, children }) => {
+                    const local = href?.replace(/^https:\/\/telarchy\.com(?=\/)/, '');
+                    const guide = local?.match(/^(?:\.\/)?([a-z0-9-]+)\.md(#[^ ]*)?$/);
+                    const target = guide ? `/guides/${guide[1]}${guide[2] ?? ''}` : local;
+                    return target?.startsWith('/') && !target.startsWith('//') && !target.startsWith('/api/') ? (
+                      <Link to={target}>{children}</Link>
+                    ) : (
+                      <a href={target?.startsWith('/api/') ? withBase(target) : target}>{children}</a>
+                    );
+                  },
+                  table: ({ children }) => (
+                    <div className="guide-table" role="region" aria-label="Scrollable table" tabIndex={0}>
+                      <table>{children}</table>
+                    </div>
+                  ),
+                }}
+              >
+                {body}
+              </ReactMarkdown>
+            ) : (
+              <p role="status">{meta?.title ?? 'Loading the guide'}</p>
+            )}
+          </article>
         )}
         <Foot />
       </main>

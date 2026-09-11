@@ -1044,6 +1044,19 @@ export interface JourneyFeed {
 }
 
 /** One row of `GET /api/agents/mine`: an agent you own, and how it is doing. */
+/** Public key metadata. Raw secrets are returned only by minting. */
+export interface AgentKeyInfo {
+  keyId: string;
+  label: string | null;
+  scopes: string[];
+  workspaceId: string | null;
+  /** True when the key is pinned to workspaceId and cannot act elsewhere. */
+  workspaceLocked: boolean;
+  createdAt: string;
+  lastUsedAt: string | null;
+  hashPrefix: string;
+}
+
 export interface MyAgent {
   id: string;
   nickname: string | null;
@@ -2444,6 +2457,20 @@ export const api = {
     if (!res.ok) throw new Error(`Profile request failed: ${res.status}`);
     return res.json();
   },
+  /** Join as the supplied participant; cookies retain beta access and routing.
+   * Writes are not retried: the setup flow owns recovery and its checkpoints. */
+  joinWorkspaceWithKey: async (workspaceId: string, apiKey: string): Promise<{ role: 'trader' | 'viewer' }> => {
+    const response = await fetch(`${API_BASE}/api/marketplace/${encodeURIComponent(workspaceId)}/join`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'X-Agent-Key': apiKey, 'X-Workspace-Id': workspaceId },
+    });
+    const data = await response.json().catch(() => {
+      throw new Error(`Connection could not finish (${response.status}). Try again.`);
+    });
+    if (!response.ok) throw new Error(data.error || 'Could not join this workspace');
+    return data;
+  },
   joinWorkspace: (workspaceId: string) =>
     request(`/api/marketplace/${encodeURIComponent(workspaceId)}/join`, {
       method: 'POST',
@@ -2653,7 +2680,8 @@ export const api = {
 
   // API keys & authenticated agent creation (used by the API page).
   // /api/agents/:id/keys uses :id=me to operate on the calling agent.
-  listAgentKeys: (agentId: string) => request(`/api/agents/${encodeURIComponent(agentId)}/keys`),
+  listAgentKeys: (agentId: string): Promise<AgentKeyInfo[]> =>
+    request(`/api/agents/${encodeURIComponent(agentId)}/keys`),
   mintAgentKey: (
     agentId: string,
     body: {
@@ -2673,7 +2701,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  updateAgentKey: (agentId: string, keyId: string, body: { label?: string | null; scopes?: string[] }) =>
+  updateAgentKey: (
+    agentId: string,
+    keyId: string,
+    body: { label?: string | null; scopes?: string[]; workspaceLocked?: boolean },
+  ) =>
     request(`/api/agents/${encodeURIComponent(agentId)}/keys/${encodeURIComponent(keyId)}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
@@ -2681,25 +2713,28 @@ export const api = {
   revokeAgentKey: (agentId: string, keyId: string) =>
     request(`/api/agents/${encodeURIComponent(agentId)}/keys/${encodeURIComponent(keyId)}`, { method: 'DELETE' }),
   /**
-   * Authenticated agent creation. The caller becomes the owner (authUserId)
+   * Authenticated agent creation. The caller becomes the owner (ownerUserId)
    * for browser sessions. Memberships add the new agent to the named groups
    * in each workspace; caller must hold `manage` capability there. The
    * returned apiKey is shown once and never returned again. Send X-Workspace-Id
-   * via the active workspace; backend default workspaceId on the new key is
-   * memberships[0].workspaceId or the caller's active workspace.
+   * via the explicit workspace argument or the active workspace. The key uses
+   * memberships[0].workspaceId or that request workspace.
    */
-  createAgent: (body: {
-    agentId: string;
-    nickname?: string;
-    keyLabel?: string;
-    keyScopes?: string[];
-    memberships?: Array<{ workspaceId: string; groupIds: string[] }>;
-    /** Funds the new bot out of YOUR balance, in the same transaction that
-     *  creates it. Nothing is minted, and if you cannot afford it no bot is
-     *  created at all. Omit or 0 to create an unfunded one. */
-    initialCredits?: number;
-  }): Promise<{ agentId: string; apiKey: string; initialCredits: number }> =>
-    request('/api/agents', { method: 'POST', body: JSON.stringify(body) }),
+  createAgent: (
+    body: {
+      agentId: string;
+      nickname?: string;
+      keyLabel?: string;
+      keyScopes?: string[];
+      memberships?: Array<{ workspaceId: string; groupIds: string[] }>;
+      /** Funds the new bot out of YOUR balance, in the same transaction that
+       *  creates it. Nothing is minted, and if you cannot afford it no bot is
+       *  created at all. Omit or 0 to create an unfunded one. */
+      initialCredits?: number;
+    },
+    workspaceId?: string,
+  ): Promise<{ agentId: string; apiKey: string; keyId: string; initialCredits: number }> =>
+    requestWithWorkspace('/api/agents', { method: 'POST', body: JSON.stringify(body) }, { workspaceId }),
 
   // Permission groups
   listGroups: () => request('/api/groups'),

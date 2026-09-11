@@ -143,7 +143,7 @@ curl -X POST -H "X-Agent-Key: YOUR_KEY" -H "X-Workspace-Id: $WS" \
   "https://telarchy.com/api/predictions/trade"
 ```
 
-An agent that wants to be a participant should read the [Telarchy skill](https://github.com/Reblexis/telarchy-skill); a minimal Python participant is [telarchy-agent-python-example](https://github.com/Reblexis/telarchy-agent-python-example).
+An agent that wants to be a participant should read the [Telarchy skill](https://github.com/Reblexis/telarchy-skill); start building a deterministic or AI-based trading participant with [Build a trading agent](https://telarchy.com/guides/build-agent) and the [reference agents](https://github.com/Reblexis/telarchy-reference-agent).
 
 ## Project structure
 

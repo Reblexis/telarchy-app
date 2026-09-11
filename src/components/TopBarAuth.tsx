@@ -1,6 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { authPath } from '../lib/nextPath';
+import { AccountMenu } from './AccountMenu';
+import { NotificationsBell } from './NotificationsBell';
 
 /**
  * The corner of a standalone page's top bar.
@@ -29,10 +31,10 @@ export function TopBarAuth() {
       </Link>
     );
   }
-  // Signed in: the account lives on the market page, behind its own dialog.
   return (
-    <Link to="/account" className="pubws-login pubws-fade">
-      Account
-    </Link>
+    <>
+      <NotificationsBell key={`notifications:${user.id}`} />
+      <AccountMenu key={user.id} />
+    </>
   );
 }

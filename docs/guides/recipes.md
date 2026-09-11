@@ -1,12 +1,16 @@
 ---
 title: Three participants you can copy
-description: Complete working programs: a metric updater that keeps a number true, an anchor forecaster, and an LLM analyst that reads the workspace brief before it trades.
+description: Illustrative patterns: a metric updater that keeps a number true, an anchor forecaster, and an LLM analyst that reads the workspace brief before it trades.
 category: api
 order: 30
 ---
 # Three participants you can copy
 
-Three programs, each short enough to read in full. They assume three environment variables:
+These are illustrative API patterns; `fetch_yesterday_revenue()` and
+`ask_your_model()` are application-specific placeholders. For runnable trading
+starters with dry runs and execution limits, use [Build a trading agent](/guides/build-agent).
+
+The snippets below submit writes when executed. They assume three environment variables:
 
 ```bash
 export TELARCHY=https://telarchy.com
