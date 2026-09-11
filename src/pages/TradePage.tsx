@@ -709,16 +709,29 @@ export function TradePage() {
      posts the three in whatever order it wrote them, which is not the same
      order every minute. */
   const feedOrderRef = useRef<Record<string, number>>({});
+  const boardProposals = ws?.proposals;
   const feedOrder = useMemo(() => {
-    const proposals = liveState?.open?.proposals;
-    if (proposals) {
+    const open = liveState?.open?.proposals;
+    if (open) {
       (['forward', 'left', 'right'] as const).forEach((action, rank) => {
-        const id = proposals[action]?.id;
+        const id = open[action]?.id;
         if (id && feedOrderRef.current[id] === undefined) feedOrderRef.current[id] = rank;
       });
     }
-    return { ...feedOrderRef.current };
-  }, [liveState]);
+    /* Only what the board can still draw: a floor that opens three a minute
+       would otherwise carry a day of ranks in a tab left open. */
+    const alive = new Set([
+      ...(boardProposals ?? []).map(p => p.id),
+      ...(['forward', 'left', 'right'] as const).flatMap(a => {
+        const id = open?.[a]?.id;
+        return id ? [id] : [];
+      }),
+    ]);
+    const kept: Record<string, number> = {};
+    for (const [id, rank] of Object.entries(feedOrderRef.current)) if (alive.has(id)) kept[id] = rank;
+    feedOrderRef.current = kept;
+    return { ...kept };
+  }, [liveState, boardProposals]);
   /* The attempt the reading belongs to, `deaths + 1`, once the feed has
      been read (docs/ui-conventions.md, "The stat row"); null otherwise. */
   const attempt =
