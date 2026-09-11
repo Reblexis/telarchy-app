@@ -212,11 +212,11 @@ describe('betting towards a value', () => {
     expect(Number(amountInput.value)).toBeGreaterThan(0);
     // The confirm states the landing value, because that is what the
     // placed trade (the server's targetValue mode) actually promises.
-    expect(screen.getByText(/Bet to \$100,000, up to \d+ cr/)).toBeTruthy();
+    expect(screen.getByText(/Bet to \$100,000, up to [\d.,]+ cr/)).toBeTruthy();
     expect(screen.getByText('Lower').closest('button')?.getAttribute('aria-pressed')).toBe('true');
     // And above: flips back to Higher.
     fireEvent.change(target, { target: { value: '400000' } });
-    expect(screen.getByText(/Bet to \$400,000, up to \d+ cr/)).toBeTruthy();
+    expect(screen.getByText(/Bet to \$400,000, up to [\d.,]+ cr/)).toBeTruthy();
     expect(screen.getByText('Higher').closest('button')?.getAttribute('aria-pressed')).toBe('true');
   });
 
@@ -592,7 +592,7 @@ describe('the payoff line', () => {
     const target = screen.getByLabelText('Bet the market to this value in $');
     fireEvent.focus(target);
     fireEvent.change(target, { target: { value: '400000' } });
-    expect(screen.getByText(/Bet to \$400,000, up to \d+ cr/)).toBeTruthy();
+    expect(screen.getByText(/Bet to \$400,000, up to [\d.,]+ cr/)).toBeTruthy();
   });
 
   test('typing into the stake half goes back to spending a budget', () => {
@@ -805,5 +805,75 @@ describe('the payoff line', () => {
     );
     expect(screen.getByText('You get')).toBeTruthy();
     expect(screen.getByText('Profit / loss')).toBeTruthy();
+  });
+});
+
+/**
+ * The stake is typed to a millionth of a credit (docs/ui-conventions.md,
+ * "The stake is typed to a millionth of a credit"; Viktor 2026-09-11: "we
+ * need to support betting decimal amounts of credits up to 1000000th of a
+ * credit for now"). The server keeps nanocredits; the ticket was the only
+ * thing rounding.
+ */
+describe('decimal stakes', () => {
+  test('a typed decimal stake is kept, named on the confirm, and sent as typed', async () => {
+    const onTrade = vi.fn(async () => {});
+    render(<TradeTicket {...base} onTrade={onTrade} balance={100} />);
+    pick('Higher', '0.25');
+    const input = screen.getByLabelText('Credits to spend') as HTMLInputElement;
+    expect(input.value).toBe('0.25');
+    expect(input.getAttribute('inputmode')).toBe('decimal');
+    fireEvent.click(screen.getByText('Bet 0.25 cr on Higher'));
+    await waitFor(() => expect(onTrade).toHaveBeenCalledWith('higher', 0.25));
+  });
+
+  test('the decimal point survives typing: 12.5 stays 12.5, not 125', () => {
+    render(<TradeTicket {...base} balance={100} />);
+    pick('Higher', '12.5');
+    expect((screen.getByLabelText('Credits to spend') as HTMLInputElement).value).toBe('12.5');
+    expect(screen.getByText('Bet 12.5 cr on Higher')).toBeTruthy();
+  });
+
+  test('the field takes no seventh decimal; under a millionth is nothing to bet', async () => {
+    const onTrade = vi.fn(async () => {});
+    render(<TradeTicket {...base} onTrade={onTrade} balance={100} />);
+    pick('Higher', '0.0000001');
+    expect((screen.getByLabelText('Credits to spend') as HTMLInputElement).value).toBe('0.000000');
+    const confirm = screen.getByText('Bet 0 cr on Higher').closest('button') as HTMLButtonElement;
+    expect(confirm.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('Credits to spend'), { target: { value: '1.2345678' } });
+    expect((screen.getByLabelText('Credits to spend') as HTMLInputElement).value).toBe('1.234567');
+    fireEvent.click(screen.getByText('Bet 1.234567 cr on Higher'));
+    await waitFor(() => expect(onTrade).toHaveBeenCalledWith('higher', 1.234567));
+  });
+
+  test('a fractional balance can be bet in full: the ceiling is the balance, not the balance rounded down', async () => {
+    const onTrade = vi.fn(async () => {});
+    render(<TradeTicket {...base} onTrade={onTrade} balance={250.75} />);
+    pick('Higher', '250.75');
+    expect(screen.getByText(/250\.75 cr, all you have/)).toBeTruthy();
+    const slider = screen.getByLabelText('Bet amount slider') as HTMLInputElement;
+    fireEvent.change(slider, { target: { value: '1000' } });
+    expect((screen.getByLabelText('Credits to spend') as HTMLInputElement).value).toBe('250.75');
+    fireEvent.click(screen.getByText('Bet 250.75 cr on Higher'));
+    await waitFor(() => expect(onTrade).toHaveBeenCalledWith('higher', 250.75));
+  });
+
+  test('a balance under a credit is still a stake you can type', async () => {
+    const onTrade = vi.fn(async () => {});
+    render(<TradeTicket {...base} onTrade={onTrade} balance={0.4} />);
+    pick('Higher', '0.4');
+    fireEvent.click(screen.getByText('Bet 0.4 cr on Higher'));
+    await waitFor(() => expect(onTrade).toHaveBeenCalledWith('higher', 0.4));
+  });
+
+  test('a limit order budget keeps its decimals too', async () => {
+    const onPlaceLimit = vi.fn(async () => {});
+    render(<TradeTicket {...base} balance={100} onPlaceLimit={onPlaceLimit} />);
+    pick('Higher', '2.5');
+    fireEvent.click(screen.getByText('Limit'));
+    fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '40000' } });
+    fireEvent.click(screen.getByText('Buy Higher with 2.5 cr under $40,000'));
+    await waitFor(() => expect(onPlaceLimit).toHaveBeenCalledWith('higher', 40000, 2.5));
   });
 });
