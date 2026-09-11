@@ -89,4 +89,31 @@ describe('api.ts key-management wrappers', () => {
     const [url2] = fetchMock.mock.calls[0];
     expect(url2).toMatch(/\/api\/agents\/weird%2Fid%20with%20spaces\/keys$/);
   });
+  test('CREATE USES THE CHOSEN WORKSPACE WITHOUT CHANGING THE GLOBAL ONE', async () => {
+    await api.createAgent({ agentId: 'bot', initialCredits: 0 }, 'chosen');
+    expect(fetchMock.mock.calls[0][1].headers['X-Workspace-Id']).toBe('chosen');
+    await api.listAgentKeys('me');
+    expect(fetchMock.mock.calls[1][1].headers['X-Workspace-Id']).toBe('ws-1');
+  });
+  test('BOT JOIN RETAINS PREVIEW ACCESS WITH EXPLICIT BOT IDENTITY', async () => {
+    await api.joinWorkspaceWithKey('chosen/id', 'secret');
+    expect(fetchMock.mock.calls[0][0]).toMatch(/chosen%2Fid\/join$/);
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'X-Agent-Key': 'secret', 'X-Workspace-Id': 'chosen/id' },
+    });
+  });
+  test('BOT JOIN DOES NOT RETRY A FAILED WRITE', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ error: 'No access' }), { status: 403 }));
+    await expect(api.joinWorkspaceWithKey('chosen', 'secret')).rejects.toThrow('No access');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  test('BOT JOIN REPORTS NON JSON WITHOUT RETRYING', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('<html>Login</html>', { status: 403 }));
+    await expect(api.joinWorkspaceWithKey('chosen', 'secret')).rejects.toThrow(
+      'Connection could not finish (403). Try again.',
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

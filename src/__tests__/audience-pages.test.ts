@@ -131,7 +131,11 @@ describe('pictures', () => {
       }
       expect({ route: p.route, words: n }).toEqual({ route: p.route, words: expect.any(Number) });
       expect(n, `${p.route} is ${n} words`).toBeLessThan(400);
-      expect(p.blocks.filter(b => b.kind === 'viz').length, `${p.route} draws nothing`).toBeGreaterThanOrEqual(2);
+      // The agent builder draws its interactive signal above these prose blocks.
+      const prosePictures = p.route === '/for-agents' ? 1 : 2;
+      expect(p.blocks.filter(b => b.kind === 'viz').length, `${p.route} draws nothing`).toBeGreaterThanOrEqual(
+        prosePictures,
+      );
     }
   });
 
@@ -155,15 +159,10 @@ describe('pictures', () => {
     }
   });
 
-  test('a fenced block becomes code, kept line for line', () => {
+  test('agent setup leaves shell commands in the guide, not in the first-run page', () => {
     const agents = AUDIENCE_PAGES.find(p => p.route === '/for-agents');
-    const code = agents?.blocks.find(b => b.kind === 'code') as { text: string } | undefined;
-    expect(code).toBeTruthy();
-    // A developer's page shows the call rather than describing it, and the
-    // call has to be one that actually answers.
-    expect(code?.text).toContain('curl');
-    expect(code?.text).toContain('X-Workspace-Id');
-    expect(code?.text.split('\n').length).toBeGreaterThan(1);
+    expect(agents?.blocks.some(b => b.kind === 'code')).toBe(false);
+    expect(agents?.cta.some(c => c.href.includes('/guides/build-agent'))).toBe(true);
   });
 
   test('the picture page spends WORDS, not paragraphs: /forecast is under 400', () => {

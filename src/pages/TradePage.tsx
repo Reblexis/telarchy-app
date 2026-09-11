@@ -6,8 +6,6 @@ import remarkGfm from 'remark-gfm';
 import { AccountMenu } from '../components/AccountMenu';
 import { AgentDoors } from '../components/AgentDoors';
 import { AnimatedNumber } from '../components/AnimatedNumber';
-import { DiscordButton } from '../components/DiscordButton';
-import { EarnDoor } from '../components/EarnDoor';
 import { FloorAnnouncements } from '../components/FloorAnnouncements';
 import { FloorChat } from '../components/FloorChat';
 import { FloorChecklist } from '../components/FloorChecklist';
@@ -27,9 +25,8 @@ import { NotificationsBell } from '../components/NotificationsBell';
 import { granularityOf, NumberChart } from '../components/NumberChart';
 import { AddDateDialog, InjectLiquidityDialog, NewMetricDialog, ReportValueDialog } from '../components/OwnerDialogs';
 import { PositionSummary } from '../components/PositionSummary';
-import { ReportButton } from '../components/ReportButton';
 import { SubjectAbout } from '../components/SubjectAbout';
-import { ThemeToggle } from '../components/ThemeToggle';
+import { TopBarShortcuts } from '../components/TopBarShortcuts';
 import { type TicketPosition, TradeTicket } from '../components/TradeTicket';
 import { useAuth } from '../hooks/useAuth';
 import { useMyParticipantId } from '../hooks/useMyParticipantId';
@@ -3115,20 +3112,8 @@ export function TopBar({
         </span>
       </Link>
       <div className="pubws-topbar-right">
-        {/* One door to the money, not two (owner ask 2026-08-30). The
-            standalone Manifold button became one row of the earn table, and
-            two doors to the same credits is how a top bar fills up; the
-            Manifold import lives on /earn with its price beside everything
-            else. Signed-out visitors still get the Manifold pitch, which is
-            the recruiting line that brought them. */}
-        {user ? (
-          <EarnDoor />
-        ) : (
-          <ManifoldButton signedIn={user} onRequireSignup={() => navigate(authPath('signup', location))} />
-        )}
-        <DiscordButton />
-        <ReportButton />
-        <ThemeToggle />
+        {!user && <ManifoldButton signedIn={false} onRequireSignup={() => navigate(authPath('signup', location))} />}
+        <TopBarShortcuts />
         {/* Rendered only after the session check settles: while it is
             pending, user is still null, and a signed-in visitor would see
             "Log in" flash and vanish. Anonymous visitors get it fading in. */}

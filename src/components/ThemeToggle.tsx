@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 
 /**
- * Light / dark toggle in the top-right of every top bar (owner ask
- * 2026-08-26). Spec: docs/ui-conventions.md, "The top bar and the account
+ * Light / dark toggle in the account menu. Spec: docs/ui-conventions.md, "The top bar and the account
  * menu".
  *
  * The stylesheet has long honoured `data-theme` on <html> next to the OS

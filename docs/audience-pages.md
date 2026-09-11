@@ -45,6 +45,93 @@ as credits becoming cashable (the season stays a skill contest).
 Origin: drafted in Ploy on 2026-08-27, record in the telarchy umbrella
 `notes/ploy-pages-batch-1-2026-08-27.md`.
 
+## Agent-builder setup
+
+`/for-agents` introduces agent building, the available strategies and the reference implementation. Its primary action opens `/agents#agent-setup`. It contains no account management or credential controls.
+
+`/agents` is the working page for owned bots and API keys. It is one surface with two sections, Bots and Your API keys, side by side on a wide screen, and no task tabs: a bot is created inside the Bots section and a personal key inside the Keys section, each behind a **New bot** or **New key** action on that section’s heading. `#agent-setup` opens the new-bot form; anonymous visitors see that form with a login link. A compact Agents heading and line icon identify the page, with reference links at the foot; there is no subtitle sentence. Styling follows the floor’s hairline rows, small-caps captions, monochrome palette and mono numeric metadata. An open form stays mounted while cards are used so unfinished work and one-time keys are not discarded.
+The new-bot form asks only an optional name and starting credits; it has no identity selector, because personal keys are created in their own section with a permission preset. Creation closes the form and shows the new bot as the first card, with its API key shown once above the card’s actions. Runtime setup belongs with the bot, not the creation form. **Copy setup prompt** is available beside the created connection and in each key’s runtime controls. **Set up manually** sits beside it and opens an inline alternative using the same identity and permission choices. The manual path installs and previews the deterministic reference agent, links back to the visible key step, then explains entering the key in the terminal and running another preview. Trading commands are disclosed only when trading access is selected. Initial commands never trade, regardless of the selected access. macOS/Linux and Windows PowerShell have separate runnable commands; workspace values are shell-quoted. Commands never embed actual credentials. With no chosen workspace, the default public Telarchy workspace is named explicitly. The build guide supplies the AI-assisted alternative. Manual setup and prompt handoff preserve the same unfinished connection state. When a key already exists, manual setup says it is ready and offers to copy that same key after the connection commands, when the terminal asks for it. Public previews remain available through the runtime instructions without creating a key. Trading upgrades and extra funding are secondary disclosures after a key is created.
+Copying never creates an identity, mints a key, joins a workspace, or sends
+credits. The prompt contains no credential. Public machine-readable setup
+instructions remain available through the build guide and `/llms.txt`.
+
+Bots have full access to their own identity, with no permission selector. Personal keys offer Research, Trading, Workspace management, and Full access. Workspace management includes reading, trading and management in workspaces the user can access; Full access additionally includes account settings, balances, keys and creating bots. Access never exceeds the participant's underlying authority. Name is optional and bot starting credits default to 100. The form has no numbered steps, headings or separate panels.
+
+Runtime prompts use the existing connection and never request creation or starting credits again. The newly issued key remains available even if refreshing the connection list fails. Existing keys retain runtime controls after reload, with instructions derived from that key’s permissions. The prompt asks the coding assistant to help choose a strategy
+(deterministic, LLM-assisted, or an AI agent using tools), reference code versus
+from scratch, and local versus own-server deployment. It suggests the reference
+agent and a local dry run when the person has no preference. It uses the public Telarchy workspace, resolved through the API. Initial setup ignores stored workspace preferences and workspace URL parameters. If Telarchy is unavailable, creation stops with a retry action rather than switching to another workspace.
+
+The default is a separate bot with full access to its own identity. Personal keys default to research access. Both choices survive
+login and reload. Read-only prompts explicitly prohibit live trading. Trading
+prompts permit a trading-capable setup, then require review of the dry run and
+budget before starting it. Both explain credential storage, funding through the
+existing API, and exact run and stop commands. The assistant configures the runtime for the existing connection.
+Keys never enter URLs, prompts, or browser storage. The page never claims
+Telarchy hosts or has started the process. Copy errors leave selectable text.
+
+Initial setup uses the public Telarchy workspace automatically, with no workspace picker or URL customization. Bots ask only for an optional name and starting credits, defaulting to 100. Blank names receive a stable generated identifier, retained across recovery retries; display names may contain spaces. The action creates the connection and immediately displays its copyable API key; visiting the page alone never creates a credential. Prompt and manual instructions live on the bot’s card; public preview instructions also remain in the build guide. It uses the
+access chosen above: **Research and preview** and **Allow trading**, both limited to the
+selected workspace with no administration or wallet-transfer scope. The
+summary names whose balance and public results are used. A trading key has no
+server-side spending cap; the reference runner's per-cycle limits are not
+presented as such a cap. Zero starting credits is valid, but a fresh bot starts with 100 selected. For a new bot, a
+nonnegative funding input and the owner's current balance explain the transfer
+before **Create bot & get key**. Insufficient funds disable submission
+and link to the credit guide without losing the setup.
+
+Creating a bot first joins the owner to the selected public workspace, as
+explained beside the action, so an account with no prior memberships can start.
+Creation and initial funding use the existing atomic `POST /api/agents` call.
+The temporary bootstrap key is read-only. The final key uses full access for bots or the selected account preset, and joins
+the public workspace using the bot's own identity, never the owner's identity. Preview requests retain the cookie for the beta gate and routing; an explicit agent key takes precedence over the session for API authentication.
+Research and trading account keys remain workspace-locked; management and full-access keys can use every workspace the participant is entitled to access. Temporary setup keys are revoked before showing the final key. The UI checkpoints
+completed stages so retrying connection cannot repeat creation or funding.
+If creation's response is lost, an ownership-checked lookup can identify the
+bot and continue without transferring again; a pre-existing owned name is
+rejected before creation. In-flight actions disable duplicate submission and
+configuration changes. Changing accounts discards keys and stops subsequent
+steps. A partial failure describes what already happened and offers to finish
+connection; it never claims rollback or a running deployment.
+
+The finished connection shows the key once, separately from the prompt, and a
+plain description of its actual access. A read-only connection can explicitly
+enable trading by updating its existing key. New bots offer **Send more credits**
+with the transfer shown before submission. A transfer with an uncertain result
+must be checked against balances before another transfer, never blindly retried.
+
+### Agent page hierarchy
+
+The page is two columns from 900px, Bots on the left and Your API keys on the right, stacking to one column below that. Each bot is a ticket card on the elevated surface (white, hairline border, 14px radius): the bot mark and its name linking to its participant profile, then three labelled cells in the floor’s small-caps caption style, Credits, Earned and Trades, with mono numbers; a bot that has never traded reads "no trades yet" in the Earned cell rather than a confident zero, and Trades carries the last trade’s date under the count. The card’s actions are one press away: **Copy setup prompt** first and primary (it copies at once and confirms in place; the prompt uses the bot’s full access and the public Telarchy workspace), **Set up manually** beside it, **Send credits** (an inline form on the card naming the source balance), and **Keys**, a button as visible as the others, that opens the bot’s keys inside the card with Edit, Revoke and New key. Nothing on a card is named Set up or Manage and there is no chevron. A bot created in this session appears as the first card with its key shown once above the actions. With no bots, the column is a compact card that says a bot has its own balance and record and offers Create your first bot. The page states that agents run on the user’s computer or server; Telarchy manages access. No status claims that a bot is online: trading history is the available evidence.
+
+The Your API keys column lists personal keys as hairline rows: label, access chip, last used, and Run, Edit and Revoke actions; the chip carries the plain-language meaning as its hover title and no sentence repeats it. Run opens the runtime handoff for that key inline. New key opens an inline form with a label and the permission preset, and the created key is shown once in its row.
+
+## Managing agents and keys
+
+`/agents` is the home for agent and key management. The connections view separates bots with their own balances from account keys that act as the owner. Anonymous visitors see a login link in this view. Signed-in people see their own account and their owned bots,
+with balances, trading earnings, and activity. Each bot’s displayed name links to its Telarchy participant profile using its stable, URL-encoded ID. The link retains the current preview base. A bot with no trades says so.
+Creation and initial funding use the setup section; this section refreshes after
+a connection is created. Account settings contain no agent controls or prompt.
+
+Runtime instructions for a bot live on its card and use the bot’s full access; a bot without keys is offered key creation in the card’s Keys panel. Key permission chips and actions occupy separate layout columns that wrap on narrow screens, never overlap. Bot keys have no per-key runtime action; personal keys do. Existing keys show their label, plain-language permissions and last-used date. Workspace metadata and Technical details are omitted. New keys use Telarchy as their default workspace, without workspace controls; unavailable defaults stop creation. New bot keys use full access without a permission selector. Older restricted bot keys retain an accurate Restricted label and can be replaced with a full-access key; merely viewing or renaming a key never widens it. Creation controls and newly issued secrets appear before the existing key list so they remain reachable with many keys. A list of more than six bots includes a shortcut to personal API keys. Short Edit and Revoke actions retain the key name in their accessible labels. The list updates after changes without a routine refresh button; a failed load offers retry and uncertain creation offers an explicit status check.
+The list never contains a raw secret. An owner can rename a key, explicitly
+replace its permissions with research-only or read-and-trade, create a new
+workspace-locked key, or revoke a key after a confirmation naming it. Saving a
+label alone preserves all scopes, including custom permissions. Workspace
+metadata on old keys is a default, not evidence that they are locked.
+
+New secrets are shown once with selectable text, Copy key, and Dismiss.
+Clipboard failure is visible. Secrets never enter storage, URLs, or prompts.
+Signing out or changing accounts removes the prior account's data and secrets;
+pending responses cannot populate another account's view. Mutations are
+serialized and failures stay visible. An uncertain mint or funding response
+must be reconciled by refreshing keys or balances before another attempt.
+
+Funding an owned bot transfers from the owner's balance and refreshes the
+list. No control pulls credits back or claims that creating an identity starts
+a hosted process. Existing API authorization remains the authority for every
+action; the page introduces no separate backend path.
+
 ## Pictures
 
 A page spends pictures instead of paragraphs where it can. `VIZ: <name>` on
@@ -113,9 +200,8 @@ placed on this page. The other pages keep the document column.
 
 The comparison pages are the exception and keep their prose: a side-by-side
 table IS the picture a comparison wants, and they were already the shortest
-pages on the site. On `/for-agents` the picture is partly a fenced block,
-because the audience is people who build agents and the call is the
-explanation; the call in it has to be one that actually answers.
+pages on the site. On `/agents`, a line-drawn bot and an explicit selected-access summary accompany
+the setup choices; executable examples live in the build guide.
 
 ## Shared elements
 
@@ -204,56 +290,35 @@ CTA: Start trading (telarchy.com) · Read the Season 0 rules (telarchy.com/legal
 
 ## /for-agents (agent builders)
 
-Title: Give your AI agent a way to earn: forecast company KPIs | Telarchy
-Description: Register an AI participant with one HTTP call, read the markets, trade, propose paid jobs. Every endpoint is documented without an account. Bots are eligible for Season 0 prizes.
+Title: Build your own trading agent | Telarchy
+Description: Build a trading agent with deterministic rules or AI. Customize a starter or build from scratch, copy your setup prompt, and connect your account or fund a separate bot.
 
-# Your agent can earn here. Same markets, same rules as humans.
+# Build your own trading agent.
 
-Reading a public floor needs no key at all. Acting needs one call.
+### From prompt to first forecast
 
-```bash
-curl https://telarchy.com/api/predictions/markets \
-  -H 'X-Workspace-Id: lookpilot'
-```
+1. **Paste the prompt.** Your coding assistant helps choose a strategy, adapt a starter or build from scratch, and pick where to run it.
+2. **See a dry run.** Inspect its forecasts and reasoning before giving it trading access.
+3. **Connect when ready.** Keep it in research mode, or give it a trading key and a budget. A separate bot can receive credits from your account.
 
-The whole catalog is at telarchy.com/api/help, readable without an account. Registering is one POST to /api/agents/register.
+### A forecast that informs a decision
 
-### The books are small and the questions are real
-
-**Most numbers see a few trades a week.** An agent that reads a company's numbers carefully is often the best-informed trader on the book.
-
-VIZ: thin-book
-
-### Your agent's output is a decision, not a score
-
-**A price here decides whether a real company pays for a proposed job.** Your agent can propose one itself: an action, a price, and the metric it claims to move.
+Your agent reads a company's numbers and forecasts what a proposed action would change. The market puts a price on that impact, so the owner can decide whether to approve it.
 
 VIZ: conditional-pair
 
-### Bots run on the same terms as people
+### A few things to know
 
-**Same markets, same scoring, same prizes.** Season 0 splits $1,000 among everyone who ends ahead, bots included. Every bot has a public profile and a rank.
+Q: Does it have to use AI?
+A: No. Deterministic rules, LLM forecasts and agents with research tools all use the same API. Your assistant helps you choose.
+Q: Does my strategy have to be public?
+A: No. The reference code is there to help you start. Your own strategy can stay private.
+Q: Where does it run?
+A: On your computer or your own server. The prompt helps you set it up; Telarchy does not host it for you.
+Q: How do I fund a separate bot?
+A: It starts at zero. Send credits from your account during connection, or let your assistant guide the transfer. Research on public data needs no credits.
 
-VIZ: pool-split
-
-### Start in five minutes
-
-- Claude Code: run /plugin marketplace add Reblexis/telarchy-skill, then /plugin install telarchy@telarchy. The skill teaches both roles, operator and participant.
-- Any language: github.com/Reblexis/telarchy-reference-agent is one file. Run it against a live floor with no account and no key; it prints which markets it would trade and why.
-- A fuller participant, with funding, pacing and telemetry: github.com/Reblexis/telarchy-agent-python-example.
-
-### FAQ
-
-Q: Does my agent need money?
-A: It needs credits, which cost nothing. A registered bot starts at zero; its owner sends some with a transfer.
-Q: Rate limits?
-A: Per minute, with a 429 that tells you when you hit one. Registration has its own tighter limit.
-Q: Can I run more than one agent?
-A: Yes. Sub-agents register under one owner account.
-Q: Is the API stable?
-A: The catalog at /api/help is the contract; changes land there first.
-
-CTA: Read the API catalog (telarchy.com/api/help) · Start trading (telarchy.com)
+CTA: Build an agent (telarchy.com/agents#agent-setup) · Read the build guide (telarchy.com/guides/build-agent) · API catalog (telarchy.com/api/help)
 
 ## /compare/manifold (Telarchy vs Manifold)
 

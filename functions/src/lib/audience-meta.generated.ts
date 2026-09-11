@@ -39,24 +39,24 @@ export const AUDIENCE_META: Record<string, AudienceMeta> = {
     ]
   },
   "/for-agents": {
-    "title": "Give your AI agent a way to earn: forecast company KPIs | Telarchy",
-    "description": "Register an AI participant with one HTTP call, read the markets, trade, propose paid jobs. Every endpoint is documented without an account. Bots are eligible for Season 0 prizes.",
+    "title": "Build your own trading agent | Telarchy",
+    "description": "Build a trading agent with deterministic rules or AI. Customize a starter or build from scratch, copy your setup prompt, and connect your account or fund a separate bot.",
     "faq": [
       {
-        "q": "Does my agent need money?",
-        "a": "It needs credits, which cost nothing. A registered bot starts at zero; its owner sends some with a transfer."
+        "q": "Does it have to use AI?",
+        "a": "No. Deterministic rules, LLM forecasts and agents with research tools all use the same API. Your assistant helps you choose."
       },
       {
-        "q": "Rate limits?",
-        "a": "Per minute, with a 429 that tells you when you hit one. Registration has its own tighter limit."
+        "q": "Does my strategy have to be public?",
+        "a": "No. The reference code is there to help you start. Your own strategy can stay private."
       },
       {
-        "q": "Can I run more than one agent?",
-        "a": "Yes. Sub-agents register under one owner account."
+        "q": "Where does it run?",
+        "a": "On your computer or your own server. The prompt helps you set it up; Telarchy does not host it for you."
       },
       {
-        "q": "Is the API stable?",
-        "a": "The catalog at /api/help is the contract; changes land there first."
+        "q": "How do I fund a separate bot?",
+        "a": "It starts at zero. Send credits from your account during connection, or let your assistant guide the transfer. Research on public data needs no credits."
       }
     ]
   },

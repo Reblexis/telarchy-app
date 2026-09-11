@@ -15,6 +15,9 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 let mockAuth: { user: { id: string } | null; loading: boolean } = { user: null, loading: false };
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => mockAuth }));
 
+vi.mock('../NotificationsBell', () => ({ NotificationsBell: () => <button>What's new</button> }));
+vi.mock('../AccountMenu', () => ({ AccountMenu: () => <button>Account</button> }));
+
 import { TopBarAuth } from '../TopBarAuth';
 
 const renderAt = (path = '/northwind') =>
@@ -33,13 +36,15 @@ describe('the corner of the top bar', () => {
     renderAt('/northwind');
     const link = screen.getByRole('link', { name: 'Log in' });
     expect(link.getAttribute('href')).toBe('/login?next=%2Fnorthwind');
+    expect(screen.queryByRole('button', { name: "What's new" })).toBeNull();
   });
 
   test('does not tell a signed-in visitor to log in', () => {
     mockAuth = { user: { id: 'u1' }, loading: false };
     renderAt();
     expect(screen.queryByRole('link', { name: 'Log in' })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Account' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Account' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: "What's new" })).toBeTruthy();
   });
 
   test('says nothing at all while the session check is still out', () => {
@@ -48,5 +53,6 @@ describe('the corner of the top bar', () => {
     mockAuth = { user: null, loading: true };
     renderAt();
     expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.queryByRole('button', { name: "What's new" })).toBeNull();
   });
 });

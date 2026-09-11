@@ -1,224 +1,361 @@
-/**
- * The agents you own: what each has earned, and a way to fund them.
- *
- * There was no interface for any of this. `POST /api/agents` has taken
- * `initialCredits` since 2026-09-01 and nothing in the app called it, so every
- * bot on the platform was made with curl; `GET /api/agents/mine` was written to
- * list them ("Both surface here so the API page can split primary vs owned
- * bots") and no component read it.
- *
- * What it shows, in that order, is what an owner actually asks:
- *
- *  1. Has it done anything? Most have not. 94 owned bots had registered and not
- *     one had ever traded when this was built, so "no trades yet" is the common
- *     row and it says so plainly rather than showing a confident 0.00 profit.
- *  2. What has it earned? The leaderboard's own number, so this view and the
- *     public board cannot disagree.
- *  3. What has it got left, and can I top it up?
- *
- * Creating one is here too, because until now there was no way to do it except
- * curl, and the API key comes back exactly once: the server keeps only a hash,
- * so a key not copied off this screen is a key that is gone.
- *
- * Taking credits BACK is deliberately absent. Transfers are self-initiated by
- * design, so an owner cannot pull from a bot, and the default bot key lacks
- * `account:wallet` so the bot cannot send either. That is an open rules
- * question (notes/owned-agents-wallet-2026-09-01.md), and a button that
- * silently failed would be worse than no button.
- */
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { builderPrompt, defaults } from '../lib/agent-builder';
 import { api, type MyAgent } from '../lib/api';
+import { withBase } from '../lib/base-path';
+import { AgentConnectionSetup, type CreatedConnection } from './AgentConnectionSetup';
+import { AgentKeys } from './AgentKeys';
+import { AgentManualSetup } from './AgentManualSetup';
+import { AgentMark } from './AgentMark';
 
 const money = (n: number): string =>
   `${n < 0 ? '-' : ''}${Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 
-/** "never" reads as a verdict; "no trades yet" reads as a state. */
-function activity(a: MyAgent): string {
-  if (a.totalTrades === 0) return 'no trades yet';
+/** The last trade's day, or nothing when the date is missing or unreadable. */
+function lastDay(a: MyAgent): string | null {
   const when = a.lastTradeAt ? new Date(a.lastTradeAt) : null;
-  const day = when && !Number.isNaN(when.getTime()) ? when.toISOString().slice(0, 10) : null;
-  return `${a.totalTrades.toLocaleString('en-US')} trade${a.totalTrades === 1 ? '' : 's'}${day ? `, last ${day}` : ''}`;
+  return when && !Number.isNaN(when.getTime()) ? when.toISOString().slice(0, 10) : null;
 }
 
-export function MyAgents() {
+const NewButton = ({ label, onClick }: { label: string; onClick: () => void }) => (
+  <button type="button" className="agent-new" onClick={onClick}>
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
+      <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+    </svg>
+    {label}
+  </button>
+);
+
+/** The signed-in owner's bots and personal keys, on /agents: a ticket card per
+ * bot with the prompt one press away, personal keys in the second column. */
+export function MyAgents({
+  revision = 0,
+  created,
+  onCreate,
+  builder,
+}: {
+  revision?: number;
+  created?: CreatedConnection;
+  /** Asks the page to show the new-bot form (rendered back in as `builder`). */
+  onCreate?: (identity: 'bot') => void;
+  builder?: ReactNode;
+}) {
   const [rows, setRows] = useState<MyAgent[] | null>(null);
   const [err, setErr] = useState('');
   const [funding, setFunding] = useState<string | null>(null);
   const [amount, setAmount] = useState('25');
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [newId, setNewId] = useState('');
-  const [newCredits, setNewCredits] = useState('25');
-  const [madeKey, setMadeKey] = useState<{ agentId: string; apiKey: string } | null>(null);
-
-  const load = () => {
-    api
-      .getMyAgents()
-      .then(setRows)
-      .catch((e: Error) => setErr(e.message));
+  const [uncertain, setUncertain] = useState(false);
+  const [keysOpen, setKeysOpen] = useState<string | null>(null);
+  const [manual, setManual] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [copyFailed, setCopyFailed] = useState<string | null>(null);
+  const [keyCreate, setKeyCreate] = useState(0);
+  const [botKeyCreate, setBotKeyCreate] = useState(0);
+  const live = useRef(true);
+  const lock = useRef(false);
+  const generation = useRef(0);
+  const createdBot = created?.options.identity === 'bot' ? created.connection.agentId : undefined;
+  const load = async () => {
+    const current = ++generation.current;
+    const data = await api.getMyAgents();
+    if (live.current && current === generation.current) setRows(data);
   };
-  useEffect(load, []);
-
+  useEffect(() => {
+    live.current = true;
+    void load().catch(e => {
+      if (live.current) setErr(e.message);
+    });
+    return () => {
+      live.current = false;
+      generation.current++;
+    };
+  }, [revision]);
+  const refresh = async () => {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    setErr('');
+    try {
+      await load();
+      if (live.current) {
+        setUncertain(false);
+        setSaid('Balances refreshed. Review them before sending again.');
+      }
+    } catch (e) {
+      if (live.current) setErr((e as Error).message);
+    } finally {
+      lock.current = false;
+      if (live.current) setBusy(false);
+    }
+  };
   const send = async (to: string, shownAs: string) => {
+    if (lock.current || uncertain) return;
     const n = Number(amount);
     if (!Number.isFinite(n) || n <= 0) {
       setErr('Amount must be a number of credits above zero.');
       return;
     }
+    lock.current = true;
     setBusy(true);
     setErr('');
     try {
       await api.transferCredits(to, n, `funding ${to}`);
+      if (!live.current) return;
       setSaid(`Sent ${money(n)} cr to ${shownAs}`);
       setFunding(null);
-      load();
+      await load();
     } catch (e) {
-      setErr((e as Error).message);
+      if (live.current) {
+        setErr((e as Error).message);
+        setUncertain(true);
+      }
     } finally {
-      setBusy(false);
+      lock.current = false;
+      if (live.current) setBusy(false);
     }
   };
-
-  const create = async () => {
-    const agentId = newId.trim();
-    if (!agentId) {
-      setErr('A bot needs an id: lowercase letters, numbers and hyphens.');
-      return;
-    }
-    const credits = Number(newCredits === '' ? 0 : newCredits);
-    if (!Number.isFinite(credits) || credits < 0) {
-      setErr('Starting credits must be zero or more.');
-      return;
-    }
-    setBusy(true);
-    setErr('');
+  /** The prompt names the bot and its full access; it carries no credential. */
+  const copyPrompt = async (id: string) => {
+    const text = builderPrompt(
+      `${window.location.origin}${withBase('')}`,
+      { ...defaults, identity: 'bot', access: 'full', workspace: 'telarchy' },
+      id,
+    );
+    setCopied(null);
+    setCopyFailed(null);
     try {
-      const made = await api.createAgent({ agentId, initialCredits: credits });
-      setMadeKey({ agentId: made.agentId, apiKey: made.apiKey });
-      setCreating(false);
-      setNewId('');
-      load();
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setBusy(false);
+      await navigator.clipboard.writeText(text);
+      if (live.current) setCopied(id);
+    } catch {
+      if (live.current) setCopyFailed(id);
     }
   };
-
-  if (err && !rows) return <p className="acctdlg-hint">{err}</p>;
-  if (!rows) return <p className="acctdlg-hint">Loading your agents…</p>;
-
-  // The human's own participant is not a bot they own; it is them.
-  const bots = rows.filter(a => a.authUserId === null);
-  const me = rows.find(a => a.authUserId !== null) ?? null;
-
+  const all = rows ?? [];
+  const bots = [...all.filter(a => a.authUserId === null)].sort((a, b) =>
+    a.id === createdBot ? -1 : b.id === createdBot ? 1 : 0,
+  );
+  const me = rows?.find(a => a.authUserId !== null);
   return (
-    <div className="jobform-field">
-      <span className="ticket-label">Agents you own</span>
-      {bots.length === 0 ? (
-        <p className="acctdlg-hint">
-          You have none yet. A bot is its own participant with its own balance and its own leaderboard rank, created
-          with <code>POST /api/agents</code>; give it <code>initialCredits</code> and the credits move out of your
-          balance in the same call, so it can trade the moment it exists.{' '}
-          <a href="https://github.com/Reblexis/telarchy-reference-agent" target="_blank" rel="noreferrer">
-            The reference agent
-          </a>{' '}
-          is one file and shows what one does.
-        </p>
-      ) : (
-        <>
-          <ul className="myagents">
-            {bots.map(a => (
-              <li key={a.id} className="myagents-row">
-                <span className="myagents-name">{a.nickname || a.id}</span>
-                <span className="myagents-earned" title="Trading profit, the same number the leaderboard ranks on">
-                  {a.totalTrades === 0 ? '—' : `${a.earned >= 0 ? '+' : ''}${money(a.earned)} cr earned`}
-                </span>
-                <span className="myagents-act">{activity(a)}</span>
-                <span className="myagents-bal">{money(a.balance)} cr left</span>
-                <button
-                  type="button"
-                  className="acctdlg-ghost"
-                  onClick={() => setFunding(funding === a.id ? null : a.id)}
-                >
-                  {funding === a.id ? 'Cancel' : 'Send credits'}
-                </button>
-                {funding === a.id && (
-                  <span className="myagents-send">
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={amount}
-                      onChange={e => setAmount(e.target.value)}
-                      aria-label={`Credits to send to ${a.nickname || a.id}`}
-                    />
+    <div className="agent-owned agent-columns">
+      <section className="agent-section agent-bots" aria-labelledby="agent-bots-heading">
+        <div className="agent-section-head">
+          <h2 id="agent-bots-heading">
+            Bots <span>{rows ? bots.length : '…'}</span>
+          </h2>
+          {onCreate && !builder && <NewButton label="New bot" onClick={() => onCreate('bot')} />}
+        </div>
+        {builder}
+        {created && !(created.options.identity === 'me' ? me : bots.some(a => a.id === created.connection.agentId)) && (
+          <AgentConnectionSetup
+            agentId={created.connection.agentId!}
+            options={created.options}
+            apiKey={created.connection.key?.apiKey}
+          />
+        )}
+        {!rows ? (
+          <p>Loading your agents…</p>
+        ) : bots.length === 0 ? (
+          <div className="agent-empty">
+            <AgentMark compact />
+            <h3>No bots yet</h3>
+            <p>Give an agent its own balance and trading record.</p>
+            {onCreate && !builder && (
+              <button type="button" className="agent-empty-setup" onClick={() => onCreate('bot')}>
+                Create your first bot <span aria-hidden="true">↗</span>
+              </button>
+            )}
+          </div>
+        ) : (
+          <ul className="agent-cards">
+            {bots.map(a => {
+              const name = a.nickname || a.id;
+              const createdHere = createdBot === a.id;
+              const apiKey = createdHere ? created?.connection.key?.apiKey : undefined;
+              const day = lastDay(a);
+              return (
+                <li key={a.id} className="agent-card">
+                  <div className="agent-card-head">
+                    <AgentMark compact />
+                    <Link className="agent-profile-link" to={`/participants/${encodeURIComponent(a.id)}`}>
+                      {name}
+                    </Link>
+                  </div>
+                  <div className="agent-card-facts">
+                    <div title="Credits left">
+                      <span className="agent-card-cap">Credits</span>
+                      <span className="agent-card-num">{money(a.balance)}</span>
+                    </div>
+                    <div title="Credits earned, the number the leaderboard ranks on">
+                      <span className="agent-card-cap">Earned</span>
+                      {a.totalTrades === 0 ? (
+                        <span className="agent-card-note">no trades yet</span>
+                      ) : (
+                        <span className={`agent-card-num${a.earned > 0 ? ' is-up' : a.earned < 0 ? ' is-down' : ''}`}>
+                          {a.earned >= 0 ? '+' : ''}
+                          {money(a.earned)}
+                        </span>
+                      )}
+                    </div>
+                    <div title="Trades">
+                      <span className="agent-card-cap">Trades</span>
+                      <span className="agent-card-num">{a.totalTrades.toLocaleString('en-US')}</span>
+                      {day && <span className="agent-card-note">last {day}</span>}
+                    </div>
+                  </div>
+                  {apiKey && (
+                    <div className="builder-secret">
+                      <span className="builder-secret-label">YOUR API KEY</span>
+                      <code className="builder-key">{apiKey}</code>
+                      <button
+                        type="button"
+                        className="doors-pill"
+                        onClick={() =>
+                          void navigator.clipboard.writeText(apiKey).then(
+                            () => live.current && setSaid('Key copied'),
+                            () => live.current && setErr('Copy failed. Select the key and copy it manually.'),
+                          )
+                        }
+                      >
+                        Copy key
+                      </button>
+                      <small>Save it now. It’s only shown this session.</small>
+                    </div>
+                  )}
+                  <div className="agent-card-actions">
+                    <button type="button" className="agent-primary" onClick={() => void copyPrompt(a.id)}>
+                      {copied === a.id ? 'Prompt copied' : 'Copy setup prompt'}
+                    </button>
                     <button
                       type="button"
-                      className="acctdlg-ok"
-                      disabled={busy}
-                      onClick={() => void send(a.id, a.nickname || a.id)}
+                      aria-expanded={manual === a.id}
+                      onClick={() => setManual(manual === a.id ? null : a.id)}
                     >
-                      {busy ? 'Sending…' : 'Send'}
+                      {manual === a.id ? 'Hide manual setup' : 'Set up manually'}
                     </button>
-                  </span>
-                )}
-              </li>
-            ))}
+                    <button type="button" onClick={() => setFunding(funding === a.id ? null : a.id)}>
+                      {funding === a.id ? 'Cancel transfer' : 'Send credits'}
+                    </button>
+                    <button
+                      type="button"
+                      className="agent-card-keys-toggle"
+                      aria-label={`Keys for ${name}`}
+                      aria-expanded={keysOpen === a.id}
+                      onClick={() => setKeysOpen(keysOpen === a.id ? null : a.id)}
+                    >
+                      Keys
+                    </button>
+                  </div>
+                  {copied === a.id && (
+                    <p role="status" className="agent-card-status">
+                      Paste it into your coding assistant, such as Claude Code or Codex. Nothing is running yet.
+                    </p>
+                  )}
+                  {copyFailed === a.id && (
+                    <p role="alert" className="agent-card-status">
+                      Copy failed. Open Set up manually and copy the commands instead.
+                    </p>
+                  )}
+                  {funding === a.id && (
+                    <div className="myagents-send">
+                      <p className="agent-manage-hint">
+                        From your balance: {me ? `${money(me.balance)} cr` : 'not loaded'}
+                      </p>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={amount}
+                        disabled={busy}
+                        onChange={e => setAmount(e.target.value)}
+                        aria-label={`Credits to send to ${name}`}
+                      />
+                      <button type="button" disabled={busy || uncertain} onClick={() => void send(a.id, name)}>
+                        {busy ? 'Sending…' : 'Send'}
+                      </button>
+                      <details className="agent-transfer-details">
+                        <summary>Returning credits</summary>
+                        <p>To return credits, send them from the bot using a key with wallet access.</p>
+                      </details>
+                    </div>
+                  )}
+                  {manual === a.id && (
+                    <AgentManualSetup
+                      workspace="telarchy"
+                      identity="bot"
+                      access="full"
+                      connected
+                      connectionForm={
+                        apiKey ? (
+                          <button type="button" onClick={() => void navigator.clipboard.writeText(apiKey)}>
+                            Copy key
+                          </button>
+                        ) : (
+                          <p>Use this bot’s saved key, or create one under Keys.</p>
+                        )
+                      }
+                    />
+                  )}
+                  {keysOpen === a.id && (
+                    <div className="agent-card-keys">
+                      <span className="agent-group-cap">
+                        Keys
+                        <NewButton label="New key" onClick={() => setBotKeyCreate(n => n + 1)} />
+                      </span>
+                      <AgentKeys
+                        key={`keys-${a.id}`}
+                        agentId={a.id}
+                        identity="bot"
+                        showCreate={false}
+                        createRequested={botKeyCreate}
+                      />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
-          <p className="acctdlg-hint">
-            Credits move out of your own balance{me ? `, which is ${money(me.balance)} cr` : ''}. Getting them back
-            needs the bot to send them itself, from a key with wallet scope.
-          </p>
-        </>
+        )}
+      </section>
+      {me && (
+        <section id="personal-agent-keys" className="agent-section agent-self" aria-labelledby="agent-keys-heading">
+          <div className="agent-section-head">
+            <h2 id="agent-keys-heading">Your API keys</h2>
+            <NewButton label="New key" onClick={() => setKeyCreate(n => n + 1)} />
+          </div>
+          <p className="agent-section-note">Keys that act as you.</p>
+          {created?.options.identity === 'me' && (
+            <AgentConnectionSetup
+              agentId={created.connection.agentId!}
+              key={created.connection.key?.keyId}
+              options={created.options}
+              apiKey={created.connection.key?.apiKey}
+            />
+          )}
+          <AgentKeys key={me.id} agentId={me.id} identity="me" showCreate={false} createRequested={keyCreate} />
+        </section>
       )}
-      <div className="myagents-make">
-        <button type="button" className="acctdlg-ghost" onClick={() => setCreating(c => !c)}>
-          {creating ? 'Cancel' : 'Create an agent'}
-        </button>
-        {creating && (
-          <span className="myagents-makeform">
-            <label>
-              Agent id
-              <input type="text" value={newId} placeholder="my-trader" onChange={e => setNewId(e.target.value)} />
-            </label>
-            <label>
-              Starting credits
-              <input type="number" min="0" step="1" value={newCredits} onChange={e => setNewCredits(e.target.value)} />
-            </label>
-            <button type="button" className="acctdlg-ok" disabled={busy} onClick={() => void create()}>
-              {busy ? 'Creating…' : 'Create'}
-            </button>
-            <span className="acctdlg-hint">
-              The credits come out of your balance in the same call. If you cannot afford them, no bot is created.
-            </span>
-          </span>
+      <div className="agent-owned-status">
+        {said && <p role="status">{said}</p>}
+        {err && <p role="alert">{err}</p>}
+        {(uncertain || (err && !rows)) && (
+          <button type="button" disabled={busy} onClick={() => void refresh()}>
+            {uncertain ? 'Check transfer status' : 'Try again'}
+          </button>
+        )}
+        {uncertain && (
+          <p role="alert">The transfer result is uncertain. Check the transfer status before sending again.</p>
         )}
       </div>
-      {madeKey && (
-        <div className="myagents-key">
-          <p className="acctdlg-hint">
-            <strong>{madeKey.agentId}</strong> is live. Its key is shown once and cannot be fetched again; the server
-            keeps only a hash. Copy it now, or you will have to issue a new one.
-          </p>
-          <code className="myagents-keyval">{madeKey.apiKey}</code>
-          <button
-            type="button"
-            className="acctdlg-ghost"
-            onClick={() => {
-              navigator.clipboard.writeText(madeKey.apiKey).catch(e => console.error('copy failed:', e));
-            }}
-          >
-            Copy key
-          </button>
-          <button type="button" className="acctdlg-ghost" onClick={() => setMadeKey(null)}>
-            Done
-          </button>
-        </div>
-      )}
-      {said && <p className="acctdlg-ok-note">{said}</p>}
-      {err && rows && <p className="ticket-err">{err}</p>}
     </div>
   );
 }

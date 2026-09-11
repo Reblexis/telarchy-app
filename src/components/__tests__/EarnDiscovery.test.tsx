@@ -4,21 +4,20 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
  * Discovery goes where the lack is felt (owner ask 2026-08-30), and the
- * discipline is the absence: every one of these surfaces has to vanish
- * for an account with nothing left to earn, or it becomes the permanent
- * "earn credits!" furniture the design exists to avoid.
+ * balance remains useful even when there is no reward to advertise.
+ * Only the available reward disappears; the Get credits destination stays.
  */
 
 vi.mock('../../lib/api', () => ({ api: { getMyEarn: vi.fn() } }));
 
 import { clearEarnAvailableCache } from '../../hooks/useEarnAvailable';
 import { api } from '../../lib/api';
-import { EarnDoor } from '../EarnDoor';
+import { CreditsBalanceLink } from '../CreditsBalanceLink';
 
 const renderDoor = () =>
   render(
     <MemoryRouter>
-      <EarnDoor />
+      <CreditsBalanceLink balance={500} />
     </MemoryRouter>,
   );
 
@@ -27,17 +26,19 @@ beforeEach(() => {
   vi.mocked(api.getMyEarn).mockResolvedValue({ earned: 100, available: 5200, streak: null, rules: [] } as never);
 });
 
-describe('the top bar earn door', () => {
+describe('earning from the top bar balance', () => {
   test('shows what is unclaimed', async () => {
     renderDoor();
-    expect(await screen.findByText('+5,200')).toBeInTheDocument();
+    expect(await screen.findByText('Earn +5,200')).toBeInTheDocument();
+    expect(screen.getByText('500 cr')).toBeInTheDocument();
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/earn');
   });
 
-  test('DISAPPEARS once there is nothing left to earn', async () => {
+  test('keeps the balance and Get credits link when no reward is available', async () => {
     vi.mocked(api.getMyEarn).mockResolvedValue({ earned: 5300, available: 0, streak: null, rules: [] } as never);
     const { container } = renderDoor();
     await waitFor(() => expect(vi.mocked(api.getMyEarn)).toHaveBeenCalled());
-    await waitFor(() => expect(container.querySelector('.earndoor')).toBeNull());
+    await waitFor(() => expect(container.querySelector('.acctmenu-earn')?.textContent).toContain('Get credits'));
   });
 
   test("TODAY'S UNCLAIMED STREAK COUNTS, so the door survives a finished list", async () => {
@@ -51,7 +52,7 @@ describe('the top bar earn door', () => {
       rules: [],
     } as never);
     renderDoor();
-    expect(await screen.findByText('+50')).toBeInTheDocument();
+    expect(await screen.findByText('Earn +50')).toBeInTheDocument();
   });
 
   test('a streak already earned today does not keep the door open', async () => {
@@ -65,7 +66,7 @@ describe('the top bar earn door', () => {
     } as never);
     const { container } = renderDoor();
     await waitFor(() => expect(vi.mocked(api.getMyEarn)).toHaveBeenCalled());
-    await waitFor(() => expect(container.querySelector('.earndoor')).toBeNull());
+    await waitFor(() => expect(container.querySelector('.acctmenu-earn')?.textContent).toContain('Get credits'));
   });
 
   test('the streak adds to what is still unclaimed', async () => {
@@ -76,13 +77,13 @@ describe('the top bar earn door', () => {
       rules: [],
     } as never);
     renderDoor();
-    expect(await screen.findByText('+225')).toBeInTheDocument();
+    expect(await screen.findByText('Earn +225')).toBeInTheDocument();
   });
 
-  test('a failed read shows nothing rather than a wrong zero', async () => {
+  test('a failed read shows Get credits rather than a wrong reward amount', async () => {
     vi.mocked(api.getMyEarn).mockRejectedValue(new Error('offline'));
     const { container } = renderDoor();
     await waitFor(() => expect(vi.mocked(api.getMyEarn)).toHaveBeenCalled());
-    expect(container.querySelector('.earndoor')).toBeNull();
+    expect(container.querySelector('.acctmenu-earn')?.textContent).toContain('Get credits');
   });
 });

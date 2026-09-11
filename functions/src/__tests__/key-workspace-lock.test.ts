@@ -18,6 +18,7 @@ import { agentApiKeys, agents } from '../db/schema';
 import { provisionWorkspace } from '../lib/participants';
 import { toUnits } from '../lib/validation';
 import { authMiddleware, hashKey, optionalAuthMiddleware } from '../middleware/auth';
+import { agentsRouter } from '../routes/agents';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
 /**
@@ -40,6 +41,7 @@ const OPEN_KEY = 'open-key-raw';
 
 const app = express();
 app.use(express.json());
+app.use('/api/agents', authMiddleware, agentsRouter);
 app.get('/where', authMiddleware, (req, res) => {
   res.json({ workspaceId: req.auth?.workspaceId, caps: [...(req.auth?.capabilities ?? [])].sort() });
 });
@@ -119,4 +121,34 @@ describe('an unpinned key', () => {
     const res = await request(app).get('/where').set('X-Agent-Key', OPEN_KEY).set('X-Workspace-Id', OTHER).expect(200);
     expect(res.body.workspaceId).toBe(OTHER);
   });
+});
+
+test('an unrestricted owner key can explicitly remove an existing key lock', async () => {
+  await request(app)
+    .patch(`/api/agents/${AGENT}/keys/k-locked`)
+    .set('X-Agent-Key', OPEN_KEY)
+    .send({ workspaceLocked: false })
+    .expect(200);
+  await request(app).get('/where').set('X-Agent-Key', LOCKED_KEY).set('X-Workspace-Id', OTHER).expect(200);
+});
+test('a locked credential cannot unlock itself', async () => {
+  await request(app)
+    .patch(`/api/agents/${AGENT}/keys/k-locked`)
+    .set('X-Agent-Key', LOCKED_KEY)
+    .send({ workspaceLocked: false })
+    .expect(403);
+});
+
+test('renaming a key preserves its lock and invalid lock values are rejected', async () => {
+  await request(app)
+    .patch(`/api/agents/${AGENT}/keys/k-locked`)
+    .set('X-Agent-Key', OPEN_KEY)
+    .send({ label: 'Renamed' })
+    .expect(200);
+  await request(app).get('/where').set('X-Agent-Key', LOCKED_KEY).set('X-Workspace-Id', OTHER).expect(403);
+  await request(app)
+    .patch(`/api/agents/${AGENT}/keys/k-locked`)
+    .set('X-Agent-Key', OPEN_KEY)
+    .send({ workspaceLocked: 'false' })
+    .expect(400);
 });

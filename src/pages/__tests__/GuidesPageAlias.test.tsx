@@ -33,3 +33,36 @@ test('the old /guides/contracts address lands on /guides/get-paid', async () => 
   expect(vi.mocked(api.getGuide)).toHaveBeenCalledWith('get-paid');
   expect(vi.mocked(api.getGuide)).not.toHaveBeenCalledWith('contracts');
 });
+
+test('guides render tables, code and preview-safe Markdown links in one document column', async () => {
+  vi.mocked(api.getGuide).mockResolvedValue(`# Guide
+
+## Choose
+
+| Mode | Access |
+| --- | --- |
+| Research | Read |
+
+\`\`\`python
+print("hello")
+  # preserved indent
+\`\`\`
+
+[Next](auth-and-keys.md#keys)
+
+[Setup](/agents)
+`);
+  const { container } = render(
+    <MemoryRouter basename="/beta" initialEntries={['/beta/guides/build-agent']}>
+      <Routes>
+        <Route path="/guides/:section" element={<GuidesPage />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+  expect(await screen.findByRole('table')).toBeTruthy();
+  expect(screen.getByRole('link', { name: 'Next' })).toHaveAttribute('href', '/beta/guides/auth-and-keys#keys');
+  expect(screen.getByRole('link', { name: 'Setup' })).toHaveAttribute('href', '/beta/agents');
+  expect(container.querySelector('pre code')?.textContent).toContain('  # preserved indent');
+  expect(container.querySelector('main.pubws-doc')).toBeTruthy();
+  expect(container.querySelector('.pubws-doc .pubws-doc')).toBeNull();
+});

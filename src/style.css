@@ -3347,49 +3347,20 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
 /* The unclaimed figure beside the balance (owner ask 2026-08-30). Amber
    because it is money not yet taken, and absent entirely once there is
    nothing left, so the chip never carries decoration. */
-/* The top bar's earn door: reads as a quiet chip, amber only on the
-   number, and it is absent whenever there is nothing unclaimed. */
-.earndoor {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.3rem 0.65rem;
-  border: 1px solid var(--border-color);
-  border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  text-decoration: none;
-  white-space: nowrap;
-}
-.earndoor:hover { border-color: var(--accent); color: var(--text-primary); }
-.earndoor-n { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--accent); }
-/* The row carrying this door measures 525px, so it returns at a width that
-   can hold it and not one pixel earlier. */
-@media (max-width: 559px) { .earndoor { display: none; } }
-
-.acctmenu-earn {
-  margin-left: 0.35rem;
-  color: var(--accent);
-  font-weight: 700;
-}
-.acctmenu-credits { text-decoration: none; }
-.acctmenu-credits:hover { color: var(--text-primary); }
-
-.acctmenu-credits {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-/* Under 480px the controls and the balance together need more room than
-   the viewport has (the row measures 278px of controls beside a 46px mark
-   inside a 320px screen), and something has to fold. The balance folds
-   rather than a control: the account panel right beside it prints the
-   same figure with the earned line under it, so nothing becomes
-   unreachable. */
-@media (max-width: 480px) { .acctmenu-credits { display: none; } }
+.acctmenu-credits { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: .15rem; min-height: 2.3rem; padding: .15rem .1rem; text-decoration: none; white-space: nowrap; color: var(--text-primary); }
+.acctmenu-balance { font: 600 .78rem var(--font-mono); line-height: 1.2; }
+.acctmenu-earn { display: flex; align-items: center; gap: .2rem; font: 500 .62rem var(--font-sans); color: var(--text-secondary); line-height: 1.2; }
+.acctmenu-earn.has-reward { color: var(--accent); }
+.acctmenu-credits:hover .acctmenu-earn { text-decoration: underline; }
+.acctmenu-credits:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 2px; }
+.pubws-agents { display: inline-flex; align-items: center; gap: .4rem; min-height: 2.3rem; color: var(--text-secondary); text-decoration: none; font: 500 .8rem var(--font-sans); }
+.pubws-agents:hover, .pubws-agents[aria-current] { color: var(--accent); }
+.pubws-agents:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+.pubws-agents svg { flex-shrink: 0; }
+.acctmenu-appearance { padding: .55rem .8rem; }
+.acctmenu-appearance .pubws-theme-label { max-width: none; opacity: 1; }
+@media (max-width: 640px) { .pubws-agents span { display: none; } .pubws-agents { min-width: 1.8rem; justify-content: center; } }
+@media (max-width: 380px) { .acctmenu-balance { font-size: .7rem; } .acctmenu-earn { font-size: .58rem; } }
 
 .acctmenu-avatar {
   display: grid;
@@ -9364,14 +9335,14 @@ textarea.jobform-line--desc {
 .pubws-aud-table th { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-tertiary); }
 .pubws-aud-table td:first-child { font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-tertiary); white-space: nowrap; padding-right: 1rem; }
 .pubws-aud-faq { margin: 0; }
-.pubws-aud-qa { padding: 0.8rem 0; border-top: 1px solid var(--border); }
+.pubws-aud-qa { padding: 0.8rem 0; border-top: 1px solid var(--border-color); }
 .pubws-aud-qa dt { margin: 0 0 0.3rem; font-family: 'Fraunces', serif; font-weight: 600; font-size: 1.05rem; }
 .pubws-aud-qa dd { margin: 0; font-size: 0.875rem; line-height: 1.7; color: var(--text-secondary); }
 .pubws-story .pubws-aud-ul li { font-size: 0.875rem; line-height: 1.7; color: var(--text-secondary); }
 .pubws-story .pubws-aud-table td { color: var(--text-secondary); }
 .pubws-aud-cta { margin: 2.2rem 0 0; display: flex; flex-wrap: wrap; gap: 0.9rem 1.4rem; align-items: center; }
 .pubws-aud-link { color: var(--text-secondary); text-decoration: underline; text-underline-offset: 3px; }
-.pubws-aud-nav { border-top: 1px solid var(--border); padding-top: 1.4rem; }
+.pubws-aud-nav { border-top: 1px solid var(--border-color); padding-top: 1.4rem; }
 .pubws-aud-sibs { margin: 0 0 0.9rem; display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem; align-items: baseline; font-size: 0.9rem; }
 .pubws-aud-sibs .pubws-contact-label { width: 100%; }
 .pubws-aud-sib { color: var(--text-secondary); text-decoration: none; }
@@ -10172,54 +10143,6 @@ textarea.jobform-line--desc {
   margin-top: 0.35rem;
 }
 .myagents-send input { width: 6rem; }
-
-.myagents-make {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  align-items: flex-start;
-}
-.myagents-makeform {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: flex-end;
-  width: 100%;
-}
-.myagents-makeform label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  font-size: 0.74rem;
-  color: var(--text-secondary);
-}
-.myagents-makeform input { width: 9rem; }
-.myagents-makeform .acctdlg-hint { flex-basis: 100%; margin: 0; }
-
-/* The key panel. It is loud on purpose: the server keeps only a hash, so this
-   is the single moment the key exists anywhere the owner can read it. */
-.myagents-key {
-  margin-top: 0.6rem;
-  padding: 0.75rem 0.85rem;
-  border: 1px solid var(--accent);
-  border-radius: 10px;
-  background: var(--bg-tertiary);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-}
-.myagents-key .acctdlg-hint { flex-basis: 100%; margin: 0; }
-.myagents-keyval {
-  flex: 1 1 14rem;
-  overflow-wrap: anywhere;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.76rem;
-  color: var(--text-primary);
-  padding: 0.35rem 0.5rem;
-  border-radius: 6px;
-  background: var(--bg-secondary);
-}
 
 /* X workbench (docs/x-workbench.md). Same hairlines and tiny labels as the
    rest of /admin; the draft box is the one thing given room, because it is
@@ -11203,3 +11126,554 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
+
+/* Agent setup: quiet form rows, copy first, credentials in a separate step. */
+.agent-builder { margin: 1.5rem 0 3rem; font-size: .875rem; text-align: left; }
+.agent-builder p { line-height: 1.6; margin: .8rem 0; text-align: left; }
+.builder-choices { border: 0; padding: 0; margin: 1rem 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem 1.5rem; min-width: 0; }
+.agent-builder label { display: flex; flex-direction: column; gap: .4rem; font-weight: 500; min-width: 0; }
+.agent-builder small, .builder-action span { font-size: .75rem; color: var(--text-secondary); font-weight: 400; }
+.agent-builder select, .agent-builder input, .agent-builder textarea { width: 100%; min-width: 0; border: 0; border-bottom: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary); padding: .65rem .15rem; font: inherit; border-radius: 0; }
+.agent-builder textarea { font-family: monospace; font-size: .75rem; border: 1px solid var(--border-color); padding: .75rem; box-sizing: border-box; line-height: 1.5; resize: vertical; }
+.agent-builder details { border-top: 1px solid var(--border-color); padding: 1rem 0; }
+.agent-builder summary { cursor: pointer; font-weight: 500; }
+.builder-action { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; margin: 1.4rem 0; }
+.builder-key { display: block; overflow-wrap: anywhere; padding: .75rem 0; user-select: all; }
+.builder-funding { border-top: 1px solid var(--border-color); margin-top: 1.5rem; padding-top: 1rem; }
+.agent-builder button:disabled { opacity: .5; cursor: not-allowed; }
+@media (max-width: 520px) { .builder-choices { grid-template-columns: 1fr; gap: .85rem; } }
+
+/* A prompt handoff: two decisions, drawn as a small market instrument. */
+.builder-intro { color: var(--text-secondary); }
+.builder-signal { display: block; width: 100%; height: auto; margin: 1.8rem 0 2rem; color: var(--text-secondary); overflow: visible; }
+.builder-signal-wire { fill: none; stroke: var(--border-color); stroke-width: 1.5; }
+.builder-signal-forecast { stroke: var(--accent); }
+.builder-signal-dot { fill: var(--accent); }
+.builder-signal text { fill: currentColor; font: 13px var(--font-mono, monospace); letter-spacing: .6px; }
+.builder-choice-group { border: 0; margin: 0 0 1.4rem; padding: 0; min-width: 0; }
+.builder-choice-group legend { padding: 0; font: .65rem var(--font-mono, monospace); color: var(--text-secondary); letter-spacing: .06em; }
+.builder-choice-group legend span { margin-left: .65rem; font: 500 .9rem var(--font-sans); color: var(--text-primary); letter-spacing: 0; }
+.builder-options { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.agent-builder .builder-option { position: relative; display: flex; flex-direction: row; align-items: flex-start; gap: .7rem; padding: 1rem 0; border-bottom: 1px solid var(--border-color); cursor: pointer; }
+.agent-builder .builder-option:has(input:checked) { border-bottom-color: var(--accent); }
+.agent-builder .builder-option:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 4px; }
+.agent-builder .builder-option input { width: 14px; height: 14px; flex: 0 0 14px; margin: .3rem 0 0; padding: 0; border: 1.5px solid var(--border-color); border-radius: 50%; accent-color: var(--accent); }
+.builder-icon { width: 22px; height: 22px; flex: 0 0 22px; }
+.builder-option:has(input:checked) .builder-icon { color: var(--accent); }
+.builder-option strong { display: block; font-size: .85rem; font-weight: 500; line-height: 1.5; }
+.builder-option small { display: block; line-height: 1.5; margin-top: .25rem; }
+.agent-builder .builder-permission-note { font-size: .75rem; color: var(--text-secondary); }
+.builder-action .pubws-cta { display: inline-flex; align-items: center; gap: .6rem; }
+.builder-action .builder-icon { width: 17px; height: 17px; flex-basis: 17px; }
+@media (max-width: 520px) {
+  .builder-options { grid-template-columns: 1fr; gap: 0; }
+  .builder-signal { margin: 1.5rem 0; }
+  .agent-builder .builder-option { padding: .85rem 0; }
+  .builder-option small { margin-top: .1rem; }
+}
+
+/* Agent management is a document section, not an account-settings modal. */
+.agent-manage-jump { display: inline-block; font-size: .8rem; margin-top: .8rem; }
+.agent-management { border-top: 1px solid var(--border-color); padding-top: 1.5rem; margin: 2rem 0 3rem; scroll-margin-top: 6rem; font-size: .875rem; }
+.agent-management p { line-height: 1.6; text-align: left; }
+.agent-management h3 { font-family: var(--font-display); font-size: 1.2rem; margin: 1.5rem 0 .6rem; }
+.agent-management button { background: transparent; color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 999px; padding: .45rem .8rem; font: inherit; cursor: pointer; }
+.agent-management button:hover { border-color: var(--text-secondary); }
+.agent-management button:disabled { opacity: .5; cursor: not-allowed; }
+.agent-management button:focus-visible, .agent-management input:focus-visible, .agent-management select:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.agent-management .myagents { gap: 0; }
+.agent-management .myagents-row { background: transparent; border: 0; border-top: 1px solid var(--border-color); border-radius: 0; padding: 1rem 0; grid-template-areas: 'name earned' 'act bal'; gap: .35rem 1rem; }
+.agent-management .myagents-row > .agent-manage-actions, .agent-management .myagents-row > .agent-keys, .agent-management .myagents-send { grid-column: 1 / -1; grid-area: auto / 1 / auto / -1; }
+.agent-manage-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .7rem 0; }
+.agent-manage-hint { color: var(--text-secondary); font-size: .75rem; }
+.agent-self { padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); }
+.agent-keys { min-width: 0; margin-top: .8rem; padding-left: 1rem; border-left: 2px solid var(--border-color); }
+.agent-key-list { list-style: none; padding: 0; margin: 0; }
+.agent-key-list > li { border-top: 1px solid var(--border-color); padding: 1rem 0; }
+.agent-key-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+.agent-key-heading span { font-size: .7rem; color: var(--text-secondary); }
+.agent-key-scopes { font-size: .7rem; overflow-wrap: anywhere; }
+.agent-keys p { overflow-wrap: anywhere; }
+.agent-manage-form { display: grid; gap: .8rem; margin: 1rem 0; }
+.agent-manage-form label { display: grid; gap: .4rem; font-size: .8rem; }
+.agent-manage-form input, .agent-manage-form select { width: 100%; min-width: 0; border: 0; border-bottom: 1px solid var(--border-color); border-radius: 0; padding: .6rem 0; background: transparent; color: var(--text-primary); font: inherit; }
+.agent-manage-form > button { justify-self: start; }
+.agent-new-key { margin: 1rem 0; border-top: 1px solid var(--accent); padding-top: .5rem; }
+.agent-new-key > code { display: block; overflow-wrap: anywhere; user-select: all; font-size: .8rem; }
+@media (max-width: 520px) {
+  .agent-management .myagents-row { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'name' 'act' 'earned' 'bal'; }
+  .agent-keys { padding-left: .65rem; }
+}
+
+/* Guides use one document column; wide examples scroll inside it. */
+.guide-prose { line-height: 1.8; overflow-wrap: anywhere; color: var(--text-secondary); }
+.guide-prose h1 { font-family: var(--font-display); font-size: clamp(2rem, 5vw, 3rem); font-weight: 500; line-height: 1.12; color: var(--text-primary); margin: 1rem 0 2rem; }
+.guide-prose h2 { font-size: 1.25rem; line-height: 1.4; color: var(--text-primary); margin: 2.5rem 0 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color); }
+.guide-prose h3, .guide-prose h4 { color: var(--text-primary); margin: 1.75rem 0 .6rem; line-height: 1.5; }
+.guide-prose p, .guide-prose ul, .guide-prose ol { margin: 0 0 1.2rem; }
+.guide-prose ul, .guide-prose ol { padding-left: 1.5rem; }
+.guide-prose li { margin: .4rem 0; }
+.guide-prose a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.guide-prose code { font-family: var(--font-mono); font-size: .85em; background: var(--bg-secondary); padding: .15em .3em; border-radius: 3px; }
+.guide-prose pre { max-width: 100%; overflow-x: auto; padding: 1rem; margin: 1.5rem 0; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; line-height: 1.65; }
+.guide-prose pre code { padding: 0; overflow-wrap: normal; white-space: pre; }
+.guide-table { max-width: 100%; overflow-x: auto; margin: 1.5rem 0; }
+.guide-table table { width: 100%; border-collapse: collapse; font-size: .9rem; text-align: left; }
+.guide-table th, .guide-table td { padding: .75rem; border-bottom: 1px solid var(--border-color); vertical-align: top; min-width: 7rem; }
+.guide-table th { color: var(--text-primary); font-weight: 600; }
+.guide-prose blockquote { border-left: 2px solid var(--accent); padding-left: 1rem; margin: 1.5rem 0; }
+.guide-prose img { max-width: 100%; height: auto; }
+.agent-setup-door { border-top: 1px solid var(--border-color); margin-top: 2rem; }
+.agent-setup-door > summary { cursor: pointer; padding: 1.2rem 0; font-weight: 500; display: flex; justify-content: space-between; }
+.agent-setup-door[open] > summary span { transform: rotate(45deg); }
+
+@media (max-width: 480px) {
+  .pubws-topbar-right > .pubws-discord, .pubws-topbar-right > .pubws-report { display: none; }
+  .pubws-topbar .acctmenu { gap: .35rem; }
+}
+@media (max-width: 380px) {
+  .pubws-topbar { padding-left: .5rem; padding-right: .5rem; }
+}
+
+/* A focused home for connections, with one active task at a time. */
+.agents-page .pubws-doc { padding-top: 2.5rem; }
+.agents-hero { display: flex; align-items: center; justify-content: space-between; gap: 2rem; margin-bottom: 2.5rem; }
+.agents-hero .pubws-h2 { font-size: .62rem; letter-spacing: .12em; margin: 0 0 .8rem; }
+.agents-hero h1 { font: 500 clamp(3rem, 8vw, 4.25rem)/1 var(--font-display); margin: 0 0 1rem; letter-spacing: -.045em; }
+.agents-hero p:last-child { color: var(--text-secondary); font-size: .95rem; line-height: 1.65; margin: 0; }
+.agent-mark { width: 148px; flex: 0 0 148px; color: var(--text-primary); }
+.agent-mark-orbit { stroke: var(--border-strong); stroke-dasharray: 3 6; }
+.agent-mark--small { width: 46px; height: 42px; flex: 0 0 46px; }
+.agent-task-nav { display: flex; gap: 2rem; border-bottom: 1px solid var(--border-color); margin-bottom: 2rem; scroll-margin-top: 5rem; }
+.agent-task-nav a { padding: .9rem 0; font-size: .85rem; font-weight: 500; color: var(--text-secondary); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.agent-task-nav a[aria-current] { color: var(--text-primary); border-bottom-color: var(--accent); }
+.agent-task-nav a:hover { color: var(--accent); }
+.agent-task-nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.agents-page .agent-management { border: 0; padding: 0; margin: 0; }
+.agents-page .agent-builder { margin: 0; }
+.builder-heading h2, .agent-login-state h2 { font: 500 1.65rem/1.25 var(--font-display); margin: 0 0 .5rem; letter-spacing: -.02em; }
+.builder-heading p { color: var(--text-secondary); }
+.builder-journey { display: flex; gap: 1rem; justify-content: space-between; list-style: none; padding: 0 0 1.5rem; margin: 1.5rem 0; border-bottom: 1px solid var(--border-color); }
+.builder-journey li { display: flex; align-items: center; gap: .45rem; color: var(--text-secondary); font-size: .72rem; }
+.builder-journey li > span { display: grid; place-items: center; width: 1.4rem; height: 1.4rem; border: 1px solid var(--border-strong); border-radius: 50%; font: .65rem var(--font-mono); }
+.builder-journey li.is-done > span { color: var(--accent); border-color: var(--accent); }
+.agents-page .builder-options { gap: .8rem; margin-top: .7rem; }
+.agents-page .builder-option { padding: 1rem; border: 1px solid var(--border-color); border-radius: 7px; transition: background .15s, border-color .15s; }
+.agents-page .builder-option:hover { background: var(--bg-secondary); }
+.agents-page .builder-option:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 4%, var(--bg-primary)); }
+.agents-page .builder-option input { margin-left: 0; }
+.agents-page .builder-choice-group { margin-bottom: 1.2rem; }
+.agents-page .builder-choice-group legend { font-size: 0; }
+.agents-page .builder-choice-group legend span { margin-left: 0; font-size: .85rem; }
+.agents-page .builder-action { padding: 1.2rem 0; border-top: 1px solid var(--border-color); margin: 1.2rem 0 0; }
+.builder-action > span small { display: block; margin-top: .3rem; font-size: .7rem; }
+.builder-next { border-left: 2px solid var(--accent); padding: .2rem 1rem; margin-bottom: 1rem; }
+.builder-next strong { font-weight: 500; }
+.agent-builder .builder-next p { font-size: .8rem; margin: .3rem 0; color: var(--text-secondary); }
+.agent-list-heading { margin: 0 0 1.3rem; }
+.agent-list-heading h2 { font: 500 1.5rem var(--font-display); margin: 0; }
+.agent-list-heading h2 > span { font: .7rem var(--font-mono); color: var(--text-secondary); margin-left: .5rem; }
+.agent-list-heading p { color: var(--text-secondary); font-size: .78rem; margin: .5rem 0; }
+.agents-page .agent-owned > .agent-manage-actions { float: right; margin: 0 0 .8rem 1rem; }
+.agents-page .agent-owned > .agent-manage-actions > button:first-child { border-color: transparent; color: var(--text-secondary); font-size: .72rem; padding-left: 0; }
+.agent-management button.agent-primary { background: var(--text-primary); color: var(--bg-primary); border-color: var(--text-primary); border-radius: 5px; }
+.agent-empty { clear: both; padding: 1.8rem 1rem 2rem; text-align: center; border-top: 1px solid var(--border-color); }
+.agent-empty .agent-mark { width: 74px; height: 65px; }
+.agent-management .agent-empty h3 { margin: .5rem 0; font-size: 1.4rem; }
+.agent-management .agent-empty p { max-width: 23rem; text-align: center; margin: .6rem auto 1.2rem; color: var(--text-secondary); font-size: .82rem; }
+.agents-page .myagents-name { display: flex; align-items: center; gap: .5rem; overflow-wrap: anywhere; }
+.agents-page .myagents-name .agent-mark { width: 32px; height: 30px; flex-basis: 32px; }
+.agents-page .myagents-row { padding: 1.2rem 0; }
+.agents-page .myagents-earned { align-self: center; }
+.agents-page .myagents-act { padding-left: 2.5rem; }
+.agents-page .myagents-row > .agent-manage-actions { margin: .7rem 0 0 2.5rem; }
+.agents-page .agent-self { border-top: 1px solid var(--border-color); margin-top: 2rem; padding-top: 1.2rem; }
+.agent-self-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.agent-management .agent-self-heading h3 { margin: 0; }
+.agent-self-heading span { font: .58rem var(--font-mono); color: var(--text-secondary); letter-spacing: .05em; }
+.agents-page .agent-self > p { font-size: .8rem; color: var(--text-secondary); margin: .5rem 0; }
+.agents-page .agent-self > button { margin-top: .5rem; }
+.agents-foot { border-top: 1px solid var(--border-color); margin-top: 2.5rem; padding-top: 1.2rem; font-size: .73rem; color: var(--text-secondary); line-height: 1.6; }
+.agents-foot p { margin: 0 0 .6rem; }
+.agents-foot div { display: flex; flex-wrap: wrap; gap: 1.2rem; }
+.agents-foot a { color: var(--text-secondary); text-decoration: none; }
+.agents-foot a:hover { color: var(--accent); }
+@media (max-width: 520px) {
+  .agents-page .pubws-doc { padding-top: 1.8rem; }
+  .agents-hero { gap: .8rem; margin-bottom: 1.6rem; }
+  .agents-hero .agent-mark { width: 94px; flex-basis: 94px; }
+  .agents-hero p:last-child { font-size: .8rem; }
+  .agents-hero .pubws-h2 { font-size: .52rem; max-width: 12rem; line-height: 1.7; }
+  .agent-task-nav { gap: 1.4rem; margin-bottom: 1.5rem; }
+  .agent-task-nav a { font-size: .8rem; }
+  .builder-heading h2 { font-size: 1.4rem; }
+  .builder-journey { gap: .5rem; }
+  .builder-journey li { flex-direction: column; align-items: flex-start; gap: .4rem; font-size: .65rem; }
+  .agents-page .builder-options { gap: .55rem; }
+  .agents-page .builder-option { padding: .8rem; }
+  .agents-page .agent-owned > .agent-manage-actions { float: none; margin: 0 0 1rem; justify-content: space-between; }
+  .agents-page .myagents-act { padding-left: 0; }
+  .agents-page .myagents-row > .agent-manage-actions { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .agents-page .builder-option { transition: none; } }
+@media (max-width: 520px) {
+  .agents-page .builder-options { grid-template-columns: 1fr 1fr; gap: .6rem; }
+  .agents-page .builder-option { flex-wrap: wrap; gap: .5rem; padding: .75rem; align-content: flex-start; }
+  .agents-page .builder-option > span { flex: 1 0 100%; }
+  .agents-page .builder-option strong { font-size: .8rem; }
+  .agents-page .builder-option small { font-size: .7rem; }
+  .agents-page .builder-action { gap: .65rem; }
+  .agents-page .builder-action > button { width: 100%; justify-content: center; }
+  .agents-page .builder-action > span { width: 100%; text-align: center; }
+}
+.agent-list-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.agent-list-toolbar .agent-manage-actions { margin: 0; justify-content: flex-end; }
+.agent-list-toolbar .agent-manage-actions > button:first-child { border-color: transparent; color: var(--text-secondary); font-size: .72rem; }
+.agent-management button:hover { background: var(--bg-secondary); color: var(--text-primary); }
+.agent-management button.agent-primary:hover { background: var(--text-secondary); color: var(--bg-primary); }
+.agents-page .myagents-send { flex-wrap: wrap; }
+.myagents-send .agent-manage-hint { flex-basis: 100%; margin: 0 0 .5rem; }
+@media (max-width: 520px) {
+  .agents-page .pubws-doc { padding-top: 1rem; }
+  .agents-hero { margin-bottom: 1rem; }
+  .agents-hero .pubws-h2 { display: none; }
+  .agents-hero h1 { font-size: 2.75rem; margin-bottom: .5rem; }
+  .agents-hero .agent-mark { width: 74px; flex-basis: 74px; }
+  .agent-task-nav { margin-bottom: 1.2rem; }
+  .builder-journey { display: none; }
+  .builder-heading { margin-bottom: 1.2rem; }
+  .builder-heading h2 { font-size: 1.2rem; }
+  .agent-builder .builder-heading p { font-size: .78rem; margin: .4rem 0; }
+  .agent-list-toolbar { flex-wrap: wrap; gap: .75rem; }
+  .agent-list-toolbar .agent-manage-actions { gap: .6rem; }
+  .agent-list-toolbar h2 { flex: 1 0 100%; }
+}
+
+.agent-profile-link { color: inherit; text-decoration: underline; text-decoration-color: var(--border-strong); text-underline-offset: .2em; }
+.agent-profile-link:hover { color: var(--accent); text-decoration-color: currentColor; }
+.agent-profile-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 2px; }
+
+/* Key summaries answer what and where; identifiers stay available on request. */
+.agent-key-list .agent-key-purpose { margin: .5rem 0; font-size: .85rem; color: var(--text-primary); }
+.agent-key-list .agent-key-context, .agent-key-list .agent-key-used { margin: .25rem 0; font-size: .76rem; color: var(--text-secondary); }
+.agent-key-access { font-size: .7rem; border: 1px solid var(--border-color); border-radius: 4px; padding: .15rem .4rem; white-space: nowrap; }
+.agent-key-technical { margin: .65rem 0 .9rem; font-size: .73rem; color: var(--text-secondary); }
+.agent-key-technical summary { cursor: pointer; }
+.agent-key-technical p { margin: .5rem 0; }
+.agent-key-technical code { overflow-wrap: anywhere; }
+.agent-key-list > li { padding: 1.1rem 0; }
+@media (max-width: 520px) { .agent-key-heading { align-items: flex-start; flex-wrap: wrap; gap: .4rem; } }
+.agent-transfer-details { flex-basis: 100%; font-size: .73rem; color: var(--text-secondary); }
+.agent-transfer-details summary { cursor: pointer; }
+
+.builder-action .builder-manual-toggle { border: 1px solid var(--border-strong); border-radius: 999px; background: transparent; color: var(--text-primary); padding: .7rem 1rem; font: 500 .8rem var(--font-sans); cursor: pointer; }
+.builder-action .builder-manual-toggle:hover, .builder-action .builder-manual-toggle[aria-expanded=true] { background: var(--bg-secondary); }
+.builder-manual-toggle:focus-visible, .manual-command-bar button:focus-visible, .manual-commands pre:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.agent-manual { margin: 1.2rem 0; padding-top: 1.5rem; border-top: 1px solid var(--border-color); }
+.manual-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.manual-heading h2 { font: 500 1.6rem var(--font-display); margin: 0; }
+.manual-heading label { font-size: .7rem; color: var(--text-secondary); }
+.agent-builder .manual-heading select { font-size: .75rem; padding: .4rem 0; }
+.manual-step { margin-top: 1.5rem; }
+.manual-step h3 { display: flex; align-items: center; gap: .6rem; font: 500 1rem var(--font-sans); margin: 0; }
+.manual-step h3 > span { display: grid; place-items: center; border: 1px solid var(--border-strong); border-radius: 50%; height: 1.5rem; width: 1.5rem; font: .7rem var(--font-mono); }
+.agent-builder .manual-step > p { font-size: .8rem; color: var(--text-secondary); }
+.agent-builder .manual-note { font-size: .73rem; color: var(--text-secondary); }
+.manual-commands { min-width: 0; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; margin: .8rem 0; }
+.manual-command-bar { display: flex; align-items: center; justify-content: space-between; padding: .5rem .75rem; gap: .5rem; border-bottom: 1px solid var(--border-color); background: var(--bg-secondary); }
+.manual-command-bar > span { font: .6rem var(--font-mono); letter-spacing: .06em; color: var(--text-secondary); }
+.manual-command-bar button { font: 500 .72rem var(--font-sans); cursor: pointer; background: transparent; color: var(--text-primary); border: 0; padding: .3rem 0; }
+.manual-command-bar button:hover { color: var(--accent); background: transparent; }
+.manual-commands pre { margin: 0; padding: .9rem; overflow-x: auto; font: .7rem/1.7 var(--font-mono); white-space: pre; background: var(--bg-secondary); color: var(--text-primary); }
+.manual-step .builder-connect { margin-top: .8rem; }
+.agent-builder .manual-live { padding-bottom: 0; }
+@media (max-width: 520px) {
+  .agents-page .builder-action { display: grid; grid-template-columns: 1.2fr 1fr; gap: .6rem; }
+  .agents-page .builder-action > button { font-size: .72rem; padding: .7rem .55rem; min-width: 0; gap: .3rem; }
+  .agents-page .builder-action > .builder-selected-summary { grid-column: 1 / -1; margin-top: .25rem; }
+  .manual-heading { align-items: flex-start; }
+  .manual-heading h2 { font-size: 1.3rem; }
+}
+
+/* The floor's compact instrument register, applied to the agent workspace. */
+.agents-page .agents-hero { justify-content: flex-start; gap: .75rem; margin: 0 0 1.6rem; }
+.agents-page .agents-hero .agent-mark { width: 44px; height: 42px; flex-basis: 44px; }
+.agents-page .agents-hero h1 { font: 600 2rem/1.15 var(--font-display); letter-spacing: -.02em; margin: 0 0 .25rem; }
+.agents-page .agents-hero p { font-size: .8rem; line-height: 1.5; }
+.agents-page .agent-task-nav { align-items: flex-end; gap: 1.4rem; padding-bottom: 2px; margin-bottom: 1.5rem; }
+.agents-page .agent-task-nav a { padding: 0 0 .6rem; font: 500 .7rem/1.4 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
+.agents-page .builder-heading h2, .agents-page .agent-list-heading h2, .agents-page .agent-self-heading h3, .agents-page .manual-heading h2 { font: 600 .72rem/1.5 var(--font-sans); letter-spacing: .09em; text-transform: uppercase; }
+.agents-page .builder-heading p { font-size: .8rem; }
+.agents-page .builder-journey { margin: 1rem 0 1.2rem; padding-bottom: 1rem; }
+.agents-page .builder-choice-group { margin: 0 0 .6rem; }
+.agents-page .builder-options.pubws-seg { display: grid; grid-template-columns: 1fr 1fr; width: 100%; gap: 2px; padding: 3px; margin-top: .5rem; border-radius: 8px; background: var(--bg-secondary); }
+.agents-page .builder-option.pubws-seg-btn { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: center; gap: .5rem; padding: .75rem .65rem; margin: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-secondary); white-space: normal; }
+.agents-page .builder-option.pubws-seg-btn.is-active { background: var(--bg-primary); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+.agents-page .builder-option.pubws-seg-btn > span { flex: 0 1 auto; }
+.agents-page .builder-option.pubws-seg-btn strong { font-size: .73rem; line-height: 1.4; letter-spacing: .02em; }
+.agents-page .builder-option.pubws-seg-btn .builder-icon { width: 18px; height: 18px; flex-basis: 18px; }
+.agents-page .builder-option.pubws-seg-btn input, .agents-page .builder-option.pubws-seg-btn small { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.agents-page .builder-choice-caption { margin: .4rem 0 1.2rem; font: .7rem/1.5 var(--font-mono); color: var(--text-secondary); }
+.agents-page .agent-management button { font-size: .76rem; padding: .35rem .7rem; }
+.agents-page .agent-list-toolbar { margin-bottom: .5rem; }
+.agents-page .agent-list-heading p { font-size: .75rem; }
+.agents-page .agent-self { margin-top: 1.4rem; padding-top: 1rem; }
+.agents-page .agent-key-list > li { padding: .9rem 0; }
+.agents-page .agent-key-purpose { font-size: .8rem; }
+@media (min-width: 641px) {
+  .agents-page .agent-management .myagents-row { grid-template-columns: minmax(0, 1fr) auto auto auto; grid-template-areas: 'name earned bal actions' 'act earned bal actions'; gap: .3rem .85rem; padding: .85rem 0; align-items: center; }
+  .agents-page .agent-management .myagents-row > .agent-manage-actions { grid-area: actions; margin: 0; flex-wrap: nowrap; gap: .4rem; }
+  .agents-page .myagents-earned, .agents-page .myagents-bal { font-size: .7rem; }
+}
+@media (max-width: 640px) {
+  .agents-page .agent-management .myagents-row { grid-template-columns: minmax(0,1fr) auto; grid-template-areas: 'name name' 'act act' 'earned bal' 'actions actions'; gap: .4rem .7rem; }
+  .agents-page .agent-management .myagents-row > .agent-manage-actions { grid-area: actions; justify-content: flex-end; margin: .3rem 0 0; }
+  .agents-page .agent-list-toolbar h2 { flex: 1 1 auto; }
+  .agents-page .agent-list-toolbar { gap: .5rem; }
+  .agents-page .agent-list-toolbar .agent-manage-actions { gap: .3rem; }
+}
+
+/* Agent controls share the floor ticket's surfaces, radii and interaction states. */
+.agents-page .agents-hero { flex-wrap: wrap; }
+.agents-back { flex: 0 0 100%; display: flex; align-items: center; gap: .5rem; width: fit-content; color: var(--text-secondary); font-size: .78rem; text-decoration: none; margin-bottom: .6rem; }
+.agents-back:hover { color: var(--text-primary); }
+.agents-back:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.agents-page .agent-management button, .agents-page .builder-action > button, .agents-page .builder-connect button, .agents-page .builder-funding button { border-radius: 10px; padding: .6rem .85rem; font: 500 .78rem/1.4 var(--font-sans); transition: background 120ms ease, border-color 120ms ease; }
+.agents-page .agent-management button.agent-primary, .agents-page .builder-action .pubws-cta { background: var(--button-bg); color: var(--button-text); border: 1px solid transparent; font-weight: 600; }
+.agents-page .agent-management button.agent-primary:hover, .agents-page .builder-action .pubws-cta:hover { background: var(--button-bg-hover); transform: none; }
+.agents-page .agent-manage-form input, .agents-page .agent-manage-form select, .agents-page .builder-connect input, .agents-page .builder-connect select, .agents-page .builder-funding input, .agents-page .myagents-send input, .agents-page .manual-heading select { border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg-elevated); padding: .65rem .8rem; color: var(--text-primary); font: 400 .8rem/1.4 var(--font-sans); }
+.agents-page .agent-keys { border-left: 0; border-top: 1px solid var(--border-color); padding: .8rem 0 0; }
+.agents-page .agent-key-heading strong { font: 600 .82rem/1.5 var(--font-sans); }
+.agents-page .agent-key-access { border-radius: 6px; background: var(--bg-secondary); font: .65rem/1.5 var(--font-mono); padding: .2rem .45rem; }
+.agents-page .agent-key-technical, .agents-page .agent-transfer-details { font-size: .75rem; }
+.agents-page .manual-commands { border-radius: 8px; }
+.agents-page .agent-manage-form input:focus-visible, .agents-page .agent-manage-form select:focus-visible, .agents-page .builder-connect input:focus-visible, .agents-page .builder-connect select:focus-visible, .agents-page .manual-heading select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.agents-page .agent-list-heading h2 { display: flex; align-items: center; gap: .5rem; }
+.agents-page .agent-management button.agent-add { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 6px; color: var(--text-secondary); background: transparent; vertical-align: middle; }
+.agents-page .agent-management button.agent-add:hover { background: var(--bg-secondary); color: var(--text-primary); }
+
+.agents-page .agent-self-heading h3 { display: flex; align-items: center; gap: .5rem; }
+
+/* A visible key step followed by the runtime handoff. */
+.agents-page .builder-heading { margin-bottom: 1.3rem; }
+.agents-page .builder-heading h2 { font: 500 1.5rem/1.2 var(--font-display); letter-spacing: -.02em; text-transform: none; }
+.agents-page .builder-connect { border: 0; border-radius: 0; padding: 0; margin: 1.4rem 0; background: transparent; scroll-margin-top: 6rem; }
+.builder-section-title { display: flex; align-items: center; gap: .6rem; }
+.builder-section-title > span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--text-primary); color: var(--bg-primary); font: .7rem var(--font-mono); }
+.agents-page .builder-section-title h2 { margin: 0; font: 600 .9rem/1.4 var(--font-sans); letter-spacing: 0; text-transform: none; }
+.agents-page .builder-connect > p, .agents-page .builder-run > p { font-size: .78rem; color: var(--text-secondary); }
+.agents-page .builder-connect .builder-choices { margin: .8rem 0; gap: .85rem; }
+.agents-page .builder-connect .builder-choices:first-of-type { grid-template-columns: 1fr; }
+.agents-page .builder-connect .doors-pill { border-radius: 8px; padding: .7rem 1rem; background: var(--button-bg); color: var(--button-text); border: 0; font: 600 .8rem var(--font-sans); }
+.agents-page .builder-connect .doors-pill:hover { background: var(--button-bg-hover); }
+.agents-page .builder-connect .builder-funding .doors-pill { background: transparent; border: 1px solid var(--border-strong); color: var(--text-primary); }
+.builder-secret { background: var(--bg-secondary); border: 1px solid var(--border-strong); border-radius: 8px; padding: .85rem; margin: 1rem 0; }
+.builder-secret-label { font: .6rem var(--font-mono); letter-spacing: .08em; color: var(--text-secondary); }
+.builder-secret .builder-key { font: .83rem/1.6 var(--font-mono); padding: .5rem 0 0; }
+.agents-page .builder-run { margin-top: 1.7rem; }
+.agents-page .builder-run .builder-action { margin-top: .8rem; border-top: 0; padding-top: 0; }
+.agents-page .builder-key-jump { border: 0; background: transparent; color: var(--accent); padding: .4rem 0; font: inherit; cursor: pointer; }
+@media (max-width: 520px) { .agents-page .builder-connect { padding: 0; } .agents-page .builder-connect .builder-choices { grid-template-columns: 1fr; } }
+
+.agents-page .agent-key-list > li { position: relative; }
+.agents-page .agent-key-context, .agents-page .agent-key-used { display: inline-block; margin-right: .8rem; font: .7rem/1.5 var(--font-mono); }
+.agents-page .agent-key-purpose { margin: .35rem 0; }
+.agents-page .agent-keys > .agent-manage-hint { font-size: .72rem; margin: 0 0 .75rem; }
+@media (min-width: 641px) {
+ .agents-page .agent-key-list > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 1rem; }
+ .agents-page .agent-key-list > li > .agent-key-heading { grid-column: 1; grid-row: 1; min-width: 0; justify-content: flex-start; }
+ .agents-page .agent-key-list > li > .agent-manage-actions { grid-column: 2; grid-row: 1; margin: 0; align-self: start; }
+ .agents-page .agent-key-list > li > .agent-key-purpose, .agents-page .agent-key-list > li > .agent-key-used { grid-column: 1 / -1; }
+ .agents-page .agent-key-list > li > .agent-manage-form, .agents-page .agent-key-list > li > .builder-run, .agents-page .agent-key-list > li > .agent-manage-confirm { grid-column: 1 / -1; }
+ .agents-page .agent-key-heading strong { overflow-wrap: anywhere; }
+}
+
+.agents-page .agents-back { flex: 0 0 auto; order: 3; margin: 0 0 0 auto; }
+.agents-page .builder-connect > p { margin: .6rem 0; }
+.agents-page .builder-connect .builder-adjust, .agents-page .builder-connect .builder-funding { margin-top: 1rem; padding: .8rem 0 0; font-size: .78rem; }
+.agents-page .builder-choice-caption { font-family: var(--font-sans); font-size: .75rem; }
+@media (min-width: 700px) {
+ .builder-access-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+ .agents-page .builder-access-grid .builder-option.pubws-seg-btn { padding: .7rem .4rem; gap: .35rem; }
+ .agents-page .builder-access-grid .builder-option.pubws-seg-btn strong { font-size: .65rem; }
+ .agents-page .builder-access-grid .builder-choice-caption, .agents-page .builder-access-grid .builder-permission-note { margin: .5rem 0 0; font-size: .73rem; }
+}
+
+.builder-key-intro { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
+.agents-page .builder-key-intro p { font-size: .76rem; color: var(--text-secondary); margin: .55rem 0; }
+.agents-page .builder-key-intro .builder-key-jump { font-size: .73rem; white-space: nowrap; }
+.agents-page .builder-run { scroll-margin-top: 6rem; }
+.agents-page .agent-manage-form { gap: .6rem; margin: .75rem 0; }
+.agents-page .agent-manage-form .agent-key-technical { margin: .1rem 0; }
+.agents-page .agent-manage-form .agent-manage-hint { margin: .25rem 0; }
+.agents-page .manual-step { margin-top: 1.1rem; }
+.agents-page .manual-step > p { margin: .5rem 0; }
+
+/* The empty list is a useful row, leaving personal access in view. */
+.agents-page .agent-empty { display: grid; grid-template-columns: 38px 1fr; gap: .3rem .7rem; text-align: left; padding: 1rem 0; }
+.agents-page .agent-empty .agent-mark { grid-column: 1; grid-row: 1 / 4; width: 36px; height: 34px; }
+.agents-page .agent-management .agent-empty h3 { grid-column: 2; margin: 0; font: 600 .88rem/1.4 var(--font-sans); }
+.agents-page .agent-management .agent-empty p { grid-column: 2; max-width: none; margin: 0; text-align: left; font-size: .77rem; }
+.agents-page .agent-management .agent-empty-setup { grid-column: 2; justify-self: start; border: 0; padding: .3rem 0; background: transparent; color: var(--accent); font-size: .77rem; }
+.agents-page .agent-management .agent-empty-setup:hover { text-decoration: underline; background: transparent; }
+.agents-page .builder-key-intro { gap: 0 .5rem; margin-bottom: .4rem; }
+.agents-page .builder-key-intro p { margin: .4rem 0 .1rem; }
+.agents-page .builder-key-intro .builder-key-jump { padding: .2rem 0; }
+
+.agents-page .agent-management .agent-account-jump { border: 0; padding: .4rem 0; background: transparent; color: var(--accent); font-size: .73rem; }
+.agents-page #personal-agent-keys { scroll-margin-top: 6rem; }
+.agents-page .agent-keys > .agent-manage-actions { margin: .4rem 0 .8rem; }
+
+/* Initial setup has two optional bot fields, with no workspace configuration. */
+.agents-page .builder-connect .builder-choices:first-of-type { grid-template-columns: 1fr 1fr; }
+.agents-page .builder-connect label > span small { display: inline; margin-left: .3rem; color: var(--text-secondary); font-weight: 400; }
+.agents-page .builder-transfer-summary { font-size: .75rem; color: var(--text-secondary); margin: .7rem 0; }
+.agents-page .builder-heading { margin-bottom: 1rem; }
+@media (max-width: 520px) { .agents-page .builder-connect .builder-choices:first-of-type { grid-template-columns: 1fr; } }
+
+/* Connection setup spans the bot row on desktop and mobile. */
+.agents-page .myagents-row > .builder-run { grid-column: 1 / -1; min-width: 0; }
+.agents-page .builder-run textarea { width: 100%; box-sizing: border-box; }
+
+.agents-page .agent-management .myagents-row > .agent-manage-actions { flex-wrap: wrap; }
+
+/* Agents: one creation form, quiet identity rows, and a single expanded task. */
+.agents-page .agent-builder { max-width: 620px; margin: 1.6rem 0 2rem; }
+.agents-page .builder-heading { margin-bottom: 1.1rem; }
+.agents-page .builder-heading h2 { font: 500 1rem/1.4 var(--font-sans); text-transform: none; letter-spacing: 0; }
+.agents-page .builder-access-grid { display: grid; grid-template-columns: 1fr; gap: 1.2rem; }
+.agents-page .builder-choice-group legend, .agents-page .builder-account-access { font: 500 .8rem/1.5 var(--font-sans); letter-spacing: 0; text-transform: none; }
+.agents-page .builder-option { min-height: 48px; padding: .65rem .9rem; }
+.agents-page .builder-option small { display: none; }
+.agents-page .builder-option strong { font: 500 .85rem/1.5 var(--font-sans); }
+.agents-page .builder-choice-caption { margin: .6rem 0 0; font: .76rem/1.5 var(--font-sans); color: var(--text-secondary); }
+.agents-page .builder-account-access { display: grid; gap: .45rem; }
+.agents-page .builder-account-access small { color: var(--text-secondary); font: 400 .76rem/1.5 var(--font-sans); }
+.agents-page .builder-account-access select, .agents-page .agent-runtime-key select { border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg-elevated); padding: .7rem .8rem; color: var(--text-primary); font: 400 .8rem/1.4 var(--font-sans); }
+.agents-page .builder-connect { margin-top: 1.2rem; }
+.agents-page .agent-bot-tools { grid-column: 1 / -1; margin-top: .75rem; }
+.agents-page .myagents-row > .agent-keys { margin-top: .8rem; padding: .9rem 0 .3rem; border-top: 1px solid var(--border-color); }
+.agents-page .agent-runtime-panel .builder-run { border: 0; padding: 0; margin: 0; }
+.agents-page .agent-runtime-key { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: .7rem; max-width: 360px; margin: 0 0 1rem; font: .76rem/1.4 var(--font-sans); }
+.agents-page .agent-key-list > li { padding: .9rem 0; }
+.agents-page .agent-key-list .agent-key-heading { gap: .6rem; }
+.agents-page .agent-key-list .agent-key-purpose { font-size: .73rem; margin: .25rem 0; color: var(--text-secondary); }
+.agents-page .agent-key-list > li > .agent-manage-actions button { background: transparent; border-color: transparent; padding: .3rem .45rem; }
+.agents-page .agent-key-list > li > .agent-manage-actions button:hover { background: var(--bg-secondary); }
+.agents-page .agent-key-list > li > .builder-run { margin-top: .65rem; border-top: 0; padding-top: .4rem; }
+.agents-page .agent-self { margin-top: 2rem; }
+.agents-page .agent-self > p { font-size: .78rem; margin: .35rem 0 1rem; }
+.agents-page .builder-run > .agent-manage-actions { margin: .3rem 0 .65rem; }
+.agents-page .builder-run > .agent-manage-actions > button:first-child { background: var(--button-bg); color: var(--button-text); border-color: var(--button-bg); }
+@media (max-width: 640px) {
+ .agents-page .agent-key-list > li > .agent-manage-actions { margin: .35rem 0 0; gap: .5rem; }
+ .agents-page .agent-key-heading { justify-content: flex-start; }
+ .agents-page .agent-runtime-key { grid-template-columns: 1fr; }
+}
+.agents-page .builder-account-access select, .agents-page .agent-runtime-key select { box-sizing: border-box; height: 42px; min-height: 42px; padding: 0 .8rem; line-height: normal; }
+.agents-page .builder-choices > label:only-child { grid-column: 1 / -1; }
+
+/* Agents, one surface (docs/audience-pages.md, "Agent page hierarchy"): two
+ * sections with a New action on the heading, hairline rows, one chevron per
+ * bot, and an open row that holds Run, Credits and Keys under small-caps caps. */
+.agents-page .agent-management { border-top: 0; padding-top: 0; margin-top: .5rem; }
+.agents-page .agent-section { margin: 0 0 2.2rem; }
+.agents-page .agent-section-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-bottom: .55rem; border-bottom: 1px solid var(--border-color); }
+.agents-page .agent-section-head h2 { display: flex; align-items: center; gap: .5rem; margin: 0; font: 600 .72rem/1.5 var(--font-sans); letter-spacing: .09em; text-transform: uppercase; }
+.agents-page .agent-section-head h2 span { font: .7rem var(--font-mono); color: var(--text-secondary); }
+.agents-page .agent-section-note { margin: .6rem 0 0; font-size: .76rem; color: var(--text-secondary); }
+.agents-page .agent-management button.agent-new { display: inline-flex; align-items: center; gap: .35rem; border: 0; padding: .3rem .45rem; background: transparent; color: var(--accent); font: 500 .76rem/1.4 var(--font-sans); border-radius: 6px; }
+.agents-page .agent-management button.agent-new:hover { background: var(--bg-secondary); }
+.agents-page .agent-management .myagents-row { display: block; padding: 0; border-top: 0; border-bottom: 1px solid var(--border-color); }
+.agents-page .myagents-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .75rem; padding: .85rem 0; }
+.agents-page .myagents-head .agent-mark { width: 26px; height: 24px; }
+.agents-page .myagents-id { display: grid; gap: .3rem; min-width: 0; }
+.agents-page .myagents-id .agent-profile-link { font: 600 .9rem/1.4 var(--font-sans); color: var(--text-primary); text-decoration: none; overflow-wrap: anywhere; }
+.agents-page .myagents-id .agent-profile-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.agents-page .myagents-facts { display: flex; flex-wrap: wrap; gap: .25rem 1rem; font: .72rem/1.4 var(--font-mono); color: var(--text-secondary); }
+.agents-page .myagents-facts > span { display: inline-flex; align-items: center; gap: .35rem; }
+.agents-page .myagents-facts svg { width: 13px; height: 13px; opacity: .8; }
+.agents-page .agent-management button.myagents-toggle { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--border-color); border-radius: 8px; background: transparent; color: var(--text-secondary); transition: transform 120ms ease, background 120ms ease; }
+.agents-page .agent-management button.myagents-toggle:hover { background: var(--bg-secondary); color: var(--text-primary); }
+.agents-page .myagents-row.is-open > .myagents-head .myagents-toggle { transform: rotate(180deg); }
+.agents-page .myagents-panel { display: grid; gap: 1.3rem; padding: .2rem 0 1.3rem; }
+.agents-page .agent-group { display: grid; gap: .5rem; padding-left: 0; }
+.agents-page .agent-group-cap { display: flex; align-items: center; justify-content: space-between; gap: .75rem; font: 600 .66rem/1.5 var(--font-sans); letter-spacing: .09em; text-transform: uppercase; color: var(--text-secondary); }
+.agents-page .agent-group > .agent-keys { margin-top: 0; border-top: 0; padding-top: 0; }
+.agents-page .agent-group > .agent-keys > .agent-manage-actions:empty { display: none; }
+.agents-page .agent-credits-line { display: flex; align-items: center; gap: .9rem; flex-wrap: wrap; }
+.agents-page .agent-credits-balance { display: inline-flex; align-items: center; gap: .4rem; font: .82rem/1.4 var(--font-mono); }
+.agents-page .agent-credits-balance svg { width: 13px; height: 13px; opacity: .8; }
+.agents-page .myagents-send { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem .6rem; align-items: center; margin-top: .2rem; }
+.agents-page .myagents-send > .agent-manage-hint, .agents-page .myagents-send > .agent-transfer-details { grid-column: 1 / -1; }
+.agents-page .agent-self { margin-top: 0; padding: 0; border-bottom: 0; }
+.agents-page .agent-self > .agent-keys { border-top: 0; padding-top: 0; margin-top: .4rem; }
+.agents-page .builder-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 1rem 0 .6rem; }
+.agents-page .builder-heading h2 { font: 600 .9rem/1.4 var(--font-sans); letter-spacing: 0; text-transform: none; margin: 0; }
+.agents-page .builder-cancel { border: 0; background: transparent; color: var(--text-secondary); font: 500 .76rem/1.4 var(--font-sans); padding: .3rem .45rem; border-radius: 6px; cursor: pointer; }
+.agents-page .builder-cancel:hover { background: var(--bg-secondary); color: var(--text-primary); }
+.agents-page .agent-builder { max-width: none; margin: 0; padding: 0 0 1.2rem; border-bottom: 1px solid var(--border-color); }
+.agents-page .builder-connect { margin: 0; }
+.agents-page .agent-login-state .agent-builder { border-bottom: 0; }
+.agents-page .agent-login-state > p { font-size: .8rem; margin: .4rem 0 .8rem; }
+.agents-page .agent-key-list > li > .agent-manage-actions { align-self: center; }
+@media (max-width: 640px) {
+  .agents-page .myagents-head { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .agents-page .myagents-send { grid-template-columns: 1fr; }
+}
+.agents-page .agent-new-bot { position: relative; }
+.agents-page .agent-new-bot > .builder-cancel { position: absolute; top: .85rem; right: 0; }
+.agents-page .agent-keys > .agent-manage-actions:empty { display: none; }
+.agents-page .agent-self .agent-key-list > li:first-child { border-top: 0; }
+.agents-page .agent-self > .agent-keys { margin-top: .2rem; }
+.agents-page .agent-new-bot > .builder-cancel { top: .45rem; }
+.agents-page .agent-runtime-key { grid-template-columns: auto minmax(0, 1fr) auto; max-width: 460px; }
+
+/* Direction B (docs/audience-pages.md, "Agent page hierarchy"): two columns,
+ * a ticket card per bot with the prompt one press away, keys in the second. */
+.agents-page .pubws-doc { max-width: 1080px; }
+.agents-page .agent-columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2rem 2.5rem; }
+.agents-page .agent-columns > .agent-section { margin: 0; }
+.agents-page .agent-owned-status { grid-column: 1 / -1; }
+.agents-page .agent-owned-status:empty { display: none; }
+@media (min-width: 900px) {
+  .agents-page .agent-columns { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); align-items: start; }
+}
+.agents-page .agent-cards { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; gap: .9rem; }
+.agents-page .agent-card { background: var(--bg-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.1rem 1.15rem; display: grid; gap: .9rem; box-shadow: var(--shadow-sm); }
+.agents-page .agent-card-head { display: flex; align-items: center; gap: .6rem; }
+.agents-page .agent-card-head .agent-mark { width: 26px; height: 24px; }
+.agents-page .agent-card-head .agent-profile-link { font: 600 .95rem/1.4 var(--font-sans); color: var(--text-primary); text-decoration: none; overflow-wrap: anywhere; }
+.agents-page .agent-card-head .agent-profile-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.agents-page .agent-card-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .6rem; }
+.agents-page .agent-card-facts > div { display: grid; gap: .1rem; min-width: 0; }
+.agents-page .agent-card-cap { font: 600 .6rem/1.5 var(--font-sans); letter-spacing: .09em; text-transform: uppercase; color: var(--text-tertiary); }
+.agents-page .agent-card-num { font: 1.15rem/1.3 var(--font-mono); color: var(--text-primary); overflow-wrap: anywhere; }
+.agents-page .agent-card-num.is-up { color: var(--higher); }
+.agents-page .agent-card-num.is-down { color: var(--lower); }
+.agents-page .agent-card-note { font: .72rem/1.4 var(--font-mono); color: var(--text-secondary); }
+.agents-page .agent-card-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.agents-page .agent-management .agent-card-actions button.agent-primary { background: var(--button-bg); color: var(--button-text); border-color: transparent; font-weight: 600; }
+.agents-page .agent-management .agent-card-actions button.agent-primary:hover { background: var(--button-bg-hover); }
+.agents-page .agent-management .agent-card-actions button.agent-card-keys-toggle[aria-expanded="true"] { background: var(--bg-secondary); border-color: var(--border-strong); }
+.agents-page .agent-card-status { margin: 0; font-size: .78rem; color: var(--text-secondary); }
+.agents-page .agent-card > .builder-secret { margin: 0; }
+.agents-page .agent-card > .myagents-send { margin: 0; }
+.agents-page .agent-card-keys { display: grid; gap: .5rem; padding-top: .6rem; border-top: 1px solid var(--border-color); }
+.agents-page .agent-card-keys > .agent-keys { margin: 0; border: 0; padding: 0; }
+.agents-page .agent-card > .agent-manual { margin: 0; }
+.agents-page .agent-bots > .agent-new-bot, .agents-page .agent-bots > .agent-builder { margin-top: .4rem; }
+.agents-page .agent-card-num { overflow-wrap: normal; white-space: nowrap; }
+@media (max-width: 480px) {
+  .agents-page .agent-card-facts { grid-template-columns: repeat(3, auto); justify-content: space-between; gap: .4rem; }
+  .agents-page .agent-card-num { font-size: .95rem; }
+  .agents-page .agent-card-note { white-space: nowrap; }
+}
+/* A card never grows past its column: every child yields, code scrolls inside. */
+.agents-page .agent-cards { grid-template-columns: minmax(0, 1fr); }
+.agents-page .agent-card, .agents-page .agent-card > * { min-width: 0; max-width: 100%; }
+.agents-page .agent-card .manual-heading { flex-wrap: wrap; }
+.agents-page .agent-card .manual-commands, .agents-page .agent-card .manual-commands pre { max-width: 100%; }
+.agents-page .agent-card .builder-key { display: block; overflow-wrap: anywhere; }
+.agents-page .agent-columns > .agent-section { min-width: 0; }

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useEarnAvailable } from '../hooks/useEarnAvailable';
 import type { FloorRef } from '../lib/agent-prompt';
 import { api } from '../lib/api';
 import { AccountDialog } from './AccountDialog';
+import { CreditsBalanceLink, formatCreditCount as fmtCr } from './CreditsBalanceLink';
+import { ThemeToggle } from './ThemeToggle';
 
 /**
  * The signed-in corner of the trading floor: an avatar that opens a small
@@ -35,10 +36,6 @@ function initials(name: string | null, email: string | null): string {
     .map(p => p[0])
     .join('');
   return (letters || source[0] || '?').toUpperCase();
-}
-
-function fmtCr(v: number): string {
-  return v >= 10_000 ? `${Math.round(v / 1000).toLocaleString('en-US')}k` : Math.round(v).toLocaleString('en-US');
 }
 
 export function AccountMenu({
@@ -145,7 +142,6 @@ export function AccountMenu({
 
   const label = participant?.nickname || user?.name || user?.email || 'Account';
   const earned = participant?.earnedBetting ?? null;
-  const earnAvailable = useEarnAvailable(!!user);
   const wallet = participant?.liquidityBalance ?? 0;
   // A funding page belongs to a market. Standing on one, that is the market;
   // off a floor it is a floor of your own, because this money can only ever
@@ -162,15 +158,7 @@ export function AccountMenu({
   return (
     <div className="acctmenu" ref={rootRef}>
       {participant?.balance != null && (
-        // The balance is the door to the earn page (owner ask 2026-08-30):
-        // one affordance, wherever the number already is, instead of a
-        // banner people learn to skip. The amber figure is what this
-        // account has not claimed yet and vanishes when nothing is left,
-        // so it can never become permanent decoration.
-        <Link className="acctmenu-credits" to="/earn" title="Your credits, and what you can still earn">
-          {fmtCr(participant.balance)} cr
-          {earnAvailable !== null && <span className="acctmenu-earn">+{fmtCr(earnAvailable)}</span>}
-        </Link>
+        <CreditsBalanceLink key={user?.id} balance={participant.balance} accountId={user?.id} />
       )}
       {/* The wallet beside the balance, marked with the drop the market's own
         pool rows wear, because the two are not the same money: one trades,
@@ -262,13 +250,21 @@ export function AccountMenu({
             Account settings
           </button>
 
+          <Link className="acctmenu-item" to="/agents" onClick={() => setOpen(false)}>
+            Agents &amp; keys
+          </Link>
+
+          <div className="acctmenu-appearance">
+            <ThemeToggle />
+          </div>
+
           <button className="acctmenu-item acctmenu-item--out" onClick={() => void logout()}>
             Log out
           </button>
         </div>
       )}
 
-      {dialogOpen && <AccountDialog onClose={closeDialog} initialTab={dialogTab} floor={floor} />}
+      {dialogOpen && <AccountDialog onClose={closeDialog} initialTab={dialogTab} />}
     </div>
   );
 }

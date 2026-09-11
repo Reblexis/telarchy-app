@@ -1,7 +1,6 @@
 import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { agentPrompt, type FloorRef } from '../lib/agent-prompt';
 import {
   api,
   type NotificationChannel,
@@ -13,7 +12,6 @@ import {
 import { AccountCredits } from './AccountCredits';
 import { AccountPassword } from './AccountPassword';
 import { FloorModal } from './FloorModal';
-import { MyAgents } from './MyAgents';
 import { SeasonEntryPanel } from './SeasonEntryPanel';
 
 /**
@@ -78,13 +76,12 @@ function vapidKeyBytes(base64url: string): Uint8Array {
  * contents the long form never had, so a setting is now something you can see
  * exists rather than something you have to scroll into.
  */
-type AccountTab = 'profile' | 'money' | 'emails' | 'ai' | 'security';
+type AccountTab = 'profile' | 'money' | 'emails' | 'security';
 
 const TABS: Array<{ id: AccountTab; label: string }> = [
   { id: 'profile', label: 'Profile' },
   { id: 'money', label: 'Money' },
   { id: 'emails', label: 'Notifications' },
-  { id: 'ai', label: 'Your AI' },
   { id: 'security', label: 'Security' },
 ];
 
@@ -226,14 +223,10 @@ function initials(name: string | null, email: string | null): string {
 export function AccountDialog({
   onClose,
   initialTab = 'profile',
-  floor = null,
 }: {
   onClose: () => void;
   /** Which section to open on. Notification emails link straight to 'emails'. */
   initialTab?: AccountTab;
-  /** The floor this was opened from, so "Your AI" hands out a prompt for the
-   *  page the person is standing on rather than a generic one. */
-  floor?: FloorRef | null;
 }) {
   const [tab, setTab] = useState<AccountTab>(initialTab);
   const { user } = useAuth();
@@ -273,8 +266,6 @@ export function AccountDialog({
   // Null until GET /api/auth/me answers with the resolved matrix.
   const [matrix, setMatrix] = useState<NotificationMatrix | null>(null);
   const [poolFromBalance, setPoolFromBalance] = useState(true);
-
-  const [promptCopied, setPromptCopied] = useState(false);
 
   const [busy, setBusy] = useState<string | null>(null); // which section is saving
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -1028,45 +1019,6 @@ export function AccountDialog({
                     </p>
                   </div>
                   {errors.emails && <p className="ticket-err">{errors.emails}</p>}
-                </>
-              )}
-
-              {tab === 'ai' && (
-                <>
-                  {/* Moved off the floor (owner direction 2026-08-20: the page's
-                job is the market). Everything it points at is public and
-                unauthenticated, and it is the SAME brief the floor's own Ask
-                field reads, which is the point: your agent and ours should
-                work from identical facts. */}
-                  <div className="jobform-field">
-                    <span className="ticket-label">Point your own AI at Telarchy</span>
-                    <p className="acctdlg-hint">
-                      {floor
-                        ? `Paste this into Claude, ChatGPT or your own agent. It reads ${floor.name}'s public brief: every number with its history, what the markets predict, and every proposal with its priced impact.`
-                        : "Paste this into Claude, ChatGPT or your own agent. It reads a floor's public brief: every number with its history, what the markets predict, and every proposal with its priced impact."}
-                    </p>
-                    <pre className="acctdlg-prompt">{agentPrompt(window.location.origin, floor)}</pre>
-                    <button
-                      type="button"
-                      className="acctdlg-ghost"
-                      onClick={() => {
-                        navigator.clipboard
-                          .writeText(agentPrompt(window.location.origin, floor))
-                          .then(() => {
-                            setPromptCopied(true);
-                            setTimeout(() => setPromptCopied(false), 1600);
-                          })
-                          .catch(e => console.error('copy failed:', e));
-                      }}
-                    >
-                      {promptCopied ? 'Copied' : 'Copy prompt'}
-                    </button>
-                  </div>
-                  {/* The prompt above points an agent you run at Telarchy. This
-                  lists the agents Telarchy runs FOR you: separate participants
-                  with their own balance and their own leaderboard rank. Same
-                  tab because "your AI" is the question both answer. */}
-                  <MyAgents />
                 </>
               )}
 

@@ -1,5 +1,7 @@
 # Participant Economy
 
+An explicit `X-Agent-Key` takes precedence over a browser session for API identity. A browser cookie can still authorize preview access, but cannot substitute the owner for the bot. Invalid explicit keys never fall back to session authority.
+
 ## Overview
 
 Telarchy uses a unified participant economy. A **participant** is any market actor, human or AI. Humans sign up through a browser account; automated participants register for an API key directly. Both resolve to the same identity model, the same balance, and the same workspace permissions. Trading, forecasting, and proposing proposals work the same way regardless of which signup path was used.
@@ -123,3 +125,5 @@ For workspace-scoped APIs, the effective capability set comes from workspace mem
   agent-economy bank's credit<->compute exchange).
 - `POST /api/predictions/trade` - place or sell trades.
 - `GET /api/predictions/positions` - open positions for the authenticated participant.
+
+The Agents page issues new bot keys with wildcard scope and no workspace lock, giving the bot its own full participant authority. Personal keys offer read, trade, workspace management, and wildcard account access. Workspace management uses `workspace:read`, `workspace:trade`, and `workspace:manage`; wildcard access includes account settings, balances, keys and creating bots, subject to existing ownership checks. Existing restricted keys are never widened by a read or rename operation.

@@ -1945,6 +1945,7 @@ agentsRouter.get(
         label: r.label,
         scopes: (r.scopes as string[] | null) ?? ['*'],
         workspaceId: r.workspaceId,
+        workspaceLocked: r.workspaceLocked,
         createdAt: r.createdAt,
         lastUsedAt: r.lastUsedAt,
         hashPrefix: r.hash.slice(0, 8),
@@ -2054,7 +2055,7 @@ agentsRouter.patch(
       return;
     }
 
-    const update: { label?: string | null; scopes?: string[] } = {};
+    const update: { label?: string | null; scopes?: string[]; workspaceLocked?: boolean } = {};
     if (req.body?.label !== undefined) {
       if (req.body.label === null || req.body.label === '') update.label = null;
       else if (typeof req.body.label !== 'string') {
@@ -2074,8 +2075,23 @@ agentsRouter.patch(
       }
       update.scopes = parsed.scopes;
     }
+    // Widening workspace reach is explicit and cannot be delegated by a locked credential.
+    if (req.body?.workspaceLocked !== undefined) {
+      if (typeof req.body.workspaceLocked !== 'boolean') {
+        res.status(400).json({ error: 'workspaceLocked must be a boolean' });
+        return;
+      }
+      if (!req.body.workspaceLocked && req.auth!.keyId) {
+        const [callerKey] = await db.select().from(agentApiKeys).where(eq(agentApiKeys.keyId, req.auth!.keyId));
+        if (!callerKey || callerKey.workspaceLocked) {
+          res.status(403).json({ error: 'A locked key cannot remove workspace restrictions' });
+          return;
+        }
+      }
+      update.workspaceLocked = req.body.workspaceLocked;
+    }
     if (Object.keys(update).length === 0) {
-      res.status(400).json({ error: 'No fields to update (allowed: label, scopes)' });
+      res.status(400).json({ error: 'No fields to update (allowed: label, scopes, workspaceLocked)' });
       return;
     }
     await db

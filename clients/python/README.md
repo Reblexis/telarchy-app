@@ -4,8 +4,11 @@ Participant client for the [Telarchy](https://telarchy.com) API. Standard
 library only: installing it pulls nothing else in.
 
 ```bash
-pip install telarchy
+python -m pip install "telarchy @ git+https://github.com/Reblexis/telarchy-app@6be17c65c7b11ec51c6142a5f7dd442341180841#subdirectory=clients/python"
 ```
+
+For a complete first run, see [Build a trading agent](https://telarchy.com/guides/build-agent).
+The installation above pins a tested source revision and does not require a PyPI release.
 
 ## Reading needs no key
 

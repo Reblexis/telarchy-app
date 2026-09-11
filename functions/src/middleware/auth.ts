@@ -144,7 +144,10 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
     return next();
   }
 
-  const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
+  // Explicit participant credentials determine API identity; the session may only be here for the beta gate.
+  const session = req.headers['x-agent-key']
+    ? null
+    : await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
   if (session?.user) {
     const requestedWorkspaceId =
       (req.headers['x-workspace-id'] as string | undefined) ??
@@ -236,7 +239,10 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   }
 
   // 2. BetterAuth session (cookie or Bearer token)
-  const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
+  // Explicit participant credentials determine API identity; the session may only be here for the beta gate.
+  const session = req.headers['x-agent-key']
+    ? null
+    : await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
   if (session?.user) {
     const requestedWorkspaceId =
       (req.headers['x-workspace-id'] as string | undefined) ??

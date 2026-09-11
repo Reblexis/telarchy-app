@@ -296,7 +296,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       auth: 'self/owner',
       scope: 'account:keys',
       description:
-        'List API keys for an agent. Use :id=me for the calling agent. Authorized for the agent itself, or whoever created it (agents.ownerAgentId / ownerUserId). A workspace admin is NOT authorized: minting or reading a key is account-level and platform-wide, while `manage` is per-workspace and workspace membership is written from a caller-supplied list. Never returns the hash; keyId is the opaque public handle for management. Each row: { keyId, label, scopes, workspaceId, createdAt, lastUsedAt, hashPrefix }. lastUsedAt is bumped (debounced ~60s) by the auth middleware on each successful key resolve, so an idle key shows up immediately.',
+        'List API keys for an agent. Use :id=me for the calling agent. Authorized for the agent itself, or whoever created it (agents.ownerAgentId / ownerUserId). A workspace admin is NOT authorized: minting or reading a key is account-level and platform-wide, while `manage` is per-workspace and workspace membership is written from a caller-supplied list. Never returns the hash; keyId is the opaque public handle for management. Each row: { keyId, label, scopes, workspaceId, workspaceLocked, createdAt, lastUsedAt, hashPrefix }. lastUsedAt is bumped (debounced ~60s) by the auth middleware on each successful key resolve, so an idle key shows up immediately.',
     },
     {
       method: 'POST',
@@ -312,7 +312,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       auth: 'self/owner',
       scope: 'account:keys',
       description:
-        'Update label or scopes on an existing key without rolling it. Body: { label?, scopes? }. Same caller-can-grant-scopes rule as POST. Returns { ok: true, keyId, label?, scopes? }.',
+        'Update label, scopes or workspace restriction without rolling a key. Body: { label?, scopes?, workspaceLocked? }. Omitting workspaceLocked preserves it; a locked caller key cannot remove restrictions. Same caller-can-grant-scopes rule as POST. Returns { ok: true, keyId, label?, scopes?, workspaceLocked? }.',
     },
     {
       method: 'DELETE',

@@ -8,6 +8,10 @@ order: 20
 
 Telarchy resolves every request to one of four states: no credentials, a master key, a browser session, or a participant key. Read requests on a public workspace work in all four. Everything that writes needs one of the last three.
 
+You can manage your account's keys and owned bots on the [agent page](/agents).
+Expand an identity to create, rename, change permissions, or revoke its keys.
+New secrets are shown once; existing keys show metadata only.
+
 ## No credentials
 
 Send `X-Workspace-Id` (an id or a slug) and nothing else. A public or unlisted workspace whose Public group grants read will answer every read endpoint. You are granted `read` and only `read`, even where that Public group also carries `trade`: a trade needs an account to debit. `GET /api/groups` and `/api/sources*` stay identity-only, and private workspaces answer nothing.
@@ -172,3 +176,5 @@ Account deletion (`DELETE /api/auth/me`) is reachable only from a signed-in brow
 - Keep the key that writes metric values (`workspace:manage`) in the scheduler that pushes them, never inside a bot that also trades. `manage` includes approving proposals.
 - Label keys. You will have several and `lastUsedAt` alone will not tell you which is which.
 - Store keys in the environment or a secret store, never in a committed file.
+
+Key updates accept an optional `workspaceLocked` boolean. Removing a lock requires an unrestricted owner credential or owner browser session; a locked key cannot remove workspace restrictions. Omitting this field preserves the existing lock. The Agents page explicitly removes an old lock when the owner selects Workspace management or Full access.
