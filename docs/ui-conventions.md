@@ -946,8 +946,10 @@ counting:
   over the next best". Fewer than two priced options: the hero prints
   "no lead yet" in the place of the number, and the strips print "open" for
   that cell.
-- **The question names the option**: "If <label>, what will <floor>'s
-  <metric> be on <settle day>?", switching with the selected cell.
+- **The question names the option**: "With <label>, what will <floor>'s
+  <metric> be on <settle day>?", switching with the selected cell. "With",
+  not "If": a label is a noun phrase the proposer wrote ("Turn left",
+  "Headline B"), and "if Turn left" is not a sentence.
 - **The chart draws the selected option** against the baseline "without
   it" line, and its legend names the option, not "if approved". The other
   options are not drawn: three or more conditional lines over a baseline is
