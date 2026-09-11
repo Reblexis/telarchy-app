@@ -713,7 +713,9 @@ describe('moveQuestionOf: a game floor asks in moves (docs/ui-conventions.md, "T
       });
     }
     // A second before the minute turns it is one move further away.
-    expect(moveQuestionOf(minute('2026-09-11T14:40', '2026-09-11T14:41:00Z'), new Date('2026-09-11T13:39:59Z'))).toEqual({
+    expect(
+      moveQuestionOf(minute('2026-09-11T14:40', '2026-09-11T14:41:00Z'), new Date('2026-09-11T13:39:59Z')),
+    ).toEqual({
       word: '61 moves',
       lead: 'in ',
     });
