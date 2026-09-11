@@ -87,9 +87,12 @@ function ruleBoard(props: Record<string, unknown> = {}, ps = [p('c1')]) {
 }
 
 describe('the board is ordered by what needs a ruling first', () => {
-  test('soonest decision leads, and the pool breaks a tie', () => {
-    // The same instant, not "the same day": two proposals closing together
-    // are what the pool is there to separate.
+  test('soonest decision leads, and the pool never moves a row', () => {
+    /* The same instant, not "the same day". Pool broke that tie until
+       2026-09-11 (docs/ui-conventions.md, "A pending row keeps its place for
+       its whole life"): it moves with every trade, and a list that re-sorts
+       under the pointer hands a click to another proposal. Creation, then
+       the number, decides instead, and both are fixed for a row's life. */
     const far = inDays(6);
     const { container } = ruleBoard({}, [
       p('c1', {
@@ -111,8 +114,8 @@ describe('the board is ordered by what needs a ruling first', () => {
     const titles = [...container.querySelectorAll('.pubws-ballot-title')].map(t => t.textContent ?? '');
     expect(titles.map(t => t.replace(/^#\d+/, '').trim())).toEqual([
       'Thin and soon',
-      'Also far but deeper',
       'Deep and far',
+      'Also far but deeper',
     ]);
   });
 

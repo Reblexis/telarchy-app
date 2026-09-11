@@ -4,12 +4,17 @@ import { describe, expect, test, vi } from 'vitest';
 
 /**
  * What is behind a proposal, on the board (owner ask 2026-09-02: "show total
- * liquidity next to a proposal in the proposals panel", and the rule it
- * serves: "proposals are ordered by total liquidity available").
+ * liquidity next to a proposal in the proposals panel").
  *
  * The pool is the sum of BOTH branches across every pair, because that is
  * what somebody put behind this proposal's forecast; a reader comparing two
  * proposals is comparing conviction, and half of it is not the number.
+ *
+ * It no longer ORDERS the ballot (revised 2026-09-11,
+ * docs/ui-conventions.md, "A pending row keeps its place for its whole
+ * life"): the pool moves with every trade, and a list that re-sorts as
+ * prices refresh hands a click to a proposal the reader was not aiming at.
+ * The order is the deadline, the feed's action order, then creation.
  */
 
 vi.mock('../../lib/api', () => ({
@@ -96,9 +101,9 @@ describe('the pool behind a proposal', () => {
     expect(screen.getByText('6,980')).toBeInTheDocument();
   });
 
-  // The rule the number exists for: money decides the order, so a proposal
-  // somebody funded is read first.
-  test('orders the ballot deepest first', () => {
+  // The number is read, never obeyed: what is behind a proposal prints on
+  // its row and moves nothing.
+  test('prints on every row and orders none of them', () => {
     render(
       <MemoryRouter>
         <JobsBoard
@@ -114,10 +119,11 @@ describe('the pool behind a proposal', () => {
       </MemoryRouter>,
     );
     const titles = [...document.querySelectorAll('.pubws-ballot-title')].map(n => n.textContent);
-    expect(titles).toEqual(['A proposal somebody believes in', 'A proposal in between', 'A proposal nobody funded']);
+    // Posted together: the order they were posted in, deepest or not.
+    expect(titles).toEqual(['A proposal nobody funded', 'A proposal somebody believes in', 'A proposal in between']);
   });
 
-  test('a proposal with nothing behind it still shows the zero, and sits last', () => {
+  test('a proposal with nothing behind it still shows the zero, and keeps its place', () => {
     render(
       <MemoryRouter>
         <JobsBoard
@@ -129,7 +135,7 @@ describe('the pool behind a proposal', () => {
       </MemoryRouter>,
     );
     const titles = [...document.querySelectorAll('.pubws-ballot-title')].map(n => n.textContent);
-    expect(titles).toEqual(['Funded', 'Unfunded']);
+    expect(titles).toEqual(['Unfunded', 'Funded']);
     expect(screen.getByText('0')).toBeInTheDocument();
   });
 });

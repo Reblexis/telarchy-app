@@ -184,16 +184,31 @@ describe('the board opens on the live ballot', () => {
     expect(screen.queryByText(/decided/)).toBeNull();
   });
 
-  test('the pending proposals keep their impact ranking', () => {
-    board({
+  test('the pending proposals keep their place, whatever their impacts do', () => {
+    /* Impact ranked the ballot until 2026-09-11 (docs/ui-conventions.md, "A
+       pending row keeps its place for its whole life"): it moves with every
+       trade, so the row under the pointer changed between the hover and the
+       click. Posted together and unnumbered, these two read in the order
+       they were posted, and a bigger impact does not lift one over the
+       other. */
+    const rowsOf = () => titles().filter(t => t.includes('Manifold workspace') || t.includes('LessWrong'));
+    const { unmount } = board({
       proposals: [
         proposal('p2', 'Add Manifold workspace', 1.5, 'pending'),
         proposal('p1', 'Publish a LessWrong post', 2.5, 'pending'),
       ],
     });
-    const rows = titles().filter(t => t.includes('Manifold workspace') || t.includes('LessWrong'));
-    expect(rows[0]).toContain('LessWrong');
-    expect(rows[1]).toContain('Manifold workspace');
+    expect(rowsOf()[0]).toContain('Manifold workspace');
+    expect(rowsOf()[1]).toContain('LessWrong');
+    unmount();
+    board({
+      proposals: [
+        proposal('p2', 'Add Manifold workspace', 99, 'pending'),
+        proposal('p1', 'Publish a LessWrong post', -4, 'pending'),
+      ],
+    });
+    expect(rowsOf()[0]).toContain('Manifold workspace');
+    expect(rowsOf()[1]).toContain('LessWrong');
   });
 });
 
