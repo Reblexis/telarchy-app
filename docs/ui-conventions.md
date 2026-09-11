@@ -924,8 +924,9 @@ hero number.
   knows how to price it.
 - **A proposal with options says which option leads**: "Should <floor>
   <verb>: <title>? The market says <leader label> leads by <lead> <metric>."
-  (the leader's lead over the next best, with the metric's unit), "Nobody
-  has priced it yet." while fewer than two options are priced, and once
+  (the leader's lead over the next best, with the metric's unit), "The
+  market has the options tied." when two or more share the top price,
+  "Nobody has priced it yet." while fewer than two options are priced, and once
   decided "<floor> chose <label> on #<number>: <title>". The description
   says "<ask> to the proposer if chosen." and "bet on which option lands
   higher" where a pair says "which world".
@@ -954,8 +955,11 @@ counting:
   over the next best". Fewer than two priced options: the hero prints
   "no lead yet" in the place of the number over the caption "<metric>
   <date>, the leader over the next best", and the strips print "open" for
-  that cell. The page opens on the leader's world, else the first priced
-  option's, else the first option's.
+  that cell. **A tie at the top is not a lead**: the hero prints "±0" over
+  "<metric> <date>, tied at the top", no cell reads "· leads" or wears the
+  leader's green, and the board row prints "tied" where it prints
+  "<leader> +lead". The page opens on the leader's world, else the first
+  priced option's, else the first option's.
 - **The question names the option**: "With <label>, what will <floor>'s
   <metric> be on <settle day>?", switching with the selected cell. "With",
   not "If": a label is a noun phrase the proposer wrote ("Turn left",
@@ -974,7 +978,8 @@ counting:
   <label>", the leader's first and in the approve green, then Decline as
   today; with no leader no button is green. Pressing one is the approve
   with that option; nothing asks twice. The ask in the facts row reads
-  "$250 if chosen".
+  "$250 if chosen". A tie at the top has no leader, so no Choose button is
+  green and they keep the proposer's order.
 - **The board row prints the leader's lead** where a pair prints approved
   minus declined, prefixed with the leader's label in the mono caption
   register ("Turn left +0.4"); "open" until two options are priced. The

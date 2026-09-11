@@ -5646,8 +5646,9 @@ image, which is why a proposal cannot currently be sent to the person who
 knows how to price it.</li>
 <li><strong>A proposal with options says which option leads</strong>: &quot;Should <floor>
 <verb>: <title>? The market says <leader label> leads by <lead> <metric>.&quot;
-(the leader's lead over the next best, with the metric's unit), &quot;Nobody
-has priced it yet.&quot; while fewer than two options are priced, and once
+(the leader's lead over the next best, with the metric's unit), &quot;The
+market has the options tied.&quot; when two or more share the top price,
+&quot;Nobody has priced it yet.&quot; while fewer than two options are priced, and once
 decided &quot;<floor> chose <label> on #<number>: <title>&quot;. The description
 says &quot;<ask> to the proposer if chosen.&quot; and &quot;bet on which option lands
 higher&quot; where a pair says &quot;which world&quot;.</li>
@@ -5674,8 +5675,11 @@ the best other option, over the caption &quot;<metric> <date>, <leader label>
 over the next best&quot;. Fewer than two priced options: the hero prints
 &quot;no lead yet&quot; in the place of the number over the caption &quot;<metric>
 <date>, the leader over the next best&quot;, and the strips print &quot;open&quot; for
-that cell. The page opens on the leader's world, else the first priced
-option's, else the first option's.</li>
+that cell. <strong>A tie at the top is not a lead</strong>: the hero prints &quot;±0&quot; over
+&quot;<metric> <date>, tied at the top&quot;, no cell reads &quot;· leads&quot; or wears the
+leader's green, and the board row prints &quot;tied&quot; where it prints
+&quot;<leader> +lead&quot;. The page opens on the leader's world, else the first
+priced option's, else the first option's.</li>
 <li><strong>The question names the option</strong>: &quot;With <label>, what will <floor>'s
 <metric> be on <settle day>?&quot;, switching with the selected cell. &quot;With&quot;,
 not &quot;If&quot;: a label is a noun phrase the proposer wrote (&quot;Turn left&quot;,
@@ -5694,7 +5698,8 @@ header names the same option.</li>
 <label>&quot;, the leader's first and in the approve green, then Decline as
 today; with no leader no button is green. Pressing one is the approve
 with that option; nothing asks twice. The ask in the facts row reads
-&quot;$250 if chosen&quot;.</li>
+&quot;$250 if chosen&quot;. A tie at the top has no leader, so no Choose button is
+green and they keep the proposer's order.</li>
 <li><strong>The board row prints the leader's lead</strong> where a pair prints approved
 minus declined, prefixed with the leader's label in the mono caption
 register (&quot;Turn left +0.4&quot;); &quot;open&quot; until two options are priced. The
@@ -11347,7 +11352,10 @@ leader's <code>delta</code> is its lead, positive, and every other option's is h
 it trails, negative. The row's own <code>delta</code> is the leader's lead, and
 <code>approved</code> and <code>declined</code> are <code>null</code>. An option with no liquidity has no
 price and no <code>delta</code>, and a row where fewer than two options are priced has
-no leader. The floor's board and strips carry the leader's lead where a
+no leader. <strong>A tie at the top has no leader either</strong>: when two or more priced
+options share the highest consensus, the row's <code>delta</code> is 0 (the lead is
+zero, which is a reading, not a missing one), every option's <code>delta</code> is its
+gap to that shared top, and no option is named as leading anywhere. The floor's board and strips carry the leader's lead where a
 two-branch proposal carries approved minus declined.</p>
 <p><strong>Deciding is choosing.</strong> <code>POST /api/proposals/:id/approve { option }</code>
 names the option's <code>id</code>; without it the call fails with 400

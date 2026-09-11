@@ -248,7 +248,10 @@ leader's `delta` is its lead, positive, and every other option's is how far
 it trails, negative. The row's own `delta` is the leader's lead, and
 `approved` and `declined` are `null`. An option with no liquidity has no
 price and no `delta`, and a row where fewer than two options are priced has
-no leader. The floor's board and strips carry the leader's lead where a
+no leader. **A tie at the top has no leader either**: when two or more priced
+options share the highest consensus, the row's `delta` is 0 (the lead is
+zero, which is a reading, not a missing one), every option's `delta` is its
+gap to that shared top, and no option is named as leading anywhere. The floor's board and strips carry the leader's lead where a
 two-branch proposal carries approved minus declined.
 
 **Deciding is choosing.** `POST /api/proposals/:id/approve { option }`
