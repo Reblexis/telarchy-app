@@ -2374,9 +2374,9 @@ above the fold they are looking at.
 **A pending row keeps its place for its whole life** (2026-09-11, of a
 click on "Turn left" that opened the next minute's "Continue forward").
 The proposals board orders pending rows by deadline, then by the feed's
-own action order (Continue, Turn left, Turn right, the order of the chips
-under the grid, remembered per proposal from the first read that names
-it), then by creation time and number. Nothing about a row's price, pool
+own action order (Continue, Turn left, Turn right, the order the feed
+lists an open step's proposals in, remembered per proposal from the first
+read that names it), then by creation time and number. Nothing about a row's price, pool
 or impact ever moves it, so the row under the pointer is the row a click
 lands on. A row decided while the page is open holds its place for ten
 seconds, its ruling showing where it stands, before it joins the decided
