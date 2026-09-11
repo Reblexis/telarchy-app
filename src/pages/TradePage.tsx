@@ -389,10 +389,7 @@ export function TradePage() {
   /* `?option=` on the address opens the ticket on that world, so a link from
      an arrow on the grid (or a shared link) lands where it points rather than
      on the proposal's default option. */
-  useEffect(() => {
-    const want = new URLSearchParams(location.search).get('option');
-    if (want) setWorldPick(cur => cur ?? want);
-  }, [location.search]);
+
   // The hash lands before the payload does, so the number waits here as the
   // selection until the proposals arrive and one of them answers to it.
   /* A number nobody answers to (docs/ui-conventions.md, "An address that
@@ -1036,8 +1033,16 @@ export function TradePage() {
   /* The world on screen: the reader's pick while it names a world of this
      proposal, else the default: approved on a pair; on options the chosen
      one, the leader, the first priced option, then the first option. */
+  /* `?option=` on the address IS the default world, not a remembered pick:
+     an arrow on the grid links to its own option, and selecting the proposal
+     resets any pick, so a state set here would be undone a tick later
+     (Viktor, 2026-09-11: "i click the left arrow and it selects continue
+     forward option"). A reader's own pick still wins over it. */
+  const addressed = new URLSearchParams(location.search).get('option');
+  const addressedWorld = addressed && jobOptionList.some(o => o.id === addressed) ? addressed : null;
   const defaultWorld = jobOptioned
-    ? (chosenOption ??
+    ? (addressedWorld ??
+      chosenOption ??
       optionLeadNow?.leader?.id ??
       pairOptions.find(isPricedOption)?.id ??
       jobOptionList[0]?.id ??
@@ -2425,6 +2430,13 @@ export function TradePage() {
                            (Viktor, 2026-09-11: "i click the left arrow and it
                            selects continue forward option"). */
                         onPickProposal={(n, option) => {
+                          /* The option travels in the ref, the way an option
+                             chip does: selecting a proposal resets the world
+                             pick, so setting the state alone is undone a tick
+                             later. Both, because clicking an arrow of the
+                             proposal already open changes no id and so runs no
+                             reset. */
+                          if (option) pendingWorldRef.current = option;
                           setSelectedJobId(String(n));
                           if (option) setWorldPick(option);
                         }}
