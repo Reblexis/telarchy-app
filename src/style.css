@@ -4032,6 +4032,30 @@ textarea.jobform-line--desc {
   text-underline-offset: 3px;
 }
 
+/* A bot says it is one (docs/ui-conventions.md): one small muted word after
+   the name, the same on every surface. Inline, so it rides the name's line. */
+.pubws-bot {
+  display: inline-block;
+  margin-left: 0.4em;
+  padding: 0 0.35em;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.68em;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary, inherit);
+  vertical-align: 0.1em;
+  white-space: nowrap;
+}
+.pubws-lb-bots {
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
 /* The conversation under the one view (owner ask 2026-08-11): a quiet
    toggle in the floor's center column; the thread expands in place with
    hairline rows and the jobform's underline composer. */

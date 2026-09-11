@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AudienceViz } from '../components/AudienceViz';
+import { BotMark } from '../components/BotMark';
 import { Ghost, GhostRows, LoadingStatus } from '../components/Ghosts';
 import { deltaAt, fmtDelta, pendingBallot, poolOf, splitAsk } from '../components/JobsBoard';
 import { PageTopBar } from '../components/PageTopBar';
@@ -335,7 +336,12 @@ function ProposalsShot() {
                 {/* The number leads, as on the floor: it is how a person names a proposal. */}
                 {p.number ? <span className="own-shot-num">#{p.number}</span> : null}
                 <span className="own-shot-title">{rest}</span>
-                {p.proposedByName ? <span className="own-shot-by">by {p.proposedByName}</span> : null}
+                {p.proposedByName ? (
+                  <span className="own-shot-by">
+                    by {p.proposedByName}
+                    <BotMark bot={p.proposedByBot} />
+                  </span>
+                ) : null}
               </span>
               <span className="own-shot-impact">
                 {delta === null ? (

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
+import { BotMark } from './BotMark';
 
 /**
  * The panel under the one market view (owner ask 2026-08-11): three
@@ -31,11 +32,13 @@ import { api } from '../lib/api';
 interface Comment {
   id: string;
   fromName: string;
+  fromBot?: boolean;
   content: string;
   createdAt: string;
 }
 interface Holder {
   handle: string;
+  bot?: boolean;
   id: string;
   direction: 'higher' | 'lower';
   shares: number;
@@ -46,6 +49,7 @@ interface Holder {
 interface TradeItem {
   id: string;
   handle: string;
+  bot?: boolean;
   direction: 'higher' | 'lower';
   kind: 'buy' | 'sell';
   shares: number;
@@ -64,6 +68,7 @@ interface PoolItem {
   id: string;
   /** Null on the platform's own initial liquidity, which has no funder. */
   handle: string | null;
+  bot?: boolean;
   kind: 'opened' | 'deepened';
   amount: number;
   /** Credits in the pool after it. */
@@ -331,7 +336,10 @@ export function FloorComments({
               {comments.map(c => (
                 <li key={c.id} data-comment-id={c.id} className={flashId === c.id ? 'is-flashed' : undefined}>
                   <span className="pubws-comment-head">
-                    <span className="pubws-comment-who">{c.fromName}</span>
+                    <span className="pubws-comment-who">
+                      {c.fromName}
+                      <BotMark bot={c.fromBot} />
+                    </span>
                     <span className="pubws-comment-when">{timeAgo(c.createdAt)}</span>
                   </span>
                   <p className="pubws-comment-text">{c.content}</p>
@@ -376,6 +384,7 @@ export function FloorComments({
                   <span className={`prof-dir prof-dir--${p.direction}`}>{p.direction === 'higher' ? '▲' : '▼'}</span>
                   <Link className="pubws-mkt-who pubws-name-link" to={profileHref(p.handle, p.id)}>
                     {p.handle}
+                    <BotMark bot={p.bot} />
                   </Link>
                   {p.branch && <span className="pubws-mkt-branch">if {p.branch}</span>}
                   <span className="pubws-mkt-val">
@@ -408,6 +417,7 @@ export function FloorComments({
                     </span>
                     <Link className="pubws-mkt-who pubws-name-link" to={profileHref(item.handle, item.handle)}>
                       {item.handle}
+                      <BotMark bot={item.bot} />
                     </Link>
                     {item.branch && <span className="pubws-mkt-branch">if {item.branch}</span>}
                     <span className="pubws-mkt-act">
@@ -440,6 +450,7 @@ export function FloorComments({
                     {item.handle ? (
                       <Link className="pubws-mkt-who pubws-name-link" to={profileHref(item.handle, item.handle)}>
                         {item.handle}
+                        <BotMark bot={item.bot} />
                       </Link>
                     ) : (
                       <span className="pubws-mkt-who">the house</span>

@@ -315,6 +315,8 @@ export interface SeasonStanding {
   nickname: string | null;
   image?: string | null;
   manifoldUsername?: string | null;
+  /** No browser account (docs/ui-conventions.md, "A bot says it is one"). */
+  bot?: boolean;
   /** null while the season is a draft: no baseline exists, so no score does. */
   score: number | null;
   /** Settled seasons only. */
@@ -365,6 +367,8 @@ export interface LeaderboardEntry {
   image?: string | null;
   /** Manifold username if this trader imported a record. */
   manifoldUsername?: string | null;
+  /** No browser account (docs/ui-conventions.md, "A bot says it is one"). */
+  bot?: boolean;
   calibration: number | null;
   accuracy: number | null;
   totalEarnings: number;
@@ -450,6 +454,12 @@ export interface PublicParticipantProfile {
   image: string | null;
   /** Their Manifold username if they imported a Manifold record. */
   manifoldUsername: string | null;
+  /** No browser account; runBy 'telarchy' when the platform runs it, and
+   *  model the label of its newest labelled forecast (docs/ui-conventions.md,
+   *  "A bot says it is one"). */
+  bot?: boolean;
+  runBy?: 'telarchy' | null;
+  model?: string | null;
   intent: string | null;
   /** Freeform public description: who this participant is and what it is in
    *  Telarchy to do. Set via POST /api/auth/profile (max 500 chars). */
@@ -658,6 +668,8 @@ export interface PublicWorkspace {
   metricCount: number;
   openMarketCount: number;
   participantCount: number;
+  /** Distinct bots with a trade here in the last seven days (docs/ui-conventions.md, "A bot says it is one"). */
+  botTraders?: number;
   proposalStats: ProposalStats;
   markets: PublicWorkspaceMarket[];
   /** The ballot: present only when the workspace's Public group grants read
@@ -813,6 +825,8 @@ export interface PublicProposal {
   closedAt?: string | null;
   lapsedAt?: string | null;
   proposedByName: string | null;
+  /** The proposer has no browser account (docs/ui-conventions.md, "A bot says it is one"). */
+  proposedByBot?: boolean;
   /** Resolvable segment for /participants/:id (participant id; the page
    *  also resolves nicknames). */
   proposedByHandle?: string;
@@ -833,6 +847,7 @@ export interface PublicDecidedProposal {
   status: 'approved' | 'declined';
   askUsd: number | null;
   proposedByName: string | null;
+  proposedByBot?: boolean;
   proposedByHandle: string | null;
   resolvedAt: string | null;
   declineReason: string | null;
@@ -856,6 +871,8 @@ export interface PublicContractor {
   pricedJobs: number;
   /** Dollars from approved jobs, the row's second line. */
   earnedUsd: number;
+  /** No browser account (docs/ui-conventions.md, "A bot says it is one"). */
+  bot?: boolean;
 }
 
 /** A market row on the public workspace page. No workspace fields: the page
@@ -1136,6 +1153,7 @@ export function seasonStandingToEntry(s: SeasonStanding): LeaderboardEntry {
     nickname: s.nickname,
     image: s.image ?? null,
     manifoldUsername: s.manifoldUsername ?? null,
+    bot: s.bot,
     calibration: null,
     accuracy: null,
     totalEarnings: s.score ?? 0,
@@ -2065,7 +2083,7 @@ export const api = {
   getFloorComments: (
     idOrSlug: string,
     q: { marketId?: string; proposalId?: string },
-  ): Promise<Array<{ id: string; fromName: string; content: string; createdAt: string }>> =>
+  ): Promise<Array<{ id: string; fromName: string; fromBot?: boolean; content: string; createdAt: string }>> =>
     request(
       `/api/marketplace/${encodeURIComponent(idOrSlug)}/comments?${q.proposalId ? `proposalId=${encodeURIComponent(q.proposalId)}` : `marketId=${encodeURIComponent(q.marketId ?? '')}`}`,
       {},
@@ -2264,6 +2282,7 @@ export const api = {
     positions: Array<{
       handle: string;
       id: string;
+      bot?: boolean;
       direction: 'higher' | 'lower';
       shares: number;
       cost: number;
@@ -2272,6 +2291,7 @@ export const api = {
     trades: Array<{
       id: string;
       handle: string;
+      bot?: boolean;
       direction: 'higher' | 'lower';
       kind: 'buy' | 'sell';
       shares: number;
@@ -2284,6 +2304,7 @@ export const api = {
       id: string;
       /** Null on the platform's own initial liquidity, which has no funder. */
       handle: string | null;
+      bot?: boolean;
       kind: 'opened' | 'deepened';
       amount: number;
       pool: number;

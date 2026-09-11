@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { LeaderboardEntry, PrizeSeason, SeasonStanding } from '../lib/api';
+import { BotMark } from './BotMark';
 import { ManifoldLogo } from './ManifoldLogo';
 
 /**
@@ -77,12 +78,14 @@ function TraderCell({
   image,
   manifoldUsername,
   sub,
+  bot,
 }: {
   id: string;
   nickname: string | null;
   image?: string | null;
   manifoldUsername?: string | null;
   sub?: string | null;
+  bot?: boolean;
 }) {
   const name = nickname || 'anonymous';
   return (
@@ -91,6 +94,7 @@ function TraderCell({
       <span className="lbt-stack">
         <span className="lbt-name">
           <span className="lbt-nametext">{name}</span>
+          <BotMark bot={bot} />
           {manifoldUsername && (
             <span className="lbp-manifold" title={`Linked Manifold account: @${manifoldUsername}`}>
               <ManifoldLogo size={12} strokeWidth={1.6} />
@@ -148,6 +152,7 @@ export function SeasonTable({
             nickname={r.nickname}
             image={r.image}
             manifoldUsername={r.manifoldUsername}
+            bot={r.bot}
             sub={!draft && prize > 0 ? `${share} of the pool` : null}
           />
         </td>
@@ -276,7 +281,13 @@ export function AllTimeTable({
       >
         <td className="lbt-rank">{rank || '—'}</td>
         <td className="lbt-cell is-left">
-          <TraderCell id={e.id} nickname={e.nickname} image={e.image} manifoldUsername={e.manifoldUsername} />
+          <TraderCell
+            id={e.id}
+            nickname={e.nickname}
+            image={e.image}
+            manifoldUsername={e.manifoldUsername}
+            bot={e.bot}
+          />
           {/* The split, restated under the name on a phone, where the two
               middle columns are hidden rather than squeezed. */}
           {split && (

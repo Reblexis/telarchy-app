@@ -4,6 +4,7 @@ import type { PublicProposal } from '../lib/api';
 import { api } from '../lib/api';
 import { horizonLabel } from '../lib/floor-horizons';
 import { countdownTo, instantOf, tickIntervalFor } from '../lib/viewer-time';
+import { BotMark } from './BotMark';
 import { FloorModal } from './FloorModal';
 
 /**
@@ -551,6 +552,7 @@ export function JobsBoard({
                   ) : (
                     p.proposedByName
                   )}
+                  <BotMark bot={p.proposedByBot} />
                 </span>
               )}
               {askUsd !== null && (

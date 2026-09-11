@@ -9,6 +9,7 @@ import {
   authUser,
   creditTransfers,
   deposits,
+  marketForecasts,
   markets,
   permissionGroups,
   positions,
@@ -26,7 +27,7 @@ import { resolutionInstant, settlesOn } from '../lib/date-utils';
 import { creditsIssuedForUsdcDeposit, depositBuyRateUsd } from '../lib/economy';
 import { AppError } from '../lib/errors';
 import { allowLedgerAdmin } from '../lib/ledger-admin';
-import { claimNickname, listParticipantsForWorkspace } from '../lib/participants';
+import { botIds, claimNickname, listParticipantsForWorkspace } from '../lib/participants';
 import { isPlatformAuthorized } from '../lib/platform-admin';
 import { restrictedToMembers } from '../lib/public-read';
 import { granterCoversScopes, parseScopesInput, SCOPE_PRESETS } from '../lib/scopes';
@@ -593,6 +594,24 @@ agentsRouter.get(
       .limit(1);
     const manifoldUsername = manifoldRow[0]?.handle ?? null;
 
+    // Who runs it (docs/ui-conventions.md, "A bot says it is one"): a bot
+    // is a participant with no browser account; one the platform runs names
+    // the model of its newest labelled forecast.
+    const isBot = (await botIds([agent.id])).has(agent.id);
+    const [lastForecast] = isBot
+      ? await db
+          .select({ model: marketForecasts.model })
+          .from(marketForecasts)
+          .where(and(eq(marketForecasts.agentId, agent.id), sql`${marketForecasts.model} is not null`))
+          .orderBy(desc(marketForecasts.createdAt))
+          .limit(1)
+      : [];
+    const botIdentity = {
+      bot: isBot,
+      runBy: isBot && agent.platformOperated ? ('telarchy' as const) : null,
+      model: isBot ? (lastForecast?.model ?? null) : null,
+    };
+
     if (publicWsIds.length === 0 && viewerWsIds.size === 0) {
       // Who the participant IS does not depend on which floors the viewer
       // can see, so this answer carries the same identity fields as the
@@ -603,6 +622,7 @@ agentsRouter.get(
         nickname: agent.nickname,
         image,
         manifoldUsername,
+        ...botIdentity,
         intent: agent.intent,
         bio: agent.bio,
         joinedAt: agent.createdAt,
@@ -946,6 +966,7 @@ agentsRouter.get(
       nickname: agent.nickname,
       image,
       manifoldUsername,
+      ...botIdentity,
       intent: agent.intent,
       bio: agent.bio,
       joinedAt: agent.createdAt,

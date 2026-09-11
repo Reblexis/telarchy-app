@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { BotMark } from '../components/BotMark';
 import { AllTimeTable, initialOf, SeasonTable } from '../components/LeaderTables';
 import { useAuth } from '../hooks/useAuth';
 import { useMyParticipantId } from '../hooks/useMyParticipantId';
@@ -260,7 +261,10 @@ export function LeaderPage() {
                             <span>{initialOf(name)}</span>
                           </span>
                           <span className="lbt-stack">
-                            <span className="lbt-name">{name}</span>
+                            <span className="lbt-name">
+                              {name}
+                              <BotMark bot={c.bot} />
+                            </span>
                           </span>
                         </Link>
                       </td>
