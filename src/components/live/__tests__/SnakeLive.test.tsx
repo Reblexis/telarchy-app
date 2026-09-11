@@ -1,5 +1,5 @@
-import type React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 

@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
-import type { SnakeState } from '../../lib/api';
+import type { SnakeAction, SnakeState } from '../../lib/api';
 import type { FeedQuotes } from '../../lib/feed-overlay';
-import type { SnakeAction } from '../../lib/api';
 import { SnakeLive } from './SnakeLive';
 
 /**
