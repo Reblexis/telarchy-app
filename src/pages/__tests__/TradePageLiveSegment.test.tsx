@@ -154,13 +154,13 @@ describe('the Live segment of the chart slot', () => {
     expect(view.getAttribute('data-slug')).toBe('snake');
   });
 
-  test('the segments sit in one group, Value, Call, Live', async () => {
+  test('the segments sit in one group, Value, Call, Decisions, Live (DECISIONS joined before LIVE, docs/ui-conventions.md)', async () => {
     h.state.liveFeed = FEED;
     renderFloor();
     await waitFor(() => expect(screen.getByTestId('live-view')).toBeTruthy());
     const group = screen.getByRole('group', { name: 'Chart' });
     const labels = Array.from(group.querySelectorAll('button')).map(b => b.textContent);
-    expect(labels).toEqual(['Value', 'Call', 'Live']);
+    expect(labels).toEqual(['Value', 'Call', 'Decisions', 'Live']);
   });
 
   test('Value and Call still swap the slot, and Live brings the game back', async () => {

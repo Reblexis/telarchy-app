@@ -1802,7 +1802,13 @@ selection, which is what the page's one market view is pointed at: a
 selected decided proposal forces the fold open, because a
 `#proposal=<id>` link from a notification must never land on a row the
 fold is hiding; and hiding the fold while a decided proposal is selected
-releases that selection, so the control can never be dead.
+releases that selection, so the control can never be dead. The fold row
+also carries "history" in the accent beside SHOW/HIDE, outside the button
+that folds, a link to the floor's history page (this doc, "A floor's
+history"), where every decision and every settled book is drawn as the tree
+it is; the fold is the last few, the page is all of them. A board with
+nothing pending has no fold, so its decided list is headed by a row that
+counts them and carries the same link.
 
 **The board is a
 selector, not a second trading surface**: selecting a proposal re-points
@@ -2257,6 +2263,25 @@ owner asked for this in place of the framed page on another host (Viktor,
 2026-09-11: "it should all be doable within the telarchy.com it should
 replace the snake.telarchy.com.. i dont like it being there separately";
 record in `notes/decisions/ui-conventions.md`).
+
+**DECISIONS is the chart's third segment: the forks, on the number.** Every
+floor has it, after VALUE and CALL and before LIVE. It draws the VALUE
+chart of the market on screen, and on its line a hollow ink node at the
+instant of every decided proposal the floor carries that is priced on this
+market's metric and date. One node is open at a time, the most recent
+decision when the segment opens, and pressing another opens that one. An
+open node draws its two worlds from the node to the market's settle
+instant: the world chosen as a dotted line ending in a filled dot in its
+direction colour, the world not taken as a dashed line ending in a hollow
+dot, both labelled at that edge ("if approved 30.8", "if declined 20.9"),
+at the prices recorded at the decision. The market's call keeps its amber
+dot on the same edge, so the two worlds and where the market stands now
+are read against each other. Under the plot one line names the open
+decision ("#18 <title> · approved 28 Aug") and links to its page. The
+legend reads actual, a decision, the world chosen, the world not taken.
+A market no decided proposal was priced on draws the VALUE chart and says
+"no decision priced on this date yet" in the legend's place. The segment is
+remembered for the session like the others.
 
 The setting is `liveFeed` on `PUT /api/workspaces/:id/settings`, plain
 `manage`: `{ kind, url }` or null to clear, where `kind` names the feed's
@@ -2864,6 +2889,99 @@ with its condition in the hover, never the headline: the breakeven line
 stays first, because a share's payout is linear in the settled value and
 "to win N" alone, as Manifold prints it for a yes/no share, would read as
 a promise here.
+
+## A floor's history (/<slug>/history)
+
+A floor is a path through a tree of worlds, and this page draws it. At every
+decision the market priced one world per option on the floor's numbers; the
+owner picked one, that world is what happened, and every other world was
+voided with the price it had when the owner ruled. Between decisions the
+numbers are read and books settle, which is where the record says how right
+the market was. The page is the floor's top bar over the `.pubws-doc`
+column, a tiny uppercase "History" label over the floor's name as the
+headline, one mono line under it counting what the tree holds ("36 decided
+· 57 books settled · 3 voided · since 1 Aug"), then the tree, then replay.
+
+**The tree runs from now at the top down to the floor's first event.** One
+vertical ink line, the trunk, is the world that happened. Every row has
+three columns: the worlds not taken on the left, the trunk in the middle,
+what happened on the right. Left of the trunk is what did not happen and
+right of it what did, on every row, so the page reads as one picture before
+it reads as a list.
+
+**A decision is a fork.** A hollow ink node on the trunk. Right of the
+trunk: the proposal's number and title, linking to its page
+(`/<slug>/p/<number>`); under it the facts icon row (the proposer, the ask,
+the decision instant in the viewer's zone, and the metric and date the
+numbers are about); at the right edge the verdict word in the floor's
+verdict register (APPROVED green, DECLINED red, LAPSED and WITHDRAWN in the
+quiet slate, since neither is a ruling on the merits) over the price of the
+world chosen, in mono. Left of the trunk, each world not taken leaves the
+node as a dashed curve rising to the left and ends in a hollow dot, its
+label and price right-aligned before the dot ("if declined 18.8"), in that
+world's direction colour at reduced opacity. A published decline reason
+sits under the facts as the board's own `.pubws-reason`.
+
+- **The numbers are the pair recorded at the decision** (`decidedPricing`),
+  never the books afterwards, for the same reason the contractors rail
+  scores on it: the losing books are voided and the winning ones keep
+  trading. Of the pairs recorded, the fork shows the one with the largest
+  impact, ties to the date that settles last, and names its metric (by its
+  current name) and date in the facts. A proposal with no recorded pair
+  draws its fork with the words and no numbers.
+- **A lapsed or withdrawn proposal is a fork too**: the world taken is the
+  declined one, because nothing was done.
+- **Proposals posted together are one fork.** Several proposals by one
+  proposer, posted within ten seconds of each other with the same decision
+  deadline, whose titles share the question before the answer ("Game 1,
+  move 6: Turn left", "...: Turn right"), are one question with several
+  answers (the snake posts its three moves that way every minute). Posted
+  together with titles that share no question, they are separate forks. They draw as one fork with one branch
+  per proposal: the fork is titled by the part of the titles they share and
+  each branch is labelled by the part it does not ("turn left"), priced at
+  its if-approved price. The approved one is the trunk and its verdict word
+  is CHOSEN; the others are the worlds not taken. A fork none of whose
+  proposals was approved takes none of them, and its verdict is NONE.
+  Multiple-choice proposals, when they exist, draw the same way.
+
+**A book that settled is a square on the trunk.** Only baseline books; a
+proposal's own books belong to its fork. Right of the square: the metric
+and its period, and at the right edge "called 7 → settled 8", the market's
+call when it settled (the price its frozen book holds) and the value it
+settled on, the value in ink and the rest in the quiet mono. A voided book
+reads "voided · refunded". Books that settled in the same minute share one
+square with one line each, and the time sits left of the square.
+
+**The tip is what is being decided now.** On the first page, above the
+newest event, each open proposal (or group posted together) is a dashed
+amber node under a "now" label, its worlds drawn in amber at their live
+prices and its countdown among the facts, with "being priced" where the
+verdict goes.
+
+**Newest first, one page at a time.** The page asks for 60 events at a time
+and an "older" line in the accent under the root loads the next 60. A page
+never splits a fork or a square. An empty floor says "Nothing has been
+decided or settled here yet." in the lead's register; a failed read says
+the history could not be loaded and offers to try again.
+
+**Replay grows the tree.** A bar under the tree, on a hairline: an ink play
+button, a scrubber over the loaded span from its oldest event to now, and
+the instant under the thumb in mono. Dragging hides every event newer than
+the thumb, so the tree is the floor as it stood then, and the "now" label
+reads that instant. Play runs the thumb from the oldest loaded event to now
+in twenty seconds, events rising in as they are reached; pressing it again
+pauses. The page opens at now and never plays by itself, and
+`prefers-reduced-motion` turns the rise off, not the replay.
+
+**Below 520px** the left column narrows to the prices alone ("18.8" without
+"if declined"), the facts row keeps the decision instant and the verdict,
+and the tree keeps its three columns.
+
+It is reached from the floor: the decided fold row on the proposals board
+carries "history" in the accent beside SHOW/HIDE, and the address is the
+floor's own with `/history` after it. The data is
+`GET /api/marketplace/:idOrSlug/history`, as its `/api/help` entry
+describes it; the page computes nothing the endpoint does not hand it.
 
 ## The data room
 

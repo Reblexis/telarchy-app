@@ -1286,6 +1286,61 @@ export type OutreachSummary =
       features: { label: string; on: number; off: number }[];
     };
 
+/** A floor's history (GET /api/marketplace/:idOrSlug/history; the /api/help
+ *  entry is the contract, docs/ui-conventions.md "A floor's history" the
+ *  picture). */
+export interface HistoryOption {
+  label: string;
+  proposalId: string;
+  taken: boolean;
+  price: number | null;
+}
+export interface HistoryProposalRef {
+  id: string;
+  number: number | null;
+  title: string;
+  askUsd: number | null;
+  proposedBy: string;
+  status: string;
+  declineReason: string | null;
+  deliveredAt: string | null;
+  decideBy: string | null;
+  href: string | null;
+}
+export interface HistoryFork {
+  kind: 'fork';
+  at: string;
+  verdict: 'approved' | 'declined' | 'lapsed' | 'withdrawn' | 'chosen' | 'none' | 'open';
+  title: string;
+  proposals: HistoryProposalRef[];
+  metric: { id: string; name: string; targetDate: string } | null;
+  options: HistoryOption[];
+}
+export interface HistoryBook {
+  marketId: string;
+  metricId: string;
+  metricName: string;
+  targetDate: string;
+  voided: boolean;
+  value: number | null;
+  call: number | null;
+}
+export interface HistorySettle {
+  kind: 'settle';
+  at: string;
+  books: HistoryBook[];
+}
+export type HistoryEvent = HistoryFork | HistorySettle;
+export interface FloorHistory {
+  workspace: { slug: string; name: string };
+  now: string;
+  counts: { decided: number; settled: number; voided: number };
+  since: string | null;
+  open: HistoryFork[];
+  events: HistoryEvent[];
+  next: string | null;
+}
+
 export const api = {
   getMetrics: () => request('/api/metrics'),
   /** Every metric on one floor, for the owner's metrics dialog
@@ -2593,6 +2648,22 @@ export const api = {
     if (!res.ok) throw new Error(`Market history request failed: ${res.status}`);
     const body = await res.json();
     return body.history ?? [];
+  },
+  /** A floor's history, newest first, one page at a time: `before` is the
+   *  previous page's `next`. */
+  getFloorHistory: async (
+    workspaceIdOrSlug: string,
+    params: { before?: string; limit?: number } = {},
+  ): Promise<FloorHistory> => {
+    const q = new URLSearchParams();
+    if (params.before) q.set('before', params.before);
+    if (params.limit) q.set('limit', String(params.limit));
+    const qs = q.toString();
+    const res = await fetchGetWithRetry(
+      `${API_BASE}/api/marketplace/${encodeURIComponent(workspaceIdOrSlug)}/history${qs ? `?${qs}` : ''}`,
+    );
+    if (!res.ok) throw new Error(`History request failed: ${res.status}`);
+    return res.json();
   },
   getPublicProfile: async (idOrNickname: string): Promise<PublicParticipantProfile> => {
     const res = await fetchGetWithRetry(`${API_BASE}/api/agents/${encodeURIComponent(idOrNickname)}/public`);

@@ -31,6 +31,20 @@ export interface NumberMarker {
   pair?: { approved: number | null; declined: number | null } | null;
 }
 
+/** A decided proposal priced on the market on screen, for the DECISIONS
+ *  segment (docs/ui-conventions.md): where the owner ruled, and the two
+ *  worlds at the prices recorded at the decision. */
+export interface NumberFork {
+  id: string;
+  /** The decision instant, ISO. */
+  at: string;
+  approved: number | null;
+  declined: number | null;
+  taken: 'approved' | 'declined';
+  /** How the node names itself to a screen reader and on hover: "#18". */
+  label: string;
+}
+
 interface Props {
   points: NumberPoint[];
   markers: NumberMarker[];
@@ -65,6 +79,12 @@ interface Props {
    *  market's call would move, drawn on its marker in the market chart's
    *  own ghost vocabulary. */
   preview?: { value: number; direction: 'higher' | 'lower' } | null;
+  /** The DECISIONS segment: every decided proposal priced on this market.
+   *  Present (even empty) means the chart is in that segment. */
+  forks?: NumberFork[];
+  /** The decision whose two worlds are drawn; null draws none. */
+  openForkId?: string | null;
+  onPickFork?: (id: string) => void;
 }
 
 export type Granularity = 'day' | 'week' | 'month' | 'other';
@@ -221,6 +241,9 @@ export function NumberChart({
   now: nowProp,
   height,
   preview = null,
+  forks,
+  openForkId = null,
+  onPickFork,
 }: Props) {
   // Anchored once per mount, never per render: a per-render default was a
   // fresh advancing timestamp that moved the tween target every render,
@@ -268,8 +291,15 @@ export function NumberChart({
     const t = new Date(m.resolvesOn).getTime();
     return t >= x0 && t <= x1;
   });
+  const nowForWindow = (nowProp ?? mountNow).getTime();
+  const forksIn = (forks ?? []).filter(f => {
+    const t = new Date(f.at).getTime();
+    return t >= x0 && t <= Math.min(x1, nowForWindow);
+  });
+  const openFork = forksIn.find(f => f.id === openForkId) ?? null;
   const ys = [
     ...drawn.map(p => p.value),
+    ...(openFork ? [openFork.approved, openFork.declined].filter((v): v is number => typeof v === 'number') : []),
     ...inWindow.flatMap(m => (m.consensus === null ? [] : [m.consensus])),
     ...inWindow.flatMap(m => [m.pair?.approved, m.pair?.declined].filter((v): v is number => typeof v === 'number')),
     ...(preview ? [preview.value] : []),
@@ -298,6 +328,14 @@ export function NumberChart({
   for (let t = Math.ceil(y0 / step) * step; t <= y1; t += step) ticks.push(Number(t.toFixed(6)));
 
   const nowT = now.getTime();
+  /** The reading in force at an instant: where a decision's node sits on the
+   *  line. With no reading yet, the middle of its pair. */
+  const valueAt = (t: number, f: NumberFork): number => {
+    const inForce = points.filter(p => new Date(p.at).getTime() <= t).pop();
+    if (inForce) return inForce.value;
+    const pair = [f.approved, f.declined].filter((v): v is number => typeof v === 'number');
+    return pair.length ? pair.reduce((a, b) => a + b, 0) / pair.length : (y0 + y1) / 2;
+  };
   // Readings joined by straight segments with a dot at each reading, then a
   // dashed hold from the last reading to now: the value in force. A step
   // line read as a staircase of a daily-synced level, which nobody meant.
@@ -522,6 +560,21 @@ export function NumberChart({
                           },
                         ]
                       : []),
+                    ...(openFork
+                      ? (['approved', 'declined'] as const).flatMap(side => {
+                          const v = side === 'approved' ? openFork.approved : openFork.declined;
+                          return v === null
+                            ? []
+                            : [
+                                {
+                                  key: `fork-${side}`,
+                                  at: y(v),
+                                  text: `if ${side} ${fmt(v, unit)}`,
+                                  cls: `nchart-pair-label nchart-pair-label--${side}`,
+                                },
+                              ];
+                        })
+                      : []),
                     ...(hasPair && ay !== null && ap !== null
                       ? [
                           {
@@ -572,6 +625,74 @@ export function NumberChart({
             </g>
           );
         })}
+        {forksIn.length > 0 &&
+          (() => {
+            const sel = markers.find(m => m.selected);
+            const sx = Math.min(x(new Date(sel?.resolvesOn ?? selectedResolvesOn).getTime()), W - PAD_R);
+            return (
+              <g className="nchart-forks">
+                {openFork &&
+                  (() => {
+                    const t = new Date(openFork.at).getTime();
+                    const fx = x(t);
+                    const fy = y(valueAt(t, openFork));
+                    const other = openFork.taken === 'approved' ? 'declined' : 'approved';
+                    const world = (side: 'approved' | 'declined', role: 'taken' | 'ghost') => {
+                      const v = side === 'approved' ? openFork.approved : openFork.declined;
+                      if (v === null) return null;
+                      const ty = y(v);
+                      const k = (sx - fx) * 0.4;
+                      return (
+                        <g key={side}>
+                          <path
+                            className={`nchart-world nchart-world--${role} nchart-world--${side}`}
+                            d={`M${fx} ${fy} C${fx + k} ${fy} ${sx - k} ${ty} ${sx} ${ty}`}
+                          />
+                          <circle
+                            className={`nchart-world-dot nchart-world-dot--${role} nchart-world--${side}`}
+                            cx={sx}
+                            cy={ty}
+                            r={3.8}
+                          />
+                        </g>
+                      );
+                    };
+                    return (
+                      <g className="nchart-fork-worlds">
+                        {world(other, 'ghost')}
+                        {world(openFork.taken, 'taken')}
+                      </g>
+                    );
+                  })()}
+                {forksIn.map(f => {
+                  const t = new Date(f.at).getTime();
+                  const isOpen = f.id === openFork?.id;
+                  const name = `${f.label}, ${f.taken} ${dayLabel(t)}`;
+                  return (
+                    <g
+                      key={f.id}
+                      data-fork={f.id}
+                      className={`nchart-fork${isOpen ? ' is-open' : ''}`}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={name}
+                      aria-pressed={isOpen}
+                      onClick={() => onPickFork?.(f.id)}
+                      onKeyDown={(e: ReactKeyboardEvent) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          onPickFork?.(f.id);
+                        }
+                      }}
+                    >
+                      <title>{name}</title>
+                      <circle cx={x(t)} cy={y(valueAt(t, f))} r={isOpen ? 5.5 : 4.5} />
+                    </g>
+                  );
+                })}
+              </g>
+            );
+          })()}
         {points.length === 0 && (
           <text
             className="nchart-empty"
@@ -592,7 +713,31 @@ export function NumberChart({
           {dayLabel(x0)}
         </text>
       </svg>
-      {!legend && marksLegend && (
+      {forks !== undefined && forks.length === 0 && (
+        <div className="nchart-legend" aria-label="Legend">
+          <span>no decision priced on this date yet</span>
+        </div>
+      )}
+      {forks !== undefined && forks.length > 0 && (
+        <div className="nchart-legend" aria-label="Legend">
+          <span>
+            <i className="nchart-legend-line" />
+            actual
+          </span>
+          <span>
+            <i className="nchart-legend-node" />a decision
+          </span>
+          <span>
+            <i className="nchart-legend-dot nchart-legend-dot--chosen" />
+            the world chosen
+          </span>
+          <span>
+            <i className="nchart-legend-dot nchart-legend-dot--ghost" />
+            the world not taken
+          </span>
+        </div>
+      )}
+      {forks === undefined && !legend && marksLegend && (
         <div className="nchart-legend" aria-label="Legend">
           <span>
             <i className="nchart-legend-line" />
@@ -610,7 +755,7 @@ export function NumberChart({
           )}
         </div>
       )}
-      {legend && (
+      {forks === undefined && legend && (
         <div className="nchart-legend" aria-label="Legend">
           <span>
             <i className="nchart-legend-dot nchart-legend-dot--approved" />

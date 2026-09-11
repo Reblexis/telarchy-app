@@ -219,3 +219,25 @@ describe('the fold never hides the proposal the page is pointed at', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 });
+
+describe('THE FOLD LEADS TO THE FLOOR\'S HISTORY (docs/ui-conventions.md, "A floor\'s history")', () => {
+  test('the fold row carries "history", a link to the history page, beside the fold and not inside it', () => {
+    board({ historyHref: '/telarchy/history' });
+    const link = screen.getByRole('link', { name: 'history' });
+    expect(link.getAttribute('href')).toBe('/telarchy/history');
+    // Pressing it goes to the page; it is not part of the button that folds.
+    expect(link.closest('button')).toBeNull();
+    expect(screen.getByText('Show')).toBeTruthy();
+  });
+
+  test('a board with nothing pending still leads there, from a row that counts the decided', () => {
+    board({ proposals: DECIDED, historyHref: '/telarchy/history' });
+    expect(screen.getByRole('link', { name: 'history' })).toBeTruthy();
+    expect(screen.getByText('3 decided')).toBeTruthy();
+  });
+
+  test('a board with nothing decided has no history to lead to', () => {
+    board({ proposals: PENDING, historyHref: '/telarchy/history' });
+    expect(screen.queryByRole('link', { name: 'history' })).toBeNull();
+  });
+});

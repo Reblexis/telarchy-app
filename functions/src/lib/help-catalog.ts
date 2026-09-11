@@ -1367,6 +1367,13 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     },
     {
       method: 'GET',
+      path: '/api/marketplace/:idOrSlug/history',
+      auth: false,
+      description:
+        "A floor's history as the tree of worlds it is (docs/ui-conventions.md, \"A floor's history\"): every decision as a fork and every settled baseline book on the trunk, newest first. Returns { workspace: { slug, name }, now, counts: { decided, settled, voided }, since (the oldest event's instant, null on an empty floor), open: [fork] (first page only: the proposals still being decided, priced now; [] on later pages), events: [fork | settle], next (pass as ?before= for the next page; null when there are no older events) }. ?limit= 1..200 events per page (default 60) and ?before= an ISO instant (events strictly older); anything else is 400. A fork is { kind: 'fork', at (the decision instant), verdict ('approved' | 'declined' | 'lapsed' | 'withdrawn' | 'chosen' | 'none' | 'open'), title, proposals: [{ id, number, title, askUsd, proposedBy, status, declineReason, deliveredAt, decideBy, href }], metric: { id, name, targetDate } | null, options: [{ label, proposalId, taken, price }] }. A single proposal has two options, 'if approved' and 'if declined'; the taken one is the world that happened (the declined world for a decline, a lapse or a withdrawal). Proposals one proposer posted within ten seconds of each other with the same decideBy, whose titles share the question before the answer (cut at the last ':', ' - ', ' · ' or ',' of the part they share), are ONE fork with one option per proposal, labelled by the part of its title the others do not share, the fork titled by the part they do; the approved ones are taken (verdict 'chosen', or 'none' when none was approved). Prices are the pair recorded at the decision (decidedPricing), never the books afterwards, on the pair with the largest impact, ties to the date that settles last; metric is null and every price null when nothing was recorded. An open fork is priced on its books now. A settle is { kind: 'settle', at (the minute), books: [{ marketId, metricId, metricName (current name), targetDate, voided, value (null when voided), call (the market's price when it settled or was voided) }] }: baseline books only, one event per minute. A page never splits a fork or a settle. Removed proposals are absent. Same disclosure rule as the announcements: 404 unknown, 403 on a private floor or where the Public group does not hold read.",
+    },
+    {
+      method: 'GET',
       path: '/api/marketplace/:idOrSlug/announcements',
       auth: false,
       description:

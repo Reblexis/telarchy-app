@@ -34,6 +34,7 @@ import { authMiddleware, getAuthWorkspaceMemberships } from '../middleware/auth'
 import { requireIdentity } from '../middleware/roles';
 import { actionsTool } from '../services/actions';
 import { buildDataRoomFeed, renderDataRoomDocument } from '../services/data-room';
+import { buildFloorHistory, MAX_LIMIT as HISTORY_MAX_LIMIT } from '../services/floor-history';
 import { type ApiCallRecord, ottoApiTools } from '../services/otto-tools';
 import { linkedManifoldCount, platformStats } from '../services/platform-stats';
 import { marketPriceSeries } from '../services/predictions';
@@ -1417,6 +1418,61 @@ marketplaceRouter.get(
     // A floor with no slug is addressed by id, as its share link is.
     const items = await buildTimeline(db, { id: ws.id, slug: ws.slug ?? ws.id }, now);
     res.json({ now: now.toISOString(), items });
+  }),
+);
+
+/**
+ * A floor's history as the tree of worlds it is: every decision a fork, every
+ * settled baseline book on the trunk, newest first (docs/ui-conventions.md,
+ * "A floor's history"; the /api/help entry is the contract). Same disclosure
+ * rule as the timeline and the announcements. services/floor-history.ts owns
+ * every rule; this only reads the query and the door.
+ */
+marketplaceRouter.get(
+  '/:workspaceId/history',
+  wrap(async (req, res) => {
+    const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
+    if (!ws) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+    if (restrictedToMembers(ws.visibility)) {
+      res.status(403).json({ error: 'This workspace is private' });
+      return;
+    }
+    const [publicGroup] = await db
+      .select()
+      .from(permissionGroups)
+      .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
+    const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
+    if (!publicCaps.includes('read')) {
+      res.status(403).json({ error: 'Not public' });
+      return;
+    }
+
+    const rawLimit = req.query.limit;
+    let limit: number | undefined;
+    if (rawLimit !== undefined) {
+      const n = typeof rawLimit === 'string' && /^\d+$/.test(rawLimit) ? Number(rawLimit) : Number.NaN;
+      if (!Number.isInteger(n) || n < 1 || n > HISTORY_MAX_LIMIT) {
+        res.status(400).json({ error: `limit must be an integer from 1 to ${HISTORY_MAX_LIMIT}` });
+        return;
+      }
+      limit = n;
+    }
+    const rawBefore = req.query.before;
+    let before: Date | null = null;
+    if (rawBefore !== undefined) {
+      const d = typeof rawBefore === 'string' ? new Date(rawBefore) : new Date(Number.NaN);
+      if (Number.isNaN(d.getTime())) {
+        res.status(400).json({ error: 'before must be an ISO instant' });
+        return;
+      }
+      before = d;
+    }
+
+    // A floor with no slug is addressed by id, as its share link is.
+    res.json(await buildFloorHistory(db, { id: ws.id, slug: ws.slug ?? ws.id, name: ws.name }, { before, limit }));
   }),
 );
 

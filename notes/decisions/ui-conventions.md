@@ -2025,3 +2025,17 @@ the headline painted over. Not done, by his words: the plain line under
 the title, the ticket's labels, and the rest of the proposal. Specs in
 docs/ui-conventions.md: "The question line", "The stat row", "The live
 view is a segment of the chart slot", "The page ends".
+
+**2026-09-11 (Viktor): a floor's history is a tree of worlds.** Asked to
+design how a workspace's proposal and market history is shown, a record
+page of decisions and settlements was proposed; Viktor answered "im
+thinking of more of a tree like visualization.. going in bracnhase based
+on which proposal option was selected.. something very cool and similar
+thing for markets.. lets figure out the best way to visualize telarchy
+wqorkspace history as a whole.. /design brainstorm first..". Four
+directions were sketched (the world tree, ghost ribbons on the chart, a
+swimlane river, brackets; telarchy umbrella
+`notes/design/workspace-history/`), the recommendation was the world tree
+as a page, the same forks on the floor's chart, and replay on the tree, and
+he answered "do what you recommend". Governing text: docs/ui-conventions.md,
+"A floor's history" and the DECISIONS segment in "The price and the chart".

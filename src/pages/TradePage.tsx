@@ -204,7 +204,7 @@ export function holdersOf(
     .sort((a, b) => b.totalEarnings - a.totalEarnings);
 }
 
-type ChartMode = 'value' | 'call' | 'live';
+type ChartMode = 'value' | 'call' | 'decisions' | 'live';
 
 export function TradePage() {
   const params = useParams();
@@ -651,6 +651,50 @@ export function TradePage() {
   const heroDates = hero ? [...datesOf(horizons, hero.metricId, keptCells)].reverse() : [];
   // One clock for the page, so the countdown and every settle tooltip agree.
   const [now, setNow] = useState(() => new Date());
+  /* DECISIONS (docs/ui-conventions.md, the DECISIONS segment): every decided
+     proposal priced on the market on screen, at the pair recorded at the
+     decision (the payload overwrites a decided proposal's pair with it). */
+  const decisionForks = useMemo(() => {
+    if (!hero) return [];
+    return (ws?.proposals ?? []).flatMap(p => {
+      if (!p.status || p.status === 'pending' || !p.resolvedAt) return [];
+      const pr = p.markets?.find(
+        m => m.targetDate === hero.targetDate && (m.metricId === undefined || m.metricId === hero.metricId),
+      );
+      if (!pr || pr.approvedConsensus == null || pr.declinedConsensus == null) return [];
+      // The payload's status type lags the statuses the API writes, so read it as text.
+      const status: string = p.status;
+      const verdict =
+        status === 'approved'
+          ? 'approved'
+          : status === 'withdrawn'
+            ? 'withdrawn'
+            : p.lapsedAt || status === 'lapsed'
+              ? 'lapsed'
+              : 'declined';
+      return [
+        {
+          id: p.id,
+          at: p.resolvedAt,
+          approved: pr.approvedConsensus,
+          declined: pr.declinedConsensus,
+          taken: (p.status === 'approved' ? 'approved' : 'declined') as 'approved' | 'declined',
+          label: p.number != null ? `#${p.number}` : p.title,
+          number: p.number ?? null,
+          title: p.title,
+          verdict,
+        },
+      ];
+    });
+  }, [ws, hero]);
+  const [pickedForkId, setPickedForkId] = useState<string | null>(null);
+  // The most recent decision is the open one until the reader presses another.
+  const openFork =
+    decisionForks.find(f => f.id === pickedForkId) ??
+    decisionForks.reduce<(typeof decisionForks)[number] | null>(
+      (a, f) => (!a || new Date(f.at).getTime() > new Date(a.at).getTime() ? f : a),
+      null,
+    );
   /* ONE chart, and how the call moved is a mode of it (docs/ui-conventions.md,
      "The price and the chart", 2026-09-09). Two stacked charts cost 340px of
      the first screen and put the bet verbs below the fold. The mode is
@@ -658,7 +702,7 @@ export function TradePage() {
   const [chartMode, setChartMode] = useState<ChartMode>(() => {
     try {
       const m = sessionStorage.getItem('floorChartMode');
-      return m === 'call' || m === 'live' ? m : 'value';
+      return m === 'call' || m === 'live' || m === 'decisions' ? m : 'value';
     } catch {
       return 'value';
     }
@@ -1342,6 +1386,14 @@ export function TradePage() {
         onClick={() => pickChartMode('call')}
       >
         Call
+      </button>
+      <button
+        type="button"
+        className={`pubws-seg-btn${chartView === 'decisions' ? ' is-active' : ''}`}
+        aria-pressed={chartView === 'decisions'}
+        onClick={() => pickChartMode('decisions')}
+      >
+        Decisions
       </button>
       {liveFeed && (
         <button
@@ -2157,6 +2209,46 @@ export function TradePage() {
                         onPickProposal={n => setSelectedJobId(String(n))}
                         onQuotes={q => setFeedQuotes(q)}
                       />
+                    ) : chartView === 'decisions' ? (
+                      <>
+                        <NumberChart
+                          points={hero.metricHistory}
+                          markers={datesOf(horizons, hero.metricId, keptCells).flatMap(d =>
+                            d.resolvesOn
+                              ? [
+                                  {
+                                    marketId: d.marketId,
+                                    resolvesOn: d.resolvesOn,
+                                    consensus: d.consensus,
+                                    selected: d.marketId === hero.marketId,
+                                  },
+                                ]
+                              : [],
+                          )}
+                          forks={decisionForks}
+                          openForkId={openFork?.id ?? null}
+                          onPickFork={setPickedForkId}
+                          selectedResolvesOn={hero.resolvesOn ?? new Date().toISOString()}
+                          granularity={granularityOf(hero.targetDate)}
+                          unit={unit}
+                          now={now}
+                          center={<span className="pubws-chart-cap">{captionLabel(metricLabel, ws.name)}</span>}
+                          corner={chartModeToggle}
+                          onPickDate={setHorizonId}
+                        />
+                        {openFork && (
+                          <p className="nchart-fork-caption">
+                            {openFork.label !== openFork.title && <span className="hist-num">{openFork.label}</span>}
+                            {openFork.title} · {openFork.verdict} {dayOf(openFork.at)}
+                            {openFork.number != null && (
+                              <>
+                                {' · '}
+                                <Link to={`/${ws.slug ?? idOrSlug}/p/${openFork.number}`}>open the proposal</Link>
+                              </>
+                            )}
+                          </p>
+                        )}
+                      </>
                     ) : chartView === 'value' ? (
                       <NumberChart
                         points={hero.metricHistory}
@@ -2729,6 +2821,7 @@ export function TradePage() {
           {ws.proposals !== undefined && hero ? (
             <div className="pubws-board" aria-label="Proposals">
               <JobsBoard
+                historyHref={`/${ws.slug ?? idOrSlug}/history`}
                 proposals={ws.proposals}
                 unit={unit}
                 horizonDate={hero.targetDate}

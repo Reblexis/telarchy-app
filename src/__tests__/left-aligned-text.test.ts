@@ -57,6 +57,8 @@ const PROSE = [
   'dr-lead',
   // a plan item's own words under the room's "What is planned" axis
   'dr-tl-words',
+  // a floor's history: the empty and failed states (docs/ui-conventions.md, "A floor's history")
+  'hist-empty',
 ];
 
 describe('blocks of text are left-aligned', () => {

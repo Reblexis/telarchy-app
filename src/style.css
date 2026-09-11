@@ -12139,3 +12139,340 @@ a.snake-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
   .snake-games { order: 0; }
   .snake-btn { order: 2; }
 }
+
+/* ========================================================================
+   A floor's history (/<slug>/history): the tree of worlds
+   (docs/ui-conventions.md, "A floor's history"). Three columns on every
+   row: the worlds not taken, the trunk, what happened.
+   ======================================================================== */
+
+.hist-head { text-align: center; }
+.hist-head .pubws-h2 { margin: 0 0 0.3rem; }
+.hist-name a { color: inherit; text-decoration: none; }
+.hist-counts {
+  margin: 0.55rem 0 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.hist-empty {
+  margin: 2.5rem 0 0;
+  text-align: left;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+.hist-empty .pubws-ballot-fold-act { margin-left: 0.6rem; }
+
+.hist-tree {
+  list-style: none;
+  margin: 2rem 0 0;
+  padding: 0;
+  --hist-node: 26px;
+}
+.hist-row,
+.hist-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1.7fr);
+  column-gap: 0.9rem;
+  position: relative;
+}
+
+/* The trunk: one ink line down the middle column of every row, so the rows
+   join into one line; the node sits on it at the title's height. */
+.hist-trunk { position: relative; }
+.hist-trunk::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  margin-left: -1.5px;
+  background: var(--text-primary);
+}
+.hist-now .hist-trunk::before { top: 50%; }
+.hist-node {
+  position: absolute;
+  left: 50%;
+  top: var(--hist-node);
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: var(--bg-primary);
+  border: 2.5px solid var(--text-primary);
+  box-sizing: border-box;
+  z-index: 2;
+}
+.hist-node--open { border: 2px dashed var(--accent); }
+.hist-node--now {
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  top: 50%;
+  border: 0;
+  background: var(--accent);
+}
+.hist-node--book {
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border: 0;
+  border-radius: 0;
+  background: var(--text-primary);
+  top: 0.8rem;
+}
+
+/* Left of the trunk: the worlds not taken, each a dashed curve from the node
+   up to a hollow dot, its label right-aligned before the dot. The curves are
+   drawn in a fixed-width strip anchored to the trunk, so their geometry does
+   not depend on how wide the column is. */
+.hist-ghosts { position: relative; }
+/* The strip's right edge is the trunk's centre: the column gap plus half the
+   trunk column, so a curve starts exactly on the node at either width. */
+.hist-curves {
+  position: absolute;
+  top: 0;
+  right: calc(-0.9rem - 14px);
+  width: 88px;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.hist-curves path { fill: none; stroke-width: 1.6; stroke-dasharray: 5 4; opacity: 0.6; }
+.hist-curves circle { fill: var(--bg-primary); stroke-width: 1.5; opacity: 0.75; }
+.hist-ghost {
+  position: absolute;
+  right: calc(76px - 0.9rem);
+  display: flex;
+  gap: 0.35rem;
+  align-items: baseline;
+  white-space: nowrap;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  transform: translateY(-50%);
+}
+.hist-ghost b { font-weight: 600; font-size: 0.78rem; opacity: 0.85; }
+.hist-tone--approved { color: var(--higher); stroke: var(--higher); }
+.hist-tone--declined { color: var(--lower); stroke: var(--lower); }
+.hist-tone--answer { color: var(--text-secondary); stroke: var(--text-tertiary); }
+.hist-tone--open { color: var(--accent); stroke: var(--accent); }
+.hist-ghost.hist-tone--answer b { color: var(--text-primary); }
+.hist-when {
+  display: block;
+  text-align: right;
+  padding-top: 0.45rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+/* Right of the trunk: what happened. */
+.hist-body {
+  display: flex;
+  gap: 0.9rem;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 0.7rem 0 0.9rem;
+}
+.hist-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.hist-title {
+  font-size: 0.94rem;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hist-title a { color: var(--text-primary); text-decoration: none; }
+.hist-title a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.hist-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  margin-right: 0.4rem;
+}
+.hist-answer { color: var(--text-secondary); }
+.hist-main .pubws-prow-meta { flex-wrap: nowrap; overflow: hidden; }
+.hist-main .pubws-reason { margin-top: 0.15rem; }
+.hist-verdict {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  text-align: right;
+}
+.hist-verdict .pubws-verdict { color: var(--text-secondary); }
+.hist-verdict .hist-tone--approved,
+.hist-verdict .hist-tone--declined,
+.hist-verdict .hist-tone--open { color: inherit; }
+.hist-verdict.hist-tone--approved .pubws-verdict { color: var(--higher); }
+.hist-verdict.hist-tone--declined .pubws-verdict { color: var(--lower); }
+.hist-verdict.hist-tone--open .pubws-verdict { color: var(--accent); }
+.hist-price {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A settled book: one line per book, the call against the value. */
+.hist-books { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; padding: 0.3rem 0 0.9rem; }
+.hist-book {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: baseline;
+  font-size: 0.86rem;
+}
+.hist-book-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hist-book-period { color: var(--text-tertiary); }
+.hist-book-call {
+  flex: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.hist-book-call b { color: var(--text-primary); font-size: 0.86rem; font-weight: 600; }
+
+.hist-now .hist-body { padding: 0.35rem 0; }
+.hist-now-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* The root: the trunk runs out dotted, and "older" reads the next page. */
+.hist-root .hist-trunk::before {
+  background: none;
+  border-left: 3px dotted var(--text-primary);
+  width: 0;
+  bottom: 0.4rem;
+}
+.hist-root .hist-body { padding: 0.5rem 0 1rem; }
+.hist-older {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.hist-older:hover { color: var(--accent-hover); }
+
+/* Replay: a play button, a scrubber over the loaded span, the instant. */
+.hist-replay {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-top: 1.5rem;
+  padding: 0.9rem 0;
+  border-top: 1px solid var(--border-color);
+}
+.hist-play {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--button-bg);
+  color: var(--button-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.hist-play:hover { background: var(--button-bg-hover); }
+.hist-scrub { flex: 1; min-width: 0; accent-color: var(--accent); }
+.hist-replay-when {
+  flex: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+@media (max-width: 519px) {
+  .hist-row,
+  .hist-line { grid-template-columns: minmax(0, 0.75fr) 22px minmax(0, 2fr); column-gap: 0.5rem; }
+  .hist-ghost-label { display: none; }
+  .hist-ghost { right: calc(79px - 0.5rem); }
+  .hist-curves { right: calc(-0.5rem - 11px); }
+  .hist-main .pubws-prow-meta > span:not(.hist-meta-when) { display: none; }
+}
+
+/* The DECISIONS segment of the chart (docs/ui-conventions.md): a hollow node
+   on the line per decided proposal, and the open one's two worlds running to
+   the settle edge, the one taken dotted and filled, the other dashed and
+   hollow, in their direction colours. */
+.nchart-fork circle {
+  fill: var(--bg-primary);
+  stroke: var(--text-primary);
+  stroke-width: 2;
+  cursor: pointer;
+}
+.nchart-fork.is-open circle { stroke-width: 2.6; }
+.nchart-fork:focus-visible circle { stroke: var(--accent); }
+.nchart-world { fill: none; stroke-width: 1.6; }
+.nchart-world--taken { stroke-dasharray: 1.5 3.5; }
+.nchart-world--ghost { stroke-dasharray: 5 4; opacity: 0.75; }
+path.nchart-world--approved { stroke: var(--higher); }
+path.nchart-world--declined { stroke: var(--lower); }
+.nchart-world-dot--taken.nchart-world--approved { fill: var(--higher); }
+.nchart-world-dot--taken.nchart-world--declined { fill: var(--lower); }
+.nchart-world-dot--ghost { fill: var(--bg-primary); stroke-width: 1.5; }
+.nchart-world-dot--ghost.nchart-world--approved { stroke: var(--higher); }
+.nchart-world-dot--ghost.nchart-world--declined { stroke: var(--lower); }
+.nchart-legend-node {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid var(--text-primary);
+  box-sizing: border-box;
+  margin-right: 0.35rem;
+  vertical-align: -1px;
+}
+.nchart-legend-dot--chosen { background: var(--text-primary); }
+.nchart-legend-dot--ghost { background: transparent; border: 1.5px solid var(--text-tertiary); box-sizing: border-box; }
+.nchart-fork-caption {
+  margin: 0.6rem 0 0;
+  text-align: left;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+.nchart-fork-caption a { color: var(--accent); text-decoration: none; }
+
+/* The decided row leads to the floor's history (docs/ui-conventions.md, "A
+   floor's history"): the link sits beside the fold's button, not inside it,
+   and the row's hairlines run under both. */
+.pubws-ballot-foldrow {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+.pubws-ballot-foldrow > .pubws-ballot-fold { flex: 1; min-width: 0; border-top: 0; border-bottom: 0; }
+.pubws-ballot-fold--static { cursor: default; }
+.pubws-ballot-history {
+  flex: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-decoration: none;
+}
+.pubws-ballot-history:hover { color: var(--accent-hover); }
+

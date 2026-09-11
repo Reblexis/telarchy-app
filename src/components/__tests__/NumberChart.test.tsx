@@ -541,3 +541,89 @@ describe('the legend names the marks (docs/ui-conventions.md, "The price and the
     expect(container.querySelector('.nchart-legend')).toBeNull();
   });
 });
+
+describe('DECISIONS: the forks, on the number (docs/ui-conventions.md, the DECISIONS segment)', () => {
+  // The market on screen settles 1 Oct; two proposals were decided on its
+  // pair, one approved on 10 Aug and one declined on 20 Aug.
+  const markers = [{ marketId: 'sep', resolvesOn: '2026-10-01T00:00:00Z', consensus: 18.8, selected: true }];
+  const forks = [
+    { id: 'p18', at: '2026-08-10T12:00:00Z', approved: 30.8, declined: 20.9, taken: 'approved' as const, label: '#18' },
+    { id: 'p28', at: '2026-08-20T12:00:00Z', approved: 20, declined: 18.6, taken: 'declined' as const, label: '#28' },
+  ];
+  const draw = (over: Record<string, unknown> = {}) =>
+    render(
+      <NumberChart
+        points={points}
+        markers={markers}
+        selectedResolvesOn="2026-10-01T00:00:00Z"
+        granularity="month"
+        now={NOW}
+        forks={forks}
+        openForkId="p18"
+        {...over}
+      />,
+    );
+
+  test('A DECISION PRICED ON THIS DATE IS A NODE ON THE LINE at the instant it was made', () => {
+    const { container } = draw({ openForkId: null });
+    const nodes = container.querySelectorAll('.nchart-fork');
+    expect(nodes).toHaveLength(2);
+    // No decision is open, so no world is drawn.
+    expect(container.querySelector('.nchart-world')).toBeNull();
+    // A node sits left of the one after it: the x is the decision's instant.
+    const xs = Array.from(nodes).map(n => Number(n.querySelector('circle')?.getAttribute('cx')));
+    expect(xs[0]).toBeLessThan(xs[1]);
+  });
+
+  test('THE OPEN DECISION DRAWS ITS TWO WORLDS at the prices recorded at the decision: the one taken dotted, the other dashed', () => {
+    const { container } = draw();
+    const taken = container.querySelector('.nchart-world--taken');
+    const ghost = container.querySelector('.nchart-world--ghost');
+    expect(taken?.classList.contains('nchart-world--approved')).toBe(true);
+    expect(ghost?.classList.contains('nchart-world--declined')).toBe(true);
+    expect(container.textContent).toContain('if approved 30.8');
+    expect(container.textContent).toContain('if declined 20.9');
+  });
+
+  test('a declined decision takes the declined world', () => {
+    const { container } = draw({ openForkId: 'p28' });
+    expect(container.querySelector('.nchart-world--taken')?.classList.contains('nchart-world--declined')).toBe(true);
+    expect(container.querySelector('.nchart-world--ghost')?.classList.contains('nchart-world--approved')).toBe(true);
+  });
+
+  test('pressing another decision opens it', () => {
+    const picked: string[] = [];
+    const { container } = draw({ onPickFork: (id: string) => picked.push(id) });
+    const other = container.querySelector('.nchart-fork[data-fork="p28"]') as Element;
+    fireEvent.click(other);
+    expect(picked).toEqual(['p28']);
+  });
+
+  test('a decision outside the window is not drawn', () => {
+    const { container } = draw({
+      forks: [{ ...forks[0], id: 'old', at: '2020-01-01T00:00:00Z' }],
+      openForkId: 'old',
+    });
+    expect(container.querySelector('.nchart-fork')).toBeNull();
+    expect(container.querySelector('.nchart-world')).toBeNull();
+  });
+
+  test('the legend names the marks, and a date nobody decided on says so', () => {
+    const { container, rerender } = draw();
+    const legend = container.querySelector('.nchart-legend')?.textContent ?? '';
+    expect(legend).toContain('a decision');
+    expect(legend).toContain('the world chosen');
+    expect(legend).toContain('the world not taken');
+    rerender(
+      <NumberChart
+        points={points}
+        markers={markers}
+        selectedResolvesOn="2026-10-01T00:00:00Z"
+        granularity="month"
+        now={NOW}
+        forks={[]}
+      />,
+    );
+    expect(container.textContent).toContain('no decision priced on this date yet');
+  });
+});

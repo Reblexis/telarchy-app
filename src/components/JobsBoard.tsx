@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import type { PublicProposal } from '../lib/api';
 import { api } from '../lib/api';
 import { horizonLabel } from '../lib/floor-horizons';
@@ -76,6 +76,9 @@ interface Props {
    *  naming them in the prompt is what turns "Links: portfolio" into a pitch
    *  the market can price (owner direction 2026-08-20). */
   metricNames?: string[];
+  /** The floor's history page (docs/ui-conventions.md, "A floor's history"):
+   *  the decided row links there beside its fold. */
+  historyHref?: string | null;
 }
 
 function fmtVal(v: number, unit: string): string {
@@ -278,6 +281,7 @@ export function JobsBoard({
   signedIn,
   onRequireSignup,
   workspaceName,
+  historyHref = null,
   metricNames = [],
   horizonDate,
   horizonMetricId,
@@ -661,7 +665,7 @@ export function JobsBoard({
             </li>
           )}
           {foldable && (
-            <li>
+            <li className={historyHref ? 'pubws-ballot-foldrow' : undefined}>
               {/* One hairline row standing for the archive, in the rail
                   head's anatomy: the count left, the action right. */}
               <button
@@ -691,6 +695,23 @@ export function JobsBoard({
                   </svg>
                 </span>
               </button>
+              {historyHref && (
+                <Link className="pubws-ballot-history" to={historyHref}>
+                  history
+                </Link>
+              )}
+            </li>
+          )}
+          {/* A board with nothing pending has no fold, but its decided list
+              still leads to the whole tree. */}
+          {!foldable && decided.length > 0 && pending.length === 0 && historyHref && (
+            <li className="pubws-ballot-foldrow">
+              <span className="pubws-ballot-fold pubws-ballot-fold--static">
+                <span className="pubws-ballot-fold-count">{`${decided.length} decided`}</span>
+              </span>
+              <Link className="pubws-ballot-history" to={historyHref}>
+                history
+              </Link>
             </li>
           )}
           {showDecided && decided.map(row)}
