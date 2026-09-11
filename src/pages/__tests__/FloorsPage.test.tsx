@@ -139,7 +139,13 @@ describe('marketplace', () => {
     expect(screen.getByText(/updated by the people running them/i)).toBeInTheDocument();
     expect(screen.getByText(/Forecast how each open decision moves them, free, human or AI/)).toBeInTheDocument();
     expect(screen.getAllByText(/human or AI/)).toHaveLength(1);
-    expect(screen.getByText(/put your own decision up and read the forecast before you act/i)).toBeInTheDocument();
+    expect(document.querySelector('.mkt-lead')?.textContent).toMatch(
+      /put your own decision up and read the forecast before you act/i,
+    );
+    // The owner's door is in the first paragraph: "put your own decision
+    // up" links to /owners (Viktor, 2026-09-11: the customers are the
+    // owners, the forecasters are the contractors).
+    expect(screen.getByRole('link', { name: /put your own decision up/i })).toHaveAttribute('href', '/owners');
     expect(screen.queryByText(/one number/i)).toBeNull();
   });
 

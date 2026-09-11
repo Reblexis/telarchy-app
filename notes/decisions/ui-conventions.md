@@ -1984,3 +1984,10 @@ game's score, updated by the people running them. Forecast how each open
 decision moves them, free, human or AI. Or put your own decision up and
 read the forecast before you act." Spec in docs/ui-conventions.md, "Above
 the board".
+On the same day, of the audience: "our customers are the metrics owners..
+the traders are more like contractors its a marketplaceafter all.. so im
+wondering whether were talking tot he correct target audience on the main
+page". Kept the forecaster-first home page (the board is the evidence, and
+owners have /owners since 2026-09-06), and made the lead's last sentence
+link to /owners so the owner's route is in the first paragraph; measure
+its clicks before more.
