@@ -703,10 +703,18 @@ describe('moveQuestionOf: a game floor asks in moves (docs/ui-conventions.md, "T
       settleShort: '11 Sep',
     }) as unknown as HorizonView;
 
-  test('a minute cell reads "in N moves", N the whole minutes to its settle instant', () => {
-    const now = new Date('2026-09-11T13:40:20Z');
-    expect(moveQuestionOf(minute('2026-09-11T14:39', '2026-09-11T14:40:00Z'), now)).toEqual({
-      word: '60 moves',
+  test('a minute cell reads "in N moves", N the minutes from the current minute to the cell, whatever the second', () => {
+    // The +60min cell of a step opened in minute 13:40 is the cell 14:40 (it
+    // ends 14:41). From any second of 13:40 that is 60 moves, never 61.
+    for (const at of ['2026-09-11T13:40:00.500Z', '2026-09-11T13:40:20Z', '2026-09-11T13:40:59.900Z']) {
+      expect(moveQuestionOf(minute('2026-09-11T14:40', '2026-09-11T14:41:00Z'), new Date(at))).toEqual({
+        word: '60 moves',
+        lead: 'in ',
+      });
+    }
+    // A second before the minute turns it is one move further away.
+    expect(moveQuestionOf(minute('2026-09-11T14:40', '2026-09-11T14:41:00Z'), new Date('2026-09-11T13:39:59Z'))).toEqual({
+      word: '61 moves',
       lead: 'in ',
     });
   });

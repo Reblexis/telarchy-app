@@ -468,7 +468,13 @@ export function moveQuestionOf(
   if (!v || cellKindOf(v.targetDate) !== 'minute') return dateQuestionOf(v);
   const end = v.resolvesOn ? new Date(v.resolvesOn) : cellEndOf(v.targetDate);
   if (!end || Number.isNaN(end.getTime())) return dateQuestionOf(v);
-  const moves = Math.max(1, Math.round((end.getTime() - now.getTime()) / 60_000));
+  // Moves are whole minutes between the current minute and the cell (the cell
+  // ends one minute after it starts), so the count does not depend on the
+  // second: the +60min cell of a step opened at 13:40 is 60 moves from any
+  // second of 13:40, not 61 at :00 and 60 at :30.
+  const minuteStart = Math.floor(now.getTime() / 60_000) * 60_000;
+  const cellStart = end.getTime() - 60_000;
+  const moves = Math.max(1, Math.round((cellStart - minuteStart) / 60_000));
   return { word: `${moves} ${moves === 1 ? 'move' : 'moves'}`, lead: 'in ' };
 }
 

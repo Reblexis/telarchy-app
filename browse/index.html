@@ -5222,10 +5222,12 @@ words (<code>dateQuestionOf</code>, <code>horizonLabel</code>).</p>
 <p><strong>A game's floor asks in the game's unit, not at a clock time</strong> (Viktor,
 2026-09-11, picking from the snake floor's design proposal). On a floor
 whose <code>liveFeed.kind</code> is <code>snake</code> a minute cell reads &quot;in 60 moves&quot;
-(<code>moveQuestionOf</code>): the whole minutes from now to the cell's settle
-instant (<code>resolvesOn</code>, rounded, never below 1), because the game moves
-once a minute and &quot;at 15:53&quot; is a fact about the clock, not about the
-snake. The strip's tab keeps the clock, and the number ticks down with
+(<code>moveQuestionOf</code>): the whole minutes from the current minute to the
+cell's own minute (its settle instant less one minute; never below 1),
+so the count is the same at any second of the minute (a step opened at
+13:40 is 60 moves from its 14:40 cell at :00 and at :59, never 61),
+because the game moves once a minute and &quot;at 15:53&quot; is a fact about
+the clock, not about the snake. The strip's tab keeps the clock, and the number ticks down with
 the page's minute clock. An hour or day cell, and every other floor,
 reads exactly as before.</p>
 </li>

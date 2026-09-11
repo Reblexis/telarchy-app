@@ -522,10 +522,12 @@ find out:
 - **A game's floor asks in the game's unit, not at a clock time** (Viktor,
   2026-09-11, picking from the snake floor's design proposal). On a floor
   whose `liveFeed.kind` is `snake` a minute cell reads "in 60 moves"
-  (`moveQuestionOf`): the whole minutes from now to the cell's settle
-  instant (`resolvesOn`, rounded, never below 1), because the game moves
-  once a minute and "at 15:53" is a fact about the clock, not about the
-  snake. The strip's tab keeps the clock, and the number ticks down with
+  (`moveQuestionOf`): the whole minutes from the current minute to the
+  cell's own minute (its settle instant less one minute; never below 1),
+  so the count is the same at any second of the minute (a step opened at
+  13:40 is 60 moves from its 14:40 cell at :00 and at :59, never 61),
+  because the game moves once a minute and "at 15:53" is a fact about
+  the clock, not about the snake. The strip's tab keeps the clock, and the number ticks down with
   the page's minute clock. An hour or day cell, and every other floor,
   reads exactly as before.
 - **The sentence is "What will be {company}'s {metric} {date}?"** The
