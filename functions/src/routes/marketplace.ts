@@ -22,9 +22,10 @@ import {
 import { consensus, pHigher } from '../lib/amm';
 import { type AskTurn, askAboutWorkspace, askEnabled } from '../lib/ask';
 import { type BaselineOrderKey, compareSoonestFirst, primaryOf } from '../lib/baseline-order';
-import { type ContractorEntry, type ContractorJobPair, computeContractors } from '../lib/contractors';
+import { type ContractorEntry, type ContractorJobPair, computeContractors, pairDelta } from '../lib/contractors';
 import { periodEndInstant, periodStartInstant, resolutionInstant, settlesOn } from '../lib/date-utils';
 import { historyQuery, type LiveEndpoint, LiveFeedError, readLiveFeed } from '../lib/live-feed';
+import { isOptionBranch, optionDeltas } from '../lib/proposal-options';
 import { branchIsShown } from '../lib/market-pairs';
 import { botIds, getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
 import { restrictedToMembers } from '../lib/public-read';
@@ -931,6 +932,21 @@ async function buildFloorPayload(ws: PublicWs) {
       declinedVolume: number | null;
       rangeMin: number;
       rangeMax: number;
+      // One entry per option on a proposal with options (docs/guides/
+      // proposals.md, "More than two options"), keyed by option id; the
+      // approved/declined fields above stay null on such a proposal.
+      options: Map<string, OptionGroup>;
+    }
+    interface OptionGroup {
+      id: string;
+      marketId: string;
+      consensus: number | null;
+      probability: number | null;
+      liquidity: number;
+      pool: number;
+      traders: number;
+      volume: number;
+      voided: boolean;
     }
     const byProposal = new Map<string, Map<string, PairGroup>>();
     // A voided pair is dead weight on a PENDING proposal: it was voided
@@ -969,8 +985,26 @@ async function buildFloorPayload(ws: PublicWs) {
         declinedVolume: null,
         rangeMin: m.rangeMin,
         rangeMax: m.rangeMax,
+        options: new Map(),
       };
-      if (m.branch === 'approved') {
+      if (isOptionBranch(m.branch)) {
+        // A live row wins over a voided one of the same option (a decided
+        // proposal keeps both when its ask was re-anchored before the ruling).
+        const prior = g.options.get(m.branch);
+        if (!prior || (prior.voided && !m.voided)) {
+          g.options.set(m.branch, {
+            id: m.branch,
+            marketId: m.id,
+            consensus: c,
+            probability: m.liquidity > 0 ? Math.round(pHigher(shares, m.liquidity) * 10000) / 10000 : null,
+            liquidity: m.liquidity,
+            pool: m.pool ?? 0,
+            traders: tradersByMarket.get(m.id) ?? 0,
+            volume: m.tradedVolume,
+            voided: m.voided,
+          });
+        }
+      } else if (m.branch === 'approved') {
         g.approved = c;
         g.approvedMarketId = m.id;
         // pHigher returns 0 (not undefined) at zero liquidity, and a fake
@@ -1007,16 +1041,41 @@ async function buildFloorPayload(ws: PublicWs) {
       const recorded = new Map(
         (p.status === 'pending' ? [] : (p.decidedPricing ?? [])).map(d => [`${d.metricId}|${d.targetDate}`, d]),
       );
+      const optionList = p.options ?? null;
       const pairs = [...(byProposal.get(p.id)?.values() ?? [])]
         .map(g => {
           const d = recorded.get(`${g.metricId}|${g.targetDate}`);
           if (d) {
             g.approved = d.approvedConsensus;
             g.declined = d.declinedConsensus;
+            if (d.options) {
+              for (const o of g.options.values()) o.consensus = o.id in d.options ? (d.options[o.id] ?? null) : null;
+            }
           }
           return g;
         })
-        .map(g => ({
+        .map(g => {
+          // The options in the posted order, each with its delta (its
+          // consensus minus the best other); the row's delta is the leader's
+          // lead. Without options, approved minus declined as ever.
+          const ordered = optionList
+            ? optionList.flatMap(o => {
+                const entry = g.options.get(o.id);
+                return entry ? [{ ...entry, label: o.label }] : [];
+              })
+            : [];
+          const r = optionList ? optionDeltas(ordered) : null;
+          const options = optionList
+            ? ordered.map(({ voided: _v, ...o }) => ({ ...o, delta: r!.deltas.get(o.id) ?? null }))
+            : null;
+          const delta = optionList
+            ? r!.rowDelta
+            : g.approved != null && g.declined != null
+              ? g.approved - g.declined
+              : null;
+          return { g, options, delta };
+        })
+        .map(({ g, options, delta }) => ({
           // With several metrics on one date, the floor picks a proposal's
           // pair by (metric, date), never by date alone.
           metricId: g.metricId,
@@ -1025,7 +1084,8 @@ async function buildFloorPayload(ws: PublicWs) {
           resolvesOn: resolutionInstant(g.targetDate),
           approvedConsensus: g.approved,
           declinedConsensus: g.declined,
-          delta: g.approved != null && g.declined != null ? g.approved - g.declined : null,
+          delta,
+          options,
           approvedMarketId: g.approvedMarketId,
           declinedMarketId: g.declinedMarketId,
           approvedProbability: g.approvedProbability,
@@ -1060,6 +1120,10 @@ async function buildFloorPayload(ws: PublicWs) {
         status: p.status,
         resolvedAt: p.resolvedAt,
         declineReason: p.declineReason,
+        // The option list and the one chosen, on a proposal with options
+        // (docs/guides/proposals.md, "More than two options").
+        options: p.options ?? null,
+        decidedOption: p.decidedOption ?? null,
         // The deadline and the close (docs/guides/proposals.md).
         decideBy: p.decideBy ?? null,
         closedAt: p.closedAt ?? null,
@@ -1157,7 +1221,8 @@ async function buildFloorPayload(ws: PublicWs) {
         approvedConsensus: null,
         declinedConsensus: null,
       };
-      if (m.branch === 'approved') pair.approvedConsensus = c;
+      if (isOptionBranch(m.branch)) (pair.options ??= {})[m.branch] = c;
+      else if (m.branch === 'approved') pair.approvedConsensus = c;
       else if (m.branch === 'declined') pair.declinedConsensus = c;
       groups.set(key, pair);
       pairsByJob.set(m.proposalId, groups);
@@ -1514,7 +1579,9 @@ marketplaceRouter.get(
             baseline: i.baseline,
             approvedTrades: i.approvedTrades,
             declinedTrades: i.declinedTrades,
+            ...(i.options ? { options: i.options } : {}),
           })),
+        ...(c.options ? { options: c.options, decidedOption: c.decidedOption } : {}),
       })),
     };
 
@@ -2001,6 +2068,8 @@ export async function resolveProposalShare(
       askUsd: proposals.askUsd,
       status: proposals.status,
       decideBy: proposals.decideBy,
+      options: proposals.options,
+      decidedOption: proposals.decidedOption,
     })
     .from(proposals)
     .where(and(eq(proposals.workspaceId, ws.id), eq(proposals.number, number)))
@@ -2033,6 +2102,7 @@ export async function resolveProposalShare(
   const hero = primaryMarket(baseline);
 
   let impact: number | null = null;
+  let leaderLabel: string | null = null;
   let metricLabel = ws.name;
   let unit = '';
   if (hero) {
@@ -2053,9 +2123,27 @@ export async function resolveProposalShare(
     const d = branchOf('declined');
     const priceOf = (m: typeof a) =>
       m ? (consensus((m.shares as [number, number]) || [0, 0], m.liquidity, m.rangeMin, m.rangeMax) ?? null) : null;
-    const pa = priceOf(a);
-    const pd = priceOf(d);
-    impact = pa !== null && pd !== null ? pa - pd : null;
+    if (p.options && p.options.length > 0) {
+      // A proposal with options: the leader's lead over the best other
+      // option (docs/guides/proposals.md, "More than two options").
+      const prices = p.options.map(o => ({ label: o.label, price: priceOf(branchOf(o.id)) }));
+      impact = pairDelta({
+        metricId: hero.metricId,
+        targetDate: hero.targetDate,
+        approvedConsensus: null,
+        declinedConsensus: null,
+        options: Object.fromEntries(p.options.map((o, i) => [o.id, prices[i].price])),
+      });
+      // The leader is named only where a lead exists: two or more priced.
+      const priced = prices.filter((x): x is { label: string; price: number } => x.price !== null);
+      if (impact !== null && priced.length >= 2) {
+        leaderLabel = priced.reduce((best, x) => (x.price > best.price ? x : best)).label;
+      }
+    } else {
+      const pa = priceOf(a);
+      const pd = priceOf(d);
+      impact = pa !== null && pd !== null ? pa - pd : null;
+    }
   }
 
   return {
@@ -2075,6 +2163,9 @@ export async function resolveProposalShare(
         })
       : null,
     decided: p.status === 'approved' || p.status === 'declined' ? p.status : null,
+    options: !!(p.options && p.options.length > 0),
+    leaderLabel,
+    chosenLabel: p.decidedOption ? (p.options?.find(o => o.id === p.decidedOption)?.label ?? null) : null,
   };
 }
 

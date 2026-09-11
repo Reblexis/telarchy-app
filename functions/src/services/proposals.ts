@@ -7,6 +7,7 @@ import {
   liquidityEvents,
   markets,
   metrics as metricsTable,
+  type ProposalOption,
   proposalRevisions,
   proposals,
   systemConfig,
@@ -21,6 +22,7 @@ import { proposalCreditsFor } from '../lib/horizon-credits';
 import { allowLedgerAdmin } from '../lib/ledger-admin';
 import { emitPricesChanged } from '../lib/market-events';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
+import { isOptionBranch, optionDeltas } from '../lib/proposal-options';
 import {
   fromUnits,
   liquiditySpendableUnits,
@@ -96,7 +98,19 @@ export interface CreateConditionalMarketsOptions {
 }
 
 export const CONDITIONAL_BRANCHES = ['approved', 'declined'] as const;
-export type ConditionalBranch = (typeof CONDITIONAL_BRANCHES)[number];
+/** 'approved' | 'declined', or an option id on a proposal with options. */
+export type ConditionalBranch = string;
+
+/**
+ * The branches a proposal's markets come in: the two worlds, or one per
+ * option on a proposal with options (docs/guides/proposals.md, "More than
+ * two options"), where there is no declined world because the options are
+ * the worlds.
+ */
+export function branchesOf(proposal: { options?: ProposalOption[] | null } | undefined | null): readonly string[] {
+  const options = proposal?.options;
+  return options && options.length > 0 ? options.map(o => o.id) : CONDITIONAL_BRANCHES;
+}
 
 /**
  * Contributions map for a proposal row, falling back to attributing the
@@ -181,9 +195,17 @@ export async function createConditionalMarkets(
     // honest zero point. An unfunded baseline has no price; those pairs
     // still open at the center.
     const [proposalRowForAsk] = await db
-      .select({ askUsd: proposals.askUsd, title: proposals.title, decideBy: proposals.decideBy })
+      .select({
+        askUsd: proposals.askUsd,
+        title: proposals.title,
+        decideBy: proposals.decideBy,
+        options: proposals.options,
+      })
       .from(proposals)
       .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+    // The worlds this proposal is priced in: approved and declined, or one
+    // per option (docs/guides/proposals.md, "More than two options").
+    const branches = branchesOf(proposalRowForAsk);
     // Only cells whose date settles after the deadline get a pair
     // (docs/guides/proposals.md): a book that would settle before the owner
     // decides has nothing to be conditional on.
@@ -198,7 +220,7 @@ export async function createConditionalMarkets(
     // Desired set is (metric, targetDate, branch) so both branches are tracked.
     const desiredKeys = new Set<string>();
     for (const src of sourceMarkets) {
-      for (const branch of CONDITIONAL_BRANCHES) {
+      for (const branch of branches) {
         desiredKeys.add(`${src.metricId}:${src.targetDate}:${branch}`);
       }
     }
@@ -226,7 +248,7 @@ export async function createConditionalMarkets(
     // once we know which contributors can actually cover this generation.
     const toSpawn: Array<typeof markets.$inferInsert & { anchorP: number | null }> = [];
     for (const src of sourceMarkets) {
-      for (const branch of CONDITIONAL_BRANCHES) {
+      for (const branch of branches) {
         const key = keyOf(src.metricId, src.targetDate, branch);
         if (existingByKey.has(key)) continue;
         const marketId = randomUUID();
@@ -531,10 +553,22 @@ export async function voidProposalMarkets(proposalId: string, workspaceId: strin
  * books afterwards (docs/ui-conventions.md, "Top contractors").
  */
 export async function pairPricesNow(proposalId: string, workspaceId: string): Promise<DecidedPair[]> {
-  const rows = await db
-    .select()
-    .from(markets)
-    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)));
+  const [rows, [proposal]] = await Promise.all([
+    db
+      .select()
+      .from(markets)
+      .where(
+        and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)),
+      ),
+    db
+      .select({ options: proposals.options })
+      .from(proposals)
+      .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId))),
+  ]);
+  // On a proposal with options every option's consensus is recorded by id
+  // and the two sides stay null (docs/guides/proposals.md, "More than two
+  // options"); an option whose market never spawned records nothing.
+  const optionIds = proposal?.options?.length ? proposal.options.map(o => o.id) : null;
   const byKey = new Map<string, DecidedPair>();
   for (const m of rows) {
     if (!m.branch) continue;
@@ -544,9 +578,11 @@ export async function pairPricesNow(proposalId: string, workspaceId: string): Pr
       targetDate: m.targetDate,
       approvedConsensus: null,
       declinedConsensus: null,
+      ...(optionIds ? { options: {} as Record<string, number | null> } : {}),
     };
     const c = consensus((m.shares as [number, number]) || [0, 0], m.liquidity, m.rangeMin, m.rangeMax) ?? null;
-    if (m.branch === 'approved') pair.approvedConsensus = c;
+    if (optionIds && pair.options && optionIds.includes(m.branch)) pair.options[m.branch] = c;
+    else if (m.branch === 'approved') pair.approvedConsensus = c;
     else if (m.branch === 'declined') pair.declinedConsensus = c;
     byKey.set(key, pair);
   }
@@ -690,10 +726,29 @@ export async function voidProposalBranch(
   }
 }
 
+/**
+ * Void every open market of the proposal whose branch is not `keep`: on a
+ * proposal with options, choosing one voids and refunds every other option
+ * (docs/guides/proposals.md, "Deciding is choosing"). The chosen option's
+ * markets stay live and settle on the metric's actual value at their dates.
+ */
+export async function voidProposalBranchesExcept(proposalId: string, workspaceId: string, keep: string): Promise<void> {
+  const openMarkets = await db
+    .select()
+    .from(markets)
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)));
+  for (const market of openMarkets) {
+    if (market.branch === keep) continue;
+    await voidMarket(market, workspaceId);
+  }
+}
+
 export async function approveProposal(
   proposalId: string,
   workspaceId: string,
   resolvedBy?: string | null,
+  /** The option's id on a proposal with options; must be absent otherwise. */
+  option?: string | null,
 ): Promise<{ rewardPaid: number }> {
   const [proposal] = await db
     .select()
@@ -701,6 +756,33 @@ export async function approveProposal(
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
   if (!proposal) throw new AppError('Proposal not found', 404);
   if (proposal.status !== 'pending') throw new AppError('Proposal is not pending', 400);
+
+  // Deciding is choosing (docs/guides/proposals.md, "More than two
+  // options"): a proposal with options is approved by naming one, and a
+  // two-branch proposal has none to name. Checked before anything moves,
+  // like the reward below.
+  const optionList = proposal.options ?? null;
+  const chosen = typeof option === 'string' && option.trim() ? option.trim() : null;
+  if (optionList && optionList.length > 0) {
+    if (!chosen) {
+      throw new AppError(
+        `This proposal has options (${optionList.map(o => o.id).join(', ')}); approving it names one: { option }`,
+        400,
+        { options: optionList },
+        'option_required',
+      );
+    }
+    if (!optionList.some(o => o.id === chosen)) {
+      throw new AppError(
+        `"${chosen}" is not one of this proposal's options (${optionList.map(o => o.id).join(', ')})`,
+        400,
+        { options: optionList },
+        'unknown_option',
+      );
+    }
+  } else if (chosen) {
+    throw new AppError('This proposal has no options; approve it without { option }', 400, undefined, 'no_options');
+  }
 
   // The reward is the one step below that can refuse, so it is checked
   // before anything moves (docs/guides/proposals.md, "Approving"): a 409
@@ -737,8 +819,10 @@ export async function approveProposal(
 
   // The declined-branch counterfactual never materialises once approved, so
   // void it and refund any positions. The approved branch stays live and
-  // resolves against the actual KPI at target date.
-  await voidProposalBranch(proposalId, workspaceId, 'declined');
+  // resolves against the actual KPI at target date. With options, the
+  // chosen option is the world and every other option voids and refunds.
+  if (chosen) await voidProposalBranchesExcept(proposalId, workspaceId, chosen);
+  else await voidProposalBranch(proposalId, workspaceId, 'declined');
 
   // The proposer's stake comes back the moment the owner decides (owner
   // decision 2026-08-10), not at resolution: the declined half just came
@@ -761,6 +845,7 @@ export async function approveProposal(
       .set({
         status: 'approved',
         decidedPricing,
+        decidedOption: chosen,
         resolvedAt: new Date(),
         resolvedBy: resolvedBy ?? null,
       })
@@ -779,6 +864,7 @@ export async function approveProposal(
       .set({
         status: 'approved',
         decidedPricing,
+        decidedOption: chosen,
         resolvedAt: new Date(),
         resolvedBy: resolvedBy ?? ownerAgentId,
       })
@@ -817,6 +903,7 @@ export async function approveProposal(
       .set({
         status: 'approved',
         decidedPricing,
+        decidedOption: chosen,
         rewardPaid: reward,
         resolvedAt: new Date(),
         resolvedBy: resolvedBy ?? ownerAgentId,
@@ -867,7 +954,10 @@ export async function declineProposal(
   }
 
   const decidedPricing = await pairPricesNow(proposalId, workspaceId);
-  if (refundStake) {
+  if (refundStake || (proposal.options?.length ?? 0) > 0) {
+    // "None of these" on a proposal with options: there is no declined world
+    // to keep, so every option voids whatever `refund` says (docs/guides/
+    // proposals.md, "More than two options").
     // Decline with refund (owner ask 2026-08-12): a genuine proposal the owner
     // just is not taking. Void BOTH branches so the proposer's whole staked
     // liquidity comes straight back, at the cost of the declined-branch
@@ -1218,7 +1308,12 @@ export async function getProposalMarketSummariesForProposals(
     ),
     getBaselineConsensusMap(rows, workspaceId),
     db
-      .select({ id: proposals.id, status: proposals.status, decidedPricing: proposals.decidedPricing })
+      .select({
+        id: proposals.id,
+        status: proposals.status,
+        decidedPricing: proposals.decidedPricing,
+        options: proposals.options,
+      })
       .from(proposals)
       .where(and(eq(proposals.workspaceId, workspaceId), inArray(proposals.id, proposalIds))),
   ]);
@@ -1230,8 +1325,14 @@ export async function getProposalMarketSummariesForProposals(
   }
   const proposalById = new Map(proposalRows.map(p => [p.id, p]));
   for (const id of proposalIds) {
-    const summaries = summarizeProposalRows(rowsByProposal.get(id) ?? [], tradeCountMap, baselineConsensusMap);
-    out.set(id, applyDecidedPricing(summaries, proposalById.get(id)));
+    const p = proposalById.get(id);
+    const summaries = summarizeProposalRows(
+      rowsByProposal.get(id) ?? [],
+      tradeCountMap,
+      baselineConsensusMap,
+      p?.options ?? null,
+    );
+    out.set(id, applyDecidedPricing(summaries, p));
   }
   return out;
 }
@@ -1253,6 +1354,13 @@ function applyDecidedPricing(
   return summaries.map(pair => {
     const d = recorded.get(`${pair.metricId}:${pair.targetDate}`);
     if (!d) return pair;
+    if (pair.options) {
+      // Every option's consensus as recorded at the choice; the deltas
+      // follow from the record, never from the surviving book.
+      const rec = d.options ?? {};
+      const withRecord = pair.options.map(o => ({ ...o, consensus: o.id in rec ? (rec[o.id] ?? null) : null }));
+      return { ...pair, ...optionSummariesWithDeltas(withRecord), approved: null, declined: null };
+    }
     const approved = pair.approved ? { ...pair.approved, consensus: d.approvedConsensus } : null;
     const declined = pair.declined ? { ...pair.declined, consensus: d.declinedConsensus } : null;
     return {
@@ -1280,9 +1388,23 @@ export interface BranchMarketSummary {
 }
 
 /**
+ * One option's market on a proposal with options: the branch summary plus
+ * the option's id and label and its own delta, its consensus minus the best
+ * of the other options (lib/proposal-options.ts).
+ */
+export interface OptionMarketSummary extends BranchMarketSummary {
+  id: string;
+  label: string;
+  delta: number | null;
+}
+
+/**
  * Paired summary for one (metric, targetDate) under a proposal: both branches
  * plus the natural-trajectory baseline as context. `delta` is the headline
- * impact number: approved.consensus - declined.consensus.
+ * impact number: approved.consensus - declined.consensus. On a proposal with
+ * options `approved` and `declined` are null, `options` carries one entry
+ * per option in the posted order, and `delta` is the leader's lead
+ * (docs/guides/proposals.md, "More than two options").
  */
 export interface PairedProposalMarketSummary {
   metricId: string;
@@ -1293,8 +1415,25 @@ export interface PairedProposalMarketSummary {
   rangeMax: number;
   approved: BranchMarketSummary | null;
   declined: BranchMarketSummary | null;
+  options: OptionMarketSummary[] | null;
   delta: number | null;
   baselineConsensus: number | null;
+}
+
+/**
+ * The deltas of an option list, recomputed from the consensus each entry
+ * carries: called at the summary, again after a reader drops the options it
+ * does not show, and again after the decided record is substituted, so the
+ * numbers always describe the list a reader actually sees.
+ */
+export function optionSummariesWithDeltas<T extends { id: string; consensus: number | null }>(
+  options: T[],
+): { options: Array<T & { delta: number | null }>; delta: number | null } {
+  const r = optionDeltas(options);
+  return {
+    options: options.map(o => ({ ...o, delta: r.deltas.get(o.id) ?? null })),
+    delta: r.rowDelta,
+  };
 }
 
 /** The pure half: one proposal's rows, already-counted trades, already-read baselines. */
@@ -1302,7 +1441,9 @@ function summarizeProposalRows(
   rows: MarketRow[],
   tradeCountMap: Map<string, number>,
   baselineConsensusMap: Map<string, number>,
+  proposalOptions: ProposalOption[] | null,
 ): PairedProposalMarketSummary[] {
+  const hasOptions = !!proposalOptions && proposalOptions.length > 0;
   // Group rows by (metric, targetDate). Pre-migration single-branch markets
   // were backfilled to branch='approved' so they pair with a null declined.
   const groups = new Map<string, MarketRow[]>();
@@ -1329,24 +1470,36 @@ function summarizeProposalRows(
   const out: PairedProposalMarketSummary[] = [];
   for (const [key, branchRows] of groups) {
     const first = branchRows[0];
-    const approvedRow = branchRows.find(r => (r.branch ?? 'approved') === 'approved') ?? null;
-    const declinedRow = branchRows.find(r => r.branch === 'declined') ?? null;
-    const approved = approvedRow ? toBranchSummary(approvedRow) : null;
-    const declined = declinedRow ? toBranchSummary(declinedRow) : null;
-    const delta =
-      approved?.consensus != null && declined?.consensus != null ? approved.consensus - declined.consensus : null;
-    out.push({
+    const head = {
       metricId: first.metricId,
       metricName: first.metricName,
       targetDate: first.targetDate,
       resolvesOn: resolutionInstant(first.targetDate),
       rangeMin: first.rangeMin,
       rangeMax: first.rangeMax,
-      approved,
-      declined,
-      delta,
       baselineConsensus: baselineConsensusMap.get(key) ?? null,
-    });
+    };
+    if (hasOptions) {
+      // One entry per option in the posted order, for the options whose
+      // market exists on this cell; a generation may hold more than one row
+      // per option (a re-anchored, voided one beside the live one), and the
+      // live one is the option's market.
+      const optionRows = branchRows.filter(r => isOptionBranch(r.branch));
+      const entries = (proposalOptions as ProposalOption[]).flatMap(o => {
+        const rows = optionRows.filter(r => r.branch === o.id);
+        const row = rows.find(r => !r.voided) ?? rows[0];
+        return row ? [{ id: o.id, label: o.label, ...toBranchSummary(row) }] : [];
+      });
+      out.push({ ...head, approved: null, declined: null, ...optionSummariesWithDeltas(entries) });
+      continue;
+    }
+    const approvedRow = branchRows.find(r => (r.branch ?? 'approved') === 'approved') ?? null;
+    const declinedRow = branchRows.find(r => r.branch === 'declined') ?? null;
+    const approved = approvedRow ? toBranchSummary(approvedRow) : null;
+    const declined = declinedRow ? toBranchSummary(declinedRow) : null;
+    const delta =
+      approved?.consensus != null && declined?.consensus != null ? approved.consensus - declined.consensus : null;
+    out.push({ ...head, approved, declined, options: null, delta });
   }
   return out;
 }

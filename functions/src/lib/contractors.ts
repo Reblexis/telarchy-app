@@ -1,3 +1,5 @@
+import { optionDeltas } from './proposal-options';
+
 /**
  * Contractor scoring for the trading floor's second rail.
  *
@@ -20,6 +22,9 @@ export interface ContractorJobPair {
   targetDate: string;
   approvedConsensus: number | null;
   declinedConsensus: number | null;
+  /** On a proposal with options: each option's consensus by id, and the
+   *  job's impact is the leader's lead (lib/proposal-options.ts). */
+  options?: Record<string, number | null>;
 }
 
 export interface ContractorJob {
@@ -85,11 +90,21 @@ export function jobImpact(job: ContractorJob, heroMetricId: string): number | nu
   let best: number | null = null;
   for (const pair of pairs) {
     if (pair.metricId !== heroMetricId) continue;
-    if (pair.approvedConsensus === null || pair.declinedConsensus === null) continue;
-    const delta = pair.approvedConsensus - pair.declinedConsensus;
+    const delta = pairDelta(pair);
+    if (delta === null) continue;
     if (best === null || Math.abs(delta) > Math.abs(best)) best = delta;
   }
   return best;
+}
+
+/** A pair's headline: approved minus declined, or on a proposal with
+ *  options the leader's lead over the best other option. */
+export function pairDelta(pair: ContractorJobPair): number | null {
+  if (pair.options) {
+    return optionDeltas(Object.entries(pair.options).map(([id, consensus]) => ({ id, consensus }))).rowDelta;
+  }
+  if (pair.approvedConsensus === null || pair.declinedConsensus === null) return null;
+  return pair.approvedConsensus - pair.declinedConsensus;
 }
 
 /**

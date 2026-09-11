@@ -165,7 +165,9 @@ predictionsRouter.post(
     // branch disambiguates between the two conditional markets under a proposal:
     //   - omitted (default): 'approved' branch (back-compat for pre-dual-branch
     //     clients)
-    //   - 'approved' or 'declined': that branch specifically
+    //   - 'approved' or 'declined': that branch specifically; on a proposal
+    //     with options, the option's id (docs/guides/proposals.md, "More
+    //     than two options")
     //   - ignored if proposalId is omitted
     if (!marketId) {
       const {
@@ -201,13 +203,15 @@ predictionsRouter.post(
         });
         return;
       }
-      if (reqBranch !== undefined && reqBranch !== null && reqBranch !== 'approved' && reqBranch !== 'declined') {
-        res.status(400).json({ error: '`branch` must be "approved", "declined", or omitted.' });
+      if (reqBranch !== undefined && reqBranch !== null && (typeof reqBranch !== 'string' || !reqBranch.trim())) {
+        res.status(400).json({
+          error: '`branch` must be "approved", "declined", an option id on a proposal with options, or omitted.',
+        });
         return;
       }
       const proposalFilter =
         typeof reqProposalId === 'string' ? eq(markets.proposalId, reqProposalId) : isNull(markets.proposalId);
-      const branchValue: 'approved' | 'declined' = reqBranch === 'declined' ? 'declined' : 'approved';
+      const branchValue: string = typeof reqBranch === 'string' && reqBranch.trim() ? reqBranch.trim() : 'approved';
       const branchFilter = typeof reqProposalId === 'string' ? eq(markets.branch, branchValue) : isNull(markets.branch);
       const [found] = await db
         .select({ id: markets.id })

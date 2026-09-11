@@ -1,8 +1,8 @@
 /**
  * Where a conditional branch opens (docs/guides/creating.md, "A conditional
  * pair opens at the baseline price"): the baseline market's consensus for the
- * same metric and settle date, less the ask on the approved branch of a metric
- * the payment burns out of. One formula for the two moments a branch's book
+ * same metric and settle date, less the ask on every branch but the declined
+ * one of a metric the payment burns out of (an option is approved-like). One formula for the two moments a branch's book
  * is first given money, the spawn (services/proposals.ts) and the first
  * injection into a branch that spawned unfunded (services/marketLiquidity.ts);
  * anchor-ownership.test.ts keeps it one.
@@ -11,7 +11,11 @@
 import { consensus } from './amm';
 import { metricSubtractsContractAsk } from './metric-unit';
 
-export type ConditionalBranchName = 'approved' | 'declined';
+/** 'approved', 'declined', or an option id on a proposal with options
+ *  (docs/guides/proposals.md, "More than two options"). Every branch but
+ *  'declined' opens where the approved one does: choosing any option owes
+ *  the ask, so each burns it. */
+export type ConditionalBranchName = string;
 
 /** The proposal's ask in dollars. Rows that predate the askUsd column carry
  *  the price only as the "$N: ..." title convention; parse it back so their
@@ -43,7 +47,7 @@ export function branchAnchorP(
   );
   if (c0 === undefined) return null;
   const burn = metricSubtractsContractAsk(baseline.metricName) ? askUsd : 0;
-  const value = branch === 'approved' ? c0 - burn : c0;
+  const value = branch === 'declined' ? c0 : c0 - burn;
   const span = baseline.rangeMax - baseline.rangeMin;
   return span > 0 ? (value - baseline.rangeMin) / span : null;
 }

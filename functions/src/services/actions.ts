@@ -282,7 +282,8 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
   add(
     'proposal',
     sql`SELECT 'proposal:' || p.id AS id, p.created_at AS at, 'proposal' AS kind, p.workspace_id, p.proposed_by AS actor_id,
-      jsonb_build_object('event', 'posted', 'number', p.number, 'title', p.title, 'askUsd', p.ask_usd) AS payload
+      jsonb_build_object('event', 'posted', 'number', p.number, 'title', p.title, 'askUsd', p.ask_usd,
+        'options', (SELECT jsonb_agg(o->>'label') FROM jsonb_array_elements(p.options) o)) AS payload
       FROM proposals p
       WHERE p.status <> 'removed' AND ${common(sql`p.created_at`, sql`'proposal:' || p.id`, sql`p.workspace_id`, sql`p.proposed_by`)}
       ORDER BY p.created_at DESC, id DESC LIMIT ${take}`,
@@ -300,7 +301,9 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
     'decision',
     sql`SELECT 'decision:' || p.id AS id, d.at, 'decision' AS kind, p.workspace_id,
       CASE WHEN p.status = 'withdrawn' THEN p.proposed_by WHEN p.status = 'lapsed' THEN NULL ELSE p.resolved_by END AS actor_id,
-      jsonb_build_object('number', p.number, 'title', p.title, 'askUsd', p.ask_usd, 'status', p.status, 'reason', p.decline_reason) AS payload
+      jsonb_build_object('number', p.number, 'title', p.title, 'askUsd', p.ask_usd, 'status', p.status, 'reason', p.decline_reason,
+        'option', CASE WHEN p.decided_option IS NULL THEN NULL ELSE jsonb_build_object('id', p.decided_option,
+          'label', COALESCE((SELECT o->>'label' FROM jsonb_array_elements(p.options) o WHERE o->>'id' = p.decided_option LIMIT 1), p.decided_option)) END) AS payload
       FROM proposals p
       CROSS JOIN LATERAL (SELECT CASE
         WHEN p.status = 'lapsed' THEN COALESCE(p.lapsed_at, p.closed_at, p.resolved_at)
@@ -619,17 +622,32 @@ function renderRow(
     }
     case 'proposal': {
       if (p.event === 'edited') text = `edited the ${p.field} of "${p.title}"`;
-      else text = `proposed "${p.title}"${p.askUsd ? ` for $${num(Number(p.askUsd))}` : ''}`;
-      detail = { event: p.event, number: p.number, title: p.title, askUsd: p.askUsd ?? null, field: p.field ?? null };
+      else {
+        const labels = Array.isArray(p.options) ? (p.options as string[]) : null;
+        text = `proposed "${p.title}"${p.askUsd ? ` for $${num(Number(p.askUsd))}` : ''}${
+          labels && labels.length > 0 ? `, choosing between ${labels.map(l => `"${l}"`).join(', ')}` : ''
+        }`;
+      }
+      detail = {
+        event: p.event,
+        number: p.number,
+        title: p.title,
+        askUsd: p.askUsd ?? null,
+        field: p.field ?? null,
+        // The option labels on a proposal with options (docs/data-room.md).
+        options: Array.isArray(p.options) ? p.options : null,
+      };
       href = `/${slug}/p/${p.number}`;
       break;
     }
     case 'decision': {
       const ask = p.askUsd ? ` ($${num(Number(p.askUsd))})` : '';
       switch (p.status) {
-        case 'approved':
-          text = `approved "${p.title}"${ask}`;
+        case 'approved': {
+          const option = p.option as { id: string; label: string } | null | undefined;
+          text = `approved "${p.title}"${ask}${option ? `, choosing "${option.label}"` : ''}`;
           break;
+        }
         case 'declined':
           text = `declined "${p.title}"${ask}${p.reason ? `: ${p.reason}` : ''}`;
           break;
@@ -648,6 +666,8 @@ function renderRow(
         askUsd: p.askUsd ?? null,
         status: p.status,
         reason: p.reason ?? null,
+        // The chosen option on a proposal with options (docs/data-room.md).
+        option: p.option ?? null,
       };
       href = `/${slug}/p/${p.number}`;
       break;

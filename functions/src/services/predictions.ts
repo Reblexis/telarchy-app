@@ -316,8 +316,13 @@ export async function settleMetricEarly(
  * (pending, withdrawn, spam, removed) decided nothing, so no branch settles
  * and both are voided.
  */
-export function conditionalBranchToSettle(status: string | undefined): 'approved' | 'declined' | null {
-  if (status === 'approved') return 'approved';
+export function conditionalBranchToSettle(
+  status: string | undefined,
+  /** The chosen option on an approved proposal with options: its markets
+   *  are the world (docs/guides/proposals.md, "Deciding is choosing"). */
+  decidedOption?: string | null,
+): string | null {
+  if (status === 'approved') return decidedOption || 'approved';
   if (status === 'declined') return 'declined';
   return null;
 }
@@ -481,13 +486,14 @@ export async function resolvePredictions(
   const metricMap = new Map<string, Metric>(allMetrics.map(m => [m.id, m]));
 
   const proposalIds = [...new Set(marketsToResolve.map(m => m.proposalId).filter(Boolean) as string[])];
-  const proposalStatusMap = new Map<string, string>();
+  const proposalStatusMap = new Map<string, { status: string; decidedOption: string | null }>();
   if (proposalIds.length > 0) {
     const proposalRows = await db
-      .select({ id: proposals.id, status: proposals.status })
+      .select({ id: proposals.id, status: proposals.status, decidedOption: proposals.decidedOption })
       .from(proposals)
       .where(and(eq(proposals.workspaceId, workspaceId), inArray(proposals.id, proposalIds)));
-    for (const row of proposalRows) proposalStatusMap.set(row.id, row.status);
+    for (const row of proposalRows)
+      proposalStatusMap.set(row.id, { status: row.status, decidedOption: row.decidedOption ?? null });
   }
 
   let totalPayout = 0;
@@ -517,8 +523,9 @@ export async function resolvePredictions(
     //
     // A proposal still pending at the settle instant decided nothing, so
     // neither branch has a world to settle in and both void.
+    const decided = market.proposalId ? proposalStatusMap.get(market.proposalId) : undefined;
     const decidedBranch = market.proposalId
-      ? conditionalBranchToSettle(proposalStatusMap.get(market.proposalId))
+      ? conditionalBranchToSettle(decided?.status, decided?.decidedOption ?? null)
       : null;
     // `branch` is NULL on natural-trajectory markets, and on conditional rows
     // old enough to predate the column. The trade router already reads a

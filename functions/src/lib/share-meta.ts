@@ -111,6 +111,14 @@ export interface ShareMetaProposal {
   decideBy: string | null;
   /** Already decided: the card and the title say so instead of asking. */
   decided: 'approved' | 'declined' | null;
+  /** A proposal with options (docs/guides/proposals.md, "More than two
+   *  options"): `impact` is then the leader's lead over the next best, and
+   *  the words name options instead of worlds. */
+  options?: boolean;
+  /** The leading option's label, null while fewer than two are priced. */
+  leaderLabel?: string | null;
+  /** The chosen option's label once an option proposal is approved. */
+  chosenLabel?: string | null;
 }
 
 function fmtImpact(v: number, unit: string): string {
@@ -133,18 +141,24 @@ function fmtImpact(v: number, unit: string): string {
 export function proposalMetaText(p: ShareMetaProposal): { title: string; description: string } {
   const ask = p.askUsd === null ? null : `$${p.askUsd.toLocaleString('en-US')}`;
   const verb = ask ? `pay ${ask} for` : 'do';
-  const head = p.decided
-    ? `${p.floorName} ${p.decided} #${p.number}: ${p.title}`
-    : `Should ${p.floorName} ${verb}: ${p.title}?`;
+  const opts = p.options === true;
+  const head =
+    opts && p.decided === 'approved' && p.chosenLabel
+      ? `${p.floorName} chose ${p.chosenLabel} on #${p.number}: ${p.title}`
+      : p.decided
+        ? `${p.floorName} ${p.decided} #${p.number}: ${p.title}`
+        : `Should ${p.floorName} ${verb}: ${p.title}?`;
   const says =
-    p.impact === null
+    p.impact === null || (opts && !p.leaderLabel)
       ? 'Nobody has priced it yet.'
-      : `The market says ${fmtImpact(p.impact, p.unit)} ${p.metricLabel} if approved.`;
+      : opts
+        ? `The market says ${p.leaderLabel} leads by ${fmtImpact(p.impact, p.unit)} ${p.metricLabel}.`
+        : `The market says ${fmtImpact(p.impact, p.unit)} ${p.metricLabel} if approved.`;
   const title = `${head} ${says}`.replace(/\s+/g, ' ').trim();
   const parts = [
-    ask ? `${ask} to the proposer if approved.` : 'No payment asked.',
+    ask ? `${ask} to the proposer if ${opts ? 'chosen' : 'approved'}.` : 'No payment asked.',
     p.decideBy && !p.decided ? `Decided by ${p.decideBy}.` : null,
-    'Anyone can price it: bet on which world lands higher, or post a proposal of your own.',
+    `Anyone can price it: bet on which ${opts ? 'option' : 'world'} lands higher, or post a proposal of your own.`,
   ].filter(Boolean);
   return { title, description: parts.join(' ') };
 }

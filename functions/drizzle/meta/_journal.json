@@ -862,6 +862,13 @@
       "when": 1789129386162,
       "tag": "0122_plans",
       "breakpoints": true
+    },
+    {
+      "idx": 123,
+      "version": "7",
+      "when": 1789140000000,
+      "tag": "0123_proposal_options",
+      "breakpoints": true
     }
   ]
 }

@@ -7,6 +7,7 @@ import { branchIsShown } from '../lib/market-pairs';
 import { notifyOwner } from '../lib/notify';
 import { publicOrigin } from '../lib/origin';
 import { getParticipantDisplayNames } from '../lib/participants';
+import { parseProposalOptions } from '../lib/proposal-options';
 import { MIN_LIQUIDITY_CONTRIBUTION, validateContent } from '../lib/validation';
 import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
@@ -20,10 +21,38 @@ import {
   declineProposalAsSpam,
   editProposalDefinition,
   getProposalMarketSummariesForProposal,
+  optionSummariesWithDeltas,
+  type PairedProposalMarketSummary,
   proposalRevisionsFor,
   removeProposal,
   withdrawProposal,
 } from '../services/proposals';
+
+/**
+ * What a reader is shown of one pair (lib/market-pairs.ts): each branch or
+ * option that the rule keeps, and the delta recomputed over what is left, so
+ * a hidden option cannot be the leader of a row it is not on. A cell with
+ * nothing left to show is not a row.
+ */
+export function shownPair(
+  pair: PairedProposalMarketSummary,
+  proposalStatus: string,
+): PairedProposalMarketSummary | null {
+  if (pair.options) {
+    const options = pair.options.filter(o => branchIsShown(proposalStatus, o.voided));
+    if (options.length === 0) return null;
+    return { ...pair, approved: null, declined: null, ...optionSummariesWithDeltas(options) };
+  }
+  const approved = pair.approved && branchIsShown(proposalStatus, pair.approved.voided) ? pair.approved : null;
+  const declined = pair.declined && branchIsShown(proposalStatus, pair.declined.voided) ? pair.declined : null;
+  if (!approved && !declined) return null;
+  return {
+    ...pair,
+    approved,
+    declined,
+    delta: approved?.consensus != null && declined?.consensus != null ? approved.consensus - declined.consensus : null,
+  };
+}
 
 /** Postgres 23505, wherever the driver hid it. */
 function isUniqueViolation(e: unknown): boolean {
@@ -43,11 +72,19 @@ proposalsRouter.post(
   requireCapability('trade'),
   wrap(async (req, res) => {
     const { workspaceId } = req.auth!;
-    const { title, description, liquiditySubsidy, askUsd, payoutHandle, decideBy } = req.body;
+    const { title, description, liquiditySubsidy, askUsd, payoutHandle, decideBy, options: rawOptions } = req.body;
     if (!title || typeof title !== 'string') {
       res.status(400).json({ error: 'title is required' });
       return;
     }
+    // Two to six options in place of the approve/decline pair, or none
+    // (docs/guides/proposals.md, "More than two options").
+    const parsedOptions = parseProposalOptions(rawOptions);
+    if (!parsedOptions.ok) {
+      res.status(400).json({ error: parsedOptions.error });
+      return;
+    }
+    const options = parsedOptions.options;
     // 80 characters: a job title is a task name, not a pitch. It must fit
     // the rail row and the conditional headline without swallowing either
     // (owner direction 2026-08-10); the description field holds the rest.
@@ -218,6 +255,7 @@ proposalsRouter.post(
           liquiditySubsidy: subsidy,
           subsidyContributions: subsidy > 0 ? { [proposedBy]: subsidy } : {},
           decideBy: deadline,
+          options,
           createdAt: new Date(),
         });
         break;
@@ -287,7 +325,7 @@ proposalsRouter.post(
       );
     }
 
-    res.status(201).json({ id, number, conditionalMarketIds, liquiditySubsidy: subsidy });
+    res.status(201).json({ id, number, conditionalMarketIds, liquiditySubsidy: subsidy, options });
   }),
 );
 
@@ -361,6 +399,9 @@ proposalsRouter.get(
         // THIS endpoint, and a consumer that skips null asks silently reports zero
         // burn no matter how much has been paid out.
         askUsd: t.askUsd ?? null,
+        // The option list, and the one chosen, on a proposal with options.
+        options: t.options ?? null,
+        decidedOption: t.decidedOption ?? null,
         proposedBy: t.proposedBy,
         proposedByName: names.get(t.proposedBy) ?? null,
         liquiditySubsidy: t.liquiditySubsidy,
@@ -398,26 +439,19 @@ proposalsRouter.get(
     // branchMarketCount is the count of actually-spawned markets, used by the
     // frontend to display the real upfront subsidy cost, so it counts what was
     // spawned rather than what is still worth reading.
-    const branchMarketCount = allMarkets.reduce((n, p) => n + (p.approved ? 1 : 0) + (p.declined ? 1 : 0), 0);
+    const branchMarketCount = allMarkets.reduce(
+      (n, p) => n + (p.options ? p.options.length : (p.approved ? 1 : 0) + (p.declined ? 1 : 0)),
+      0,
+    );
     // What is worth reading is the ballot's rule: a voided pair is the record
     // of a decided proposal and dead weight on a pending one
     // (lib/market-pairs.ts). This endpoint is the one Otto is told to fetch a
     // proposal's pricing from, so a retired horizon returned here would put
     // back exactly what the brief stopped doing.
-    const proposalMarkets = allMarkets
-      .map(pair => ({
-        ...pair,
-        approved: pair.approved && branchIsShown(proposal.status, pair.approved.voided) ? pair.approved : null,
-        declined: pair.declined && branchIsShown(proposal.status, pair.declined.voided) ? pair.declined : null,
-      }))
-      .filter(pair => pair.approved || pair.declined)
-      .map(pair => ({
-        ...pair,
-        delta:
-          pair.approved?.consensus != null && pair.declined?.consensus != null
-            ? pair.approved.consensus - pair.declined.consensus
-            : null,
-      }));
+    const proposalMarkets = allMarkets.flatMap(pair => {
+      const shown = shownPair(pair, proposal.status);
+      return shown ? [shown] : [];
+    });
     const names = await getParticipantDisplayNames([proposal.proposedBy]);
     // Payment information goes to the person who pays (and its owner),
     // nobody else: strip the handle from the spread for plain members.
@@ -440,7 +474,15 @@ proposalsRouter.post(
   wrap(async (req, res) => {
     const { workspaceId, agentId } = req.auth!;
     const proposalId = req.params.proposalId as string;
-    const result = await approveProposal(proposalId, workspaceId, agentId ?? null);
+    // The chosen option on a proposal with options (docs/guides/proposals.md,
+    // "Deciding is choosing"); the service answers option_required,
+    // unknown_option and no_options.
+    const option = req.body?.option;
+    if (option !== undefined && option !== null && typeof option !== 'string') {
+      res.status(400).json({ error: 'option must be a string: the id of one of the proposal\'s options' });
+      return;
+    }
+    const result = await approveProposal(proposalId, workspaceId, agentId ?? null, option ?? null);
     emitEvent(
       'proposal:status_changed',
       {

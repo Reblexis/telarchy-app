@@ -52,6 +52,13 @@ export const ERROR_CODES = [
    * which.
    */
   'not_authorized',
+  /** Approving a proposal with options without naming one: { option } is
+   *  required (docs/guides/proposals.md, "Deciding is choosing"). */
+  'option_required',
+  /** Naming an option on a two-branch proposal, which has none. */
+  'no_options',
+  /** The named option is not one of the proposal's. Carries `options`. */
+  'unknown_option',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

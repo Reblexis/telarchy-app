@@ -623,6 +623,9 @@ export const markets = pgTable(
      * On proposal-conditional markets: 'approved' (priced under the assumption the
      * proposal is approved) or 'declined' (priced under the assumption it is
      * declined). The headline impact is approved.consensus - declined.consensus.
+     * On a proposal with options (proposals.options) it is the option's id
+     * instead, one market per option and no declined world; the headline is
+     * the leading option's lead over the best other (lib/proposal-options.ts).
      */
     branch: text('branch'),
     /** Flagged for the public benchmark surface (/benchmark + /api/marketplace/featured). */
@@ -870,12 +873,23 @@ export const limitOrders = pgTable('limit_orders', {
 });
 
 /** One priced pair of a decided proposal; a side is null when that branch
- *  held no liquidity at the decision. */
+ *  held no liquidity at the decision. On a proposal with options
+ *  (docs/guides/proposals.md, "More than two options") both sides are null
+ *  and `options` records each option's consensus by id, null where that
+ *  option's book held no liquidity. */
 export interface DecidedPair {
   metricId: string;
   targetDate: string;
   approvedConsensus: number | null;
   declinedConsensus: number | null;
+  options?: Record<string, number | null>;
+}
+
+/** One of a proposal's options: the short handle its markets carry as
+ *  `branch`, and the words a reader chooses between. */
+export interface ProposalOption {
+  id: string;
+  label: string;
 }
 
 export const proposals = pgTable(
@@ -975,6 +989,16 @@ export const proposals = pgTable(
      * the one-off backfill (scripts/backfill-decided-pricing.mjs) fills it.
      */
     decidedPricing: jsonb('decided_pricing').$type<DecidedPair[]>(),
+    /**
+     * The proposal's options (docs/guides/proposals.md, "More than two
+     * options"): null on the ordinary two-branch proposal, else two to six
+     * { id, label }. Its markets carry the option id as `branch`, one world
+     * per option and no declined world. Migration 0123.
+     */
+    options: jsonb('options').$type<ProposalOption[]>(),
+    /** The option the owner chose, set by approve on a proposal with options
+     *  and null everywhere else. Its markets are the ones that settle. */
+    decidedOption: text('decided_option'),
     /**
      * The job's price in whole USD (paid-jobs charter, 2026-08-09). Stored
      * rather than parsed back out of the title, because burn (the summed cost
