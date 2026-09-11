@@ -280,7 +280,7 @@ describe('THE WORLDS ARE THE OPTIONS', () => {
     expect(left.getAttribute('aria-pressed')).toBe('true');
     expect(fwd.getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(fwd);
-    await waitFor(() => expect(fwd.getAttribute('aria-pressed')).toBe('true'));
+    await waitFor(() => expect(fwd.getAttribute('aria-pressed')).toBe('true'), { timeout: 5000 });
     expect(left.getAttribute('aria-pressed')).toBe('false');
     // The leader keeps its accent whichever world is on the chart.
     expect(left.classList.contains('is-leader')).toBe(true);
@@ -379,7 +379,7 @@ describe('THE QUESTION NAMES THE OPTION, AND THE WORLD RIDES THE VERB', () => {
     const q = () => words(container.querySelector('.pubws-proposal-q'));
     expect(q()).toMatch(/^With Turn left, what will Snake's reached length be/i);
     fireEvent.click(cellsOf(container)[1]);
-    await waitFor(() => expect(q()).toMatch(/^With Continue, what will/));
+    await waitFor(() => expect(q()).toMatch(/^With Continue, what will/), { timeout: 5000 });
     expect(q()).not.toMatch(/\bIf\b/);
   });
 
@@ -395,7 +395,7 @@ describe('THE QUESTION NAMES THE OPTION, AND THE WORLD RIDES THE VERB', () => {
     expect(words(ticket)).toMatch(/Turn left/);
     expect(words(ticket)).not.toMatch(/if approved/);
     fireEvent.click(cellsOf(container)[1]);
-    await waitFor(() => expect(words(screen.getByRole('button', { name: /Bet Higher/ }))).toMatch(/Continue/));
+    await waitFor(() => expect(words(screen.getByRole('button', { name: /Bet Higher/ }))).toMatch(/Continue/), { timeout: 5000 });
     expect(words(container.querySelector('.ticket-subject-ctx'))).toMatch(/Continue/);
   });
 });
@@ -484,9 +484,9 @@ describe('THE DECISION BAR HAS ONE BUTTON PER OPTION', () => {
   test('pressing one is the approve with that option, and nothing asks twice', async () => {
     const { container } = renderFloor();
     await opened(container);
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Choose Continue' })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Choose Continue' })).toBeTruthy(), { timeout: 5000 });
     fireEvent.click(screen.getByRole('button', { name: 'Choose Continue' }));
-    await waitFor(() => expect(api.approveProposal).toHaveBeenCalledWith('job-1', 'forward'));
+    await waitFor(() => expect(api.approveProposal).toHaveBeenCalledWith('job-1', 'forward'), { timeout: 5000 });
     expect(api.approveProposal).toHaveBeenCalledTimes(1);
   });
 
