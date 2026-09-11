@@ -106,7 +106,9 @@ const h = vi.hoisted(() => {
     ],
     proposals: state.proposals,
   });
-  /** What the feed reports up through `onState`: a step opened just now. */
+  /** What the feed reports up through `onState`: a step opened just now, or
+   *  (with `open: null`) the seconds between one step closing and the next
+   *  opening, where the service names no step at all. */
   const feedState = (over: Record<string, unknown> = {}) => ({
     game: {
       snake: [
@@ -136,6 +138,7 @@ const h = vi.hoisted(() => {
       quotes: {},
       ...(over.open as Record<string, unknown>),
     },
+    ...(over.open === null ? { open: null } : {}),
     recentDecisions: [],
     complete: false,
     nextGameAt: null,
@@ -159,6 +162,9 @@ vi.mock('../../components/live/LiveView', () => ({
     <div data-testid="live-view">
       <button type="button" onClick={() => onState?.(h.feedState())}>
         feed-state
+      </button>
+      <button type="button" onClick={() => onState?.(h.feedState({ open: null }))}>
+        feed-quiet
       </button>
       <button type="button" onClick={() => onStep?.({ step: 42, decided: true })}>
         feed-decided
@@ -257,6 +263,22 @@ describe('the read age is the true age of the newest reading', () => {
       await vi.advanceTimersByTimeAsync(60_000);
     });
     await waitFor(() => expect(nowCell().textContent).toMatch(/read 2m ago/));
+  });
+
+  test('the feed going quiet between steps does not age the reading it showed', async () => {
+    renderFloor();
+    await screen.findByTestId('live-view');
+    await waitFor(() => expect(nowCell()).toBeTruthy());
+    await act(async () => {
+      fireEvent.click(screen.getByText('feed-state'));
+    });
+    await waitFor(() => expect(nowCell().textContent).toMatch(/read just now/));
+    // Between one step closing and the next opening the feed names no step.
+    // The reading the page already has does not get a minute older for it.
+    await act(async () => {
+      fireEvent.click(screen.getByText('feed-quiet'));
+    });
+    expect(nowCell().textContent).toMatch(/read just now/);
   });
 
   test('a payload reading newer than the feed is the one that counts', async () => {

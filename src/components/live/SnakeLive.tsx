@@ -627,6 +627,12 @@ export function SnakeLive({
     line = { text: 'Next move: continue forward (default)', cls: 'is-default' };
   } else if (next.decided) {
     line = { text: `Next move: ${ACTION_WORDS[next.action]}, decided`, cls: 'is-decided' };
+  } else if (seconds <= 0) {
+    /* The countdown ran out (2026-09-11): the ruling lands a moment later
+       and the next step a moment after that, and a line sitting on "in
+       0:00" for those ten seconds hides the one transition the page exists
+       to show. */
+    line = { text: `Next move: ${ACTION_WORDS[next.action]}, deciding`, cls: 'is-decided' };
   } else if (elapsed > STALE_S) {
     /* A feed read older than 8 seconds is said instead of a countdown the
        page cannot see (docs/ui-conventions.md, "The feed drives the floor"). */

@@ -2340,9 +2340,13 @@ grid.. and next move.. maybe text"):
 2. **The next move** (`.snake-next`), one left-aligned text line, the
    leader's action in words: "Next move: turn left in 0:31" while the step
    is open (the countdown from `next.seconds`, ticking by the second
-   between polls, in `.snake-clock`), "Next move: turn left, decided" once
-   `next.decided` and until the move, and "Next move: continue forward
-   (default)" while nothing is readable (`next` absent, or its action
+   between polls, in `.snake-clock`), "Next move: turn left, deciding"
+   from the moment that countdown reaches zero until the ruling lands
+   (the service rules a moment after the step closes and opens the next a
+   moment after that, and a line sitting on "in 0:00" for those seconds
+   hides the one transition the page exists to show), "Next move: turn
+   left, decided" once `next.decided` and until the move, and "Next move:
+   continue forward (default)" while nothing is readable (`next` absent, or its action
    unreadable). Before the first poll the line reads "Loading"; after a
    failed one "Feed unavailable"; between games "Waiting for the next
    game".
@@ -2390,7 +2394,10 @@ decides within the hour and at one minute otherwise.
 ticking with that same clock. On a fed floor the feed's own step is that
 reading whenever it is newer than the payload's last one (the open step's
 `openedAt` and the game's `length`), so the cell reads "read just now"
-the second the snake moves instead of waiting for the next floor poll. **The open step's prices
+the second the snake moves instead of waiting for the next floor poll.
+The page keeps the newest reading it has SEEN, so the seconds in which
+the feed names no step at all (one closed, the next not yet open) do not
+make the reading it just showed a minute old again. **The open step's prices
 read from the feed**: while a proposal the feed names is pending and has
 one pair, that pair's approved and declined prices and its impact, on
 the world cells, the impact chip and its board row, are the feed's

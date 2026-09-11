@@ -776,10 +776,23 @@ export function TradePage() {
     liveFeed?.kind === 'snake' && liveState?.open?.openedAt && typeof liveState.game?.length === 'number'
       ? { at: liveState.open.openedAt, value: liveState.game.length }
       : null;
-  const newestReading =
+  const candidateReading =
     feedReading && (!lastReading?.at || Date.parse(feedReading.at) > Date.parse(lastReading.at))
       ? feedReading
       : lastReading;
+  /* And the newest one the page has SEEN, so a feed that names no step for
+     the seconds between one closing and the next opening does not make the
+     reading it just showed a minute old again. Reset with the metric. */
+  const seenReadingRef = useRef<{ metricId: string | null; at: string; value: number } | null>(null);
+  const readingMetricId = hero?.metricId ?? null;
+  if (seenReadingRef.current && seenReadingRef.current.metricId !== readingMetricId) seenReadingRef.current = null;
+  if (
+    candidateReading?.at &&
+    (!seenReadingRef.current || Date.parse(candidateReading.at) > Date.parse(seenReadingRef.current.at))
+  ) {
+    seenReadingRef.current = { metricId: readingMetricId, at: candidateReading.at, value: candidateReading.value };
+  }
+  const newestReading = seenReadingRef.current ?? candidateReading;
   const nowReading = newestReading?.value ?? null;
   // Beside the price, where the since-open chip used to be (owner ask
   // 2026-08-28, "the settles should be above the market graph next to the

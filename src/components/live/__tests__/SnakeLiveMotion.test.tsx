@@ -20,6 +20,7 @@ const h = vi.hoisted(() => {
       { x: 4, y: 5 },
     ],
     decided: false,
+    seconds: 31,
     fail: false,
     hang: false,
   };
@@ -37,7 +38,7 @@ const h = vi.hoisted(() => {
     },
     grid: 12,
     gameNumber: 2,
-    next: { action: 'forward', direction: 'right', decided: state.decided, seconds: 31 },
+    next: { action: 'forward', direction: 'right', decided: state.decided, seconds: state.seconds },
     open: {
       step: 42,
       decideAt: '2026-09-11T12:00:31Z',
@@ -107,6 +108,7 @@ beforeEach(() => {
     { x: 4, y: 5 },
   ];
   h.state.decided = false;
+  h.state.seconds = 31;
   h.state.fail = false;
   h.state.hang = false;
 });
@@ -182,6 +184,27 @@ describe('a move transitions, it does not snap', () => {
     // And the next-move line changed state where it stood.
     expect(container.querySelector('.snake-next')).toBe(line);
     expect(line.textContent).toMatch(/decided/);
+  });
+});
+
+describe('a countdown that runs out says what is happening', () => {
+  test('at zero the line says it is deciding instead of sitting on 0:00', async () => {
+    // The ruling lands a moment after the countdown ends and the next step
+    // opens a moment after that: on the live floor the line sat on "in 0:00"
+    // for ten seconds, the one transition the page exists to show.
+    h.state.seconds = 0;
+    const { container } = board();
+    await settle(10);
+    const line = container.querySelector('.snake-next') as HTMLElement;
+    expect(line.textContent).toMatch(/Next move: continue forward, deciding/);
+    expect(line.textContent).not.toMatch(/0:00/);
+  });
+
+  test('a second left still counts', async () => {
+    h.state.seconds = 1;
+    const { container } = board();
+    await settle(10);
+    expect((container.querySelector('.snake-next') as HTMLElement).textContent).toMatch(/in 0:01/);
   });
 });
 
