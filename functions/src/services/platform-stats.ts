@@ -118,6 +118,87 @@ export function isStarterProposal(p: {
 }
 
 /**
+ * Ownership links for every participant: enough to resolve any agent to the
+ * person or agent at the top of its chain. A browser-registered bot points
+ * at its owner's auth user (`ownerUserId`), which maps to the participant
+ * whose `authUserId` it is; an agent-spawned bot points at the agent
+ * (`ownerAgentId`). Small table, read whole; a partial fetch would loop the
+ * database up the chain.
+ */
+interface OwnershipLink {
+  id: string;
+  authUserId: string | null;
+  ownerUserId: string | null;
+  ownerAgentId: string | null;
+  flagged: boolean;
+}
+
+async function ownershipLinks(): Promise<Map<string, OwnershipLink>> {
+  const rows = await db
+    .select({
+      id: agents.id,
+      authUserId: agents.authUserId,
+      ownerUserId: agents.ownerUserId,
+      ownerAgentId: agents.ownerAgentId,
+      flagged: sql<boolean>`(${agents.platformAdmin} = true or ${agents.platformOperated} = true)`,
+    })
+    .from(agents);
+  return new Map(rows.map(r => [r.id, { ...r, flagged: r.flagged === true }]));
+}
+
+/** The next link up an agent's ownership chain, or undefined at the top. */
+function ownerOf(
+  links: Map<string, OwnershipLink>,
+  byAuthUser: Map<string, string>,
+  a: OwnershipLink,
+): string | undefined {
+  return (a.ownerUserId ? byAuthUser.get(a.ownerUserId) : undefined) ?? a.ownerAgentId ?? undefined;
+}
+
+/**
+ * THE house set, one definition for every metric on the floor
+ * (docs/metrics.md, "Outside owners deciding"): the platform admin, the
+ * platform-operated participants, and every participant one of them owns,
+ * directly or through a chain of bots. The Snake floor counted as an
+ * outside owner on 2026-09-11 because its operator was an unowned API
+ * participant; house is now resolved through ownership, and a bot the
+ * house creates is registered with its owner set. A cycle in the chain is
+ * nobody's and resolves as outside rather than looping.
+ */
+export async function houseAgentIds(): Promise<Set<string>> {
+  const links = await ownershipLinks();
+  const byAuthUser = new Map<string, string>();
+  for (const l of links.values()) if (l.authUserId) byAuthUser.set(l.authUserId, l.id);
+  const house = new Set<string>();
+  const memo = new Map<string, boolean>();
+  const isHouse = (id: string): boolean => {
+    const seen = new Set<string>();
+    let cur: string | undefined = id;
+    const path: string[] = [];
+    let verdict = false;
+    while (cur && !seen.has(cur)) {
+      if (memo.has(cur)) {
+        verdict = memo.get(cur)!;
+        break;
+      }
+      seen.add(cur);
+      path.push(cur);
+      const a = links.get(cur);
+      if (!a) break;
+      if (a.flagged) {
+        verdict = true;
+        break;
+      }
+      cur = ownerOf(links, byAuthUser, a);
+    }
+    for (const p of path) memo.set(p, verdict);
+    return verdict;
+  };
+  for (const id of links.keys()) if (isHouse(id)) house.add(id);
+  return house;
+}
+
+/**
  * "Outside owners deciding" (docs/metrics.md): distinct workspaces whose
  * owner is not a house account and who approved or declined a proposal on
  * their own floor in the trailing 7 days. A decline is a decision; a pending
@@ -138,16 +219,14 @@ export async function outsideOwnersDeciding7d(): Promise<number> {
       proposalCreatedAt: proposals.createdAt,
       workspaceCreatedAt: workspaces.createdAt,
       owner: workspaces.createdBy,
-      admin: agents.platformAdmin,
-      operated: agents.platformOperated,
     })
     .from(proposals)
     .innerJoin(workspaces, eq(workspaces.id, proposals.workspaceId))
-    .leftJoin(agents, eq(agents.id, workspaces.createdBy))
     .where(and(inArray(proposals.status, ['approved', 'declined']), gt(proposals.resolvedAt, weekAgo)));
+  const house = await houseAgentIds();
   const deciding = new Set<string>();
   for (const r of rows) {
-    if (r.admin === true || r.operated === true) continue;
+    if (house.has(r.owner)) continue;
     if (r.resolvedBy !== r.owner) continue;
     if (isStarterProposal(r)) continue;
     deciding.add(r.workspaceId);
@@ -186,31 +265,21 @@ export async function activeForecasters7d(now = new Date()): Promise<number> {
     .groupBy(trades.agentId);
   if (exposure.length === 0) return 0;
 
-  // Ownership links for every agent in the platform; the chain is short and
-  // the table is small, and a partial fetch would have to loop the database.
-  const links = await db
-    .select({
-      id: agents.id,
-      authUserId: agents.authUserId,
-      ownerUserId: agents.ownerUserId,
-      ownerAgentId: agents.ownerAgentId,
-      house: sql<boolean>`(${agents.platformAdmin} = true or ${agents.platformOperated} = true)`,
-    })
-    .from(agents);
-  const byId = new Map(links.map(l => [l.id, l]));
-  const byAuthUser = new Map(links.filter(l => l.authUserId).map(l => [l.authUserId as string, l.id]));
+  const [links, house] = await Promise.all([ownershipLinks(), houseAgentIds()]);
+  const byAuthUser = new Map<string, string>();
+  for (const l of links.values()) if (l.authUserId) byAuthUser.set(l.authUserId, l.id);
 
   /** The verified person at the top of an agent's ownership chain, or null
    *  when the chain ends in an orphan, a cycle, or the house. */
   const headOf = (agentId: string): string | null => {
+    if (house.has(agentId)) return null;
     const seen = new Set<string>();
     let cur: string | undefined = agentId;
     while (cur && !seen.has(cur)) {
       seen.add(cur);
-      const a = byId.get(cur);
-      if (!a || a.house) return null;
-      const next: string | undefined =
-        (a.ownerUserId ? byAuthUser.get(a.ownerUserId) : undefined) ?? a.ownerAgentId ?? undefined;
+      const a = links.get(cur);
+      if (!a) return null;
+      const next = ownerOf(links, byAuthUser, a);
       if (!next) return cur;
       cur = next;
     }
@@ -262,19 +331,13 @@ async function computeMarkedProfit(now: Date): Promise<PlatformMarkedProfit> {
   // the open half marks every held position rather than only the ones
   // settling soon.
   const windowEnd = new Date(now.getTime() + 366 * 24 * 60 * 60 * 1000);
-  const [allWs, house] = await Promise.all([
-    db.select({ id: workspaces.id }).from(workspaces),
-    db
-      .select({ id: agents.id })
-      .from(agents)
-      .where(sql`${agents.platformAdmin} = true or ${agents.platformOperated} = true`),
-  ]);
+  const [allWs, houseIds] = await Promise.all([db.select({ id: workspaces.id }).from(workspaces), houseAgentIds()]);
   const profit = await loadSeasonMarked(
     allWs.map(w => w.id),
     windowStart,
     windowEnd,
   );
-  return { profit, houseIds: new Set(house.map(h => h.id)) };
+  return { profit, houseIds };
 }
 
 /**

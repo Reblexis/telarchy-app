@@ -8,7 +8,7 @@
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { eq } from 'drizzle-orm';
-import { agents, proposals, workspaces } from '../db/schema';
+import { agents, authUser, proposals, workspaces } from '../db/schema';
 import { outsideOwnersDeciding7d } from '../services/platform-stats';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
@@ -134,5 +134,57 @@ describe('outsideOwnersDeciding7d', () => {
     await decided(w1, 'e', 'approved', ago(1));
     await decided(w2, 'f', 'declined', ago(6));
     expect(await outsideOwnersDeciding7d()).toBe(2);
+  });
+});
+
+describe('the Snake floor counted as an outside owner (2026-09-11)', () => {
+  // The snake's operator is an API participant with no flag of its own; its
+  // floor read as an outsider's. House is the platform admin, the operated
+  // participants, and everything they own, however deep (docs/metrics.md).
+  async function bot(id: string, owner: { ownerUserId?: string; ownerAgentId?: string }) {
+    await db
+      .insert(agents)
+      .values({ id, apiKeyHash: `h-${id}`, balance: 0, ...owner })
+      .onConflictDoNothing();
+  }
+
+  test('a floor opened by a bot the platform admin registered from the browser is a house floor', async () => {
+    await db.insert(authUser).values({ id: 'u-viktor', name: 'Viktor', email: 'v@example.com' });
+    await db
+      .insert(agents)
+      .values({ id: 'viktor', apiKeyHash: 'h-viktor', balance: 0, platformAdmin: true, authUserId: 'u-viktor' });
+    await bot('snake-operator', { ownerUserId: 'u-viktor' });
+    const snake = await floor({ id: 'snake-operator' });
+    await decided(snake, 'snake-operator', 'approved', ago(1));
+    expect(await outsideOwnersDeciding7d()).toBe(0);
+  });
+
+  test("a floor opened by a bot a platform-operated agent spawned, or that bot's own bot, is a house floor", async () => {
+    await db.insert(agents).values({ id: 'adminbot', apiKeyHash: 'h-adminbot', balance: 0, platformOperated: true });
+    await bot('child', { ownerAgentId: 'adminbot' });
+    await bot('grandchild', { ownerAgentId: 'child' });
+    const a = await floor({ id: 'child' });
+    const b = await floor({ id: 'grandchild' });
+    await decided(a, 'child', 'approved', ago(1));
+    await decided(b, 'grandchild', 'declined', ago(1));
+    expect(await outsideOwnersDeciding7d()).toBe(0);
+  });
+
+  test('a bot an OUTSIDE person owns is still an outside owner', async () => {
+    await db.insert(authUser).values({ id: 'u-out', name: 'Out', email: 'o@example.com' });
+    await db.insert(agents).values({ id: 'outsider', apiKeyHash: 'h-out', balance: 0, authUserId: 'u-out' });
+    await bot('their-bot', { ownerUserId: 'u-out' });
+    const ws = await floor({ id: 'their-bot' });
+    await decided(ws, 'their-bot', 'approved', ago(1));
+    expect(await outsideOwnersDeciding7d()).toBe(1);
+  });
+
+  test("an ownership cycle between two bots is nobody's, so it counts as outside rather than crashing", async () => {
+    await bot('a', {});
+    await bot('b', { ownerAgentId: 'a' });
+    await db.update(agents).set({ ownerAgentId: 'b' }).where(eq(agents.id, 'a'));
+    const ws = await floor({ id: 'a' });
+    await decided(ws, 'a', 'approved', ago(1));
+    expect(await outsideOwnersDeciding7d()).toBe(1);
   });
 });
