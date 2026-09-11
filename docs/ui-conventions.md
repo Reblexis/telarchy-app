@@ -2209,7 +2209,8 @@ under it the items without a date. It draws exactly what
 "What is planned"): approved-but-undelivered proposals, pending proposals
 until they decide, open books until they resolve, and the owner's plan
 items. The block shares the `.pubws-lb-head` anatomy (label "What is
-planned", meta naming the range shown), the title is never drawn inside
+planned", the corner controls at the right, and under it the range
+control with a mono meta naming the dates shown), the title is never drawn inside
 or beside its bar (a 280px column cuts it), and a row is a link to the
 thing it is. A manager gets "+ plan" as the corner control and
 a done tick on each plan bar; a visitor gets neither. It renders nothing

@@ -196,7 +196,18 @@ export function FloorTimeline({
     <section className="pubws-know pubws-enter pubws-enter--3 pubws-tl" aria-label="What is planned">
       <div className="pubws-lb-head">
         <h2 className="pubws-h2">What is planned</h2>
-        <span className="pubws-lb-meta">{rangeMeta(range, lay.from, lay.to)}</span>
+        <span className="pubws-tl-corner">
+          {canManage && (
+            <button type="button" className="pubws-know-edit" onClick={() => setAdding(true)}>
+              + plan
+            </button>
+          )}
+          {(folded > 0 || (unfolded && lay.rows.length > FOLD_AT)) && (
+            <button type="button" className="pubws-know-edit" onClick={() => setUnfolded(u => !u)}>
+              {unfolded ? 'Fewer' : `All ${lay.rows.length}`}
+            </button>
+          )}
+        </span>
       </div>
       <div className="pubws-tl-controls">
         <span className="pubws-seg pubws-tl-seg" role="group" aria-label="Range">
@@ -212,18 +223,7 @@ export function FloorTimeline({
             </button>
           ))}
         </span>
-        <span className="pubws-tl-corner">
-          {canManage && (
-            <button type="button" className="pubws-know-edit" onClick={() => setAdding(true)}>
-              + plan
-            </button>
-          )}
-          {(folded > 0 || (unfolded && lay.rows.length > FOLD_AT)) && (
-            <button type="button" className="pubws-know-edit" onClick={() => setUnfolded(u => !u)}>
-              {unfolded ? 'Fewer' : `All ${lay.rows.length}`}
-            </button>
-          )}
-        </span>
+        <span className="pubws-lb-meta">{rangeMeta(range, lay.from, lay.to)}</span>
       </div>
 
       {nothingAtAll ? (
@@ -241,9 +241,6 @@ export function FloorTimeline({
             {/* Everything left of now is spent time; shading it makes the
                 now-line read as a boundary rather than a stray rule. */}
             {lay.pastWidth > 0 && <div className="pubws-tl-past" style={{ width: lay.pastWidth }} aria-hidden="true" />}
-            {lay.ticks.map(t => (
-              <div key={`g${t.t}`} className="pubws-tl-grid" style={{ left: t.x }} aria-hidden="true" />
-            ))}
             {lay.nowX !== null && <div className="pubws-tl-now" style={{ left: lay.nowX }} aria-hidden="true" />}
             {nothingInRange ? (
               <p className="pubws-tl-empty pubws-tl-empty--range">Nothing in this range.</p>
