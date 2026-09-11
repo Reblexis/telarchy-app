@@ -15,11 +15,17 @@ export function LiveView({
   slug,
   corner,
   center,
+  onPickProposal,
+  onStep,
 }: {
   kind: string;
   slug: string;
   corner?: ReactNode;
   center?: ReactNode;
+  /** A chevron was clicked: the page selects that proposal (docs/ui-conventions.md, "The feed drives the floor"). */
+  onPickProposal?: (number: number) => void;
+  /** The feed's step changed or its decision landed: the page reloads at once. */
+  onStep?: (s: { step: number; decided: boolean }) => void;
 }) {
   return (
     <div className="mchart mchart--live">
@@ -28,7 +34,7 @@ export function LiveView({
         <span className="mchart-center">{center}</span>
         <span className="mchart-right" />
       </div>
-      {kind === 'snake' ? <SnakeLive slug={slug} /> : null}
+      {kind === 'snake' ? <SnakeLive slug={slug} onPickProposal={onPickProposal} onStep={onStep} /> : null}
     </div>
   );
 }

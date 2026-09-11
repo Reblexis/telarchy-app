@@ -198,9 +198,9 @@ describe('the grid', () => {
 });
 
 /** The arrow's points in cell units, as [x, y] pairs. */
-function arrowPoints(container: HTMLElement): Array<[number, number]> {
+function arrowPoints(container: HTMLElement, sel = '.snake-arrow'): Array<[number, number]> {
   const cell = Number(container.querySelector('rect.snake-cell')?.getAttribute('width'));
-  const arrow = container.querySelector('.snake-arrow') as SVGPolylineElement | null;
+  const arrow = container.querySelector(sel) as SVGPolylineElement | null;
   if (!arrow) return [];
   return (arrow.getAttribute('points') ?? '')
     .trim()
@@ -213,8 +213,9 @@ describe('THE GRID SHOWS AN ARROW IN THE CELL THE SNAKE MOVES TO NEXT', () => {
   test('the arrow is a chevron in the cell ahead in `next.direction`, from the head', async () => {
     // Head at (5,5), next.direction up: the arrow sits inside cell (5,4).
     const { container } = renderLive();
-    await waitFor(() => expect(container.querySelector('.snake-arrow')).toBeTruthy());
-    const pts = arrowPoints(container);
+    // The leader's chevron (next.action left, up); the other two actions draw their own (2026-09-11).
+    await waitFor(() => expect(container.querySelector('.snake-arrow[data-action="left"]')).toBeTruthy());
+    const pts = arrowPoints(container, '.snake-arrow[data-action="left"]');
     expect(pts.length).toBeGreaterThanOrEqual(3);
     for (const [x, y] of pts) {
       expect(x).toBeGreaterThanOrEqual(5);
@@ -226,7 +227,7 @@ describe('THE GRID SHOWS AN ARROW IN THE CELL THE SNAKE MOVES TO NEXT', () => {
     const [a, tip, b] = pts;
     expect(tip[1]).toBeLessThan(a[1]);
     expect(tip[1]).toBeLessThan(b[1]);
-    expect(container.querySelector('.snake-arrow')?.getAttribute('data-direction')).toBe('up');
+    expect(container.querySelector('.snake-arrow[data-action="left"]')?.getAttribute('data-direction')).toBe('up');
     expect(container.querySelector('.snake-arrow.is-wall')).toBeNull();
   });
 
@@ -348,7 +349,9 @@ describe('THE LIVE SEGMENT SHOWS ONLY THE GRID AND THE NEXT MOVE', () => {
     expect(container.querySelector('.snake-tile')).toBeNull();
     expect(container.querySelector('.snake-status')).toBeNull();
     expect(container.querySelector('.snake-quiet')).toBeNull();
-    expect(main.querySelectorAll('a, button')).toHaveLength(0);
+    // The only links are the three chevrons on the grid (2026-09-11), no buttons.
+    expect(main.querySelectorAll('button')).toHaveLength(0);
+    expect([...main.querySelectorAll('a')].every(a => a.classList.contains('snake-arrow-link'))).toBe(true);
     // The impacts, the trade and the commentary are not printed anywhere.
     expect(main.textContent).not.toMatch(/\+1\.2|\+2\.9|-0\.9|philipp-gl|leans left|Length|Game 2|12x12/);
   });
@@ -611,5 +614,119 @@ describe('the replay', () => {
       await vi.advanceTimersByTimeAsync(2_100);
     });
     expect(vi.mocked(api.getLiveState).mock.calls.length).toBeGreaterThan(polls);
+  });
+});
+
+/**
+ * One shadow arrow per open action, shaded by impact and linked to its
+ * proposal (docs/ui-conventions.md, "The snake feed", the grid, revised
+ * 2026-09-11; Viktor: "show 'shadow' arrows on the visualization of the
+ * snake that when clicked go to the corresponding proposal on which i can
+ * trade", "make the highlight of the arrows depend on how high the
+ * predicted impact is"). And the feed drives the floor: a step change or
+ * a decision on the feed is reported up so the page reloads at once.
+ */
+describe('THE GRID SHOWS ONE SHADOW ARROW PER OPEN ACTION, SHADED BY IMPACT', () => {
+  const arrows = (c: HTMLElement) => [...c.querySelectorAll('.snake-arrow')] as SVGElement[];
+  const opacityOf = (el: SVGElement) => Number(el.style.strokeOpacity || el.getAttribute('stroke-opacity'));
+  const byAction = (c: HTMLElement) =>
+    Object.fromEntries(arrows(c).map(a => [a.getAttribute('data-action'), a])) as Record<string, SVGElement>;
+
+  test('three chevrons while the step is open, one per action, each in the cell that action moves to', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    const a = byAction(container);
+    expect(Object.keys(a).sort()).toEqual(['forward', 'left', 'right']);
+    // Head at (5,5) heading right: forward is right (6,5), left is up (5,4), right is down (5,6).
+    expect(a.forward.getAttribute('data-direction')).toBe('right');
+    expect(a.left.getAttribute('data-direction')).toBe('up');
+    expect(a.right.getAttribute('data-direction')).toBe('down');
+  });
+
+  test('the brightest chevron is the highest impact (0.9), the faintest the lowest (0.3), the middle one between', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    const a = byAction(container);
+    // left 2.9, forward 1.2, right -0.9
+    expect(opacityOf(a.left)).toBeCloseTo(0.9, 5);
+    expect(opacityOf(a.right)).toBeCloseTo(0.3, 5);
+    const mid = opacityOf(a.forward);
+    expect(mid).toBeGreaterThan(0.3);
+    expect(mid).toBeLessThan(0.9);
+    expect(mid).toBeCloseTo(0.3 + 0.6 * ((1.2 - -0.9) / (2.9 - -0.9)), 5);
+  });
+
+  test('tied or unreadable impacts draw all three at 0.55', async () => {
+    const s = h.state();
+    s.open.quotes = {
+      forward: { m1: {}, m5: {}, m60: { approved: null, declined: null } },
+      left: { m1: {}, m5: {}, m60: { approved: 6, declined: 6 } },
+      right: { m1: {}, m5: {}, m60: { approved: 6, declined: 6 } },
+    } as never;
+    vi.mocked(api.getLiveState).mockResolvedValueOnce(s as never);
+    const { container } = renderLive();
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    for (const el of arrows(container)) expect(opacityOf(el)).toBeCloseTo(0.55, 5);
+  });
+
+  test('each chevron is a link to its proposal on this floor, opened in place through onPickProposal', async () => {
+    const onPickProposal = vi.fn();
+    const { container } = render(
+      <MemoryRouter>
+        <SnakeLive slug="snake" onPickProposal={onPickProposal} />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    const link = byAction(container).left.closest('a') as SVGAElement | null;
+    expect(link).toBeTruthy();
+    expect(link?.getAttribute('href')).toBe('/snake/p/122');
+    expect(link?.getAttribute('target')).toBeNull();
+    const ev = fireEvent.click(link as Element);
+    expect(onPickProposal).toHaveBeenCalledWith(122);
+    expect(ev).toBe(false); // default prevented: no full navigation
+  });
+
+  test("once decided only the approved action's chevron stays, solid", async () => {
+    const s = h.state();
+    s.next = { action: 'left', direction: 'up', decided: true, seconds: 0 };
+    vi.mocked(api.getLiveState).mockResolvedValueOnce(s as never);
+    const { container } = renderLive();
+    await waitFor(() => expect(arrows(container).length).toBe(1));
+    const only = arrows(container)[0];
+    expect(only.getAttribute('data-action')).toBe('left');
+    expect(only.getAttribute('data-direction')).toBe('up');
+    expect(opacityOf(only)).toBe(1);
+    expect(only.classList.contains('is-decided')).toBe(true);
+  });
+
+  test('THE FEED DRIVES THE FLOOR: a decision or a new step on the feed is reported up as soon as it is read', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const onStep = vi.fn();
+    render(
+      <MemoryRouter>
+        <SnakeLive slug="snake" onStep={onStep} />
+      </MemoryRouter>,
+    );
+    // The first read is the baseline, not a change.
+    await vi.advanceTimersByTimeAsync(50);
+    expect(onStep).toHaveBeenCalledTimes(0);
+    // Same step, same state: nothing to report.
+    await vi.advanceTimersByTimeAsync(2_050);
+    expect(onStep).toHaveBeenCalledTimes(0);
+    // The ruling lands.
+    const decided = h.state();
+    decided.next = { action: 'left', direction: 'up', decided: true, seconds: 0 };
+    vi.mocked(api.getLiveState).mockResolvedValue(decided as never);
+    await vi.advanceTimersByTimeAsync(2_050);
+    expect(onStep).toHaveBeenCalledTimes(1);
+    expect(onStep).toHaveBeenLastCalledWith({ step: 42, decided: true });
+    // The next step opens.
+    const next = h.state();
+    next.open.step = 43;
+    vi.mocked(api.getLiveState).mockResolvedValue(next as never);
+    await vi.advanceTimersByTimeAsync(2_050);
+    expect(onStep).toHaveBeenCalledTimes(2);
+    expect(onStep).toHaveBeenLastCalledWith({ step: 43, decided: false });
+    vi.useRealTimers();
   });
 });

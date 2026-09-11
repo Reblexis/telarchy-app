@@ -43,6 +43,15 @@ export function clockOf(iso: string | Date | null | undefined, zone?: string): s
   return p ? `${p.hour}:${p.minute}` : '';
 }
 
+/** "12:38:58": the local clock to the second, for a ruling's instant. */
+export function clockSecondsOf(iso: string | Date | null | undefined, zone?: string): string {
+  if (!iso) return '';
+  const d = iso instanceof Date ? iso : new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const base = clockOf(d, zone);
+  return base ? `${base}:${String(d.getUTCSeconds()).padStart(2, '0')}` : '';
+}
+
 /** "11 Sep": the local day, own month names (en-GB ICU prints "Sept"). */
 export function dayOf(iso: string | Date | null | undefined, zone?: string): string {
   if (!iso) return '';

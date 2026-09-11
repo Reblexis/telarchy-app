@@ -62,7 +62,7 @@ import { dropInline, readInline } from '../lib/inline-data';
 import { maxWinLabel } from '../lib/market-quote';
 import { authPath } from '../lib/nextPath';
 import { periodGapOf } from '../lib/period-gap';
-import { countdownTo, dayOf, instantOf, pollIntervalFor, tickIntervalFor } from '../lib/viewer-time';
+import { clockSecondsOf, countdownTo, dayOf, instantOf, pollIntervalFor, tickIntervalFor } from '../lib/viewer-time';
 
 /**
  * telarchy.com/<slug>: the market and one action, nothing else (owner
@@ -871,6 +871,36 @@ export function TradePage() {
   // (docs/guides/proposals.md, "The deadline, and the close"): no verbs, no
   // ticket, no Sell; the position card says when it settles.
   const selectedJobClosed = selectedJobDecided || !!selectedJob?.closedAt;
+  // Past its deadline and still pending: closed before the ruling lands
+  // (docs/ui-conventions.md, "A proposal past its deadline reads as closed
+  // before the ruling lands"). The verbs are dead and one line says so.
+  const selectedJobPastDeadline =
+    !!selectedJob &&
+    !selectedJobClosed &&
+    !!selectedJob.decideBy &&
+    new Date(selectedJob.decideBy).getTime() <= now.getTime();
+  // The ruling's word for the head: approved, declined, or lapsed.
+  const selectedJobRuling: 'approved' | 'declined' | 'lapsed' | null = !selectedJob
+    ? null
+    : selectedJob.lapsedAt
+      ? 'lapsed'
+      : selectedJob.status === 'approved' || selectedJob.status === 'declined'
+        ? selectedJob.status
+        : selectedJobClosed
+          ? 'lapsed'
+          : null;
+  // Opening a proposal, by a row, a chevron or its address, scrolls its head
+  // into view (docs/ui-conventions.md, "The feed drives the floor").
+  const scrolledToRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = selectedJob?.id ?? null;
+    if (!id || scrolledToRef.current === id) return;
+    scrolledToRef.current = id;
+    const el = document.querySelector('.pubws-proposal-head');
+    if (el && typeof (el as HTMLElement).scrollIntoView === 'function') {
+      (el as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [selectedJob?.id]);
   // How the deadline reads, and whether it is close enough to shout about.
   const deadlineUrgent =
     !!selectedJob?.decideBy &&
@@ -1762,6 +1792,9 @@ export function TradePage() {
               {selectedJob && (
                 <div className="pubws-proposal-head pubws-enter pubws-enter--1">
                   <h2 className="pubws-proposal-title">
+                    {selectedJobRuling && (
+                      <span className={`pubws-ballot-status is-${selectedJobRuling}`}>{selectedJobRuling}</span>
+                    )}
                     {selectedJob.number ? <span className="pubws-ballot-num">#{selectedJob.number}</span> : null}
                     {splitAsk(selectedJob.title).rest}
                   </h2>
@@ -1777,9 +1810,20 @@ export function TradePage() {
                       {!jobAskUsd ? 'no payment asked' : `$${jobAskUsd} if approved`}
                     </span>
                     {selectedJobClosed ? (
-                      <span aria-label="Decision deadline">
+                      <span
+                        aria-label="Decision deadline"
+                        title={instantOf(
+                          selectedJob.resolvedAt ?? selectedJob.lapsedAt ?? selectedJob.closedAt ?? null,
+                        )}
+                      >
                         <ClockGlyph />
-                        decided {dayOf(selectedJob.resolvedAt ?? selectedJob.closedAt ?? null)}
+                        {/* The ruling's word and its instant to the second
+                            (docs/ui-conventions.md, "A proposal past its
+                            deadline reads as closed before the ruling lands"). */}
+                        {selectedJobRuling ?? 'decided'}{' '}
+                        {clockSecondsOf(
+                          selectedJob.resolvedAt ?? selectedJob.lapsedAt ?? selectedJob.closedAt ?? null,
+                        ) || dayOf(selectedJob.resolvedAt ?? selectedJob.closedAt ?? null)}
                       </span>
                     ) : (
                       selectedJob.decideBy && (
@@ -2053,6 +2097,11 @@ export function TradePage() {
                         slug={ws.slug ?? idOrSlug ?? ws.workspaceId}
                         corner={chartModeToggle}
                         center={<span className="pubws-chart-cap">{captionLabel(metricLabel, ws.name)}</span>}
+                        /* The feed drives the floor (docs/ui-conventions.md): a
+                           step or a ruling on the feed reloads the payload at
+                           once; a chevron selects its proposal like a row. */
+                        onStep={() => reload()}
+                        onPickProposal={n => setSelectedJobId(String(n))}
                       />
                     ) : chartView === 'value' ? (
                       <NumberChart
@@ -2232,7 +2281,11 @@ export function TradePage() {
                         cells cannot tell which of the two a button belongs
                         to, and a toggle further up the page is not an
                         answer. */}
-                    <button className="pubws-bet-btn pubws-bet-btn--higher" onClick={() => setBetModal('higher')}>
+                    <button
+                      className="pubws-bet-btn pubws-bet-btn--higher"
+                      disabled={selectedJobPastDeadline}
+                      onClick={() => setBetModal('higher')}
+                    >
                       Bet Higher ↑
                       <span className="pubws-bet-max">
                         {selectedJob
@@ -2242,7 +2295,11 @@ export function TradePage() {
                             : ''}
                       </span>
                     </button>
-                    <button className="pubws-bet-btn pubws-bet-btn--lower" onClick={() => setBetModal('lower')}>
+                    <button
+                      className="pubws-bet-btn pubws-bet-btn--lower"
+                      disabled={selectedJobPastDeadline}
+                      onClick={() => setBetModal('lower')}
+                    >
                       Bet Lower ↓
                       <span className="pubws-bet-max">
                         {selectedJob
@@ -2276,7 +2333,15 @@ export function TradePage() {
             the reading order is unchanged. */}
           {/* Keyed by the side so a verb re-seeds the ticket instead of being
               a dead click, exactly as the inline ticket was. */}
-          {active && !selectedJobClosed && (
+          {selectedJobPastDeadline && (
+            /* Closed before the ruling lands (docs/ui-conventions.md, "A
+               proposal past its deadline reads as closed before the ruling
+               lands"): one mono line where the ticket was. */
+            <p className="pubws-closed-line" role="status">
+              Trading closed at the deadline. The ruling lands in a moment; this page updates on its own.
+            </p>
+          )}
+          {active && !selectedJobClosed && !selectedJobPastDeadline && (
             <div className="pubws-ticket-inline" key={betModal ?? 'open'}>
               <TradeTicket
                 probability={shownProbability}

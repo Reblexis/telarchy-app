@@ -119,7 +119,9 @@ export function pendingBallot(
     const ta = dueAt(a);
     const tb = dueAt(b);
     if (ta !== tb) return ta < tb ? -1 : 1;
-    return byPool(a, b);
+    // Then the number, so three proposals posted together keep their places
+    // as prices refresh (docs/ui-conventions.md, "The feed drives the floor").
+    return byPool(a, b) || (a.number ?? 0) - (b.number ?? 0);
   };
   return proposals.filter(isPending).sort(byDue);
 }
