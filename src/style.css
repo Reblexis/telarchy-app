@@ -4032,23 +4032,20 @@ textarea.jobform-line--desc {
   text-underline-offset: 3px;
 }
 
-/* A bot says it is one (docs/ui-conventions.md): one small muted word after
-   the name, the same on every surface. Inline, so it rides the name's line. */
+/* A bot says it is one (docs/ui-conventions.md): the bot icon after the name,
+   the same on every surface. Inline, so it rides the name's line. */
 .pubws-bot {
-  display: inline-block;
-  margin-left: 0.4em;
-  padding: 0 0.35em;
-  border: 1px solid var(--border-color);
-  border-radius: 3px;
-  font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 0.68em;
-  font-weight: 500;
-  line-height: 1.5;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.3em;
   color: var(--text-secondary, inherit);
-  vertical-align: 0.1em;
-  white-space: nowrap;
+  vertical-align: -0.12em;
+  line-height: 1;
+}
+.pubws-bot svg {
+  width: 1.05em;
+  height: 1.05em;
+  flex: none;
 }
 .pubws-lb-bots {
   margin: 0.5rem 0 0;

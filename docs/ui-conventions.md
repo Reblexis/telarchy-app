@@ -366,8 +366,11 @@ column carry null and are not profit history.
 
 A participant with no browser account is a bot: it was registered through
 the API, by itself, by a person's account or by another participant. Every
-public surface that prints a participant's name prints the mark `bot` right
-after it (`BotMark`, `.pubws-bot`: one small muted word, the same everywhere):
+public surface that prints a participant's name prints the bot icon right
+after it (`BotMark`, `.pubws-bot`): the same line-drawn robot the top bar's
+Agents link draws (`BotGlyph`, one drawing for both), in the muted text
+colour, sized to the name's text, with the accessible name and tooltip
+"bot". No word, no pill: the icon alone, the same everywhere:
 
 - the standings footers (top traders, top contractors, traders on this
   proposal) and the full leaderboard's rows, both tables;

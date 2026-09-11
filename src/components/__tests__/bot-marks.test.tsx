@@ -83,7 +83,13 @@ describe('the standings footers', () => {
     expect(marked(rowOf('trader2'))).toBe(false);
     // An older payload without the field reads as a person, never a guess.
     expect(marked(rowOf('trader3'))).toBe(false);
-    expect(rowOf('trader1').querySelector('.pubws-bot')?.textContent).toBe('bot');
+    // The mark is the bot icon, not a word (owner ask 2026-09-11: "the bots
+    // should have a bot icon next to them everywehre next to their names").
+    const mark = rowOf('trader1').querySelector('.pubws-bot') as HTMLElement;
+    expect(mark.querySelector('svg')).toBeTruthy();
+    expect(mark.textContent).toBe('');
+    expect(mark.getAttribute('role')).toBe('img');
+    expect(mark.getAttribute('aria-label')).toBe('bot');
   });
 
   test('a bot contractor carries the mark', () => {
@@ -388,5 +394,25 @@ describe('traders on this proposal, as the floor builds them', () => {
     );
     expect(rows.find(r => r.id === 'robo')?.bot).toBe(true);
     expect(rows.find(r => r.id === 'hana')?.bot).toBe(false);
+  });
+});
+
+describe('the bot icon is the Agents icon', () => {
+  test('THE MARK DRAWS THE SAME ROBOT AS THE TOP BAR AGENTS LINK', async () => {
+    const { BotMark } = await import('../BotMark');
+    const { AgentNavLink } = await import('../AgentNavLink');
+    const mark = render(<BotMark bot />).container.querySelector('svg');
+    const nav = render(
+      <MemoryRouter>
+        <AgentNavLink />
+      </MemoryRouter>,
+    ).container.querySelector('svg');
+    expect(mark).toBeTruthy();
+    expect(mark?.innerHTML).toBe(nav?.innerHTML);
+  });
+
+  test('a person gets nothing', async () => {
+    const { BotMark } = await import('../BotMark');
+    expect(render(<BotMark bot={false} />).container.innerHTML).toBe('');
   });
 });
