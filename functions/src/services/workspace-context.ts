@@ -32,9 +32,10 @@ import {
 } from '../db/schema';
 import { consensus } from '../lib/amm';
 import { resolutionInstant } from '../lib/date-utils';
+import type { ProposalOption } from '../db/schema';
 import { branchIsShown, horizonSettled } from '../lib/market-pairs';
 import { getParticipantDisplayNames } from '../lib/participants';
-import { getProposalMarketSummariesForProposals, getTradeCountMap } from './proposals';
+import { getProposalMarketSummariesForProposals, getTradeCountMap, optionSummariesWithDeltas } from './proposals';
 
 /**
  * How much source text one brief may carry. Raised (owner direction
@@ -102,10 +103,17 @@ export interface WorkspaceContext {
     declineReason: string | null;
     /** True while an approval would still change anything, i.e. status pending. */
     decisionOpen: boolean;
+    /** The option list on a proposal with options, and the one the owner
+     *  chose (docs/guides/proposals.md, "More than two options"). */
+    options: ProposalOption[] | null;
+    decidedOption: string | null;
     /**
      * Priced impact per horizon: approved consensus minus declined. Live
      * horizons first, largest impact first; a voided pair appears only on a
-     * proposal the owner has already ruled on (lib/market-pairs.ts).
+     * proposal the owner has already ruled on (lib/market-pairs.ts). On a
+     * proposal with options approved and declined are null, `options`
+     * carries each option's consensus and its delta (its consensus minus the
+     * best other), and `delta` is the leader's lead.
      */
     impact: Array<{
       metricId: string;
@@ -122,6 +130,7 @@ export interface WorkspaceContext {
       /** Trades behind each branch's price. Zero means nobody has traded it. */
       approvedTrades: number | null;
       declinedTrades: number | null;
+      options: Array<{ id: string; label: string; consensus: number | null; trades: number; delta: number | null }> | null;
     }>;
     recentComments: Array<{ from: string; content: string; at: string }>;
   }>;
@@ -271,12 +280,18 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
     // different deltas is the failure this prevents.
     const all = summariesByProposal.get(p.id) ?? [];
     const pairs = all
-      .map(pair => ({
-        ...pair,
-        approved: pair.approved && branchIsShown(p.status, pair.approved.voided) ? pair.approved : null,
-        declined: pair.declined && branchIsShown(p.status, pair.declined.voided) ? pair.declined : null,
-      }))
-      .filter(pair => pair.approved || pair.declined)
+      .map(pair => {
+        if (pair.options) {
+          const options = pair.options.filter(o => branchIsShown(p.status, o.voided));
+          return { ...pair, approved: null, declined: null, ...optionSummariesWithDeltas(options) };
+        }
+        return {
+          ...pair,
+          approved: pair.approved && branchIsShown(p.status, pair.approved.voided) ? pair.approved : null,
+          declined: pair.declined && branchIsShown(p.status, pair.declined.voided) ? pair.declined : null,
+        };
+      })
+      .filter(pair => pair.approved || pair.declined || (pair.options && pair.options.length > 0))
       .map(pair => {
         const resolvesOn = pair.resolvesOn ?? resolutionInstant(pair.targetDate);
         const approved = pair.approved?.consensus ?? null;
@@ -290,10 +305,19 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
           settled: horizonSettled(resolvesOn),
           approved,
           declined,
-          delta: approved !== null && declined !== null ? approved - declined : null,
+          delta: pair.options ? pair.delta : approved !== null && declined !== null ? approved - declined : null,
           baseline: pair.baselineConsensus,
           approvedTrades: pair.approved?.tradeCount ?? null,
           declinedTrades: pair.declined?.tradeCount ?? null,
+          options: pair.options
+            ? pair.options.map(o => ({
+                id: o.id,
+                label: o.label,
+                consensus: o.consensus,
+                trades: o.tradeCount,
+                delta: o.delta,
+              }))
+            : null,
         };
       });
     // Live horizons first, biggest mover first inside each group: the reader
@@ -312,6 +336,8 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
       createdAt: p.createdAt.toISOString(),
       declineReason: p.declineReason,
       decisionOpen: p.status === 'pending',
+      options: p.options ?? null,
+      decidedOption: p.decidedOption ?? null,
       impact: pairs,
       recentComments: commentRows
         .filter(c => c.proposalId === p.id)
@@ -466,6 +492,22 @@ export function renderContextMarkdown(ctx: WorkspaceContext): string {
     for (const i of c.impact) {
       const name = `${i.metricName}${i.metricDefined ? '' : ' (this metric is no longer defined on the floor)'}`;
       const baseline = i.baseline === null ? '' : ` Without this proposal the floor prices ${num(i.baseline)}.`;
+      if (i.options) {
+        // One line per option, side by side, then who leads and by how much
+        // (docs/guides/proposals.md, "The number you are reading").
+        const leader = i.options.find(o => o.delta !== null && o.delta >= 0) ?? null;
+        const lead =
+          leader && i.delta !== null
+            ? `Leader: ${leader.label} leads by ${num(i.delta)}.`
+            : 'No leader yet: fewer than two options are priced.';
+        const perOption = i.options
+          .map(o => `${o.label}${c.decidedOption === o.id ? ' (chosen)' : ''}: ${num(o.consensus)} (${trades(o.trades)})`)
+          .join('; ');
+        out.push(
+          `Priced impact on ${name} ${i.targetDate}, by option: ${perOption}. ${lead} ${when(i.resolvesOn, i.settled)}.${baseline}`,
+        );
+        continue;
+      }
       out.push(
         `Priced impact on ${name} ${i.targetDate}: if approved ${num(i.approved)}, if declined ${num(i.declined)}, difference ${i.delta === null ? 'not priced yet' : num(i.delta)}. ${when(i.resolvesOn, i.settled)}.${baseline} ${branchTrades(i.approvedTrades, i.declinedTrades)}.`,
       );

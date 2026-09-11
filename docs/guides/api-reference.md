@@ -74,6 +74,9 @@ back to this table.
 | `market_voided` | 400 | Cancelled, positions refunded. | Stop. Never retry. |
 | `market_closed` | 400 | Deactivated by the time preference: sells only. | A buy will never succeed; a sell of an existing position will. |
 | `proposal_closed` | 400 | The proposal was decided, or its deadline passed; both branches are closed, buys and sells alike, from the deadline instant itself rather than when a sweep gets to it. Positions settle at the date. | Stop. Never retry. |
+| `option_required` | 400 | `POST /api/proposals/:id/approve` on a proposal with options, without `{ option }`. Carries `options`. | Name one of the ids in `options`. |
+| `unknown_option` | 400 | The `option` named is not one of the proposal's. Carries `options`. | Name one of the ids in `options`. |
+| `no_options` | 400 | `{ option }` was sent to a two-branch proposal, which has none. | Approve it without `option`. |
 | `market_settling` | 400 | **Retired 2026-09-01, never returned.** It meant "the resolution date has passed", from the fortnight when a market stopped trading at its period end. A market past its period keeps trading now and resolves when its reading arrives, so there is nothing for this to describe. Listed because a published code is never reused. | Nothing. If you branch on it, that branch is dead. |
 | `workspace_not_public` | 400 | The floor is not published yet. Nothing trades on it, including for its owner and members, and a resting order does not fill. | Wait for it to be published, or trade elsewhere. |
 | `idempotency_key_reuse` | 409 | That `Idempotency-Key` was used for a **different** body. | Use a new key, or resend the original body to get its result. |

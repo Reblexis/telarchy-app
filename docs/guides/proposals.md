@@ -253,14 +253,18 @@ two-branch proposal carries approved minus declined.
 
 **Deciding is choosing.** `POST /api/proposals/:id/approve { option }`
 names the option's `id`; without it the call fails with 400
-`option_required`, and naming one on a two-branch proposal fails with 400
-`no_options`. The chosen option's markets stay live and settle on the
+`option_required`, naming an id the proposal does not have fails with 400
+`unknown_option` (both carry the proposal's `options`), and naming one on a
+two-branch proposal fails with 400 `no_options`. The chosen option's markets stay live and settle on the
 metric's actual value at their dates; every other option's markets void and
 refund at net cash. Everything else approving does, it does here: the ask
 is owed, the proposer's stake is bought out, `proposalReward` is paid, the
 reward is checked first, trading closes at the press. The proposal's status
 is `approved` and `decidedOption` names the winner; `decidedPricing` records
-every option's consensus at the moment of the choice.
+every option's consensus at the moment of the choice, and from then on
+every option's `delta` and the row's are computed from those recorded
+prices, voided options included, so the lead a decided proposal shows is
+the lead it was chosen on.
 
 `POST /api/proposals/:id/decline` is "none of these": there is no branch to
 keep, so every option voids and refunds whatever `refund` says, and the

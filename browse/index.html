@@ -5644,6 +5644,13 @@ way and lends it its anatomy.</li>
 deadline. Every page on the site otherwise shares one og:title and one logo
 image, which is why a proposal cannot currently be sent to the person who
 knows how to price it.</li>
+<li><strong>A proposal with options says which option leads</strong>: &quot;Should <floor>
+<verb>: <title>? The market says <leader label> leads by <lead> <metric>.&quot;
+(the leader's lead over the next best, with the metric's unit), &quot;Nobody
+has priced it yet.&quot; while fewer than two options are priced, and once
+decided &quot;<floor> chose <label> on #<number>: <title>&quot;. The description
+says &quot;<ask> to the proposer if chosen.&quot; and &quot;bet on which option lands
+higher&quot; where a pair says &quot;which world&quot;.</li>
 </ul>
 <h3 id="docs-ui-conventions-md--h24">A proposal with options shows one world per option</h3>
 <p>A proposal may carry options instead of the approve/decline pair
@@ -9138,6 +9145,24 @@ back to this table.</p>
 <td>Stop. Never retry.</td>
 </tr>
 <tr>
+<td><code>option_required</code></td>
+<td>400</td>
+<td><code>POST /api/proposals/:id/approve</code> on a proposal with options, without <code>{ option }</code>. Carries <code>options</code>.</td>
+<td>Name one of the ids in <code>options</code>.</td>
+</tr>
+<tr>
+<td><code>unknown_option</code></td>
+<td>400</td>
+<td>The <code>option</code> named is not one of the proposal's. Carries <code>options</code>.</td>
+<td>Name one of the ids in <code>options</code>.</td>
+</tr>
+<tr>
+<td><code>no_options</code></td>
+<td>400</td>
+<td><code>{ option }</code> was sent to a two-branch proposal, which has none.</td>
+<td>Approve it without <code>option</code>.</td>
+</tr>
+<tr>
 <td><code>market_settling</code></td>
 <td>400</td>
 <td><strong>Retired 2026-09-01, never returned.</strong> It meant &quot;the resolution date has passed&quot;, from the fortnight when a market stopped trading at its period end. A market past its period keeps trading now and resolves when its reading arrives, so there is nothing for this to describe. Listed because a published code is never reused.</td>
@@ -11326,14 +11351,18 @@ no leader. The floor's board and strips carry the leader's lead where a
 two-branch proposal carries approved minus declined.</p>
 <p><strong>Deciding is choosing.</strong> <code>POST /api/proposals/:id/approve { option }</code>
 names the option's <code>id</code>; without it the call fails with 400
-<code>option_required</code>, and naming one on a two-branch proposal fails with 400
-<code>no_options</code>. The chosen option's markets stay live and settle on the
+<code>option_required</code>, naming an id the proposal does not have fails with 400
+<code>unknown_option</code> (both carry the proposal's <code>options</code>), and naming one on a
+two-branch proposal fails with 400 <code>no_options</code>. The chosen option's markets stay live and settle on the
 metric's actual value at their dates; every other option's markets void and
 refund at net cash. Everything else approving does, it does here: the ask
 is owed, the proposer's stake is bought out, <code>proposalReward</code> is paid, the
 reward is checked first, trading closes at the press. The proposal's status
 is <code>approved</code> and <code>decidedOption</code> names the winner; <code>decidedPricing</code> records
-every option's consensus at the moment of the choice.</p>
+every option's consensus at the moment of the choice, and from then on
+every option's <code>delta</code> and the row's are computed from those recorded
+prices, voided options included, so the lead a decided proposal shows is
+the lead it was chosen on.</p>
 <p><code>POST /api/proposals/:id/decline</code> is &quot;none of these&quot;: there is no branch to
 keep, so every option voids and refunds whatever <code>refund</code> says, and the
 charter rule on <code>declineReason</code> applies unchanged. Decline as spam, remove,

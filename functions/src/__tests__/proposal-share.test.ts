@@ -92,3 +92,39 @@ describe('what the head carries', () => {
     expect(out).not.toContain('<b>more</b>');
   });
 });
+
+describe('what a link to a proposal with options says (docs/ui-conventions.md, "A proposal has an address and a card")', () => {
+  const opts: ShareMetaProposal = {
+    ...base,
+    number: 3437,
+    title: 'Game 1, attempt 57, move 3',
+    metricLabel: 'reached length',
+    impact: 0.4,
+    options: true,
+    leaderLabel: 'Turn left',
+    chosenLabel: null,
+  };
+
+  test('a proposal with options names the leader and its lead, never "if approved"', () => {
+    const { title } = proposalMetaText(opts);
+    expect(title).toBe('Should Telarchy do: Game 1, attempt 57, move 3? The market says Turn left leads by +0.40 reached length.');
+    expect(title).not.toContain('if approved');
+  });
+
+  test('a proposal with options and no leader says nobody has priced it', () => {
+    expect(proposalMetaText({ ...opts, impact: null, leaderLabel: null }).title).toContain('Nobody has priced it yet.');
+  });
+
+  test('a decided proposal with options says which option was chosen', () => {
+    const { title } = proposalMetaText({ ...opts, decided: 'approved', chosenLabel: 'Turn left' });
+    expect(title).toMatch(/^Telarchy chose Turn left on #3437: Game 1, attempt 57, move 3/);
+  });
+
+  test('the description of a paid proposal with options says "if chosen" and "which option"', () => {
+    const { description } = proposalMetaText({ ...opts, askUsd: 250 });
+    expect(description).toContain('$250 to the proposer if chosen.');
+    expect(description).toContain('bet on which option lands higher');
+    expect(description).not.toContain('if approved');
+  });
+});
+

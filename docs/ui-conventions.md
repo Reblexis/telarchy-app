@@ -922,6 +922,13 @@ hero number.
   deadline. Every page on the site otherwise shares one og:title and one logo
   image, which is why a proposal cannot currently be sent to the person who
   knows how to price it.
+- **A proposal with options says which option leads**: "Should <floor>
+  <verb>: <title>? The market says <leader label> leads by <lead> <metric>."
+  (the leader's lead over the next best, with the metric's unit), "Nobody
+  has priced it yet." while fewer than two options are priced, and once
+  decided "<floor> chose <label> on #<number>: <title>". The description
+  says "<ask> to the proposer if chosen." and "bet on which option lands
+  higher" where a pair says "which world".
 
 
 ### A proposal with options shows one world per option
