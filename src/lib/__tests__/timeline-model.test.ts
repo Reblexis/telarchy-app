@@ -2,11 +2,11 @@ import { describe, expect, test } from 'vitest';
 import { endMeta, layout, type TimelineItem, ticksFor, windowFor } from '../timeline-model';
 
 /**
- * The pure geometry behind "What is planned" (docs/owner-on-the-floor.md,
- * "What is planned", "The axis"; docs/ui-conventions.md, the FloorTimeline
- * paragraph). One row per item, soonest end on top, a bar on a shared axis
- * under each title; no lanes and no label measurement, because the column
- * is 280px and a label next to its bar is a label that gets cut.
+ * The pure geometry behind "What is planned" (docs/data-room.md,
+ * "What is planned", "The axis"; docs/ui-conventions.md, "The data room",
+ * the PlannedTimeline paragraph). One row per item, soonest end on top, a
+ * bar on a shared axis under each title; no lanes and no label measurement,
+ * because a label next to its bar is a label that gets cut on a phone.
  */
 
 const DAY = 864e5;

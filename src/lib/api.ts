@@ -904,6 +904,15 @@ export interface ActionsPage {
   next: string | null;
 }
 
+/** The room's "What is planned" read (docs/data-room.md, "What is planned"):
+ *  the platform floor's calendar, `workspace` null on an instance that has no
+ *  such floor. `items` are exactly the per-floor timeline's. */
+export interface PlannedResponse {
+  workspace: { id: string; slug: string; name: string } | null;
+  now: string;
+  items: TimelineItem[];
+}
+
 /** The filters the page and the endpoint share (docs/data-room.md,
  *  "Filtering"): every one is a query parameter, and an absent one is absent. */
 export type ActionsParams = Partial<
@@ -1965,6 +1974,10 @@ export const api = {
    *  renders this response and nothing else (docs/data-room.md). */
   getActions: (params: ActionsParams = {}): Promise<ActionsPage> =>
     request(`/api/data-room/actions${actionsQueryString(params)}`),
+  /** What the owner of Telarchy has committed to and by when: the platform
+   *  floor's calendar, drawn between the room's stamp and its filter bar
+   *  (docs/data-room.md, "What is planned"). */
+  getDataRoomPlanned: (): Promise<PlannedResponse> => request('/api/data-room/planned'),
 
   /** Admin launch dashboard: floor visits, signups, waitlist. */
   getFloorStats: () => request('/api/admin/floor-stats'),
@@ -2634,7 +2647,12 @@ export const api = {
     }),
 
   // User auth / profile
-  getProfile: () => request('/api/auth/me'),
+  /** With a workspace id the answer is scoped to that floor (X-Workspace-Id),
+   *  so `capabilities` says what the caller may do THERE rather than on the
+   *  floor they last opened; the data room asks this way about the platform
+   *  floor without making it the active workspace. */
+  getProfile: (workspaceId?: string) =>
+    workspaceId ? requestWithWorkspace('/api/auth/me', {}, { workspaceId }) : request('/api/auth/me'),
   /** `notifications` is the email switches; any subset, an omitted key keeps
    *  its current value (see docs/vision.md, "Participant email notifications"). */
   upsertProfile: (opts?: {
@@ -2748,10 +2766,6 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ body }),
     }),
-  /** What the floor has committed to and when, under the announcements'
-   *  disclosure rule (403 on a private floor). */
-  getWorkspaceTimeline: (idOrSlug: string): Promise<{ now: string; items: TimelineItem[] }> =>
-    request(`/api/marketplace/${encodeURIComponent(idOrSlug)}/timeline`),
   createPlan: (
     workspaceId: string,
     body: { title: string; description?: string; start?: string; due?: string },

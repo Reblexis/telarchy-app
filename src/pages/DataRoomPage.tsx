@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { PlannedTimeline } from '../components/PlannedTimeline';
 import { useAuth } from '../hooks/useAuth';
 import { type ActionRow, type ActionsPage, type ActionsParams, actionsQueryString, api } from '../lib/api';
 import { withBase } from '../lib/base-path';
@@ -8,9 +9,11 @@ import { TopBar } from './TradePage';
 /**
  * telarchy.com/data-room: the public actions log (docs/data-room.md).
  *
- * The page renders `GET /api/data-room/actions` and nothing else, with the
- * filters it holds in its own URL query, so what a person is looking at is
- * one URL swap away from what an agent reads. Drawn as the desk
+ * The page renders `GET /api/data-room/actions`, with the filters it holds
+ * in its own URL query, so what a person is looking at is one URL swap away
+ * from what an agent reads; and, between the stamp and the filter bar, "What
+ * is planned" from `GET /api/data-room/planned` (the platform floor's
+ * calendar, docs/data-room.md, "What is planned"). Drawn as the desk
  * (docs/ui-conventions.md, "The data room"): the site's dark tokens whatever
  * the visitor's theme, mono labels, hairlines.
  */
@@ -64,6 +67,31 @@ export function DataRoomPage() {
   const [newIds, setNewIds] = useState<Set<string>>(() => new Set());
   const rowsRef = useRef<ActionRow[]>([]);
   rowsRef.current = rows;
+
+  // Whose calendar "What is planned" is, as the endpoint named it, and
+  // whether the reader manages that floor. The question is asked once the
+  // floor is known and only of someone signed in: a visitor is a reader.
+  const [plannedWs, setPlannedWs] = useState<{ id: string } | null>(null);
+  const [canManagePlanned, setCanManagePlanned] = useState(false);
+  useEffect(() => {
+    if (!user || !plannedWs) {
+      setCanManagePlanned(false);
+      return;
+    }
+    let live = true;
+    api
+      .getProfile(plannedWs.id)
+      .then(p => {
+        if (!live) return;
+        setCanManagePlanned(((p as { capabilities?: string[] }).capabilities ?? []).includes('manage'));
+      })
+      .catch(() => {
+        if (live) setCanManagePlanned(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, [user, plannedWs]);
 
   // The first page, whenever the filters change. A request that is no
   // longer the newest one is dropped rather than raced onto the page.
@@ -207,6 +235,12 @@ export function DataRoomPage() {
             </a>
           </p>
         </header>
+
+        <PlannedTimeline
+          canManage={canManagePlanned}
+          workspaceId={plannedWs?.id ?? null}
+          onWorkspace={ws => setPlannedWs(cur => (cur?.id === ws?.id ? cur : ws ? { id: ws.id } : null))}
+        />
 
         <div className="dr-filters" role="group" aria-label="Filter the log">
           <div className="dr-kinds">

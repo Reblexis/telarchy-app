@@ -1381,7 +1381,7 @@ marketplaceRouter.get(
 /**
  * GET /api/marketplace/:idOrSlug/timeline
  *
- * The floor's time axis (docs/owner-on-the-floor.md, "What is planned"): one
+ * The floor's time axis (docs/data-room.md, "What is planned"): one
  * interval per thing the owner has committed to, soonest end first, undated
  * last. Every bar is computed in services/timeline.ts; the page and Otto draw
  * what they are handed and never derive a bar themselves, so the rule for

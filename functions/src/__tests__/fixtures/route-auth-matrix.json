@@ -579,6 +579,11 @@
     "agent": 200,
     "master": 200
   },
+  "GET /api/data-room/planned": {
+    "anon": 200,
+    "agent": 200,
+    "master": 200
+  },
   "POST /api/earn/links/sync": {
     "anon": 401,
     "agent": 400,

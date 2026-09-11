@@ -42,7 +42,7 @@ The kinds, in the order the filter bar lists them:
 | `delivery` | the proposer reported delivery | `proposals.deliveredAt` |
 | `comment` | a message on a proposal or on a book, as an excerpt | `proposal_messages`, `market_messages` |
 | `announcement` | the owner published an announcement, or edited one | `announcements`; an edit is its own row at `editedAt` |
-| `plan` | the owner added a plan item (title, start, due), edited one, or marked one done | `plans`: one row at `createdAt`, one at `editedAt` when set, one at `doneAt` when set (`docs/owner-on-the-floor.md`, "What is planned") |
+| `plan` | the owner added a plan item (title, start, due), edited one, or marked one done | `plans`: one row at `createdAt`, one at `editedAt` when set, one at `doneAt` when set (this doc, "What is planned") |
 | `reading` | a metric's value changed: old, new, and the note that came with it | `updates`, which is written only when the value moved, so a flat number is silence rather than one row per hourly sync |
 | `metric` | a metric was added, or a field of its definition changed | `metrics.createdAt`; `metric_definition_revisions` |
 | `market` | a baseline book opened, settled on a value, or was voided | `markets` with no `proposalId`; a proposal's pair books are implied by its own row and would otherwise print two dozen lines per proposal |
@@ -185,8 +185,9 @@ room` entry of `documents`, rendered as the same lines.
 
 The page is the desk (`docs/ui-conventions.md`, "The data room"): the site's
 dark tokens whatever the visitor's theme, the wide column, mono labels,
-hairlines. Above the log: the title, one line saying what the log is, and the
-stamp (read live, generated when, the JSON link). Nothing else above it.
+hairlines. Above the log: the title, one line saying what the log is, the
+stamp (read live, generated when, the JSON link), and the "What is planned"
+section (below). Nothing else above it.
 
 **The filter bar** is one row: a chip per kind that toggles, a floor select
 listing the public floors (a floor hidden by default is listed last with
@@ -220,10 +221,91 @@ An empty result says "No actions match" with the filters still shown. A
 failed request says the log would not open, and never renders as an empty
 log: nothing happening and nothing loading are different facts.
 
+## What is planned
+
+The room's second structure, added 2026-09-11 (owner decision, record in the
+telarchy umbrella, `notes/floor-timeline-proposal-2026-09-11.md`): what the
+owner of Telarchy has committed to and when, as one time axis between the
+stamp and the filter bar. The log says what happened; this says what is
+supposed to happen next, so a trader reading the room knows what the number
+is being pushed by before it moves. It is the calendar of ONE floor, the
+platform's own (`DATA_ROOM_WORKSPACE_SLUG`, default `telarchy`), named in
+the section's meta so nobody mistakes it for every floor's plans. The room
+is public, so only a PUBLIC floor is ever its calendar: while that floor is
+unlisted or private the section says nothing is planned and the endpoint
+answers `workspace: null`. An agent
+reads the same thing at `GET /api/data-room/planned`, which returns
+`{ workspace: { id, slug, name }, now, items }` with the items exactly as
+the per-floor endpoint below returns them, so the page renders that
+response and nothing else, as it does for the log.
+
+**The axis.** One horizontal time axis with a now-line and the past shaded,
+three ranges picked by a segmented control (today, week, month), and one
+row per item: the item's title on its own line, with a short mono meta at
+the end of that line naming what the end is ("decides 15 Sept", "by 1 Oct",
+"settles 1 Oct", "due 14 Sept"), and its bar on the axis beneath. The row
+whose bar ends soonest is on top. The title is never drawn inside or beside
+the bar: a label that has to fit next to its bar is a label that gets cut on
+a phone, and the room reads the same at every width. The section shows the first
+eight rows in the range and an "All N" corner control unfolds the rest, so
+two dozen open commitments do not push the log off the first screen.
+Ticks: every six hours in the today range, every day in the week range
+(day numbers, the first of a month named), every Monday in the month range
+(day and month); the axis is dense enough to read a date off it on a phone.
+A bar is a committed interval: it starts when the commitment began and ends
+when it is due. Bars are things the floor already holds, plus the owner's
+own items:
+
+| bar | starts | ends | drawn from |
+|---|---|---|---|
+| an approved proposal not yet delivered | the approval | the earliest horizon it is priced on that has not yet resolved; a proposal whose every horizon has resolved has no bar | `proposals` approved with `deliveredAt` null |
+| a pending proposal | when it was posted | its decision deadline | `proposals` pending, `decideBy` |
+| an open baseline book | the start of its period | the day it resolves | `markets` with no proposal, open |
+| a plan item | the owner's start | the owner's due date | `plans` |
+
+A delivered proposal, a decided or lapsed proposal, a settled or voided book
+and a done plan item leave the axis: their interval is over, and history
+lives in the actions log, not here. An item with no start begins at the
+left edge of whatever range is shown (it can be worked on now); an item
+with no due date has no bar and is listed under the axis as "no date".
+Tapping a bar opens the thing it is: a proposal's address, the book, or the
+plan item's own words. With nothing planned the section says so in one
+line rather than disappearing: in the room, "nothing planned" is a fact
+worth reading.
+
+**Plan items** are the owner's commitments that are not proposals ("write
+the September results post", "call with Seer, Thursday"). One is a title,
+what it is (markdown, optional), a start (optional) and a due point
+(optional, day or minute precision), and it is either open or done. A
+manager of that floor adds one from the section's corner control ("+ plan"): one form, the
+four fields, one ink button. Each open plan bar carries a done tick for a
+manager; done stamps `doneAt` and the bar leaves the axis. Edits keep the
+words free and are recorded, as with announcements: a plan item is never
+deleted, only done or edited, so nothing planned in public can be quietly
+unplanned. Every add, edit and completion is a `plan` action on the data
+room's log (`docs/data-room.md`).
+
+**API.** `GET /api/data-room/planned` is the room's own read (above).
+`GET /api/marketplace/:idOrSlug/timeline` is the same computation for any
+floor: it returns
+`{ now, items: [{ kind, id, title, start, end, href, done? }] }` with
+`kind` one of `proposal`, `decision`, `book`, `plan`, newest end last,
+under the same disclosure rule as the announcements (403 on a private floor
+or where the Public group does not hold read). No bar is computed on the
+client, and the two endpoints share one function. Plan items are
+written by `POST /api/workspaces/:id/plans` (`{ title, description?,
+start?, due? }`, 201 with the row), edited by `PUT
+/api/workspaces/:id/plans/:planId` (any of the four fields, or
+`{ done: true|false }`), both requiring `manage`; the row carries
+`createdAt`, `editedAt`, `doneAt` and `createdBy`. No delete route exists.
+
 ## Rules for changing this page
 
 1. A new kind is a row in the table above, an entry in `KINDS`, a branch of
    the union, a sentence renderer, and a seeded test. All or none.
+   A new structure (like "What is planned") gets its own section of this
+   doc, its own endpoint under `/api/data-room`, and never a chart around
+   the log.
 2. Nothing joins a private workspace, and nothing prints an address, a
    country, an email or a payout detail. The test that seeds a private
    floor's trade and asserts its absence is the one that must never be

@@ -1,9 +1,10 @@
 /**
  * The floor's time axis: what the owner has committed to and by when, as one
- * list of intervals (docs/owner-on-the-floor.md, "What is planned").
+ * list of intervals (docs/data-room.md, "What is planned").
  *
- * Every bar is derived here and nowhere else: the floor page and Otto read
- * GET /api/marketplace/:idOrSlug/timeline and compute nothing on the client,
+ * Every bar is derived here and nowhere else: the data room reads
+ * GET /api/data-room/planned (the platform floor), Otto reads
+ * GET /api/marketplace/:idOrSlug/timeline, and neither computes a bar itself,
  * so the four rules for what is on the axis (an approved proposal until its
  * earliest live horizon, a pending proposal until its deadline, an open
  * baseline book until it settles, an open plan item until its due) and the

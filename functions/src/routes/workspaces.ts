@@ -948,7 +948,7 @@ type PlanFields = { title?: string; description?: string | null; start?: Date | 
  * Read the plan fields a body carries, refusing anything it cannot mean.
  * Absent keys are left absent (a PUT edits only what it names); `null` on
  * description, start or due clears the field. Dates are anything Date can
- * parse, day or minute precision alike (docs/owner-on-the-floor.md, "Plan
+ * parse, day or minute precision alike (docs/data-room.md, "Plan
  * items").
  */
 function readPlanFields(
@@ -995,7 +995,7 @@ function dueBeforeStart(start: Date | null | undefined, due: Date | null | undef
  * POST /api/workspaces/:id/plans
  *
  * Add a plan item: an owner commitment that is not a proposal, drawn on the
- * floor's "What is planned" axis (docs/owner-on-the-floor.md). Body
+ * data room's "What is planned" axis (docs/data-room.md). Body
  * { title, description?, start?, due? }. `createdAt` is the database clock
  * and `doneAt` starts null whatever the body says: the log is worth something
  * only if the owner cannot pre-date a commitment or add it already done.
