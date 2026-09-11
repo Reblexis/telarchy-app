@@ -384,15 +384,25 @@ export function JobsBoard({
      and the next minute's rows arrive UNDER it rather than in its place. */
   const seenPendingRef = useRef<Set<string>>(new Set());
   const decidedAtRef = useRef<Map<string, number>>(new Map());
+  const wasPending = seenPendingRef.current;
+  const nowPending = new Set<string>();
   for (const p of proposals) {
     if (isPending(p)) {
-      seenPendingRef.current.add(p.id);
+      nowPending.add(p.id);
       decidedAtRef.current.delete(p.id);
-    } else if (seenPendingRef.current.has(p.id) && !decidedAtRef.current.has(p.id)) {
+    } else if (wasPending.has(p.id) && !decidedAtRef.current.has(p.id)) {
       decidedAtRef.current.set(p.id, Date.now());
     }
   }
-  const held = new Set([...decidedAtRef.current].filter(([, at]) => now - at < HOLD_MS).map(([id]) => id));
+  const held = new Set<string>();
+  for (const [id, at] of decidedAtRef.current) {
+    if (now - at < HOLD_MS) held.add(id);
+    // The hold is over: the row joins the fold and both books forget it, so
+    // a tab left open all day does not carry a day of decided ids, and a
+    // forgotten one is never held a second time.
+    else decidedAtRef.current.delete(id);
+  }
+  seenPendingRef.current = new Set([...nowPending, ...held]);
   // The deadline, the feed's order, then creation (see `pendingBallot`).
   const pending = pendingBallot(proposals, feedOrder, held);
   /* Five rows and a line for the rest: the board is one screen at four
