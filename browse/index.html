@@ -1414,10 +1414,17 @@ anything to earn it, so it carries obligations the per-event mail does not:
 it must be easy to stop, it must never arrive twice, and afterwards it must
 be possible to say exactly who received it and who did not.</p>
 <h2 id="docs-announcements-by-email-md--h2">The audience</h2>
-<p><code>season-entrants</code> is the only audience. It is every entry of a prize season
-whose <code>optedIn</code> is true, addressed at the entry's <code>contactEmail</code>; where that
-is empty the account's own address is used, and an entrant with neither is
-recorded as unreachable rather than skipped quietly.</p>
+<p><code>season-entrants</code> is every entry of a prize season whose <code>optedIn</code> is true,
+addressed at the entry's <code>contactEmail</code>; where that is empty the account's
+own address is used, and an entrant with neither is recorded as unreachable
+rather than skipped quietly.</p>
+<p><code>addresses</code> is a list named in the request, at most fifty of them, for a
+preview to yourself or a note to a handful of people. It is a real audience
+and not a side door: the suppression list still wins, the unsubscribe
+headers still ride along, and every address still gets its recorded row. An
+entry that is not an address refuses the whole send rather than skipping
+that one, because a typo in a list of three is a mistake to fix, not a
+recipient to drop.</p>
 <p>The address is the identity here, not the participant. A season entrant may
 have registered through the API and have no account at all, which is the
 whole reason the entry carries an address of its own.</p>
@@ -1480,7 +1487,7 @@ the operator decided to send, once, to people who are already here.</p>
 <tr>
 <td><code>POST /api/admin/broadcasts</code></td>
 <td>platform admin</td>
-<td>Create and send. Body <code>{ subject, body, audience: 'season-entrants', seasonId?, replyTo?, dryRun? }</code>. Returns <code>{ broadcastId, audience, sent, failed, suppressed, unreachable, recipients? }</code>.</td>
+<td>Create and send. Body <code>{ subject, body, audience: 'season-entrants' | 'addresses', seasonId?, to?, replyTo?, dryRun? }</code>. <code>seasonId</code> is required for <code>season-entrants</code>, <code>to</code> for <code>addresses</code>. Returns <code>{ broadcastId, audience, sent, failed, suppressed, unreachable, recipients? }</code>.</td>
 </tr>
 <tr>
 <td><code>GET /api/admin/broadcasts</code></td>

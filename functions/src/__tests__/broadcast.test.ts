@@ -244,6 +244,88 @@ describe('EVERY BROADCAST CAN BE STOPPED', () => {
   });
 });
 
+/**
+ * A NAMED LIST OF ADDRESSES IS AN AUDIENCE TOO
+ * (docs/announcements-by-email.md, "The audience").
+ *
+ * The operator has to be able to read the thing before sending it to other
+ * people, and a preview that goes out by some other route is not a preview
+ * of anything. So an explicit list is a normal audience: same suppression,
+ * same headers, same recorded row per address.
+ */
+describe('AN EXPLICIT LIST OF ADDRESSES', () => {
+  const toList = (to: unknown, over: Record<string, unknown> = {}) =>
+    post({ ...MESSAGE, audience: 'addresses', to, ...over });
+
+  test('sends to exactly the addresses named, and nobody else', async () => {
+    const r = await toList(['someone@example.com', 'other@example.com']);
+    expect(r.status).toBe(200);
+    expect(sent.map(s => s.to).sort()).toEqual(['other@example.com', 'someone@example.com']);
+    expect(r.body.sent).toBe(2);
+  });
+
+  test('no seasonId is needed, because the season is not the audience', async () => {
+    const r = await request(app)
+      .post('/api/admin/broadcasts')
+      .send({ ...MESSAGE, audience: 'addresses', to: ['someone@example.com'] });
+    expect(r.status).toBe(200);
+    expect(r.body.sent).toBe(1);
+  });
+
+  test('THE SUPPRESSION LIST STILL WINS: a named address that unsubscribed is not written to', async () => {
+    await request(app).post(`/api/unsubscribe/${unsubscribeToken('gone@example.com')}`);
+    const r = await toList(['gone@example.com', 'someone@example.com']);
+    expect(sent.map(s => s.to)).toEqual(['someone@example.com']);
+    expect(r.body.suppressed).toBe(1);
+  });
+
+  test('it carries the same unsubscribe headers as any other broadcast', async () => {
+    await toList(['someone@example.com']);
+    const h = sent[0].headers ?? {};
+    expect(h['List-Unsubscribe-Post']).toBe('List-Unsubscribe=One-Click');
+    expect(h['List-Unsubscribe']).toContain('<https://telarchy.com/api/unsubscribe/');
+  });
+
+  test('every address is recorded, the same as any other run', async () => {
+    const r = await toList(['someone@example.com', 'other@example.com']);
+    const rows = await rowsFor(r.body.broadcastId);
+    expect(rows.map(x => x.email).sort()).toEqual(['other@example.com', 'someone@example.com']);
+  });
+
+  test('the same address twice is one send', async () => {
+    const r = await toList(['Someone@Example.com', ' someone@example.com ']);
+    expect(sent.map(s => s.to)).toEqual(['someone@example.com']);
+    expect(r.body.sent).toBe(1);
+  });
+
+  test('dryRun names them and sends nothing', async () => {
+    const r = await toList(['someone@example.com'], { dryRun: true });
+    expect(sent).toHaveLength(0);
+    expect(r.body.recipients).toEqual(['someone@example.com']);
+  });
+
+  test('an empty list, a missing list, or something that is not a list is refused', async () => {
+    expect((await toList([])).status).toBe(400);
+    expect((await toList(undefined)).status).toBe(400);
+    expect((await toList('someone@example.com')).status).toBe(400);
+    expect(sent).toHaveLength(0);
+  });
+
+  test('AN ADDRESS THAT IS NOT AN ADDRESS IS REFUSED, and nothing is sent', async () => {
+    const r = await toList(['someone@example.com', 'not-an-address']);
+    expect(r.status).toBe(400);
+    expect(r.body.error).toMatch(/not-an-address/);
+    expect(sent).toHaveLength(0);
+  });
+
+  test('a list longer than fifty is refused: this is a preview, not a mailing list', async () => {
+    const many = Array.from({ length: 51 }, (_, i) => `p${i}@example.com`);
+    const r = await toList(many);
+    expect(r.status).toBe(400);
+    expect(sent).toHaveLength(0);
+  });
+});
+
 describe('THE GUARDS', () => {
   test('only a platform admin may send', async () => {
     platform = false;

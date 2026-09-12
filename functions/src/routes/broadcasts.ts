@@ -19,6 +19,8 @@ import { wrap } from '../lib/wrap';
 
 /** docs: "Capped at 500 recipients." Above it the send is refused, not run. */
 const MAX_RECIPIENTS = 500;
+/** An explicit list is for a preview and a handful of people, not a list. */
+const MAX_NAMED = 50;
 /** docs: "At most two sends a second." */
 const GAP_MS = 600;
 /** The mailbox a `mailto:` unsubscribe reaches, and the default reply-to. */
@@ -33,6 +35,35 @@ async function requirePlatform(req: Parameters<typeof isPlatformAuthorized>[0]) 
 export interface Recipient {
   email: string;
   agentId: string | null;
+}
+
+/** Loose on purpose: the provider is the real validator, this catches typos. */
+function isPlausibleEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value) && value.length <= 254;
+}
+
+/**
+ * The addresses named in the request (docs: "The audience"). One send per
+ * distinct address, so the same mailbox spelled two ways is one person.
+ */
+export function namedRecipients(to: unknown): Recipient[] {
+  if (!Array.isArray(to) || to.length === 0) {
+    throw new AppError('audience "addresses" needs a non-empty `to` array', 400);
+  }
+  if (to.length > MAX_NAMED) {
+    throw new AppError(`audience "addresses" takes at most ${MAX_NAMED} addresses`, 400);
+  }
+  const seen = new Set<string>();
+  const out: Recipient[] = [];
+  for (const raw of to) {
+    if (typeof raw !== 'string') throw new AppError('every entry of `to` must be an address', 400);
+    const email = normalizeEmail(raw);
+    if (!isPlausibleEmail(email)) throw new AppError(`not an address: ${raw}`, 400);
+    if (seen.has(email)) continue;
+    seen.add(email);
+    out.push({ email, agentId: null });
+  }
+  return out;
 }
 
 /**
@@ -117,16 +148,24 @@ adminBroadcastsRouter.post(
   '/',
   wrap(async (req, res) => {
     await requirePlatform(req);
-    const { subject, body, audience, seasonId, replyTo, dryRun, broadcastId } = req.body ?? {};
+    const { subject, body, audience, seasonId, replyTo, dryRun, broadcastId, to: named } = req.body ?? {};
 
     const subj = typeof subject === 'string' ? subject.trim() : '';
     const text = typeof body === 'string' ? body.trim() : '';
     if (!subj) throw new AppError('A broadcast needs a subject', 400);
     if (!text) throw new AppError('A broadcast needs a body', 400);
-    if (audience !== 'season-entrants') throw new AppError('Unknown audience; the only one is season-entrants', 400);
-    if (typeof seasonId !== 'string' || !seasonId) throw new AppError('seasonId is required for season-entrants', 400);
+    if (audience !== 'season-entrants' && audience !== 'addresses') {
+      throw new AppError('Unknown audience; they are season-entrants and addresses', 400);
+    }
+    if (audience === 'season-entrants' && (typeof seasonId !== 'string' || !seasonId)) {
+      throw new AppError('seasonId is required for season-entrants', 400);
+    }
 
-    const { to, unreachable } = await seasonEntrantRecipients(seasonId);
+    const resolved =
+      audience === 'addresses'
+        ? { to: namedRecipients(named), unreachable: 0 }
+        : await seasonEntrantRecipients(seasonId as string);
+    const { to, unreachable } = resolved;
     if (to.length > MAX_RECIPIENTS) {
       throw new AppError(
         `A broadcast reaches at most ${MAX_RECIPIENTS} addresses; this one resolves ${to.length}`,
@@ -148,7 +187,7 @@ adminBroadcastsRouter.post(
       res.json({
         dryRun: true,
         audience,
-        seasonId,
+        seasonId: audience === 'season-entrants' ? seasonId : null,
         recipients: to.filter(r => !optedOut.has(r.email)).map(r => r.email),
         suppressed: to.filter(r => optedOut.has(r.email)).length,
         unreachable,
@@ -170,7 +209,7 @@ adminBroadcastsRouter.post(
         subject: subj,
         body: text,
         audience,
-        seasonId,
+        seasonId: audience === 'season-entrants' ? (seasonId as string) : null,
         replyTo: typeof replyTo === 'string' && replyTo ? replyTo : SUPPORT,
         createdBy: (req as { auth?: { agentId?: string } }).auth?.agentId ?? null,
       });
@@ -210,7 +249,15 @@ adminBroadcastsRouter.post(
       }
     }
 
-    res.json({ broadcastId: id, audience, seasonId, sent, failed, suppressed, unreachable });
+    res.json({
+      broadcastId: id,
+      audience,
+      seasonId: audience === 'season-entrants' ? seasonId : null,
+      sent,
+      failed,
+      suppressed,
+      unreachable,
+    });
   }),
 );
 
