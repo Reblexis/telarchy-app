@@ -194,6 +194,8 @@ describe('the published Trade schema is the shape the route reads', () => {
       // dryRun modifies a trade rather than being one, so it needs a mode
       // beside it exactly as a real caller would send it.
       if (name === 'dryRun') Object.assign(body, { direction: 'higher', amount: 1 });
+      // limit guards a trade rather than being one, the same way.
+      if (name === 'limit') Object.assign(body, { direction: 'higher', amount: 1 });
       const res = await request(app)
         .post('/api/predictions/trade')
         .set('X-Test-Agent-Id', TRADER)

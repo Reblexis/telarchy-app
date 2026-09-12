@@ -14,7 +14,11 @@
  * cheap and synchronous.
  */
 
-type Listener = (workspaceId: string, marketId?: string) => void;
+/** Where a change was made: on this instance, or on another one that said so
+ *  over the price channel (lib/price-channel.ts). */
+export type PriceChangeOrigin = 'local' | 'remote';
+
+type Listener = (workspaceId: string, marketId?: string, origin?: PriceChangeOrigin) => void;
 
 const listeners: Listener[] = [];
 
@@ -23,9 +27,18 @@ export function onPricesChanged(fn: Listener): void {
 }
 
 export function emitPricesChanged(workspaceId: string, marketId?: string): void {
+  fanOut(workspaceId, marketId, 'local');
+}
+
+/** A change another instance committed, heard on the price channel. */
+export function emitRemotePricesChanged(workspaceId: string, marketId?: string): void {
+  fanOut(workspaceId, marketId, 'remote');
+}
+
+function fanOut(workspaceId: string, marketId: string | undefined, origin: PriceChangeOrigin): void {
   for (const fn of listeners) {
     try {
-      fn(workspaceId, marketId);
+      fn(workspaceId, marketId, origin);
     } catch (e) {
       console.error('price listener failed:', e);
     }

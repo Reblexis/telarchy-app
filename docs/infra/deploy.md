@@ -281,13 +281,16 @@ left no room for branch previews). The standing contract:
   way. Both give up on an acquire after 5 seconds instead of queuing forever
   (`functions/src/db/client.ts`); a starved request fails fast as a 500, it
   does not hang for a minute.
+- Every instance also holds **1** dedicated connection to production for the
+  price channel (`LISTEN_CONNECTIONS`, below: "Prices, one channel across
+  instances"), open for the life of the instance. Six per instance at most.
 - Cloud Run runs **at most 4 instances** per revision (`--max-instances 4` in
-  the CI deploy). Worst case prod + candidate: 2 x 4 x 5 = 40 connections.
+  the CI deploy). Worst case prod + candidate: 2 x 4 x 6 = 48 connections.
 - A branch preview revision (below) runs **at most 1 instance** with
   `DB_POOL_MAX=1`: 1 connection to production (sessions are looked up there,
-  `authDb`) plus 1 to the beta store, 2 per preview. At most 3 previews exist
-  at once: 3 x 1 x 2 = 6.
-- Worst case for everything: 40 + 6 = 46, inside a budget of 80 (100 minus
+  `authDb`), 1 to the beta store and 1 for the price channel, 3 per preview.
+  At most 3 previews exist at once: 3 x 1 x 3 = 9.
+- Worst case for everything: 48 + 9 = 57, inside a budget of 80 (100 minus
   headroom for cloud-sql-proxy, cron, `psql` and the migration step).
 - Anything that raises one of these numbers must re-do this arithmetic in the
   same commit. `scale-invariant.test.ts` pins it: prod, candidate and three
@@ -299,9 +302,11 @@ left no room for branch previews). The standing contract:
 - Every response is compressed (`compression` in app.ts; the 615 KB bundle
   ships as ~164 KB) and the frontend splits per route, so only `/` and the
   floor ride in the entry bundle.
-- The floor polls every 15 seconds, pauses in hidden tabs, and refreshes on
-  focus. Each tick is ~5 endpoints; the cadence is a database-load decision,
-  pinned by a test, not a frontend tweak.
+- The floor polls its payload every 15 seconds, pauses in hidden tabs, and
+  refreshes on focus. Each tick is ~5 endpoints; the cadence is a
+  database-load decision, pinned by a test, not a frontend tweak. Prices
+  alone are polled every second, from `GET /api/marketplace/:id/prices`, which
+  costs the database nothing while prices stand still (below).
 - Price-history replays are cached 30s per market and invalidated the moment
   a trade or liquidity event lands (`lib/market-events.ts`). The floor
   payload as a whole is deliberately NOT cached: it carries ballots and
@@ -987,6 +992,70 @@ agent-economy umbrella does for agents; this is one more key on that team.
 Participant mail also needs `BETTER_AUTH_URL` (or it falls back to
 `https://telarchy.com`), because every one of those emails carries a link
 back to the floor and a link to the account settings that switch it off.
+
+## Prices, one channel across instances
+
+The floor asks for its prices once a second, per viewer, against a service
+where one overloaded instance has taken the site down. So the prices read is
+built to cost the database nothing while prices stand still, and one query
+when they move, however many viewers are watching.
+
+**A price version per floor, per instance.** Each instance keeps in memory,
+per store and workspace, a price version that only ever increases, and beside
+it the last books it read for that floor. The version moves when anything on
+the floor changes a price: a committed trade, a limit fill, a liquidity
+injection, a void, a resolution, a proposal decision or lapse, a new book.
+Every one of those write paths already emits `emitPricesChanged`
+(`lib/market-events.ts`); the version moves when the transaction that emitted
+it COMMITS, never inside it, so a read cannot cache a pre-commit book under
+the new version. A transaction that rolls back moves nothing (a dry run, for
+one).
+
+**The read.** `GET /api/marketplace/:id/prices`:
+
+- resolves which floor it is and whether a stranger may read it from a
+  per-instance cache held 10 seconds (so a floor made private stops answering
+  within 10 seconds);
+- when the version has not moved since the last read, answers from memory:
+  the cached books, or `304` when the request's `If-None-Match` matches. No
+  query;
+- when it has moved, reads the books with ONE query on the markets index,
+  single-flight: fifty viewers arriving together at a new version cause one
+  query, and every one of them gets its answer. The ETag is a hash of the
+  books, so it changes exactly when a price, a pool or a trade count does, and
+  two instances holding the same prices hand out the same ETag.
+
+The route resolves no credentials (`route-policy.ts`, the anonymous-only
+paths) and sits outside every rate limiter (`app.ts`), because a signed-in
+viewer's cookie would otherwise cost a session lookup a second and a stranger
+polling once a second must never see a 429.
+
+**The channel.** Up to four instances serve the site, and each must learn
+about trades another one took. Postgres `LISTEN/NOTIFY` on the production
+database carries it, on the one channel `telarchy_prices`
+(`lib/price-channel.ts`):
+
+- Every instance opens one dedicated `pg.Client` at startup (not a pooled
+  connection) and `LISTEN`s. It reconnects on error with a backoff of 1, 2,
+  4 ... up to 30 seconds, and on every (re)connect it moves every version it
+  holds, since it may have missed messages while it was down.
+- After a price-changing transaction commits, the instance moves its own
+  version and sends `pg_notify` with `{ instance, store, workspace, market }`,
+  asynchronously: never awaited by the request, sent outside the
+  transaction, several changes to one floor in the same tick sent once,
+  errors logged and swallowed. It goes over the dedicated client while it is
+  connected and over the pool otherwise, so an instance whose own listener is
+  down still tells the others. A trade never waits on it and never fails
+  because of it.
+- A receiving instance ignores its own messages and moves the named floor's
+  version. The same message drops that instance's price-history replay cache
+  for the market and its leaderboard cache, which used to be dropped only on
+  the instance that took the trade.
+
+**Without the channel.** When an instance's listener is down, a cached
+answer is trusted for at most 1 second before the next read queries again,
+so a viewer is never more than a second behind even then. Instances started
+without `DATABASE_URL` (tests, a laptop) run in that mode.
 
 ## Reads are bounded in the size of a workspace
 

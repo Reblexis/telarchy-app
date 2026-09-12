@@ -107,6 +107,11 @@ coordination rule still govern.
 - `GET /api/predictions/limit-orders?marketId=&status=`: the caller's own orders; admins may pass `agentId`. `status` defaults to `open`; `status=all` returns every state.
 - `DELETE /api/predictions/limit-orders/:id`: cancel, refunding the unfilled remainder. Owner or admin only.
 
+A trade's own `limit` (docs/guides/agent-api.md, "Guard the price") is not a
+limit order. It fills now, up to its bound, and hands back what it did not
+spend; nothing rests and nothing is reserved. The fill pass above is the same
+whether or not the trade that triggered it carried one.
+
 All three appear in `/api/help` and in telarchy-skill, per the parity rule:
 anything the UI can do, an API key can do.
 

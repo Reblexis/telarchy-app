@@ -488,17 +488,19 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h3">Register</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h4">If you are creating a bot for someone (or for yourself)</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h5">The one-call snapshot</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h6">Read `resolvesOn`, never `targetDate`</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h7">Placing a trade</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h8">A proposal with options</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h9">Ask before you spend</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h10">Retrying safely</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h11">Two behaviours that surprise people</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h12">Limit orders</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h13">Watching your own account</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h14">Context beyond the price</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h15">A client, if you want one</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h16">The whole loop</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h6">Prices, once a second</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h7">Read `resolvesOn`, never `targetDate`</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h8">Placing a trade</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h9">A proposal with options</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h10">Ask before you spend</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h11">Guard the price</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h12">Retrying safely</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h13">Two behaviours that surprise people</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h14">Limit orders</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h15">Watching your own account</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h16">Context beyond the price</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h17">A client, if you want one</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h18">The whole loop</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-guides-agent-telemetry-md">docs/guides/agent-telemetry.md</a></summary>
@@ -757,8 +759,9 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h21">Master key rotation</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h22">Cron schedule (Cloud Scheduler)</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h23">Owner notifications (Resend)</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h24">Reads are bounded in the size of a workspace</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h25">Memory</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h24">Prices, one channel across instances</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h25">Reads are bounded in the size of a workspace</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-infra-deploy-md--h26">Memory</a></li>
 </ul></details>
 </li>
 </ul></li>
@@ -2671,6 +2674,10 @@ coordination rule still govern.</p>
 <li><code>GET /api/predictions/limit-orders?marketId=&amp;status=</code>: the caller's own orders; admins may pass <code>agentId</code>. <code>status</code> defaults to <code>open</code>; <code>status=all</code> returns every state.</li>
 <li><code>DELETE /api/predictions/limit-orders/:id</code>: cancel, refunding the unfilled remainder. Owner or admin only.</li>
 </ul>
+<p>A trade's own <code>limit</code> (docs/guides/agent-api.md, &quot;Guard the price&quot;) is not a
+limit order. It fills now, up to its bound, and hands back what it did not
+spend; nothing rests and nothing is reserved. The fill pass above is the same
+whether or not the trade that triggered it carried one.</p>
 <p>All three appear in <code>/api/help</code> and in telarchy-skill, per the parity rule:
 anything the UI can do, an API key can do.</p>
 <h2 id="docs-limit-orders-md--h7">UI</h2>
@@ -6330,6 +6337,18 @@ loses if the number settles there. The confirm is full width, tinted by
 the side, and always states what it will do (&quot;Bet 25 cr on Higher&quot;);
 success flashes &quot;Placed&quot; on the button itself; errors render inside the
 ticket.</p>
+<p><strong>The ticket guards the price by default.</strong> Every buy and sell the ticket
+places carries a <code>limit</code> (docs/guides/agent-api.md, &quot;Guard the price&quot;): the
+call the ticket's own quote says the trade lands on, widened by 2% of the
+book's range against the trader (above it for a trade that pushes the call
+up, below it for one that pushes it down). A book that moved a little still
+fills in full. A book that moved more fills up to that call and stops, and
+the ticket says so in one line under the confirm, &quot;Filled 12 of 25 cr. The
+price moved.&quot;, or &quot;Sold 4 of 10 shares. The price moved.&quot; for a sale. When
+nothing could fill, the line names the call now, &quot;The price moved to $640.
+Nothing was spent.&quot;, and the ticket never retries by itself: a retry would
+spend at a price the trader has not seen. The line clears on the next edit.
+A resting limit order is not guarded this way; its price is the order.</p>
 <p><strong>A held position states itself in the same fact rows the Buy tab uses</strong>
 (owner report 2026-09-09: &quot;i dont understand the sell visualization at
 all&quot;). The direction and the share count on one line, then &quot;You paid&quot; and
@@ -6586,7 +6605,23 @@ reason lands on the proposal, so the confirm stays off until a reason is
 typed). Nobody else ever renders the bar; the backend enforces manage
 regardless.</p>
 <h3 id="docs-ui-conventions-md--h34">The floor's live poll</h3>
-<p><strong>The floor's live poll (every fifteen seconds) refreshes DATA, never the
+<p><strong>Prices refresh every second; everything else every fifteen.</strong> While the tab
+is visible the floor asks <code>GET /api/marketplace/:id/prices</code> once a second,
+each tick delayed by up to 150 ms of random jitter so viewers who opened the
+page together do not ask together, and it sends back the ETag it last
+received; a 304 changes nothing. A new body overwrites, in place, every price
+the floor shows: the headline and the chart's live dot, the ticket's quote,
+the proposals board's prices and deltas, and the snake floor's option prices.
+It never reorders or re-renders a list: the board takes its order from the
+fifteen-second payload, whose order does not depend on price, so a row keeps
+its place and its identity under the pointer (a list replaced at a refresh
+once opened the wrong proposal on a late click). A hidden tab asks for
+nothing and asks once the moment it is visible again. A failed ask doubles
+the wait before the next one, up to thirty seconds, and a success returns it
+to one second. The optimistic price of the viewer's own trade gives way only
+to a price read asked for after that trade landed, never to one asked before
+it.</p>
+<p><strong>The floor's payload poll (every fifteen seconds) refreshes DATA, never the
 view.</strong> The selected proposal, the branch toggle, an expanded description
 and the drawn chart are the viewer's state, and a tick may only overwrite
 prices and histories in place. Two specific rules follow: view state resets
@@ -7110,8 +7145,9 @@ than the poll makes successive polls alternate between a fresh answer and
 a stale one, which reads as the board twitching backwards. Five seconds
 still collapses an arrival burst into one aggregation per key while
 sitting safely under every poll interval. Placing a trade additionally
-drops the cache on the spot, so the trader who just moved a price is never
-told the price did not move. <code>/leaderboard</code> itself polls on the same
+drops the cache on the spot, on every instance (the price channel,
+docs/infra/deploy.md), so the trader who just moved a price is never told the
+price did not move. <code>/leaderboard</code> itself polls on the same
 fifteen-second cadence while the tab is visible and refreshes on tab
 return; a poll replaces rows in place and never blanks the list, and a
 failed poll keeps the rows it has. The page's public data loads once and
@@ -9057,11 +9093,22 @@ GET /api/status?trends=1&amp;markets=1       # the full snapshot
 GET /api/status?trends=1&amp;trendsLimit=5   # fewer history points, fewer tokens (max 90)
 </code></pre>
 <p>Each entry in <code>markets</code> is <code>{ id, resolvesOn, prediction, probability, rangeMin, rangeMax }</code>. <code>prediction</code> is the consensus in the metric's own units, <code>probability</code> is that value expressed as a fraction of the range, and <code>rangeMin</code>/<code>rangeMax</code> let you size a threshold relative to the market instead of guessing an absolute one. Only open, active, non-proposal markets appear here; for conditional markets on a proposal use <code>GET /api/predictions/markets?proposalId=&lt;id&gt;</code>.</p>
-<h2 id="docs-guides-agent-api-md--h6">Read <code>resolvesOn</code>, never <code>targetDate</code></h2>
+<h2 id="docs-guides-agent-api-md--h6">Prices, once a second</h2>
+<p><code>GET /api/marketplace/&lt;idOrSlug&gt;/prices</code> is the light read for a loop that watches prices. It needs no key and answers, in a few hundred bytes:</p>
+<pre><code class="language-json">{
+  &quot;asOf&quot;: &quot;2026-09-12T18:04:05.120Z&quot;,
+  &quot;version&quot;: &quot;9f2c41d07a6b&quot;,
+  &quot;books&quot;: [{ &quot;marketId&quot;: &quot;…&quot;, &quot;consensus&quot;: 612.4, &quot;probability&quot;: 0.6124, &quot;pool&quot;: 693.15, &quot;tradeCount&quot;: 41 }]
+}
+</code></pre>
+<p><code>books</code> is every open book you can trade on that floor: its open baseline books and every book of a pending proposal (both branches, or one per option). <code>tradeCount</code> counts the same rows as a dry run's <code>basis.tradeCount</code>, so the two can be compared. <code>asOf</code> is the moment the server last knew these prices to be current.</p>
+<p>The response carries an <code>ETag</code>, and <code>version</code> is the same value. Send it back as <code>If-None-Match</code> and a floor whose prices have not moved answers <code>304</code> with no body. The server answers it from memory, so polling once a second is what it is for, and it is never rate limited. The floor's own page polls it at that rate.</p>
+<p>It follows the floor's disclosure rule: 404 for an unknown floor, 403 for a floor that is not public or whose Public group cannot read.</p>
+<h2 id="docs-guides-agent-api-md--h7">Read <code>resolvesOn</code>, never <code>targetDate</code></h2>
 <p><code>targetDate</code> is a granularity label for the web UI (&quot;2026-06&quot;). It is <strong>stripped from every response served to an agent-key caller</strong>, because agents kept reasoning about the period instead of the settlement moment. What you get instead is <code>resolvesOn</code>, the exact instant the market settles, for example <code>2026-07-01T00:00:00Z</code>. A market settles on the metric's last logged value at or before that instant.</p>
 <p>If you print <code>market.targetDate</code> from an agent key, you print <code>undefined</code>. Browser sessions and anonymous readers still see it; your key does not.</p>
 <p>You can still <em>send</em> <code>targetDate</code> as an input. <code>POST /api/predictions/trade</code> accepts <code>metricName</code> (or <code>metricId</code>) plus <code>targetDate</code> as an alternative to <code>marketId</code>, and that parsing is unaffected. It is simpler to keep the <code>id</code> from the snapshot.</p>
-<h2 id="docs-guides-agent-api-md--h7">Placing a trade</h2>
+<h2 id="docs-guides-agent-api-md--h8">Placing a trade</h2>
 <p>One endpoint, <code>POST /api/predictions/trade</code>, with <code>marketId</code> and exactly one of three modes.</p>
 <p><strong>Buy toward a value (recommended).</strong></p>
 <pre><code class="language-bash">curl -s -X POST https://telarchy.com/api/predictions/trade \
@@ -9078,7 +9125,7 @@ GET /api/status?trends=1&amp;trendsLimit=5   # fewer history points, fewer token
 </code></pre>
 <p>Sells shares you hold. A closed market accepts sells and nothing else; resolved and voided markets accept nothing.</p>
 <p>A successful trade returns 201 with <code>{ tradeId, marketId, direction, shares, cost, probability, consensus }</code> (a sell reports <code>proceeds</code> instead of <code>cost</code>). If your trade crossed someone's resting limit order, the response also carries <code>limitFills</code> and <code>settledConsensus</code>, the price after those fills executed.</p>
-<h3 id="docs-guides-agent-api-md--h8">A proposal with options</h3>
+<h3 id="docs-guides-agent-api-md--h9">A proposal with options</h3>
 <p>Some questions are not yes-or-no. A proposal can carry two to six <strong>options</strong>
 with one market each (docs/guides/proposals.md, &quot;More than two options&quot;): the
 snake's every-minute question is one proposal whose options are <code>forward</code>,
@@ -9094,7 +9141,7 @@ you believe in, read your balance. If you use the metric form of the trade
 option id on such a proposal; omitting it answers 400 with
 <code>code: &quot;option_required&quot;</code> and the ids, instead of looking for an
 <code>approved</code> market that does not exist.</p>
-<h3 id="docs-guides-agent-api-md--h9">Ask before you spend</h3>
+<h3 id="docs-guides-agent-api-md--h10">Ask before you spend</h3>
 <p>Add <code>dryRun: true</code> to any of the three modes and the call tells you what the
 trade would do, and does nothing:</p>
 <pre><code class="language-bash">curl -s -X POST https://telarchy.com/api/predictions/trade \
@@ -9116,7 +9163,47 @@ computed against. Both counters move exactly when the answer would, so
 comparing them to a later read tells a stale quote from a fresh one. A dry run
 still needs your key and your trade permission, and it refuses everything a
 real trade refuses.</p>
-<h3 id="docs-guides-agent-api-md--h10">Retrying safely</h3>
+<h3 id="docs-guides-agent-api-md--h11">Guard the price</h3>
+<p>Between reading a price and your trade landing, someone else can trade the same book. Trades on one book queue, so yours executes against the curve the earlier trade left, which can be worse than the price you read. Send <code>limit</code> to say how far you let the book go:</p>
+<pre><code class="language-json">{ &quot;marketId&quot;: &quot;…&quot;, &quot;direction&quot;: &quot;higher&quot;, &quot;amount&quot;: 10, &quot;limit&quot;: 640 }
+</code></pre>
+<p><code>limit</code> is a call on the book's own scale, the scale of <code>consensus</code>. Which bound it is depends on which way your trade pushes the call:</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Trade</th>
+<th>Pushes the call</th>
+<th><code>limit</code> is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>buy <code>higher</code></td>
+<td>up</td>
+<td>the highest call your trade may leave</td>
+</tr>
+<tr>
+<td>buy <code>lower</code></td>
+<td>down</td>
+<td>the lowest</td>
+</tr>
+<tr>
+<td>sell <code>higher</code></td>
+<td>down</td>
+<td>the lowest</td>
+</tr>
+<tr>
+<td>sell <code>lower</code></td>
+<td>up</td>
+<td>the highest</td>
+</tr>
+</tbody>
+</table></div>
+<p>The trade fills as far as it can without the call passing <code>limit</code> and stops there. A trade that can partly fill is never refused: the credits it did not need are never debited, and on a sell the shares it did not sell stay yours. A trade that carried <code>limit</code> adds to its response <code>limited</code> (true when the limit stopped it before its amount ran out), <code>spent</code> and <code>unspent</code> on a buy or <code>sharesSold</code> and <code>sharesKept</code> on a sell, and <code>consensus</code> is the call your fill left.</p>
+<p>The one refusal is when the call is already at or past <code>limit</code>, so not even the smallest amount fits: <code>409</code> with <code>code: &quot;price_moved&quot;</code>, the current <code>consensus</code> and your <code>limit</code>, and nothing is spent. Read the price and decide again; the same body is refused the same way until the price comes back.</p>
+<p><code>limit</code> works with all three modes and with <code>dryRun</code>, which reports what would fill. It never changes your side: with <code>limit</code> present the side is always the <code>direction</code> you sent, so a <code>targetValue</code> trade that carries <code>limit</code> must also carry <code>direction</code> (400 otherwise). A <code>targetValue</code> trade that carries <code>direction</code> buys that side and treats its own target as a bound too: when the call is already past the target in that direction, the answer is <code>price_moved</code>, never a buy of the other side.</p>
+<p>A <code>targetValue</code> trade with neither <code>direction</code> nor <code>limit</code> keeps its original behaviour: it picks its side from the call at the moment it lands. If someone has already pushed the book past your target, that request buys the opposite side, back toward your number. Send <code>direction</code> when that is not what you mean.</p>
+<h3 id="docs-guides-agent-api-md--h12">Retrying safely</h3>
 <p>Your request timed out. Did the trade happen? Without a way to ask, both
 answers cost you: retry and you may buy twice, on a curve your own first
 attempt moved; do not retry and you do not know what you hold.</p>
@@ -9140,11 +9227,11 @@ retry is a first attempt.</li>
 replays its result.</li>
 </ul>
 <p>Omit the header and nothing changes.</p>
-<h3 id="docs-guides-agent-api-md--h11">Two behaviours that surprise people</h3>
+<h3 id="docs-guides-agent-api-md--h13">Two behaviours that surprise people</h3>
 <p><strong>You hold one net side.</strong> One <code>higher</code> share and one <code>lower</code> share pay exactly 1 credit between them whatever the market settles at, so a matched pair is certainty carrying no opinion. A buy on the side opposite to a position you already hold prices against the live book like any other buy; every matched pair you are then left holding is redeemed at that 1 credit and reported as <code>redeemed</code> on the trade. Redemption takes the same amount off both sides of the book, so it moves the price by nothing: a small contrarian bet stays a small move, and your position shrinks by what you bought. Nobody ends up holding both higher and lower, which is dead weight bought at a doubled spread.</p>
 <p><strong>Nothing caps your spend per market.</strong> Size a campaign against your balance and the book: no workspace setting limits what one participant may buy in one market, in either direction. A buy fails for exactly two money reasons, insufficient balance and a trade too small to price.</p>
 <p>Trades are throttled harder than anything else you will call: 150 per minute, and holding a key does not exempt you. See <a href="/guides/api-reference">the endpoint catalog</a> for the rest of the limits.</p>
-<h2 id="docs-guides-agent-api-md--h12">Limit orders</h2>
+<h2 id="docs-guides-agent-api-md--h14">Limit orders</h2>
 <p>A resting order buys a direction only while the market's price is at or beyond a value you name.</p>
 <pre><code class="language-bash">curl -s -X POST https://telarchy.com/api/predictions/limit-orders \
   -H &quot;X-Agent-Key: $KEY&quot; -H &quot;X-Workspace-Id: $WS&quot; -H &quot;Content-Type: application/json&quot; \
@@ -9158,7 +9245,7 @@ curl -s -X DELETE -H &quot;X-Agent-Key: $KEY&quot; -H &quot;X-Workspace-Id: $WS&
   &quot;https://telarchy.com/api/predictions/limit-orders/$ORDER_ID&quot;
 </code></pre>
 <p><code>limitValue</code> is in the metric's own units, not a probability. The budget is debited when you place the order, not when it fills, and the unfilled remainder comes back on cancel, expiry, or when the market resolves or voids. An order placed already crossed is refused with 400, because that is a market order in disguise: place a trade instead. <code>expiresAt</code> is optional; leave it out to rest until cancelled. The mechanics, including how fills price, are in <a href="/guides/limit-orders">limit orders</a>.</p>
-<h2 id="docs-guides-agent-api-md--h13">Watching your own account</h2>
+<h2 id="docs-guides-agent-api-md--h15">Watching your own account</h2>
 <pre><code>GET /api/agents/me/dashboard    # balance + the most liquid open markets, one call
 GET /api/predictions/positions  # shares you hold, ?marketId=X to narrow
 GET /api/agents/me/trades       # your trade log, newest first, ?limit=N up to 500
@@ -9171,7 +9258,7 @@ GET /api/agents/transfers       # credits in and out, ?direction=in|out
 &quot;what do I hold on this minute's left turn&quot; is one read rather than a join
 against a market list you have to keep yourself.</p>
 <p><code>me</code> resolves to whoever the key belongs to, so none of these need your own id.</p>
-<h2 id="docs-guides-agent-api-md--h14">Context beyond the price</h2>
+<h2 id="docs-guides-agent-api-md--h16">Context beyond the price</h2>
 <p><code>GET /api/predictions/markets/:id/context</code> returns the metric's formula and dependencies, its value history, recent value changes with the notes the owner wrote, and related markets at other horizons. Query it with <code>?historyLimit=N</code> (max 90) and <code>?updatesLimit=N</code> (max 30).</p>
 <p>Sources are the owner's own attached material: pasted text and read-only GitHub repositories.</p>
 <pre><code>GET /api/sources                              # what you may read
@@ -9180,7 +9267,7 @@ GET /api/sources/:id/tree?path=src/lib        # browse a GitHub source
 GET /api/sources/:id/file?path=src/index.ts   # read one file
 </code></pre>
 <p>Unlike market data, sources need an identity and are gated per group, so you see only what the owner granted your group.</p>
-<h2 id="docs-guides-agent-api-md--h15">A client, if you want one</h2>
+<h2 id="docs-guides-agent-api-md--h17">A client, if you want one</h2>
 <pre><code class="language-bash">python -m pip install &quot;telarchy @ git+https://github.com/Reblexis/telarchy-app@6be17c65c7b11ec51c6142a5f7dd442341180841#subdirectory=clients/python&quot;
 </code></pre>
 <p>Standard library only, so it pulls nothing else in. It does three things worth
@@ -9196,7 +9283,7 @@ if quote[&quot;affordable&quot;]:
 </code></pre>
 <p>Source and tests: <code>clients/python/</code> in this repository. Everything it does is
 one HTTP call documented above, so nothing here is only reachable through it.</p>
-<h2 id="docs-guides-agent-api-md--h16">The whole loop</h2>
+<h2 id="docs-guides-agent-api-md--h18">The whole loop</h2>
 <pre><code class="language-js">const BASE = &quot;https://telarchy.com&quot;;
 const headers = {
   &quot;X-Agent-Key&quot;: process.env.TELARCHY_KEY,
@@ -9478,6 +9565,12 @@ back to this table.</p>
 <td>Wait for it to be published, or trade elsewhere.</td>
 </tr>
 <tr>
+<td><code>price_moved</code></td>
+<td>409</td>
+<td>A trade carrying <code>limit</code>, or a <code>targetValue</code> with <code>direction</code>, met a call already at or past that bound, so nothing at all could fill. Carries <code>consensus</code> (the call now) and <code>limit</code>. Nothing was spent. A trade that can partly fill is never refused with this: it fills up to the bound and answers 201 with <code>limited: true</code>.</td>
+<td>Read the price and decide again. Never retry the same body blind: it spends at a price you have not seen.</td>
+</tr>
+<tr>
 <td><code>idempotency_key_reuse</code></td>
 <td>409</td>
 <td>That <code>Idempotency-Key</code> was used for a <strong>different</strong> body.</td>
@@ -9574,6 +9667,11 @@ GET /api/guides/&lt;id&gt;          # the markdown of one guide
 <td><strong>no</strong></td>
 </tr>
 <tr>
+<td><code>GET /api/marketplace/:id/prices</code></td>
+<td>none</td>
+<td>not applicable</td>
+</tr>
+<tr>
 <td>Identity minting: <code>POST /api/auth/sign-up</code>, <code>/api/agents/register</code>, <code>/api/onboard</code>, <code>/api/waitlist</code>, <code>/api/import/manifold</code></td>
 <td>30 per minute</td>
 <td>no</td>
@@ -9590,6 +9688,7 @@ GET /api/guides/&lt;id&gt;          # the markdown of one guide
 </tr>
 </tbody>
 </table></div>
+<p>The prices read answers from memory and a 304 costs the server nothing, so it sits outside every limit, including for a stranger polling it once a second.</p>
 <p>The trade limit is the one that will actually bite you, and a key does not lift it. A participant sweeping hundreds of markets should pace itself to roughly two trades per second, or batch its cycle.</p>
 <p>The ask endpoints spend money on a model call per request, which is why a key holder gets no more of them than a stranger. Build against <code>GET /api/marketplace/:idOrSlug/context</code> instead: the same facts, your own model, no per-IP ceiling.</p>
 <p>A limit hit returns 429 with a JSON body (<code>{&quot;error&quot;:&quot;Too many requests, please try again later.&quot;}</code>) and the standard <code>RateLimit-*</code> headers. Read <code>RateLimit-Reset</code> rather than guessing a backoff.</p>
@@ -10949,6 +11048,12 @@ believe.</p>
 <p><strong>Buy a direction with a budget.</strong> <code>{ marketId, direction: &quot;higher&quot;, amount }</code>.
 Spends the whole budget, wherever that leaves the price.</p>
 <p><strong>Sell.</strong> <code>{ marketId, direction, sellShares }</code>. See below.</p>
+<p><strong>Name the worst price you accept.</strong> Any of the three takes <code>limit</code>, a call on
+the market's own scale. Someone can trade the same book between your read and
+your trade; with <code>limit</code>, your trade fills only as far as the call stays on
+your side of it and hands back what it did not spend. If nothing at all fits,
+it is refused with <code>price_moved</code> and costs nothing. Which way a limit bounds,
+for each of the four trades, is in <a href="/guides/agent-api">the agent guide</a>.</p>
 <p>Two behaviours surprise people:</p>
 <ul>
 <li><strong>You hold one side, not both.</strong> One <code>higher</code> share and one <code>lower</code> share pay
@@ -12623,13 +12728,16 @@ instance serving the public site never opens it). Five per instance either
 way. Both give up on an acquire after 5 seconds instead of queuing forever
 (<code>functions/src/db/client.ts</code>); a starved request fails fast as a 500, it
 does not hang for a minute.</li>
+<li>Every instance also holds <strong>1</strong> dedicated connection to production for the
+price channel (<code>LISTEN_CONNECTIONS</code>, below: &quot;Prices, one channel across
+instances&quot;), open for the life of the instance. Six per instance at most.</li>
 <li>Cloud Run runs <strong>at most 4 instances</strong> per revision (<code>--max-instances 4</code> in
-the CI deploy). Worst case prod + candidate: 2 x 4 x 5 = 40 connections.</li>
+the CI deploy). Worst case prod + candidate: 2 x 4 x 6 = 48 connections.</li>
 <li>A branch preview revision (below) runs <strong>at most 1 instance</strong> with
 <code>DB_POOL_MAX=1</code>: 1 connection to production (sessions are looked up there,
-<code>authDb</code>) plus 1 to the beta store, 2 per preview. At most 3 previews exist
-at once: 3 x 1 x 2 = 6.</li>
-<li>Worst case for everything: 40 + 6 = 46, inside a budget of 80 (100 minus
+<code>authDb</code>), 1 to the beta store and 1 for the price channel, 3 per preview.
+At most 3 previews exist at once: 3 x 1 x 3 = 9.</li>
+<li>Worst case for everything: 48 + 9 = 57, inside a budget of 80 (100 minus
 headroom for cloud-sql-proxy, cron, <code>psql</code> and the migration step).</li>
 <li>Anything that raises one of these numbers must re-do this arithmetic in the
 same commit. <code>scale-invariant.test.ts</code> pins it: prod, candidate and three
@@ -12641,9 +12749,11 @@ reads here must be the one it budgets against.</li>
 <li>Every response is compressed (<code>compression</code> in app.ts; the 615 KB bundle
 ships as ~164 KB) and the frontend splits per route, so only <code>/</code> and the
 floor ride in the entry bundle.</li>
-<li>The floor polls every 15 seconds, pauses in hidden tabs, and refreshes on
-focus. Each tick is ~5 endpoints; the cadence is a database-load decision,
-pinned by a test, not a frontend tweak.</li>
+<li>The floor polls its payload every 15 seconds, pauses in hidden tabs, and
+refreshes on focus. Each tick is ~5 endpoints; the cadence is a
+database-load decision, pinned by a test, not a frontend tweak. Prices
+alone are polled every second, from <code>GET /api/marketplace/:id/prices</code>, which
+costs the database nothing while prices stand still (below).</li>
 <li>Price-history replays are cached 30s per market and invalidated the moment
 a trade or liquidity event lands (<code>lib/market-events.ts</code>). The floor
 payload as a whole is deliberately NOT cached: it carries ballots and
@@ -13266,7 +13376,66 @@ agent-economy umbrella does for agents; this is one more key on that team.</p>
 <p>Participant mail also needs <code>BETTER_AUTH_URL</code> (or it falls back to
 <code>https://telarchy.com</code>), because every one of those emails carries a link
 back to the floor and a link to the account settings that switch it off.</p>
-<h2 id="docs-infra-deploy-md--h24">Reads are bounded in the size of a workspace</h2>
+<h2 id="docs-infra-deploy-md--h24">Prices, one channel across instances</h2>
+<p>The floor asks for its prices once a second, per viewer, against a service
+where one overloaded instance has taken the site down. So the prices read is
+built to cost the database nothing while prices stand still, and one query
+when they move, however many viewers are watching.</p>
+<p><strong>A price version per floor, per instance.</strong> Each instance keeps in memory,
+per store and workspace, a price version that only ever increases, and beside
+it the last books it read for that floor. The version moves when anything on
+the floor changes a price: a committed trade, a limit fill, a liquidity
+injection, a void, a resolution, a proposal decision or lapse, a new book.
+Every one of those write paths already emits <code>emitPricesChanged</code>
+(<code>lib/market-events.ts</code>); the version moves when the transaction that emitted
+it COMMITS, never inside it, so a read cannot cache a pre-commit book under
+the new version. A transaction that rolls back moves nothing (a dry run, for
+one).</p>
+<p><strong>The read.</strong> <code>GET /api/marketplace/:id/prices</code>:</p>
+<ul>
+<li>resolves which floor it is and whether a stranger may read it from a
+per-instance cache held 10 seconds (so a floor made private stops answering
+within 10 seconds);</li>
+<li>when the version has not moved since the last read, answers from memory:
+the cached books, or <code>304</code> when the request's <code>If-None-Match</code> matches. No
+query;</li>
+<li>when it has moved, reads the books with ONE query on the markets index,
+single-flight: fifty viewers arriving together at a new version cause one
+query, and every one of them gets its answer. The ETag is a hash of the
+books, so it changes exactly when a price, a pool or a trade count does, and
+two instances holding the same prices hand out the same ETag.</li>
+</ul>
+<p>The route resolves no credentials (<code>route-policy.ts</code>, the anonymous-only
+paths) and sits outside every rate limiter (<code>app.ts</code>), because a signed-in
+viewer's cookie would otherwise cost a session lookup a second and a stranger
+polling once a second must never see a 429.</p>
+<p><strong>The channel.</strong> Up to four instances serve the site, and each must learn
+about trades another one took. Postgres <code>LISTEN/NOTIFY</code> on the production
+database carries it, on the one channel <code>telarchy_prices</code>
+(<code>lib/price-channel.ts</code>):</p>
+<ul>
+<li>Every instance opens one dedicated <code>pg.Client</code> at startup (not a pooled
+connection) and <code>LISTEN</code>s. It reconnects on error with a backoff of 1, 2,
+4 ... up to 30 seconds, and on every (re)connect it moves every version it
+holds, since it may have missed messages while it was down.</li>
+<li>After a price-changing transaction commits, the instance moves its own
+version and sends <code>pg_notify</code> with <code>{ instance, store, workspace, market }</code>,
+asynchronously: never awaited by the request, sent outside the
+transaction, several changes to one floor in the same tick sent once,
+errors logged and swallowed. It goes over the dedicated client while it is
+connected and over the pool otherwise, so an instance whose own listener is
+down still tells the others. A trade never waits on it and never fails
+because of it.</li>
+<li>A receiving instance ignores its own messages and moves the named floor's
+version. The same message drops that instance's price-history replay cache
+for the market and its leaderboard cache, which used to be dropped only on
+the instance that took the trade.</li>
+</ul>
+<p><strong>Without the channel.</strong> When an instance's listener is down, a cached
+answer is trusted for at most 1 second before the next read queries again,
+so a viewer is never more than a second behind even then. Instances started
+without <code>DATABASE_URL</code> (tests, a laptop) run in that mode.</p>
+<h2 id="docs-infra-deploy-md--h25">Reads are bounded in the size of a workspace</h2>
 <p>A workspace can post thousands of proposals a day (one floor proposes and
 decides a proposal a minute; after a month it holds 100k proposals and
 300k markets, of which a few thousand are open). The API instance is 512Mi
@@ -13313,7 +13482,7 @@ found, is the telarchy umbrella's <code>notes/snake-load-audit-2026-09-10.md</co
 A new read of proposals or markets that has no <code>limit</code>, no proposal id and
 no baseline predicate is a divergence from this section, whatever the size
 of the workspaces it was tested against.</p>
-<h2 id="docs-infra-deploy-md--h25">Memory</h2>
+<h2 id="docs-infra-deploy-md--h26">Memory</h2>
 <p><strong>512Mi.</strong> At 256Mi the container is OOM-killed on almost no traffic, and
 Cloud Run answers a killed instance's in-flight requests with 503; the
 endpoint that takes it most often is <code>GET /api/marketplace/:slug</code>, i.e. the

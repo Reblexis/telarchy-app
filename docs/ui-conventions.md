@@ -1510,6 +1510,19 @@ the side, and always states what it will do ("Bet 25 cr on Higher");
 success flashes "Placed" on the button itself; errors render inside the
 ticket.
 
+**The ticket guards the price by default.** Every buy and sell the ticket
+places carries a `limit` (docs/guides/agent-api.md, "Guard the price"): the
+call the ticket's own quote says the trade lands on, widened by 2% of the
+book's range against the trader (above it for a trade that pushes the call
+up, below it for one that pushes it down). A book that moved a little still
+fills in full. A book that moved more fills up to that call and stops, and
+the ticket says so in one line under the confirm, "Filled 12 of 25 cr. The
+price moved.", or "Sold 4 of 10 shares. The price moved." for a sale. When
+nothing could fill, the line names the call now, "The price moved to $640.
+Nothing was spent.", and the ticket never retries by itself: a retry would
+spend at a price the trader has not seen. The line clears on the next edit.
+A resting limit order is not guarded this way; its price is the order.
+
 **A held position states itself in the same fact rows the Buy tab uses**
 (owner report 2026-09-09: "i dont understand the sell visualization at
 all"). The direction and the share count on one line, then "You paid" and
@@ -1799,7 +1812,24 @@ regardless.
 
 ### The floor's live poll
 
-**The floor's live poll (every fifteen seconds) refreshes DATA, never the
+**Prices refresh every second; everything else every fifteen.** While the tab
+is visible the floor asks `GET /api/marketplace/:id/prices` once a second,
+each tick delayed by up to 150 ms of random jitter so viewers who opened the
+page together do not ask together, and it sends back the ETag it last
+received; a 304 changes nothing. A new body overwrites, in place, every price
+the floor shows: the headline and the chart's live dot, the ticket's quote,
+the proposals board's prices and deltas, and the snake floor's option prices.
+It never reorders or re-renders a list: the board takes its order from the
+fifteen-second payload, whose order does not depend on price, so a row keeps
+its place and its identity under the pointer (a list replaced at a refresh
+once opened the wrong proposal on a late click). A hidden tab asks for
+nothing and asks once the moment it is visible again. A failed ask doubles
+the wait before the next one, up to thirty seconds, and a success returns it
+to one second. The optimistic price of the viewer's own trade gives way only
+to a price read asked for after that trade landed, never to one asked before
+it.
+
+**The floor's payload poll (every fifteen seconds) refreshes DATA, never the
 view.** The selected proposal, the branch toggle, an expanded description
 and the drawn chart are the viewer's state, and a tick may only overwrite
 prices and histories in place. Two specific rules follow: view state resets
@@ -2371,8 +2401,9 @@ than the poll makes successive polls alternate between a fresh answer and
 a stale one, which reads as the board twitching backwards. Five seconds
 still collapses an arrival burst into one aggregation per key while
 sitting safely under every poll interval. Placing a trade additionally
-drops the cache on the spot, so the trader who just moved a price is never
-told the price did not move. `/leaderboard` itself polls on the same
+drops the cache on the spot, on every instance (the price channel,
+docs/infra/deploy.md), so the trader who just moved a price is never told the
+price did not move. `/leaderboard` itself polls on the same
 fifteen-second cadence while the tab is visible and refreshes on tab
 return; a poll replaces rows in place and never blanks the list, and a
 failed poll keeps the rows it has. The page's public data loads once and

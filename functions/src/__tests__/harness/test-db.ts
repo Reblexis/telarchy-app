@@ -29,6 +29,7 @@
 import type { PGlite } from '@electric-sql/pglite';
 import { drizzle } from 'drizzle-orm/pglite';
 import * as schema from '../../db/schema';
+import { withCommitHooks } from '../../lib/after-commit';
 import { clearAllTtlCaches } from '../../lib/ttl-cache';
 
 // Jest rebuilds the sandbox global AND its `process` wrapper for every test
@@ -53,7 +54,9 @@ declare global {
 }
 const shared = globalThis.__getTestDbShared();
 const client = shared.client;
-export const db = drizzle(client, { schema });
+// Production's handle opens a commit scope per transaction (db/client.ts);
+// so does this one, or after-commit work would run inside the transaction here.
+export const db = withCommitHooks(drizzle(client, { schema }));
 
 /**
  * The connection pool, for the code that needs a session rather than a

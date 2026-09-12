@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from 'async_hooks';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
+import { withCommitHooks } from '../lib/after-commit';
 import * as schema from './schema';
 
 /**
@@ -54,7 +55,16 @@ export const pool = new Pool({
   ...POOL_OPTIONS,
 });
 
-const prodDb = drizzle(pool, { schema });
+/**
+ * Per instance, the one dedicated connection the price channel LISTENs on
+ * (lib/price-channel.ts), outside both pools. Counted in the connection
+ * budget (docs/infra/deploy.md, "connection budget").
+ */
+export const LISTEN_CONNECTIONS = 1;
+
+// `transaction` opens a commit scope (lib/after-commit.ts), so work that must
+// wait for the commit can say so from inside it.
+const prodDb = withCommitHooks(drizzle(pool, { schema }));
 
 /**
  * The one store that never follows the beta swap: WHO someone is.
@@ -97,7 +107,7 @@ function beta(): typeof prodDb {
       max: BETA_POOL_MAX,
       ...POOL_OPTIONS,
     });
-    betaDb = drizzle(betaPool, { schema });
+    betaDb = withCommitHooks(drizzle(betaPool, { schema }));
   }
   return betaDb;
 }

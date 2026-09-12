@@ -617,6 +617,10 @@ export async function closeProposalTrading(proposalId: string, workspaceId: stri
       await releaseLimitOrdersForMarket(tx, m.id, 'cancelled');
     });
   }
+  // Every decision passes through here after its status is written: the
+  // proposal's books have left the floor's open books, so its prices read
+  // must move (docs/infra/deploy.md, "Prices, one channel across instances").
+  emitPricesChanged(workspaceId);
 }
 
 /**
@@ -696,6 +700,7 @@ export async function lapseOverdueProposals(workspaceId: string): Promise<number
         .update(proposals)
         .set({ status: 'lapsed', decidedPricing, lapsedAt: at, closedAt: at, resolvedAt: at })
         .where(and(eq(proposals.id, id), eq(proposals.workspaceId, workspaceId)));
+      emitPricesChanged(workspaceId);
       lapsed++;
     } catch (e) {
       console.error(`lapseOverdueProposals: proposal ${id} in ${workspaceId} failed to lapse:`, e);

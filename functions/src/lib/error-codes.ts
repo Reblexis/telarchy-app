@@ -44,6 +44,11 @@ export const ERROR_CODES = [
    *  closed, buys and sells alike, and positions settle at the date. */
   'proposal_closed',
   'workspace_not_public',
+  /** A trade's `limit` (or a targetValue with `direction`) met a call already
+   *  at or past its bound, so nothing at all could fill. Carries `consensus`
+   *  and `limit`; nothing was spent. A trade that can partly fill is never
+   *  refused with this (docs/guides/agent-api.md, "Guard the price"). */
+  'price_moved',
   /** An Idempotency-Key already used for a DIFFERENT request body. */
   'idempotency_key_reuse',
   /** The action needs a participant, and the caller is anonymous. */

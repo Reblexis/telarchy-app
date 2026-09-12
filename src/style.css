@@ -6151,6 +6151,14 @@ textarea.jobform-line--desc {
   font-size: 0.8rem;
   color: var(--lower);
 }
+/* The price guard's one line (docs/ui-conventions.md, "The ticket guards the
+   price by default"): what filled, or the call now. Information, not an
+   error, so it is quiet. */
+.ticket-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
 /* Know the company: the primary sources, each saying what it is for
    (owner direction 2026-08-10: a bare "sources" word explained nothing).
    Three quiet columns, type only. */

@@ -12,6 +12,7 @@ import {
   trades,
   updates,
 } from '../db/schema';
+import { afterCommit } from '../lib/after-commit';
 import { consensus, pHigher, resolutionPayouts } from '../lib/amm';
 import { mapWithConcurrency } from '../lib/concurrency';
 import { periodEndInstant, periodStartInstant, resolutionInstant } from '../lib/date-utils';
@@ -764,8 +765,15 @@ const replayCache = ttlCache({
 });
 
 onPricesChanged((workspaceId, marketId) => {
-  if (marketId) replayCache.invalidate(`${workspaceId}:${marketId}`);
-  else replayCache.clear();
+  const drop = () => {
+    if (marketId) replayCache.invalidate(`${workspaceId}:${marketId}`);
+    else replayCache.clear();
+  };
+  drop();
+  // Again once the write commits: a history read between the emit and the
+  // commit would otherwise keep a pre-commit replay for the whole TTL. A
+  // change heard from another instance lands here too (lib/price-channel.ts).
+  afterCommit(drop);
 });
 
 /** Test seam. */

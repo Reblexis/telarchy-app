@@ -15,7 +15,7 @@ import { isBetaRequest } from './lib/request-env';
 import { wrap } from './lib/wrap';
 import { requireConsentIfUser } from './middleware/consent';
 import { requireCapability } from './middleware/roles';
-import { apiAuthPolicy, installRouteMatchers } from './middleware/route-policy';
+import { apiAuthPolicy, installRouteMatchers, isPricePollPath } from './middleware/route-policy';
 import { activityRouter } from './routes/activity';
 import { adminRouter } from './routes/admin';
 import { agentsRouter } from './routes/agents';
@@ -262,7 +262,11 @@ const limiterDefaults = {
 const globalLimiter = rateLimit({
   ...limiterDefaults,
   max: rateLimitMax || 1_000_000,
-  skip: req => hasIdentity(req as unknown as { headers: Record<string, unknown> }),
+  // The prices read is polled once a second per viewer and answered from
+  // memory, so it sits outside the limiter: several viewers behind one office
+  // address would otherwise meet a 429 on the one route built to be polled
+  // (docs/guides/api-reference.md, "Rate limits").
+  skip: req => hasIdentity(req as unknown as { headers: Record<string, unknown> }) || isPricePollPath(req.path),
 });
 
 const strictLimiter = rateLimit({

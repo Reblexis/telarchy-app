@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { db } from '../db/client';
 import { agents, authUser, prizeSeasons, recordLinks, seasonEntries, workspaces } from '../db/schema';
 import { loadBoard, loadSeasonMarked, loadSeasonSettled } from '../lib/board';
+import { onPricesChanged } from '../lib/market-events';
 import {
   botIds,
   getParticipantDisplayNames,
@@ -109,6 +110,14 @@ export function clearBoardCache(): void {
   settledCache.clear();
   markedCache.clear();
 }
+
+// A trade another instance took used to leave this instance's board stale
+// for the whole TTL; the price channel now says so (docs/infra/deploy.md,
+// "Prices, one channel across instances"). Local trades already clear it in
+// the trade route, after the commit.
+onPricesChanged((_workspaceId, _marketId, origin) => {
+  if (origin === 'remote') clearBoardCache();
+});
 
 /**
  * The settled-window season score (rules amended 2026-08-28; lib/board.ts

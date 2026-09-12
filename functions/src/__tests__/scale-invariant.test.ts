@@ -18,7 +18,7 @@
 
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { BETA_POOL_MAX, POOL_MAX, pool } from '../db/client';
+import { BETA_POOL_MAX, LISTEN_CONNECTIONS, POOL_MAX, pool } from '../db/client';
 
 const ROOT = join(__dirname, '../../..');
 const workflow = readFileSync(join(ROOT, '.github/workflows/deploy-cloudrun.yml'), 'utf8');
@@ -67,15 +67,16 @@ describe('connection budget invariant', () => {
     // beta store if a beta request ever reaches it (db/client.ts). The worst
     // case has to count both, or the budget silently doubles the first time
     // somebody opens the beta.
-    const perInstance = envVar(main, 'DB_POOL_MAX') + BETA_POOL_MAX;
+    // Plus the price channel's one listening connection (docs/infra/deploy.md).
+    const perInstance = envVar(main, 'DB_POOL_MAX') + BETA_POOL_MAX + LISTEN_CONNECTIONS;
     const mainWorst = 2 * flag(main, 'max-instances') * perInstance; // prod revision + candidate revision
     // A preview: one instance, a 1-connection production pool (sessions) plus
     // the beta pool, at most PREVIEW_CAP of them (docs/infra/deploy.md).
-    const previewPerInstance = envVar(preview, 'DB_POOL_MAX') + BETA_POOL_MAX;
+    const previewPerInstance = envVar(preview, 'DB_POOL_MAX') + BETA_POOL_MAX + LISTEN_CONNECTIONS;
     const previewWorst = PREVIEW_CAP * flag(preview, 'max-instances') * previewPerInstance;
     const budget = documentedMaxConnections() - HEADROOM;
-    expect(mainWorst).toBe(40);
-    expect(previewWorst).toBe(6);
+    expect(mainWorst).toBe(48);
+    expect(previewWorst).toBe(9);
     expect(mainWorst + previewWorst).toBeLessThanOrEqual(budget);
   });
 

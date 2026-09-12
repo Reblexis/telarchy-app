@@ -10,7 +10,7 @@
  * budget"); this test pins the numbers the doc promises.
  */
 
-import { BETA_POOL_MAX, POOL_MAX, pool } from '../db/client';
+import { BETA_POOL_MAX, LISTEN_CONNECTIONS, POOL_MAX, pool } from '../db/client';
 
 describe('db pool connection budget', () => {
   it('opens at most 5 connections per instance, across both stores', () => {
@@ -20,6 +20,10 @@ describe('db pool connection budget', () => {
     // instance a beta request actually reaches.
     expect(pool.options.max).toBe(POOL_MAX);
     expect(POOL_MAX + BETA_POOL_MAX).toBe(5);
+  });
+
+  it('holds exactly one dedicated listening connection for the price channel, outside both pools', () => {
+    expect(LISTEN_CONNECTIONS).toBe(1);
   });
 
   it('fails an acquire fast instead of queuing forever', () => {

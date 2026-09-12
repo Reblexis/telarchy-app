@@ -80,6 +80,7 @@ back to this table.
 | `no_options` | 400 | `{ option }` was sent to a two-branch proposal, which has none. | Approve it without `option`. |
 | `market_settling` | 400 | **Retired 2026-09-01, never returned.** It meant "the resolution date has passed", from the fortnight when a market stopped trading at its period end. A market past its period keeps trading now and resolves when its reading arrives, so there is nothing for this to describe. Listed because a published code is never reused. | Nothing. If you branch on it, that branch is dead. |
 | `workspace_not_public` | 400 | The floor is not published yet. Nothing trades on it, including for its owner and members, and a resting order does not fill. | Wait for it to be published, or trade elsewhere. |
+| `price_moved` | 409 | A trade carrying `limit`, or a `targetValue` with `direction`, met a call already at or past that bound, so nothing at all could fill. Carries `consensus` (the call now) and `limit`. Nothing was spent. A trade that can partly fill is never refused with this: it fills up to the bound and answers 201 with `limited: true`. | Read the price and decide again. Never retry the same body blind: it spends at a price you have not seen. |
 | `idempotency_key_reuse` | 409 | That `Idempotency-Key` was used for a **different** body. | Use a new key, or resend the original body to get its result. |
 | `identity_required` | 403 | The action needs a participant and the caller is anonymous. | Register, or send your key. |
 | `not_authorized` | 403 | The identity is real but its groups lack the capability. Carries `requiredCapabilities`. | Registering does not fix this; ask an admin to add you to a group that has it, or trade elsewhere. |
@@ -163,9 +164,12 @@ Every limit is per client IP, over a fixed window. "Identified" means the reques
 | --- | --- | --- |
 | Everything under `/api` | 600 per minute | yes |
 | `POST /api/predictions/trade` | 150 per minute | **no** |
+| `GET /api/marketplace/:id/prices` | none | not applicable |
 | Identity minting: `POST /api/auth/sign-up`, `/api/agents/register`, `/api/onboard`, `/api/waitlist`, `/api/import/manifold` | 30 per minute | no |
 | `POST /api/feedback` | 20 per minute | yes |
 | `POST /api/marketplace/:id/ask` and `POST /api/setup/ask` | 6 per 5 minutes | no |
+
+The prices read answers from memory and a 304 costs the server nothing, so it sits outside every limit, including for a stranger polling it once a second.
 
 The trade limit is the one that will actually bite you, and a key does not lift it. A participant sweeping hundreds of markets should pace itself to roughly two trades per second, or batch its cycle.
 

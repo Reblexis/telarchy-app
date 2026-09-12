@@ -56,6 +56,7 @@ import {
   executeTradeInTx,
   fillLimitOrdersInTx,
   fundingHint,
+  guardFields,
   type TradeMode,
 } from '../services/trading';
 import { clearBoardCache } from './leaderboard';
@@ -265,6 +266,17 @@ predictionsRouter.post(
       marketId = found.id;
     }
 
+    // The price guard (docs/guides/agent-api.md, "Guard the price"). Null is
+    // the same as leaving it out; anything else must be a finite call.
+    let limit: number | undefined;
+    if (req.body.limit !== undefined && req.body.limit !== null) {
+      if (typeof req.body.limit !== 'number' || !Number.isFinite(req.body.limit)) {
+        res.status(400).json({ error: "limit must be a finite number: a call on the market's own scale" });
+        return;
+      }
+      limit = req.body.limit;
+    }
+
     let mode: TradeMode;
     const targetValue = req.body.targetValue ?? req.body.value;
     const maxBudget = req.body.maxBudget ?? req.body.amount;
@@ -280,7 +292,24 @@ predictionsRouter.post(
         res.status(400).json({ error: 'maxBudget/amount must be a positive, finite number' });
         return;
       }
-      mode = { type: 'targetValue', targetValue, maxBudget };
+      // A named side is kept, never flipped; without one the side comes from
+      // the call at landing, as it always has.
+      let named: 0 | 1 | undefined;
+      if (req.body.direction !== undefined && req.body.direction !== null) {
+        if (req.body.direction !== 'higher' && req.body.direction !== 'lower') {
+          res.status(400).json({ error: 'direction must be "higher" or "lower"' });
+          return;
+        }
+        named = req.body.direction === 'higher' ? 1 : 0;
+      }
+      if (limit !== undefined && named === undefined) {
+        res.status(400).json({
+          error:
+            'A targetValue trade with limit must also name its direction ("higher" or "lower"): the guard never picks a side for you.',
+        });
+        return;
+      }
+      mode = { type: 'targetValue', targetValue, maxBudget, ...(named !== undefined ? { direction: named } : {}) };
     } else if (typeof req.body.direction === 'string' && typeof req.body.sellShares === 'number') {
       if (req.body.direction !== 'higher' && req.body.direction !== 'lower') {
         res.status(400).json({ error: 'direction must be "higher" or "lower"' });
@@ -370,6 +399,7 @@ predictionsRouter.post(
             mode,
             tradeId,
             quoteOnly: true,
+            limit,
           });
           const price = outcome.isSell ? outcome.proceeds : outcome.cost;
           const shortfall = outcome.isSell ? 0 : Math.max(0, Math.round((price - outcome.balance) * 1e6) / 1e6);
@@ -383,6 +413,7 @@ predictionsRouter.post(
             consensus: outcome.consensus,
             prevConsensus: outcome.prevConsensus,
             balance: outcome.balance,
+            ...guardFields(outcome),
             affordable: shortfall === 0,
             shortfall,
             // What the quote was computed against. A caller comparing this to
@@ -462,7 +493,7 @@ predictionsRouter.post(
           response: {},
         });
       }
-      const outcome = await executeTradeInTx(tx, { workspaceId, agentId, marketId: marketId!, mode, tradeId });
+      const outcome = await executeTradeInTx(tx, { workspaceId, agentId, marketId: marketId!, mode, tradeId, limit });
 
       // Every trade that moves the price runs the fill pass for that market, in
       // this same transaction: resting orders the price just crossed execute
@@ -494,6 +525,9 @@ predictionsRouter.post(
             probability: outcome.probability,
             consensus: outcome.consensus,
           };
+      // A guarded trade says whether its limit stopped it and what it handed
+      // back; an unguarded one answers exactly as before.
+      Object.assign(tradeResponse, guardFields(outcome));
       if (fills.length > 0) {
         // The caller's own fill numbers are unchanged; this reports that other
         // people's resting orders executed behind them and where the price
