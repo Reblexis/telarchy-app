@@ -319,6 +319,8 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
             ? pair.options.map(o => ({
                 id: o.id,
                 label: o.label,
+                // The compact read is a read a bot can trade from.
+                marketId: o.marketId,
                 consensus: o.consensus,
                 trades: o.tradeCount,
                 delta: o.delta,

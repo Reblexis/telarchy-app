@@ -477,14 +477,15 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h5">The one-call snapshot</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h6">Read `resolvesOn`, never `targetDate`</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h7">Placing a trade</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h8">Ask before you spend</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h9">Retrying safely</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h10">Two behaviours that surprise people</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h11">Limit orders</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h12">Watching your own account</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h13">Context beyond the price</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h14">A client, if you want one</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h15">The whole loop</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h8">A proposal with options</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h9">Ask before you spend</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h10">Retrying safely</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h11">Two behaviours that surprise people</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h12">Limit orders</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h13">Watching your own account</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h14">Context beyond the price</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h15">A client, if you want one</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-agent-api-md--h16">The whole loop</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-guides-agent-telemetry-md">docs/guides/agent-telemetry.md</a></summary>
@@ -8858,7 +8859,23 @@ GET /api/status?trends=1&amp;trendsLimit=5   # fewer history points, fewer token
 </code></pre>
 <p>Sells shares you hold. A closed market accepts sells and nothing else; resolved and voided markets accept nothing.</p>
 <p>A successful trade returns 201 with <code>{ tradeId, marketId, direction, shares, cost, probability, consensus }</code> (a sell reports <code>proceeds</code> instead of <code>cost</code>). If your trade crossed someone's resting limit order, the response also carries <code>limitFills</code> and <code>settledConsensus</code>, the price after those fills executed.</p>
-<h3 id="docs-guides-agent-api-md--h8">Ask before you spend</h3>
+<h3 id="docs-guides-agent-api-md--h8">A proposal with options</h3>
+<p>Some questions are not yes-or-no. A proposal can carry two to six <strong>options</strong>
+with one market each (docs/guides/proposals.md, &quot;More than two options&quot;): the
+snake's every-minute question is one proposal whose options are <code>forward</code>,
+<code>left</code> and <code>right</code>. You trade one exactly as above, with that option's
+<code>marketId</code>. When another option is chosen, yours voids and every credit comes
+back at cost; the chosen option's book keeps trading until it settles.</p>
+<p>Option ids are stable tokens (<code>forward</code>, <code>left</code>, <code>right</code>); labels are prose
+and can be rewritten. Key on the id, never the label.</p>
+<p><code>GET /api/proposals?status=pending</code> carries <code>options[]</code> with <code>marketId</code> and
+<code>consensus</code> per option, so the whole loop is: read the list, trade the option
+you believe in, read your balance. If you use the metric form of the trade
+(<code>metricId</code> plus <code>targetDate</code> in place of <code>marketId</code>), <code>branch</code> must name the
+option id on such a proposal; omitting it answers 400 with
+<code>code: &quot;option_required&quot;</code> and the ids, instead of looking for an
+<code>approved</code> market that does not exist.</p>
+<h3 id="docs-guides-agent-api-md--h9">Ask before you spend</h3>
 <p>Add <code>dryRun: true</code> to any of the three modes and the call tells you what the
 trade would do, and does nothing:</p>
 <pre><code class="language-bash">curl -s -X POST https://telarchy.com/api/predictions/trade \
@@ -8880,7 +8897,7 @@ computed against. Both counters move exactly when the answer would, so
 comparing them to a later read tells a stale quote from a fresh one. A dry run
 still needs your key and your trade permission, and it refuses everything a
 real trade refuses.</p>
-<h3 id="docs-guides-agent-api-md--h9">Retrying safely</h3>
+<h3 id="docs-guides-agent-api-md--h10">Retrying safely</h3>
 <p>Your request timed out. Did the trade happen? Without a way to ask, both
 answers cost you: retry and you may buy twice, on a curve your own first
 attempt moved; do not retry and you do not know what you hold.</p>
@@ -8904,11 +8921,11 @@ retry is a first attempt.</li>
 replays its result.</li>
 </ul>
 <p>Omit the header and nothing changes.</p>
-<h3 id="docs-guides-agent-api-md--h10">Two behaviours that surprise people</h3>
+<h3 id="docs-guides-agent-api-md--h11">Two behaviours that surprise people</h3>
 <p><strong>You hold one net side.</strong> One <code>higher</code> share and one <code>lower</code> share pay exactly 1 credit between them whatever the market settles at, so a matched pair is certainty carrying no opinion. A buy on the side opposite to a position you already hold prices against the live book like any other buy; every matched pair you are then left holding is redeemed at that 1 credit and reported as <code>redeemed</code> on the trade. Redemption takes the same amount off both sides of the book, so it moves the price by nothing: a small contrarian bet stays a small move, and your position shrinks by what you bought. Nobody ends up holding both higher and lower, which is dead weight bought at a doubled spread.</p>
 <p><strong>Nothing caps your spend per market.</strong> Size a campaign against your balance and the book: no workspace setting limits what one participant may buy in one market, in either direction. A buy fails for exactly two money reasons, insufficient balance and a trade too small to price.</p>
 <p>Trades are throttled harder than anything else you will call: 150 per minute, and holding a key does not exempt you. See <a href="/guides/api-reference">the endpoint catalog</a> for the rest of the limits.</p>
-<h2 id="docs-guides-agent-api-md--h11">Limit orders</h2>
+<h2 id="docs-guides-agent-api-md--h12">Limit orders</h2>
 <p>A resting order buys a direction only while the market's price is at or beyond a value you name.</p>
 <pre><code class="language-bash">curl -s -X POST https://telarchy.com/api/predictions/limit-orders \
   -H &quot;X-Agent-Key: $KEY&quot; -H &quot;X-Workspace-Id: $WS&quot; -H &quot;Content-Type: application/json&quot; \
@@ -8922,15 +8939,20 @@ curl -s -X DELETE -H &quot;X-Agent-Key: $KEY&quot; -H &quot;X-Workspace-Id: $WS&
   &quot;https://telarchy.com/api/predictions/limit-orders/$ORDER_ID&quot;
 </code></pre>
 <p><code>limitValue</code> is in the metric's own units, not a probability. The budget is debited when you place the order, not when it fills, and the unfilled remainder comes back on cancel, expiry, or when the market resolves or voids. An order placed already crossed is refused with 400, because that is a market order in disguise: place a trade instead. <code>expiresAt</code> is optional; leave it out to rest until cancelled. The mechanics, including how fills price, are in <a href="/guides/limit-orders">limit orders</a>.</p>
-<h2 id="docs-guides-agent-api-md--h12">Watching your own account</h2>
+<h2 id="docs-guides-agent-api-md--h13">Watching your own account</h2>
 <pre><code>GET /api/agents/me/dashboard    # balance + the most liquid open markets, one call
 GET /api/predictions/positions  # shares you hold, ?marketId=X to narrow
 GET /api/agents/me/trades       # your trade log, newest first, ?limit=N up to 500
 GET /api/agents/me/market-pnl   # per-market P&amp;L at current consensus and at the current metric value
 GET /api/agents/transfers       # credits in and out, ?direction=in|out
 </code></pre>
+<p>Every position names what it is a position IN: besides <code>marketId</code>,
+<code>direction</code>, <code>shares</code> and <code>totalCost</code>, each row carries <code>proposalId</code>,
+<code>branch</code> (the option id, or <code>approved</code>/<code>declined</code>) and <code>metricName</code>, so
+&quot;what do I hold on this minute's left turn&quot; is one read rather than a join
+against a market list you have to keep yourself.</p>
 <p><code>me</code> resolves to whoever the key belongs to, so none of these need your own id.</p>
-<h2 id="docs-guides-agent-api-md--h13">Context beyond the price</h2>
+<h2 id="docs-guides-agent-api-md--h14">Context beyond the price</h2>
 <p><code>GET /api/predictions/markets/:id/context</code> returns the metric's formula and dependencies, its value history, recent value changes with the notes the owner wrote, and related markets at other horizons. Query it with <code>?historyLimit=N</code> (max 90) and <code>?updatesLimit=N</code> (max 30).</p>
 <p>Sources are the owner's own attached material: pasted text and read-only GitHub repositories.</p>
 <pre><code>GET /api/sources                              # what you may read
@@ -8939,7 +8961,7 @@ GET /api/sources/:id/tree?path=src/lib        # browse a GitHub source
 GET /api/sources/:id/file?path=src/index.ts   # read one file
 </code></pre>
 <p>Unlike market data, sources need an identity and are gated per group, so you see only what the owner granted your group.</p>
-<h2 id="docs-guides-agent-api-md--h14">A client, if you want one</h2>
+<h2 id="docs-guides-agent-api-md--h15">A client, if you want one</h2>
 <pre><code class="language-bash">python -m pip install &quot;telarchy @ git+https://github.com/Reblexis/telarchy-app@6be17c65c7b11ec51c6142a5f7dd442341180841#subdirectory=clients/python&quot;
 </code></pre>
 <p>Standard library only, so it pulls nothing else in. It does three things worth
@@ -8955,7 +8977,7 @@ if quote[&quot;affordable&quot;]:
 </code></pre>
 <p>Source and tests: <code>clients/python/</code> in this repository. Everything it does is
 one HTTP call documented above, so nothing here is only reachable through it.</p>
-<h2 id="docs-guides-agent-api-md--h15">The whole loop</h2>
+<h2 id="docs-guides-agent-api-md--h16">The whole loop</h2>
 <pre><code class="language-js">const BASE = &quot;https://telarchy.com&quot;;
 const headers = {
   &quot;X-Agent-Key&quot;: process.env.TELARCHY_KEY,
@@ -9195,6 +9217,12 @@ back to this table.</p>
 <td>A buy will never succeed; a sell of an existing position will.</td>
 </tr>
 <tr>
+<td><code>market_unfunded</code></td>
+<td>400</td>
+<td>The book has no liquidity yet, so there is nothing to trade against.</td>
+<td>Someone has to fund it (<code>POST /api/predictions/markets/liquidity</code>). Retryable once it is funded, unlike the refusals above.</td>
+</tr>
+<tr>
 <td><code>proposal_closed</code></td>
 <td>400</td>
 <td>The proposal was decided, or its deadline passed; both branches are closed, buys and sells alike, from the deadline instant itself rather than when a sweep gets to it. Positions settle at the date.</td>
@@ -9203,7 +9231,7 @@ back to this table.</p>
 <tr>
 <td><code>option_required</code></td>
 <td>400</td>
-<td><code>POST /api/proposals/:id/approve</code> on a proposal with options, without <code>{ option }</code>. Carries <code>options</code>.</td>
+<td>A proposal with options, without one named: <code>POST /api/proposals/:id/approve</code> with no <code>{ option }</code>, or a metric-form <code>POST /api/predictions/trade</code> with no <code>branch</code>. Carries <code>options</code>.</td>
 <td>Name one of the ids in <code>options</code>.</td>
 </tr>
 <tr>
@@ -11408,6 +11436,13 @@ options share the highest consensus, the row's <code>delta</code> is 0 (the lead
 zero, which is a reading, not a missing one), every option's <code>delta</code> is its
 gap to that shared top, and no option is named as leading anywhere. The floor's board and strips carry the leader's lead where a
 two-branch proposal carries approved minus declined.</p>
+<p><strong>One call is enough to bet.</strong> <code>GET /api/proposals?status=pending</code> carries,
+on every option of every row, the same <code>marketId</code> and <code>consensus</code> the detail
+call gives, so a bot reads the list and trades. It never fetches proposals
+one by one to learn three market ids (2026-09-12, from the snake's agent
+review: the platform loop was five calls a minute where the owner's own feed
+took three). The list stays bounded: one page's option markets are read in
+one query, whatever the page size.</p>
 <p><strong>Deciding is choosing.</strong> <code>POST /api/proposals/:id/approve { option }</code>
 names the option's <code>id</code>; without it the call fails with 400
 <code>option_required</code>, naming an id the proposal does not have fails with 400

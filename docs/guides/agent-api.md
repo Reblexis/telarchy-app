@@ -142,6 +142,26 @@ Sells shares you hold. A closed market accepts sells and nothing else; resolved 
 
 A successful trade returns 201 with `{ tradeId, marketId, direction, shares, cost, probability, consensus }` (a sell reports `proceeds` instead of `cost`). If your trade crossed someone's resting limit order, the response also carries `limitFills` and `settledConsensus`, the price after those fills executed.
 
+### A proposal with options
+
+Some questions are not yes-or-no. A proposal can carry two to six **options**
+with one market each (docs/guides/proposals.md, "More than two options"): the
+snake's every-minute question is one proposal whose options are `forward`,
+`left` and `right`. You trade one exactly as above, with that option's
+`marketId`. When another option is chosen, yours voids and every credit comes
+back at cost; the chosen option's book keeps trading until it settles.
+
+Option ids are stable tokens (`forward`, `left`, `right`); labels are prose
+and can be rewritten. Key on the id, never the label.
+
+`GET /api/proposals?status=pending` carries `options[]` with `marketId` and
+`consensus` per option, so the whole loop is: read the list, trade the option
+you believe in, read your balance. If you use the metric form of the trade
+(`metricId` plus `targetDate` in place of `marketId`), `branch` must name the
+option id on such a proposal; omitting it answers 400 with
+`code: "option_required"` and the ids, instead of looking for an
+`approved` market that does not exist.
+
 ### Ask before you spend
 
 Add `dryRun: true` to any of the three modes and the call tells you what the
@@ -237,6 +257,12 @@ GET /api/agents/me/trades       # your trade log, newest first, ?limit=N up to 5
 GET /api/agents/me/market-pnl   # per-market P&L at current consensus and at the current metric value
 GET /api/agents/transfers       # credits in and out, ?direction=in|out
 ```
+
+Every position names what it is a position IN: besides `marketId`,
+`direction`, `shares` and `totalCost`, each row carries `proposalId`,
+`branch` (the option id, or `approved`/`declined`) and `metricName`, so
+"what do I hold on this minute's left turn" is one read rather than a join
+against a market list you have to keep yourself.
 
 `me` resolves to whoever the key belongs to, so none of these need your own id.
 

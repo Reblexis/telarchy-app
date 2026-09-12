@@ -780,7 +780,14 @@ describe('what a reader is shown', () => {
     const res = await request(app).get('/api/proposals').set(as(OWNER));
     expect(res.status).toBe(200);
     const row = res.body.find((p: { id: string }) => p.id === id);
-    expect(row.options).toEqual(OPTIONS);
+    // Since 2026-09-12 each option also carries the market it trades on and
+    // its price, so a bot bets off the list (docs/guides/proposals.md, "One
+    // call is enough to bet").
+    expect(row.options.map((o: { id: string; label: string }) => ({ id: o.id, label: o.label }))).toEqual(OPTIONS);
+    for (const o of row.options) {
+      expect(typeof o.marketId).toBe('string');
+      expect(typeof o.consensus).toBe('number');
+    }
     expect(row.decidedOption).toBe('right');
   });
 
@@ -989,5 +996,75 @@ describe('the data room', () => {
     const rows = await rowsOf('?kinds=decision');
     const decided = rows.find(r => r.id === `decision:${id}`)!;
     expect(decided.detail.option ?? null).toBeNull();
+  });
+});
+
+/**
+ * A bot bets on an option in as few calls as a browser does (2026-09-12,
+ * from the snake's agent review, notes/snake-agent-readiness-2026-09-12.md;
+ * docs/guides/proposals.md, "One call is enough to bet";
+ * docs/guides/agent-api.md, "A proposal with options").
+ */
+describe('the options surface a bot trades against', () => {
+  it("the pending list carries each option's market id and price, so no second call is needed", async () => {
+    await seed();
+    const p = await postOptions();
+    const res = await request(app).get('/api/proposals?status=pending').set(as(TRADER));
+    expect(res.status).toBe(200);
+    const row = (res.body as Array<Record<string, unknown>>).find(r => r.id === p.id)!;
+    const opts = row.options as Array<Record<string, unknown>>;
+    expect(opts.map(o => o.id)).toEqual(['left', 'right', 'up']);
+    const rows = await marketsOf(p.id);
+    for (const o of opts) {
+      const m = rows.find(r => r.branch === o.id)!;
+      expect(o.marketId).toBe(m.id);
+      expect(typeof o.consensus).toBe('number');
+      expect(o.label).toBe(OPTIONS.find(x => x.id === o.id)!.label);
+    }
+  });
+
+  it('the metric form of a trade names the option: no branch is option_required, not a 404 about an approved market', async () => {
+    await seed();
+    const p = await postOptions();
+    const res = await request(app)
+      .post('/api/predictions/trade')
+      .set(as(TRADER))
+      .send({ metricId: METRIC, targetDate: TARGET, proposalId: p.id, direction: 'higher', amount: 5 });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('option_required');
+    expect((res.body.options as Array<{ id: string }>).map(o => o.id)).toEqual(['left', 'right', 'up']);
+    // Naming one still works.
+    const ok = await request(app)
+      .post('/api/predictions/trade')
+      .set(as(TRADER))
+      .send({ metricId: METRIC, targetDate: TARGET, proposalId: p.id, branch: 'left', direction: 'higher', amount: 5 });
+    expect(ok.status).toBe(201);
+  });
+
+  it('a trade against a book nobody funded is market_unfunded, a code a bot can retry on', async () => {
+    await seed();
+    const p = await postOptions();
+    await setLiquidity(p.id, 'left', 0);
+    const m = await branchRow(p.id, 'left');
+    const res = await request(app)
+      .post('/api/predictions/trade')
+      .set(as(TRADER))
+      .send({ marketId: m.id, direction: 'higher', amount: 5 });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('market_unfunded');
+  });
+
+  it('a position names what it is a position in: the proposal, the option and the metric', async () => {
+    await seed();
+    const p = await postOptions();
+    const m = await branchRow(p.id, 'right');
+    await tradeOn(m.id);
+    const res = await request(app).get('/api/predictions/positions').set(as(TRADER));
+    expect(res.status).toBe(200);
+    const pos = (res.body as Array<Record<string, unknown>>).find(r => r.marketId === m.id)!;
+    expect(pos.proposalId).toBe(p.id);
+    expect(pos.branch).toBe('right');
+    expect(pos.metricName).toBe('Snake length');
+    expect(pos.shares as number).toBeGreaterThan(0);
   });
 });

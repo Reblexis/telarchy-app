@@ -21,6 +21,7 @@ import {
   declineProposalAsSpam,
   editProposalDefinition,
   getProposalMarketSummariesForProposal,
+  getProposalMarketSummariesForProposals,
   optionSummariesWithDeltas,
   type PairedProposalMarketSummary,
   proposalRevisionsFor,
@@ -379,6 +380,30 @@ proposalsRouter.get(
       .limit(limit);
 
     const names = await getParticipantDisplayNames(rows.map(t => t.proposedBy));
+    // Every option carries the market it is traded on and its price, so a bot
+    // bets straight off the list (docs/guides/proposals.md, "One call is
+    // enough to bet"). One batched read for the whole page, never one per row,
+    // and nothing at all when no row on the page has options.
+    const withOptions = rows.filter(t => Array.isArray(t.options) && (t.options as unknown[]).length > 0);
+    const optionMarkets = withOptions.length
+      ? await getProposalMarketSummariesForProposals(
+          withOptions.map(t => t.id),
+          workspaceId,
+        )
+      : new Map();
+    const optionsOf = (t: (typeof rows)[number]) => {
+      const declared = (t.options ?? null) as Array<{ id: string; label: string }> | null;
+      if (!declared || declared.length === 0) return declared;
+      const summaries = optionMarkets.get(t.id) ?? [];
+      return declared.map(o => {
+        for (const pair of summaries) {
+          const hit = pair.options?.find((x: { id: string }) => x.id === o.id);
+          if (hit) return { ...o, marketId: hit.marketId, consensus: hit.consensus };
+        }
+        // Declared but never spawned a book: say so, rather than omit the key.
+        return { ...o, marketId: null, consensus: null };
+      });
+    };
     // Payment information goes to the person who pays, nobody else.
     const canSeePayout = req.auth!.capabilities.has('manage');
 
@@ -400,7 +425,7 @@ proposalsRouter.get(
         // burn no matter how much has been paid out.
         askUsd: t.askUsd ?? null,
         // The option list, and the one chosen, on a proposal with options.
-        options: t.options ?? null,
+        options: optionsOf(t),
         decidedOption: t.decidedOption ?? null,
         proposedBy: t.proposedBy,
         proposedByName: names.get(t.proposedBy) ?? null,
