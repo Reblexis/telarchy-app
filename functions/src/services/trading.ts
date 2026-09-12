@@ -2,11 +2,19 @@ import { randomUUID } from 'crypto';
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { agents, limitOrders, markets, positions, proposals, trades, workspaces } from '../db/schema';
-import { betTowardsValue, consensus, directionSellProceeds, pHigher, sharesForBudget } from '../lib/amm';
+import {
+  betTowardsValue,
+  consensus,
+  directionSellProceeds,
+  directionTradeCost,
+  pHigher,
+  sharesForBudget,
+  sharesToBound,
+} from '../lib/amm';
 import { AppError } from '../lib/errors';
 import { emitPricesChanged } from '../lib/market-events';
 import { restrictedToMembers } from '../lib/public-read';
-import { fromUnits, sufficientBalance, toUnits } from '../lib/validation';
+import { CREDIT_PRECISION, fromUnits, sufficientBalance, toUnits } from '../lib/validation';
 import { applyCredits } from './credits';
 
 /**
@@ -24,7 +32,15 @@ import { applyCredits } from './credits';
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export type TradeMode =
-  | { type: 'targetValue'; targetValue: number; maxBudget: number }
+  | {
+      type: 'targetValue';
+      targetValue: number;
+      maxBudget: number;
+      /** The side the caller named. With it the side never flips and the
+       *  target bounds the trade (docs/guides/agent-api.md, "Guard the
+       *  price"); without it the side comes from the call at landing. */
+      direction?: 0 | 1;
+    }
   | { type: 'sell'; direction: 0 | 1; dirLabel: 'higher' | 'lower'; sellShares: number }
   | { type: 'buy'; direction: 0 | 1; dirLabel: 'higher' | 'lower'; amount: number };
 
@@ -50,6 +66,12 @@ export interface TradeOutcome {
   /** The trader's balance as it stood, in credits. The dry-run path reports
    *  affordability from it; a real trade has already proven it sufficient. */
   balance: number;
+  /** The trade carried a bound: `limit`, or a targetValue with its direction. */
+  guarded: boolean;
+  /** A `limit` stopped the fill before the requested amount ran out. */
+  limited: boolean;
+  /** What was asked for: credits on a buy (amount or maxBudget), shares on a sell. */
+  requested: number;
 }
 
 /**
@@ -109,6 +131,13 @@ export async function executeTradeInTx(
      * is CHECKED, never what is computed.
      */
     quoteOnly?: boolean;
+    /**
+     * The price guard (docs/guides/agent-api.md, "Guard the price"): a call
+     * on the book's scale the trade may not carry the book past, on the side
+     * `boundSide` names. Evaluated here, after the market row lock, against
+     * the book the trade actually meets.
+     */
+    limit?: number;
   },
 ): Promise<TradeOutcome> {
   const { workspaceId, agentId, marketId, mode } = opts;
@@ -216,7 +245,15 @@ export async function executeTradeInTx(
     if (mode.targetValue < market.rangeMin || mode.targetValue > market.rangeMax) {
       throw new AppError(`targetValue/value must be between ${market.rangeMin} and ${market.rangeMax}`, 400);
     }
-    const r = betTowardsValue(shares, b, market.rangeMin, market.rangeMax, mode.targetValue, mode.maxBudget);
+    const r = betTowardsValue(
+      shares,
+      b,
+      market.rangeMin,
+      market.rangeMax,
+      mode.targetValue,
+      mode.maxBudget,
+      mode.direction,
+    );
     direction = r.direction;
     amount = r.amount;
     cost = r.cost;
@@ -234,6 +271,40 @@ export async function executeTradeInTx(
     cost = r.cost;
   }
 
+  // The price guard. A trade that can partly fill is never refused: it fills
+  // up to its bound and hands back the rest. The one refusal is nothing
+  // tradable at all, price_moved, which spends nothing (owner ask 2026-09-12,
+  // "dont block the actual trade"; docs/guides/agent-api.md, "Guard the
+  // price").
+  const guarded = opts.limit !== undefined || (mode.type === 'targetValue' && mode.direction !== undefined);
+  const requested = mode.type === 'buy' ? mode.amount : mode.type === 'targetValue' ? mode.maxBudget : mode.sellShares;
+  let limited = false;
+  const priceMoved = (bound: number) =>
+    new AppError(
+      `The price moved: the call is ${prevConsensus} and this trade may not carry it past ${bound}, so nothing can fill. Nothing was spent.`,
+      409,
+      { consensus: prevConsensus, limit: bound },
+      'price_moved',
+    );
+  if (guarded) {
+    // A named side whose own target is already behind the call.
+    if (mode.type === 'targetValue' && amount <= 0) throw priceMoved(opts.limit ?? mode.targetValue);
+    if (opts.limit !== undefined) {
+      const room = sharesToBound(shares, b, market.rangeMin, market.rangeMax, direction, isSell, opts.limit);
+      if (amount > room) {
+        // Rounded down, so the fill lands on the bound's side of it.
+        const capped = Math.floor(room * CREDIT_PRECISION) / CREDIT_PRECISION;
+        if (!(capped > 0)) throw priceMoved(opts.limit);
+        amount = capped;
+        if (!isSell) {
+          cost = directionTradeCost(shares, direction, amount, b);
+          if (!(cost > 0)) throw priceMoved(opts.limit);
+        }
+        limited = true;
+      }
+    }
+  }
+
   if (amount <= 0) throw new AppError('Trade too small', 400, undefined, 'trade_too_small');
 
   const resolvedPosId = `${agentId}_${marketId}_${dirLabel}`;
@@ -248,7 +319,10 @@ export async function executeTradeInTx(
     if (posShares < amount)
       throw new AppError('Insufficient shares to sell', 400, { available: posShares }, 'insufficient_shares');
     proceeds = directionSellProceeds(shares, direction, amount, b);
-    if (proceeds <= 0) throw new AppError('Trade too small', 400, undefined, 'trade_too_small');
+    if (proceeds <= 0) {
+      if (limited && opts.limit !== undefined) throw priceMoved(opts.limit);
+      throw new AppError('Trade too small', 400, undefined, 'trade_too_small');
+    }
   } else {
     if (cost > 0 && !sufficientBalance(balanceUnits, cost) && !opts.quoteOnly)
       throw new AppError(
@@ -378,7 +452,24 @@ export async function executeTradeInTx(
     consensus: newConsensus,
     prevConsensus,
     balance: fromUnits(balanceUnits),
+    guarded,
+    limited,
+    requested,
   };
+}
+
+/**
+ * What a guarded trade reports beside its fill (docs/guides/agent-api.md,
+ * "Guard the price"): whether the limit stopped it, and the split of what was
+ * asked for between filled and handed back. Nothing for an unguarded trade,
+ * whose response is unchanged.
+ */
+export function guardFields(outcome: TradeOutcome): Record<string, unknown> {
+  if (!outcome.guarded) return {};
+  const rest = (used: number) => Math.max(0, Math.round((outcome.requested - used) * 1e9) / 1e9);
+  return outcome.isSell
+    ? { limited: outcome.limited, sharesSold: outcome.shares, sharesKept: rest(outcome.shares) }
+    : { limited: outcome.limited, spent: outcome.cost, unspent: rest(outcome.cost) };
 }
 
 /**

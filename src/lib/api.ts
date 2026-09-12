@@ -944,6 +944,25 @@ export interface PublicContractor {
 
 /** A market row on the public workspace page. No workspace fields: the page
  *  already knows which workspace it is showing. */
+/** GET /api/marketplace/:id/prices (docs/guides/agent-api.md, "Prices, once a second"). */
+export interface FloorPrices {
+  asOf: string;
+  version: string;
+  books: FloorPriceBook[];
+}
+
+/** A prices ask: a 304 is `{ changed: false }`. */
+export type FloorPricesRead = { changed: false } | { changed: true; etag: string | null; prices: FloorPrices };
+
+/** One open book on GET /api/marketplace/:id/prices. */
+export interface FloorPriceBook {
+  marketId: string;
+  consensus: number | null;
+  probability: number | null;
+  pool: number;
+  tradeCount: number;
+}
+
 export interface PublicWorkspaceMarket {
   marketId: string;
   metricId: string;
@@ -1199,7 +1218,10 @@ async function requestWithWorkspace(
     await recoverConsent();
     return requestWithWorkspace(path, options, requestOptions, false);
   }
-  if (!res.ok) throw new Error(data.error || 'API error');
+  // The machine-readable half rides the thrown error (docs/guides/api-reference.md,
+  // "Error codes"): the ticket branches on `code`, never on the sentence.
+  if (!res.ok)
+    throw Object.assign(new Error(data.error || 'API error'), { status: res.status, code: data?.code, body: data });
   if ((options.method ?? 'GET') !== 'GET') notifyMutation();
   return data;
 }
@@ -2518,6 +2540,22 @@ export const api = {
     const res = await fetch(`${API_BASE}/api/marketplace?limit=${limit}`);
     if (!res.ok) throw new Error(`Marketplace request failed: ${res.status}`);
     return res.json();
+  },
+  /**
+   * The floor's prices alone, polled once a second (src/lib/useFloorPrices.ts),
+   * sending back the ETag it last received. No cookies: the route answers
+   * every caller as a stranger, and a cookie would only cost a lookup
+   * (docs/infra/deploy.md, "Prices, one channel across instances").
+   */
+  getFloorPrices: async (idOrSlug: string, etag?: string | null): Promise<FloorPricesRead> => {
+    const res = await fetch(`${API_BASE}/api/marketplace/${encodeURIComponent(idOrSlug)}/prices`, {
+      credentials: 'omit',
+      cache: 'no-store',
+      headers: etag ? { 'If-None-Match': etag } : undefined,
+    });
+    if (res.status === 304) return { changed: false };
+    if (!res.ok) throw new Error(`Prices unavailable (${res.status})`);
+    return { changed: true, etag: res.headers.get('ETag'), prices: (await res.json()) as FloorPrices };
   },
   getMarketplaceWorkspace: async (workspaceId: string): Promise<PublicWorkspace> => {
     const res = await fetchGetWithRetry(`${API_BASE}/api/marketplace/${encodeURIComponent(workspaceId)}`);

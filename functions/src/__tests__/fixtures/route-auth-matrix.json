@@ -794,6 +794,11 @@
     "agent": 404,
     "master": 404
   },
+  "GET /api/marketplace/:workspaceId/prices": {
+    "anon": 404,
+    "agent": 404,
+    "master": 404
+  },
   "GET /api/marketplace/:workspaceId": {
     "anon": 404,
     "agent": 404,

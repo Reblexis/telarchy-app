@@ -197,6 +197,10 @@
             "type": "number",
             "description": "Shares to sell on the given direction."
           },
+          "limit": {
+            "type": "number",
+            "description": "Price guard: a call on the book's own scale. The trade fills only as far as the call stays on your side of it (for a buy of higher the highest call it may leave, for a buy of lower or a sell of higher the lowest, for a sell of lower the highest) and hands back what it did not spend, with limited, spent and unspent (sharesSold and sharesKept on a sell). When nothing at all fits: 409 price_moved with the current consensus, nothing spent. With limit the side is always direction, so a targetValue trade carrying limit must carry direction."
+          },
           "dryRun": {
             "type": "boolean",
             "description": "Ask what the trade would do without doing it. Answers 200 with the same numbers a real trade returns plus balance, affordable, shortfall and basis, and changes nothing. Does not require credits, so a participant that has just registered can still see the market answer."

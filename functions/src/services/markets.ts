@@ -139,6 +139,9 @@ export async function voidMarket(
       alreadyVoided = true;
       return;
     }
+    // A voided book leaves the floor's open books: the prices read must move
+    // (docs/infra/deploy.md, "Prices, one channel across instances").
+    emitPricesChanged(workspaceId, market.id);
     // The pool under the lock, not the one on the row the caller handed in:
     // refreshRelativeDateMarkets reads its markets once and voids them much
     // later, with funding transactions possible in between.

@@ -67,6 +67,19 @@ export const OPTIONAL_AUTH_PREFIXES: ReadonlyArray<{ prefix: string; why: string
   },
 ];
 
+/**
+ * The floor's prices read, GET /api/marketplace/:id/prices, polled once a
+ * second per viewer (docs/infra/deploy.md, "Prices, one channel across
+ * instances"). It answers every caller as a stranger, so the policy resolves
+ * no credentials for it (a signed-in viewer's cookie would otherwise cost a
+ * session lookup a second), and app.ts keeps it outside the global limiter.
+ */
+const PRICE_POLL = /^\/api\/marketplace\/[^/]+\/prices\/?$/;
+
+export function isPricePollPath(path: string): boolean {
+  return PRICE_POLL.test(path.split('?')[0]);
+}
+
 /** True when `path` is one of the optional-auth prefixes or under it. `/api` itself is exact. */
 export function isOptionalAuthPath(path: string): boolean {
   const clean = path.split('?')[0].replace(/\/+$/, '') || '/';
@@ -124,6 +137,13 @@ export function apiAuthPolicy(req: Request, res: Response, next: NextFunction): 
   // GET /api/help, so naming a route as absent discloses nothing new.
   if (!isMountedRoute(req.method, path)) {
     res.status(404).json({ error: 'Not found', path: req.originalUrl });
+    return;
+  }
+
+  // Answered to everyone as a stranger: resolving credentials would only cost
+  // the database a lookup a second per signed-in viewer.
+  if (isPricePollPath(path)) {
+    next();
     return;
   }
 

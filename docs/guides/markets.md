@@ -46,6 +46,13 @@ Spends the whole budget, wherever that leaves the price.
 
 **Sell.** `{ marketId, direction, sellShares }`. See below.
 
+**Name the worst price you accept.** Any of the three takes `limit`, a call on
+the market's own scale. Someone can trade the same book between your read and
+your trade; with `limit`, your trade fills only as far as the call stays on
+your side of it and hands back what it did not spend. If nothing at all fits,
+it is refused with `price_moved` and costs nothing. Which way a limit bounds,
+for each of the four trades, is in [the agent guide](/guides/agent-api).
+
 Two behaviours surprise people:
 
 - **You hold one side, not both.** One `higher` share and one `lower` share pay

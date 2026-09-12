@@ -5,6 +5,7 @@ import { previewSell, previewSellPrice, previewTargetBet, previewTrade } from '.
 import type { LimitOrder } from '../lib/api';
 import { amountToSlider, SLIDER_STEPS, sliderToAmount } from '../lib/bet-slider';
 import { maxWinLabel } from '../lib/market-quote';
+import { guardLimit, pushesCallUp } from '../lib/price-guard';
 import { PayoffLine } from './PayoffLine';
 
 /**
@@ -35,18 +36,40 @@ export interface TicketPosition {
   totalCost: number;
 }
 
+/** What a placed trade reported back, as far as the ticket reads it: the
+ *  guard's fields (docs/guides/agent-api.md, "Guard the price"). */
+export interface TicketTradeResult {
+  limited?: boolean;
+  spent?: number;
+  unspent?: number;
+  sharesSold?: number;
+  sharesKept?: number;
+}
+
+/** The guard's fields off whatever a trade callback answered, if anything. */
+function asResult(x: unknown): TicketTradeResult | undefined {
+  return x && typeof x === 'object' ? (x as TicketTradeResult) : undefined;
+}
+
 interface Props {
   probability: number;
   liquidity: number;
   positions: TicketPosition[];
-  onTrade: (direction: 'higher' | 'lower', amount: number) => Promise<void>;
+  /** Place a budget buy. `limit` is the ticket's default price guard
+      (docs/ui-conventions.md, "The ticket guards the price by default"). */
+  onTrade: (direction: 'higher' | 'lower', amount: number, limit?: number) => Promise<unknown>;
   /** Place a {targetValue, maxBudget} trade: the server lands exactly on
       the target (budget permitting), netting included, so the value the
       ticket promised is the value the market prints. Used whenever the
       trade was composed by typing into the "New value" row. */
-  onTradeTarget?: (targetValue: number, maxBudget: number) => Promise<void>;
-  /** Sell `shares` of the held position (defaults to the whole thing). */
-  onSell: (p: TicketPosition, shares: number) => Promise<void>;
+  onTradeTarget?: (
+    targetValue: number,
+    maxBudget: number,
+    direction?: 'higher' | 'lower',
+    limit?: number,
+  ) => Promise<unknown>;
+  /** Sell `shares` of the held position (defaults to the whole thing), guarded the same way. */
+  onSell: (p: TicketPosition, shares: number, limit?: number) => Promise<unknown>;
   /** Credits available to spend, so the bet slider scales to what the
       trader can actually afford instead of a fixed cap. */
   balance?: number | null;
@@ -188,6 +211,10 @@ export function TradeTicket({
   const [busy, setBusy] = useState<string | null>(null);
   const [placed, setPlaced] = useState(false);
   const [error, setError] = useState('');
+  /* The guard's one line (docs/ui-conventions.md, "The ticket guards the
+     price by default"), kept with the composer state it was said about, so
+     it clears on the next edit without an effect racing the placement. */
+  const [note, setNote] = useState<{ text: string; key: string } | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Selling a specific amount (owner ask 2026-08-11): a row expands into a
   // shares slider instead of only "sell all". Keyed by direction; the draft
@@ -312,6 +339,32 @@ export function TradeTicket({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => () => onPreview?.(null), []);
 
+  const noteKey = (s: { tab: string; dir: string | null; amount: string; sellShares: number }) =>
+    `${s.tab}|${s.dir}|${s.amount}|${s.sellShares}`;
+  const currentNoteKey = noteKey({ tab, dir, amount, sellShares });
+  const shownNote = note && note.key === currentNoteKey ? note.text : null;
+
+  /** The limit the ticket sends: its own quoted landing, widened against the trader. */
+  const limitFor = (newProb: number | null | undefined, pushesUp: boolean): number | undefined => {
+    if (newProb == null || span === null || rangeMin === undefined) return undefined;
+    return guardLimit({ quote: rangeMin + newProb * span, rangeMin, rangeMax: rangeMin + span, pushesUp }) ?? undefined;
+  };
+
+  /** A price_moved refusal becomes the line; anything else stays an error. Never retried here. */
+  const refused = (e: unknown): boolean => {
+    const err = e as { code?: string; body?: { code?: string; consensus?: number | null } };
+    if (err?.code !== 'price_moved' && err?.body?.code !== 'price_moved') return false;
+    const now = err.body?.consensus;
+    setNote({
+      text:
+        typeof now === 'number'
+          ? `The price moved to ${unit}${fmtValue(now)}. Nothing was spent.`
+          : 'The price moved. Nothing was spent.',
+      key: currentNoteKey,
+    });
+    return true;
+  };
+
   const flash = () => {
     setPlaced(true);
     if (flashTimer.current) clearTimeout(flashTimer.current);
@@ -326,24 +379,37 @@ export function TradeTicket({
       return;
     }
     setError('');
+    setNote(null);
     setBusy('place');
     try {
+      let result: TicketTradeResult | undefined;
       if (isLimit && onPlaceLimit && limitNum !== null) {
+        // A resting order is not guarded: its price is the order.
         await onPlaceLimit(dir, limitNum, amountNum);
         setLimit('');
         setMode('quick');
       } else if (target !== null && onTradeTarget) {
         // Composed by typing a value: place the server's targetValue mode,
         // which lands ON the typed value (budget permitting) instead of
-        // approximating it with a budget buy.
-        await onTradeTarget(target, amountNum);
+        // approximating it with a budget buy. The side travels with it, so
+        // the server never flips it.
+        const side = targetComposed?.direction ?? dir;
+        result = asResult(
+          await onTradeTarget(target, amountNum, side, limitFor(targetComposed?.newProb, pushesCallUp('buy', side))),
+        );
         setTarget(null);
       } else {
-        await onTrade(dir, amountNum);
+        result = asResult(await onTrade(dir, amountNum, limitFor(composed?.newProb, pushesCallUp('buy', dir))));
+      }
+      if (result && result.limited) {
+        setNote({
+          text: `Filled ${fmtStake(result.spent ?? 0)} of ${fmtStake(amountNum)} cr. The price moved.`,
+          key: currentNoteKey,
+        });
       }
       flash();
     } catch (e) {
-      setError((e as Error).message || 'Trade failed');
+      if (!refused(e)) setError((e as Error).message || 'Trade failed');
     } finally {
       setBusy(null);
     }
@@ -352,12 +418,21 @@ export function TradeTicket({
   const sell = async (p: TicketPosition, shares: number) => {
     if (busy) return;
     setError('');
+    setNote(null);
     setBusy(`sell-${p.direction}`);
     try {
-      await onSell(p, shares);
+      const after = previewSellPrice(probability, liquidity, p.direction, shares);
+      const result = asResult(await onSell(p, shares, limitFor(after, pushesCallUp('sell', p.direction))));
       setSellDir(null);
+      if (result && result.limited) {
+        const sold = result.sharesSold ?? 0;
+        setNote({
+          text: `Sold ${fmtShares(sold)} of ${fmtShares(sold + (result.sharesKept ?? 0))} shares. The price moved.`,
+          key: currentNoteKey,
+        });
+      }
     } catch (e) {
-      setError((e as Error).message || 'Sell failed');
+      if (!refused(e)) setError((e as Error).message || 'Sell failed');
     } finally {
       setBusy(null);
     }
@@ -950,6 +1025,11 @@ export function TradeTicket({
         </>
       )}
       {error && <p className="ticket-err">{error}</p>}
+      {shownNote && (
+        <p className="ticket-note" role="status">
+          {shownNote}
+        </p>
+      )}
     </div>
   );
 }

@@ -36,6 +36,7 @@ import { authMiddleware, getAuthWorkspaceMemberships } from '../middleware/auth'
 import { requireIdentity } from '../middleware/roles';
 import { actionsTool } from '../services/actions';
 import { buildDataRoomFeed, renderDataRoomDocument } from '../services/data-room';
+import { answerFloorPrices } from '../services/floor-prices';
 import { type ApiCallRecord, ottoApiTools } from '../services/otto-tools';
 import { linkedManifoldCount, platformStats } from '../services/platform-stats';
 import { marketPriceSeries } from '../services/predictions';
@@ -1323,6 +1324,36 @@ async function buildFloorPayload(ws: PublicWs) {
       : {}),
   };
 }
+
+/**
+ * The floor's prices alone, polled once a second by the floor itself and by
+ * agents (docs/guides/agent-api.md, "Prices, once a second"). Answered from
+ * memory while the price version stands still and with one query when it
+ * moves (services/floor-prices.ts; docs/infra/deploy.md, "Prices, one channel
+ * across instances"). Same disclosure rule as the ballot. The policy resolves
+ * no credentials for it and the global limiter skips it.
+ */
+marketplaceRouter.get(
+  '/:workspaceId/prices',
+  wrap(async (req, res) => {
+    const answer = await answerFloorPrices(
+      req.params.workspaceId as string,
+      typeof req.headers['if-none-match'] === 'string' ? req.headers['if-none-match'] : undefined,
+    );
+    // Revalidate every time: the ETag makes that a 304 with no body.
+    res.setHeader('Cache-Control', 'no-cache');
+    if ('error' in answer) {
+      res.status(answer.status).json({ error: answer.error });
+      return;
+    }
+    res.setHeader('ETag', `"${answer.etag}"`);
+    if (!('body' in answer)) {
+      res.status(304).end();
+      return;
+    }
+    res.json(answer.body);
+  }),
+);
 
 /**
  * A single market's price history on a public workspace, replayed the same

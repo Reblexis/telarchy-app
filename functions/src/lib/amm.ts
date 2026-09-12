@@ -82,11 +82,22 @@ export function betTowardsValue(
   rangeMax: number,
   targetValue: number,
   maxBudget: number,
+  /**
+   * The side the caller named. Without it the side is picked from where the
+   * call is now (the original, documented contract); with it the side never
+   * flips, and a target already behind the call on that side buys nothing
+   * (docs/guides/agent-api.md, "Guard the price").
+   */
+  forcedDirection?: 0 | 1,
 ): { direction: 0 | 1; amount: number; cost: number } {
   const current = consensus(shares, b, rangeMin, rangeMax) ?? rangeMin + (rangeMax - rangeMin) / 2;
-  if (Math.abs(targetValue - current) < 0.01) return { direction: 1, amount: 0, cost: 0 };
+  if (Math.abs(targetValue - current) < 0.01) return { direction: forcedDirection ?? 1, amount: 0, cost: 0 };
+  if (forcedDirection !== undefined) {
+    const behind = forcedDirection === 1 ? targetValue <= current : targetValue >= current;
+    if (behind) return { direction: forcedDirection, amount: 0, cost: 0 };
+  }
 
-  const direction: 0 | 1 = targetValue >= current ? 1 : 0;
+  const direction: 0 | 1 = forcedDirection ?? (targetValue >= current ? 1 : 0);
   const p = (targetValue - rangeMin) / (rangeMax - rangeMin);
   if (p <= 0) {
     const { amount, cost } = sharesForBudget(shares, 0, maxBudget, b);
@@ -174,3 +185,46 @@ export const AMM_DEFAULTS = {
   rangeMax: 1000,
   liquidity: 0,
 };
+
+/**
+ * THE RULE OF A PRICE BOUND (docs/guides/agent-api.md, "Guard the price"): a
+ * trade's `limit` sits on the side of the call the trade pushes toward.
+ * Buying higher and selling lower push the call up, so their limit is a
+ * ceiling; buying lower and selling higher push it down, so theirs is a
+ * floor. Stated once, here; everything that bounds a trade reads it.
+ */
+export function boundSide(direction: 0 | 1, isSell: boolean): 'ceiling' | 'floor' {
+  const pushesUp = isSell ? direction === 0 : direction === 1;
+  return pushesUp ? 'ceiling' : 'floor';
+}
+
+/**
+ * How many shares a trade can move through before the call reaches `bound`:
+ * 0 when the call is already at or past it, Infinity when the bound lies
+ * beyond the range edge the trade moves toward. A buy of higher and a sell of
+ * lower each move q1 - q0 up by one per share, the other two move it down by
+ * one, and the call is rangeMin + span / (1 + exp(-(q1 - q0) / b)), so the
+ * room is the distance in q1 - q0 to the bound's own q1 - q0.
+ */
+export function sharesToBound(
+  book: [number, number],
+  b: number,
+  rangeMin: number,
+  rangeMax: number,
+  direction: 0 | 1,
+  isSell: boolean,
+  bound: number,
+): number {
+  const side = boundSide(direction, isSell);
+  const p = (bound - rangeMin) / (rangeMax - rangeMin);
+  if (side === 'ceiling') {
+    if (p >= 1) return Number.POSITIVE_INFINITY;
+    if (p <= 0) return 0;
+  } else {
+    if (p <= 0) return Number.POSITIVE_INFINITY;
+    if (p >= 1) return 0;
+  }
+  const boundDiff = b * Math.log(p / (1 - p));
+  const diff = book[1] - book[0];
+  return Math.max(0, side === 'ceiling' ? boundDiff - diff : diff - boundDiff);
+}

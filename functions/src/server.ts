@@ -118,6 +118,20 @@ import('./app')
     if (process.env.USDC_SETTLEMENT_ENABLED === 'true') assertTreasuryConfigured();
     await runBootstrap();
 
+    // The price channel: one dedicated LISTEN connection per instance, so a
+    // trade another instance took moves this one's prices within a second
+    // (docs/infra/deploy.md, "Prices, one channel across instances"). Never
+    // awaited: the server serves while it connects, and a floor read falls
+    // back to a one-second answer until it does.
+    if (process.env.DATABASE_URL) {
+      const { PRICE_CHANNEL, startPriceChannel } = await import('./lib/price-channel');
+      const { pool } = await import('./db/client');
+      startPriceChannel({
+        connectionString: process.env.DATABASE_URL,
+        fallbackSend: payload => pool.query('SELECT pg_notify($1, $2)', [PRICE_CHANNEL, payload]),
+      });
+    }
+
     // Dynamic on purpose, like every db-touching import in this file: static
     // imports hoist above the .env.local overlay at the top and would capture
     // DATABASE_URL before the overlay ran.

@@ -40,7 +40,7 @@ import { AddDateDialog, InjectLiquidityDialog, NewMetricDialog, ReportValueDialo
 import { PositionSummary } from '../components/PositionSummary';
 import { SubjectAbout } from '../components/SubjectAbout';
 import { TopBarShortcuts } from '../components/TopBarShortcuts';
-import { type TicketPosition, TradeTicket } from '../components/TradeTicket';
+import { type TicketPosition, type TicketTradeResult, TradeTicket } from '../components/TradeTicket';
 import { useAuth } from '../hooks/useAuth';
 import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import { useWorkspaceLog } from '../hooks/useWorkspaceLog';
@@ -78,7 +78,9 @@ import { isFastWorkspace } from '../lib/live-log';
 import { maxWinLabel } from '../lib/market-quote';
 import { authPath } from '../lib/nextPath';
 import { periodGapOf } from '../lib/period-gap';
+import { overlayFloorPrices } from '../lib/price-overlay';
 import { isPricedOption, optionLead, worldOf } from '../lib/proposal-options';
+import { useFloorPrices } from '../lib/useFloorPrices';
 import { clockSecondsOf, countdownTo, dayOf, instantOf, pollIntervalFor, tickIntervalFor } from '../lib/viewer-time';
 
 /**
@@ -259,7 +261,14 @@ export function TradePage() {
   // feed drives the floor"): the payload with the feed's latest quotes laid
   // over the pending proposals it names. Everything below reads `ws`.
   const [feedQuotes, setFeedQuotes] = useState<FeedQuotes>({});
-  const ws = useMemo(() => overlayFeedQuotes(wsRaw, feedQuotes), [wsRaw, feedQuotes]);
+  // Prices once a second (docs/ui-conventions.md, "The floor's live poll"),
+  // laid over the payload and the feed's quotes in place; the fresher of the
+  // two, so it goes on last. It reorders nothing.
+  const floorPrices = useFloorPrices(idOrSlug, !!wsRaw);
+  const ws = useMemo(
+    () => overlayFloorPrices(overlayFeedQuotes(wsRaw, feedQuotes), floorPrices.books),
+    [wsRaw, feedQuotes, floorPrices.books],
+  );
   // The live log (docs/ui-conventions.md, "The live log"): one read of this
   // workspace's actions, shared by the Live block and the strip under the verbs.
   const liveLog = useWorkspaceLog(idOrSlug ?? null);
@@ -450,6 +459,13 @@ export function TradePage() {
   // The price straight from a trade response, so the headline moves before
   // the reload lands. Keyed by market so it never leaks across a switch.
   const [livePrice, setLivePrice] = useState<{ marketId: string; value: number } | null>(null);
+  // When the viewer's own trade landed. The optimistic price gives way only to
+  // a prices read asked for after it (docs/ui-conventions.md, "The floor's
+  // live poll"); a read asked before it would show the price the trade moved.
+  const livePriceAt = useRef(0);
+  useEffect(() => {
+    if (floorPrices.books && floorPrices.askedAt > livePriceAt.current) setLivePrice(null);
+  }, [floorPrices.books, floorPrices.askedAt]);
   // The bet ticket (owner ask 2026-08-28, replacing the 2026-08-10 modal):
   // the floor shows two verbs; composing the bet happens inline under them,
   // with the charts still on screen. null = closed,
@@ -1350,9 +1366,9 @@ export function TradePage() {
   // The ticket owns busy/error/flash UI state; the page owns the money
   // plumbing. Errors propagate by throwing so the ticket can show them
   // where the finger is.
-  const doTrade = async (body: Record<string, unknown>) => {
+  const doTrade = async (body: Record<string, unknown>): Promise<TicketTradeResult | undefined> => {
     if (!ws) return;
-    const r = (await api.trade(body, ws.workspaceId)) as {
+    const r = (await api.trade(body, ws.workspaceId)) as TicketTradeResult & {
       consensus?: number | null;
       settledConsensus?: number | null;
     };
@@ -1362,6 +1378,7 @@ export function TradePage() {
     const landed = typeof r.settledConsensus === 'number' ? r.settledConsensus : r.consensus;
     if (typeof landed === 'number' && typeof body.marketId === 'string') {
       setLivePrice({ marketId: body.marketId, value: landed });
+      livePriceAt.current = Date.now();
     }
     refreshMoney();
     reload();
@@ -1370,21 +1387,40 @@ export function TradePage() {
     // (owner report 2026-08-21: "not always showing the latest state").
     loadLeaders();
     condHistoryRef.current();
+    return r;
   };
-  const placeTrade = async (direction: 'higher' | 'lower', amount: number) => {
+  // Every ticket trade carries its default guard (docs/ui-conventions.md, "The
+  // ticket guards the price by default"); the page only passes it on.
+  const placeTrade = async (direction: 'higher' | 'lower', amount: number, limit?: number) => {
     if (!activeMarketId) return;
-    await doTrade({ marketId: activeMarketId, direction, amount });
+    return doTrade({ marketId: activeMarketId, direction, amount, ...(limit !== undefined ? { limit } : {}) });
   };
   // The ticket's typed "New value" places the server's targetValue mode: the
   // market lands ON the typed value (netting included), so the number the
   // ticket showed is the number the floor prints next.
-  const placeTargetTrade = async (targetValue: number, maxBudget: number) => {
+  const placeTargetTrade = async (
+    targetValue: number,
+    maxBudget: number,
+    direction?: 'higher' | 'lower',
+    limit?: number,
+  ) => {
     if (!activeMarketId) return;
-    await doTrade({ marketId: activeMarketId, targetValue, maxBudget });
+    return doTrade({
+      marketId: activeMarketId,
+      targetValue,
+      maxBudget,
+      ...(direction ? { direction } : {}),
+      ...(limit !== undefined ? { limit } : {}),
+    });
   };
-  const sellPosition = async (p: TicketPosition, shares: number) => {
+  const sellPosition = async (p: TicketPosition, shares: number, limit?: number) => {
     if (!activeMarketId) return;
-    await doTrade({ marketId: activeMarketId, direction: p.direction, sellShares: Math.min(p.shares, shares) });
+    return doTrade({
+      marketId: activeMarketId,
+      direction: p.direction,
+      sellShares: Math.min(p.shares, shares),
+      ...(limit !== undefined ? { limit } : {}),
+    });
   };
   // A resting order changes no price today, so it refreshes the money but
   // does not touch the chart's history.

@@ -44,6 +44,11 @@ export interface TtlCache<A extends unknown[], V> {
  */
 const allCaches: Array<{ clear(): void }> = [];
 
+/** Join `clearAllTtlCaches` with a cache that is not a ttlCache. */
+export function onClearAllCaches(clear: () => void): void {
+  allCaches.push({ clear });
+}
+
 export function clearAllTtlCaches(): void {
   for (const c of allCaches) c.clear();
 }

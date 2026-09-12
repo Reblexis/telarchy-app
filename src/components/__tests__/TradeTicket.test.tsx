@@ -256,7 +256,7 @@ describe('betting towards a value', () => {
     fireEvent.change(target, { target: { value: '300000' } });
     fireEvent.change(screen.getByLabelText('Credits to spend'), { target: { value: '40' } });
     fireEvent.click(screen.getByText('Bet 40 cr on Higher'));
-    await waitFor(() => expect(onTrade).toHaveBeenCalledWith('higher', 40));
+    await waitFor(() => expect(onTrade).toHaveBeenCalledWith('higher', 40, expect.any(Number)));
     expect(onTradeTarget).not.toHaveBeenCalled();
   });
 
@@ -824,7 +824,7 @@ describe('decimal stakes', () => {
     expect(input.value).toBe('0.25');
     expect(input.getAttribute('inputmode')).toBe('decimal');
     fireEvent.click(screen.getByText('Bet 0.25 cr on Higher'));
-    await waitFor(() => expect(onTrade).toHaveBeenCalledWith('higher', 0.25));
+    await waitFor(() => expect(onTrade).toHaveBeenCalledWith('higher', 0.25, expect.any(Number)));
   });
 
   test('the decimal point survives typing: 12.5 stays 12.5, not 125', () => {
@@ -844,7 +844,7 @@ describe('decimal stakes', () => {
     fireEvent.change(screen.getByLabelText('Credits to spend'), { target: { value: '1.2345678' } });
     expect((screen.getByLabelText('Credits to spend') as HTMLInputElement).value).toBe('1.234567');
     fireEvent.click(screen.getByText('Bet 1.234567 cr on Higher'));
-    await waitFor(() => expect(onTrade).toHaveBeenCalledWith('higher', 1.234567));
+    await waitFor(() => expect(onTrade).toHaveBeenCalledWith('higher', 1.234567, expect.any(Number)));
   });
 
   test('a fractional balance can be bet in full: the ceiling is the balance, not the balance rounded down', async () => {
@@ -856,7 +856,7 @@ describe('decimal stakes', () => {
     fireEvent.change(slider, { target: { value: '1000' } });
     expect((screen.getByLabelText('Credits to spend') as HTMLInputElement).value).toBe('250.75');
     fireEvent.click(screen.getByText('Bet 250.75 cr on Higher'));
-    await waitFor(() => expect(onTrade).toHaveBeenCalledWith('higher', 250.75));
+    await waitFor(() => expect(onTrade).toHaveBeenCalledWith('higher', 250.75, expect.any(Number)));
   });
 
   test('a balance under a credit is still a stake you can type', async () => {
@@ -864,7 +864,7 @@ describe('decimal stakes', () => {
     render(<TradeTicket {...base} onTrade={onTrade} balance={0.4} />);
     pick('Higher', '0.4');
     fireEvent.click(screen.getByText('Bet 0.4 cr on Higher'));
-    await waitFor(() => expect(onTrade).toHaveBeenCalledWith('higher', 0.4));
+    await waitFor(() => expect(onTrade).toHaveBeenCalledWith('higher', 0.4, expect.any(Number)));
   });
 
   test('a limit order budget keeps its decimals too', async () => {

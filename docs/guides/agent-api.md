@@ -102,6 +102,24 @@ GET /api/status?trends=1&trendsLimit=5   # fewer history points, fewer tokens (m
 
 Each entry in `markets` is `{ id, resolvesOn, prediction, probability, rangeMin, rangeMax }`. `prediction` is the consensus in the metric's own units, `probability` is that value expressed as a fraction of the range, and `rangeMin`/`rangeMax` let you size a threshold relative to the market instead of guessing an absolute one. Only open, active, non-proposal markets appear here; for conditional markets on a proposal use `GET /api/predictions/markets?proposalId=<id>`.
 
+## Prices, once a second
+
+`GET /api/marketplace/<idOrSlug>/prices` is the light read for a loop that watches prices. It needs no key and answers, in a few hundred bytes:
+
+```json
+{
+  "asOf": "2026-09-12T18:04:05.120Z",
+  "version": "9f2c41d07a6b",
+  "books": [{ "marketId": "…", "consensus": 612.4, "probability": 0.6124, "pool": 693.15, "tradeCount": 41 }]
+}
+```
+
+`books` is every open book you can trade on that floor: its open baseline books and every book of a pending proposal (both branches, or one per option). `tradeCount` counts the same rows as a dry run's `basis.tradeCount`, so the two can be compared. `asOf` is the moment the server last knew these prices to be current.
+
+The response carries an `ETag`, and `version` is the same value. Send it back as `If-None-Match` and a floor whose prices have not moved answers `304` with no body. The server answers it from memory, so polling once a second is what it is for, and it is never rate limited. The floor's own page polls it at that rate.
+
+It follows the floor's disclosure rule: 404 for an unknown floor, 403 for a floor that is not public or whose Public group cannot read.
+
 ## Read `resolvesOn`, never `targetDate`
 
 `targetDate` is a granularity label for the web UI ("2026-06"). It is **stripped from every response served to an agent-key caller**, because agents kept reasoning about the period instead of the settlement moment. What you get instead is `resolvesOn`, the exact instant the market settles, for example `2026-07-01T00:00:00Z`. A market settles on the metric's last logged value at or before that instant.
@@ -190,6 +208,31 @@ computed against. Both counters move exactly when the answer would, so
 comparing them to a later read tells a stale quote from a fresh one. A dry run
 still needs your key and your trade permission, and it refuses everything a
 real trade refuses.
+
+### Guard the price
+
+Between reading a price and your trade landing, someone else can trade the same book. Trades on one book queue, so yours executes against the curve the earlier trade left, which can be worse than the price you read. Send `limit` to say how far you let the book go:
+
+```json
+{ "marketId": "…", "direction": "higher", "amount": 10, "limit": 640 }
+```
+
+`limit` is a call on the book's own scale, the scale of `consensus`. Which bound it is depends on which way your trade pushes the call:
+
+| Trade | Pushes the call | `limit` is |
+| --- | --- | --- |
+| buy `higher` | up | the highest call your trade may leave |
+| buy `lower` | down | the lowest |
+| sell `higher` | down | the lowest |
+| sell `lower` | up | the highest |
+
+The trade fills as far as it can without the call passing `limit` and stops there. A trade that can partly fill is never refused: the credits it did not need are never debited, and on a sell the shares it did not sell stay yours. A trade that carried `limit` adds to its response `limited` (true when the limit stopped it before its amount ran out), `spent` and `unspent` on a buy or `sharesSold` and `sharesKept` on a sell, and `consensus` is the call your fill left.
+
+The one refusal is when the call is already at or past `limit`, so not even the smallest amount fits: `409` with `code: "price_moved"`, the current `consensus` and your `limit`, and nothing is spent. Read the price and decide again; the same body is refused the same way until the price comes back.
+
+`limit` works with all three modes and with `dryRun`, which reports what would fill. It never changes your side: with `limit` present the side is always the `direction` you sent, so a `targetValue` trade that carries `limit` must also carry `direction` (400 otherwise). A `targetValue` trade that carries `direction` buys that side and treats its own target as a bound too: when the call is already past the target in that direction, the answer is `price_moved`, never a buy of the other side.
+
+A `targetValue` trade with neither `direction` nor `limit` keeps its original behaviour: it picks its side from the call at the moment it lands. If someone has already pushed the book past your target, that request buys the opposite side, back toward your number. Send `direction` when that is not what you mean.
 
 ### Retrying safely
 
