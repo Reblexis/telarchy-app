@@ -164,8 +164,14 @@ default.
 generatedAt, doc: { updatedAt, sections }, actions }` where `sections` is
 the prose (one section, "actions", that says what the log is) and `actions`
 is the unfiltered first page in the shape above. It is cached for thirty
-seconds; filtered reads are computed on request, never cached, and the
-per-page cap is what keeps that cheap. The log is therefore never behind the
+seconds; filtered reads are computed on request, and the per-page cap is what
+keeps that cheap. One filtered read is held: a read that names exactly one
+`workspace` and nothing that differs per reader (no `participant`,
+`after`, `before` or `cursor`) is held for five seconds per full query,
+with one computation in flight per query, because every floor's Live column
+polls exactly that read (docs/ui-conventions.md, "The live log") and a
+floor has far more readers than this page. A reader wanting rows after an
+instant filters the held page by id instead of asking with `after`. The log is therefore never behind the
 tables by more than the page's own minute poll. The read also rolls the visit log into `traffic_daily`
 as it always has, so the traffic history keeps accumulating for whatever the
 room carries next.
@@ -230,6 +236,19 @@ says the page polls each minute, so "read live" is a claim the page keeps.
 An empty result says "No actions match" with the filters still shown. A
 failed request says the log would not open, and never renders as an empty
 log: nothing happening and nothing loading are different facts.
+
+## A workspace's log
+
+`telarchy.com/<slug>/log` is this log for one workspace, reached from the
+floor's Live column ("All activity"). It is the same component as the Log
+tab, with the workspace fixed: no floor select and no floor name on a row
+(every row is this workspace's), hidden-by-default floors included since
+the page names one, the kind chips and the participant chip as on the Log
+tab, and every filter in the URL query. It renders in the floor's own light
+palette under a back link to the floor and the title "<name> log", because
+it belongs to the workspace rather than to the room. Its times are UTC and
+it says so, like the Log tab: it is the audit record, where the floor's Live
+column is a view of the same rows in the viewer's zone.
 
 ## What is planned
 

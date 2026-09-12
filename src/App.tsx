@@ -30,6 +30,7 @@ const EarnPage = lazyPage(() => import('./pages/EarnPage'), 'EarnPage');
 const ParticipantProfilePage = lazyPage(() => import('./pages/ParticipantProfilePage'), 'ParticipantProfilePage');
 const AdminPage = lazyPage(() => import('./pages/AdminPage'), 'AdminPage');
 const DataRoomPage = lazyPage(() => import('./pages/DataRoomPage'), 'DataRoomPage');
+const WorkspaceLogPage = lazyPage(() => import('./pages/WorkspaceLogPage'), 'WorkspaceLogPage');
 const LegalPage = lazyPage(() => import('./pages/LegalPage'), 'LegalPage');
 const AboutPage = lazyPage(() => import('./pages/AboutPage'), 'AboutPage');
 const ContactPage = lazyPage(() => import('./pages/ContactPage'), 'ContactPage');
@@ -217,6 +218,8 @@ export function App() {
         {/* Where money enters one floor (docs/liquidity-purchases.md). Above
             /:slug so a workspace named "funding" cannot swallow it. */}
         <Route path="/:slug/funding" element={<FundingPage />} />
+        {/* A workspace's own log (docs/data-room.md, "A workspace's log"). */}
+        <Route path="/:slug/log" element={<WorkspaceLogPage />} />
         {/* A proposal has an address (docs/ui-conventions.md, "A proposal
             has an address and a card", 2026-09-09): the floor, opened on it.
             Before /:slug so a floor cannot swallow it. */}

@@ -12386,3 +12386,146 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   .snake-games { order: 0; }
   .snake-btn { order: 2; }
 }
+
+/* ---- The live log (docs/ui-conventions.md, "The live log") ------------ */
+/* The floor's Live column in the left rail from 1500px, and the one-line
+   strip under the verbs below that. Section-head anatomy, hairline rows,
+   mono times; a row that arrived since the first read is tinted. */
+.pubws-live { text-align: left; }
+.pubws-live-head { gap: 0.75rem; }
+.pubws-live-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-primary);
+}
+.pubws-live-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--higher);
+  box-shadow: 0 0 0 3px var(--higher-soft);
+}
+.pubws-live-all {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.69rem;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.pubws-live-all:hover { color: var(--accent-hover); }
+.pubws-live-list { display: flex; flex-direction: column; }
+.pubws-live-row {
+  display: grid;
+  grid-template-columns: 2.6rem minmax(0, 1fr);
+  gap: 0 0.5rem;
+  padding: 0.5rem;
+  margin: 0 -0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: background var(--transition-fast);
+}
+a.pubws-live-row:hover { background: var(--bg-secondary); }
+.pubws-live-row.is-new,
+.pubws-live-group.is-new { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.pubws-live-time {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.69rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+.pubws-live-body { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.pubws-live-kind {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+}
+.pubws-live-text { min-width: 0; overflow-wrap: anywhere; }
+.pubws-live-who { font-weight: 600; color: var(--text-primary); }
+.pubws-live-group {
+  padding: 0.55rem 0.5rem 0.35rem;
+  margin: 0 -0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.pubws-live-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-bottom: 0.2rem;
+}
+.pubws-live-group-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.pubws-live-group-title:hover { color: var(--accent); }
+.pubws-live-status { flex: none; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; white-space: nowrap; }
+.pubws-live-status.is-open { color: var(--accent); }
+.pubws-live-status.is-chosen,
+.pubws-live-status.is-approved { color: var(--higher); }
+.pubws-live-status.is-declined { color: var(--lower); }
+.pubws-live-status.is-lapsed { color: var(--text-tertiary); }
+.pubws-live-row--in { border-bottom: 0; padding: 0.2rem 0; margin: 0; }
+.pubws-live-opened { color: var(--text-tertiary); }
+.pubws-live-empty { margin: 0.6rem 0 0; font-size: 0.8rem; color: var(--text-tertiary); text-align: left; }
+
+.pubws-live-strip { margin-top: 1rem; }
+.pubws-live-strip-line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 0.8rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: none;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+.pubws-live-strip-line:hover { border-color: var(--border-strong); }
+.pubws-live-strip-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pubws-live-chev { font-size: 0.7rem; color: var(--text-tertiary); }
+.pubws-live-strip .pubws-live { margin-top: 0.6rem; }
+
+/* Where each lives: the column only where the three columns exist, the strip
+   everywhere else. */
+.pubws-rail--left > .pubws-live { display: none; }
+@media (min-width: 1500px) {
+  .pubws-main--context .pubws-rail--left > .pubws-live { display: block; }
+  .pubws-main--context .pubws-live-strip { display: none; }
+}
+
+/* A workspace's own log (docs/data-room.md, "A workspace's log"): the room's
+   column and rows in the floor's light palette. */
+.wslog { background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
+.wslog-back {
+  display: inline-block;
+  margin-bottom: 1.1rem;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+.wslog-back:hover { color: var(--text-primary); }

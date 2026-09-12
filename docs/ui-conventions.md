@@ -731,7 +731,9 @@ never carries "UTC". Day, week and month cells stay UTC periods (a book
 "for 30 Sep" is the UTC day, as docs/guides/sources.md defines it) and keep
 their settle day as before; only the rendering of an instant moves. The
 public actions log is the exception: it is an audit record and says "Times
-are UTC" over its rows.
+are UTC" over its rows, on the data room and on a workspace's own
+`/<slug>/log`. The floor's Live column (below) shows the same rows as part
+of the floor, so its times are the viewer's.
 
 ### Links in prose are links
 
@@ -2135,6 +2137,53 @@ same way. It is deliberately not a selected state, because a highlight
 that stays turns into something to dismiss and the reader already knows
 what they clicked. Under reduced motion the wash still happens (it is the
 answer to "which one?") and the scroll stops gliding.
+
+### The live log
+
+A floor shows what is happening on it as it happens (Viktor, 2026-09-12: "a
+realtime log of what happened for a given workspace"; design
+https://claude.ai/code/artifact/5fbdd9cc-ba1d-47e9-b834-87ba1d412dfc,
+direction A with C as its destination). The rows are the public actions log
+for this workspace (docs/data-room.md), never a second record.
+
+**Where.** In the plain market view the left column carries a **Live**
+block (`FloorLiveLog`, `.pubws-live`) under the season advert and the
+announcements, from 1500px up where the three columns exist. Below 1500px
+and on a phone the same log folds to one line under the bet verbs
+(`.pubws-live-strip`): the live dot, the newest row as one ellipsized line,
+its time, and a chevron; pressing the line opens the block in place and
+pressing it again folds it. A selected proposal shows neither: the page is
+about that proposal.
+
+**The block.** A head in the section-head anatomy (`.pubws-lb-head`): the
+live dot and "Live" on the left, "All activity" linking to `/<slug>/log` on
+the right. Under it the newest rows first, at most 30. A row is the time in
+the viewer's zone (mono, `HH:MM`), the actor in bold when there is one, and
+the sentence in the secondary ink, the whole row linking to the row's
+`href`. A row that arrived since the block first drew is tinted in the accent
+until the pointer moves over the block.
+
+**A fast workspace is grouped by proposal.** When the floor's
+`decisionMinutes` is 5 or less, rows are grouped into one block per
+proposal, newest proposal first: the head names it by its title in mono and
+states where it stands (open, or the option chosen, or approved, declined,
+lapsed, in the decision's colour); inside, that proposal's own rows
+(its trades, orders and funding, by time, newest first) with the funding
+said as "opened with 3,000 cr". A trade or order that names no proposal
+belongs to the newest proposal posted at or before it. On a slower
+workspace every row stands alone, with its kind's name in small mono caps
+over the sentence. A trade in a group reads short: "vi0 bought higher,
+151 cr, 16.7 → 18.8".
+
+**How it stays live.** The page reads
+`GET /api/data-room/actions?workspace=<slug>&limit=30` when the floor
+opens, every 15 seconds while the tab is visible, and at once when a live
+feed reports a new step or a ruling. Every reader of a floor asks the same
+query, which the server holds for five seconds (docs/data-room.md, "The
+feed"), and new rows are found by id on the client rather than asked for
+with `after`. A failed read leaves the rows standing; nothing drawn is ever
+removed by a poll. A floor with no rows yet shows "Nothing has happened here
+yet." in one line, and the strip is not drawn at all.
 
 ### The rails, and the standings under the verbs
 
