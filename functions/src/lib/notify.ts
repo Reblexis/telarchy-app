@@ -30,14 +30,29 @@ import { mailFrom } from './origin';
  * Resend, or a dead network are all logged and swallowed. Returns true only
  * when Resend accepted it, which is what the tests assert on.
  */
-export async function sendEmail(to: string, subject: string, text: string): Promise<boolean> {
+export async function sendEmail(
+  to: string,
+  subject: string,
+  text: string,
+  /* A broadcast needs two things per-event mail does not: its own headers, so
+     `List-Unsubscribe` can ride along, and a reply-to, because the From
+     address sends and receives nowhere (docs/announcements-by-email.md). */
+  opts?: { headers?: Record<string, string>; replyTo?: string },
+): Promise<boolean> {
   const key = process.env.RESEND_API_KEY;
   if (!key || !to) return false;
   try {
     const res = await fetch(RESEND_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-      body: JSON.stringify({ from: mailFrom(), to: [to], subject, text }),
+      body: JSON.stringify({
+        from: mailFrom(),
+        to: [to],
+        subject,
+        text,
+        ...(opts?.replyTo ? { reply_to: opts.replyTo } : {}),
+        ...(opts?.headers && Object.keys(opts.headers).length ? { headers: opts.headers } : {}),
+      }),
     });
     if (!res.ok) {
       console.error(`email send failed: ${res.status} ${await res.text()}`);

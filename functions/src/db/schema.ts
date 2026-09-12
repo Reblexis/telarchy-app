@@ -1945,3 +1945,53 @@ export const outreachLessons = pgTable('outreach_lessons', {
   lessons: text('lessons').notNull(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
+
+/**
+ * Announcements by email (docs/announcements-by-email.md).
+ *
+ * Who has asked us to stop. Keyed on the ADDRESS, not on a participant: the
+ * people a broadcast reaches may hold no account at all, and one unsubscribe
+ * has to cover every later broadcast to that mailbox. Per-event notification
+ * mail is governed by the participant's own switches and is untouched by
+ * this: stopping announcements does not stop being told a market settled.
+ */
+export const emailOptOuts = pgTable('email_opt_outs', {
+  /** Normalised: trimmed and lowercased (lib/unsubscribe.ts). */
+  email: text('email').primaryKey(),
+  at: timestamp('at').notNull().defaultNow(),
+  /** 'one-click' | 'link' | 'manual' */
+  source: text('source').notNull().default('link'),
+});
+
+/** One announcement: what was sent, to which audience, by whom. */
+export const broadcasts = pgTable('broadcasts', {
+  id: text('id').primaryKey(),
+  subject: text('subject').notNull(),
+  body: text('body').notNull(),
+  /** 'season-entrants' */
+  audience: text('audience').notNull(),
+  seasonId: text('season_id'),
+  replyTo: text('reply_to'),
+  createdBy: text('created_by'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+/**
+ * What happened to each address, always. The primary key is the rule: a
+ * retry of a half-failed broadcast writes only to the addresses with no
+ * `sent` row, so nobody is written to twice.
+ */
+export const broadcastSends = pgTable(
+  'broadcast_sends',
+  {
+    broadcastId: text('broadcast_id').notNull(),
+    email: text('email').notNull(),
+    agentId: text('agent_id'),
+    /** 'sent' | 'failed' | 'suppressed' */
+    status: text('status').notNull(),
+    /** The provider's words when it failed, so a run can be answered for. */
+    error: text('error'),
+    at: timestamp('at').notNull().defaultNow(),
+  },
+  t => [primaryKey({ columns: [t.broadcastId, t.email] })],
+);

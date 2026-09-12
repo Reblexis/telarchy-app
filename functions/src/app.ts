@@ -19,6 +19,7 @@ import { apiAuthPolicy, installRouteMatchers } from './middleware/route-policy';
 import { activityRouter } from './routes/activity';
 import { adminRouter } from './routes/admin';
 import { agentsRouter } from './routes/agents';
+import { adminBroadcastsRouter } from './routes/broadcasts';
 import { cronRouter } from './routes/cron';
 import { dataRoomRouter } from './routes/data-room';
 import { eventsRouter } from './routes/events';
@@ -41,6 +42,7 @@ import { seasonsRouter } from './routes/seasons';
 import { setupRouter } from './routes/setup';
 import { sourcesRouter } from './routes/sources';
 import { systemRouter } from './routes/system';
+import { unsubscribeRouter } from './routes/unsubscribe';
 import { updatesRouter } from './routes/updates';
 import { userauthRouter } from './routes/userauth';
 import { waitlistRouter } from './routes/waitlist';
@@ -444,6 +446,11 @@ app.use('/api/leaderboard', leaderboardRouter);
 app.use('/api/seasons', seasonsRouter);
 app.use('/api/notifications', requireConsentIfUser, notificationsRouter);
 app.use('/api/feedback', feedbackLimiter, feedbackRouter);
+/* Stopping announcements takes no session: the token in the link is the whole
+   credential, because the people a broadcast reaches may hold no account
+   (docs/announcements-by-email.md, "Unsubscribing"). Mounted here, above the
+   consent gate, for the same reason. */
+app.use('/api/unsubscribe', unsubscribeRouter);
 
 // Sources: the GitHub OAuth callback is a redirect from GitHub with no auth
 // headers, so this prefix is optional-auth in the policy. Individual routes that
@@ -465,6 +472,7 @@ app.use('/api/groups', groupsRouter);
 // Mounted BEFORE the admin router so /api/admin/x/* resolves here rather
 // than falling through to the admin router's own :param routes.
 app.use('/api/admin/x', xWorkbenchRouter);
+app.use('/api/admin/broadcasts', adminBroadcastsRouter);
 app.use('/api/admin/outreach', outreachRouter);
 app.use('/api/admin/manifold-update', manifoldUpdateRouter);
 app.use('/api/admin', adminRouter);

@@ -49,6 +49,16 @@
     "agent": 403,
     "master": 200
   },
+  "GET /api/admin/broadcasts/": {
+    "anon": 401,
+    "agent": 403,
+    "master": 200
+  },
+  "POST /api/admin/broadcasts/": {
+    "anon": 401,
+    "agent": 403,
+    "master": 400
+  },
   "GET /api/admin/earn/:key/history": {
     "anon": 401,
     "agent": 403,
@@ -1223,6 +1233,16 @@
     "anon": 503,
     "agent": 503,
     "master": 503
+  },
+  "GET /api/unsubscribe/:token": {
+    "anon": 400,
+    "agent": 400,
+    "master": 400
+  },
+  "POST /api/unsubscribe/:token": {
+    "anon": 400,
+    "agent": 400,
+    "master": 400
   },
   "GET /api/updates/": {
     "anon": 401,

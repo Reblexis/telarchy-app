@@ -113,6 +113,16 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-agent-telemetry-protocol-md--h10">What this protocol does NOT cover</a></li>
 </ul></details>
 </li>
+<li><details><summary><a class="file" href="#file--docs-announcements-by-email-md">docs/announcements-by-email.md</a></summary>
+<ul>
+<li><a href="#docs-announcements-by-email-md--h1">Announcements by email</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-announcements-by-email-md--h2">The audience</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-announcements-by-email-md--h3">Unsubscribing</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-announcements-by-email-md--h4">Sending</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-announcements-by-email-md--h5">What a broadcast is not</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-announcements-by-email-md--h6">API</a></li>
+</ul></details>
+</li>
 <li><details><summary><a class="file" href="#file--docs-audience-pages-md">docs/audience-pages.md</a></summary>
 <ul>
 <li><a href="#docs-audience-pages-md--h1">The audience pages</a></li>
@@ -938,6 +948,10 @@ the top.</p>
 <td>The data room: the public actions log and its feed</td>
 </tr>
 <tr>
+<td><code>announcements-by-email.md</code></td>
+<td>Broadcasts: one message to a named audience, unsubscribing, and the record of who received it</td>
+</tr>
+<tr>
 <td><code>metrics.md</code></td>
 <td>The metrics Telarchy tracks about Telarchy</td>
 </tr>
@@ -1386,6 +1400,104 @@ and then deleted. Don't store anything here that you couldn't
 reconstruct.</li>
 <li><strong>Real-time streaming.</strong> Sub-second visibility is not in scope.</li>
 </ul>
+
+<p class="backtop"><a href="#toc">&uarr; contents</a></p>
+</section>
+<section class="docfile" id="file--docs-announcements-by-email-md">
+<p class="filelabel">docs/announcements-by-email.md</p>
+<h1 id="docs-announcements-by-email-md--h1">Announcements by email</h1>
+<p>One message, one named audience, sent once, recorded per recipient.</p>
+<p>Telarchy's other mail is per-event: something happened on a floor and the
+people it happened to are told. A broadcast is the other kind. Nobody did
+anything to earn it, so it carries obligations the per-event mail does not:
+it must be easy to stop, it must never arrive twice, and afterwards it must
+be possible to say exactly who received it and who did not.</p>
+<h2 id="docs-announcements-by-email-md--h2">The audience</h2>
+<p><code>season-entrants</code> is the only audience. It is every entry of a prize season
+whose <code>optedIn</code> is true, addressed at the entry's <code>contactEmail</code>; where that
+is empty the account's own address is used, and an entrant with neither is
+recorded as unreachable rather than skipped quietly.</p>
+<p>The address is the identity here, not the participant. A season entrant may
+have registered through the API and have no account at all, which is the
+whole reason the entry carries an address of its own.</p>
+<h2 id="docs-announcements-by-email-md--h3">Unsubscribing</h2>
+<p><strong>Every broadcast can be stopped from inside the message, without a login.</strong>
+Three ways, all of which reach the same suppression list:</p>
+<ul>
+<li><code>List-Unsubscribe</code> names a one-click URL and a <code>mailto:</code>, and
+<code>List-Unsubscribe-Post: List-Unsubscribe=One-Click</code> tells the mail client
+it may use the URL without asking. A <code>POST</code> to it unsubscribes and answers
+200 with nothing to read, as the one-click standard requires.</li>
+<li>The same URL opened in a browser (<code>GET</code>) unsubscribes and says so on a
+plain page. It takes no session: a reader who never had an account can
+still stop the mail.</li>
+<li>The <code>mailto:</code> reaches a real mailbox, for a client that offers only that.</li>
+</ul>
+<p>The URL carries no database row: the token is the address and a keyed
+signature of it, so it cannot be guessed, cannot be enumerated, and never
+expires. A token that does not verify unsubscribes nobody and says so.</p>
+<p><strong>The suppression list is keyed on the address.</strong> One unsubscribe covers
+every future broadcast to that address, whoever holds it, whether or not
+they hold an account. Per-event notification mail is governed by the
+participant's own switches and is not affected: a person who stops
+announcements still hears that their market settled.</p>
+<h2 id="docs-announcements-by-email-md--h4">Sending</h2>
+<p>A broadcast is created and sent by one call, <code>POST /api/admin/broadcasts</code>,
+platform admin only. The rules it enforces:</p>
+<ul>
+<li><strong>Nothing is silently dropped.</strong> Every recipient gets a row saying <code>sent</code>,
+<code>failed</code> (with the provider's error) or <code>suppressed</code>. The existing
+transport swallows failures so a comment never fails because mail did;
+here the opposite is wanted, and the result is written down.</li>
+<li><strong>Paced.</strong> At most two sends a second, because the provider's limit is
+where an unpaced loop starts losing messages, and a rejected send there is
+indistinguishable from a delivered one.</li>
+<li><strong>Capped at 500 recipients.</strong> A broadcast is a small, deliberate thing sent
+by a person who is watching. Above the cap it is refused rather than run.</li>
+<li><strong>Sent at most once per address per broadcast.</strong> Re-running a broadcast
+that half-failed sends only to the addresses that have no <code>sent</code> row, so a
+retry finishes the job instead of writing to everyone twice.</li>
+<li><strong>Reply-to is a mailbox a person reads.</strong> <code>floor@telarchy.com</code> sends but
+receives nowhere, and a mail nobody can answer is not an announcement.</li>
+<li><code>dryRun</code> resolves the audience, applies the suppression list and writes
+nothing, so the size and the recipients can be read before committing.</li>
+</ul>
+<h2 id="docs-announcements-by-email-md--h5">What a broadcast is not</h2>
+<p>It does not post an announcement on a floor, it does not notify anyone in
+the app, and it is not a mailing list with subscriptions. It is a message
+the operator decided to send, once, to people who are already here.</p>
+<h2 id="docs-announcements-by-email-md--h6">API</h2>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Who</th>
+<th>What</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST /api/admin/broadcasts</code></td>
+<td>platform admin</td>
+<td>Create and send. Body <code>{ subject, body, audience: 'season-entrants', seasonId?, replyTo?, dryRun? }</code>. Returns <code>{ broadcastId, audience, sent, failed, suppressed, unreachable, recipients? }</code>.</td>
+</tr>
+<tr>
+<td><code>GET /api/admin/broadcasts</code></td>
+<td>platform admin</td>
+<td>What has been sent, newest first, with its counts.</td>
+</tr>
+<tr>
+<td><code>GET /api/unsubscribe/:token</code></td>
+<td>anyone</td>
+<td>Unsubscribes the address the token names, and says so.</td>
+</tr>
+<tr>
+<td><code>POST /api/unsubscribe/:token</code></td>
+<td>anyone</td>
+<td>The same, for one-click clients. 200, empty.</td>
+</tr>
+</tbody>
+</table></div>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>

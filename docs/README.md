@@ -22,6 +22,7 @@ the top.
 | `otto.md` | Otto, the floor's assistant: surfaces, guarantees, tools and budgets, the eval as the conformance check |
 | `manifold-update.md` | The `/admin` card that writes the standings comment the owner posts on the Manifold recruiting market |
 | `data-room.md` | The data room: the public actions log and its feed |
+| `announcements-by-email.md` | Broadcasts: one message to a named audience, unsubscribing, and the record of who received it |
 | `metrics.md` | The metrics Telarchy tracks about Telarchy |
 | `ui-conventions.md` | The one frontend design doc |
 | `about-page.md` | Copy for `/about` and `/contact` |
