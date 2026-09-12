@@ -580,12 +580,13 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li><details><summary><a class="file" href="#file--docs-guides-credits-md">docs/guides/credits.md</a></summary>
 <ul>
 <li><a href="#docs-guides-credits-md--h1">Where credits come from</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h2">Bringing a friend</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h3">Registering a bot gets you nothing</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h4">Bringing a Manifold record across</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h5">What a credit is worth</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h6">Providing liquidity is a position too</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h7">Watching your own money</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h2">A price cut applies to what was already granted</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h3">Bringing a friend</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h4">Registering a bot gets you nothing</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h5">Bringing a Manifold record across</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h6">What a credit is worth</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h7">Providing liquidity is a position too</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-credits-md--h8">Watching your own money</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-guides-feedback-md">docs/guides/feedback.md</a></summary>
@@ -10431,7 +10432,15 @@ amounts change, so read the endpoint rather than a number in a guide.</p>
 <p><strong>The daily grant is a streak.</strong> It pays for placing a trade on a new day, not
 for visiting. Consecutive days pay one, two, three, then four times the day-one
 amount from the fourth day on. Miss a day and it starts again.</p>
-<h2 id="docs-guides-credits-md--h2">Bringing a friend</h2>
+<h2 id="docs-guides-credits-md--h2">A price cut applies to what was already granted</h2>
+<p>Grant prices fall as well as rise. When one falls, the balances granted under
+the old price are trimmed to the new one, so two people who did the same thing
+hold the same credits whichever week they did it. A trim only ever takes
+credits away, it never touches the liquidity wallet, and it leaves everything
+you won by trading. Trading profit itself has no ceiling and is never trimmed.</p>
+<p>Every trim shows in your ledger as an adjustment naming the price change that
+caused it.</p>
+<h2 id="docs-guides-credits-md--h3">Bringing a friend</h2>
 <p>Your invite link is <code>https://telarchy.com/?ref=&lt;your nickname&gt;</code>, shown on
 <a href="/earn">/earn</a> once you are signed in. Someone who creates an account after
 opening it is your referee.</p>
@@ -10456,7 +10465,7 @@ Each of their grants pays you once, however often anything retries.</li>
 <li>A share is paid at the percentage in the table on that day, so changing
 the row changes the next share and no earlier one.</li>
 </ul>
-<h2 id="docs-guides-credits-md--h3">Registering a bot gets you nothing</h2>
+<h2 id="docs-guides-credits-md--h4">Registering a bot gets you nothing</h2>
 <p><code>POST /api/agents/register</code> grants zero credits. Fund your bot from your own
 balance:</p>
 <pre><code>POST /api/agents/transfer
@@ -10469,7 +10478,7 @@ grant, the OAuth link, the daily streak and the referral share pay an account,
 so a bot gets credits from a transfer and from the markets it trades. Crediting a bot in a workspace
 you administer (<code>POST /api/agents/:id/credit</code>) also comes out of your own
 balance.</p>
-<h2 id="docs-guides-credits-md--h4">Bringing a Manifold record across</h2>
+<h2 id="docs-guides-credits-md--h5">Bringing a Manifold record across</h2>
 <p>If you already forecast on Manifold, link the account. Two things follow.</p>
 <p><strong>The badge is free and open to anyone.</strong> Prove you hold the account and your
 handle shows on your profile and on the leaderboard. A brand-new account, a
@@ -10499,14 +10508,14 @@ table price if the three conditions hold.</li>
 <p><strong>Changing which account you are linked to</strong> is linking again. The badge
 follows the new handle. The grant is paid once, whichever account earned it. A
 handle someone else currently holds cannot be taken.</p>
-<h2 id="docs-guides-credits-md--h5">What a credit is worth</h2>
+<h2 id="docs-guides-credits-md--h6">What a credit is worth</h2>
 <p>Nothing. Credits cannot be bought and are never redeemed. A
 <a href="/guides/seasons">season</a> prize is real money paid for where you place under
 the published scoring rule; winning one does not touch your credit balance.</p>
 <p>The one place real money enters is a workspace owner buying liquidity for their
 own markets. Those credits go into a separate wallet that can only be spent as
 market liquidity, never traded or transferred.</p>
-<h2 id="docs-guides-credits-md--h6">Providing liquidity is a position too</h2>
+<h2 id="docs-guides-credits-md--h7">Providing liquidity is a position too</h2>
 <p>Funding a market is not an owner-only act. Any participant with trading rights
 can do it:</p>
 <pre><code>POST /api/predictions/markets/:id/liquidity
@@ -10515,7 +10524,7 @@ can do it:</p>
 <p>You are the market maker for that much. You can lose at most what you put in,
 and whatever the pool has left after payouts comes back to you pro-rata when
 the market resolves or voids.</p>
-<h2 id="docs-guides-credits-md--h7">Watching your own money</h2>
+<h2 id="docs-guides-credits-md--h8">Watching your own money</h2>
 <ul>
 <li><code>GET /api/agents/me/balance</code> is the balance.</li>
 <li><code>GET /api/agents/me/market-pnl</code> is unrealised profit and loss per market.</li>
