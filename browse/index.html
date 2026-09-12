@@ -382,17 +382,18 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h43">The guides (/guides)</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h44">Guide document rendering</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h45">Text contrast</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h46">The marketplace (/marketplace)</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h47">The cockpit (/admin)</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h48">The cockpit is tabbed, and only the open tab costs anything</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h49">The cockpit may never take the site down</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h50">Journeys: what one visitor did, in order</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h51">Reusing a component&#x27;s classes: mind the cascade order</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h52">When in doubt</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h53">What a market says about itself, and what your position is worth</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h54">The data room</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h55">The frontend never speaks HTTP directly</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h56">Telling somebody there are credits to earn</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h46">The leaderboard (/leaderboard)</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h47">The marketplace (/marketplace)</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h48">The cockpit (/admin)</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h49">The cockpit is tabbed, and only the open tab costs anything</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h50">The cockpit may never take the site down</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h51">Journeys: what one visitor did, in order</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h52">Reusing a component&#x27;s classes: mind the cascade order</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h53">When in doubt</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h54">What a market says about itself, and what your position is worth</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h55">The data room</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h56">The frontend never speaks HTTP directly</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h57">Telling somebody there are credits to earn</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-vision-md">docs/vision.md</a></summary>
@@ -6929,54 +6930,60 @@ ends in 26 days. Free to enter.&quot;, then the &quot;Enter the season&quot; / &
 season&quot; control. Three lines, nothing else: no trader or volume count in
 it, no &quot;and&quot;, no running sentence. It sits in the left column under the
 definition.</p>
-<p><strong>The standings are footers, not rails.</strong> Under the facts row, two
-compact blocks side by side on desktop and stacked on a phone
-(<code>.pubws-standings</code>): &quot;Top traders&quot; and &quot;Top contractors&quot;, THREE rows each
-(the rail showed five), the same <code>.pubws-lb-head</code> anatomy (tiny uppercase
-label, right-aligned mono meta, hairline, rows), and one &quot;Show full
-leaderboard&quot; link to <code>/leaderboard</code> under the pair. They keep every
-ranking rule below and the fifteen-second poll. <strong>With a proposal
-selected, the traders footer becomes &quot;Traders on this proposal&quot;</strong>: the
-same rows, restricted to accounts with a position on either branch of the
-selected pair, ranked by that position's marked profit, with the meta &quot;this
+<p><strong>The standings are one footer, not rails, and not two boards.</strong> Under
+the facts row stands a single block (<code>.pubws-standings</code>): &quot;Top traders&quot;,
+TEN rows, with the <code>.pubws-lb-head</code> anatomy (tiny uppercase label,
+right-aligned mono meta, hairline, rows) and one &quot;Show full leaderboard&quot;
+link to <code>/leaderboard</code> under it. The ten rows fill TWO COLUMNS
+(<code>.pubws-lb-cols</code>): ranks 1 to 5 on the left, 6 to 10 on the right on a
+desktop, one column on a phone, where the document order is 1 to 10 in
+order. A footer of five rows or fewer draws one column and leaves no empty
+track. The reader's own row is marked where it stands, and pinned at the
+foot of the last column when they are outside the ten. The board keeps
+every ranking rule below and the fifteen-second poll. <strong>With a proposal selected, the footer becomes
+&quot;Traders on this proposal&quot;</strong>: the same ten rows over the same two columns,
+restricted to accounts with a position on either branch of the selected
+pair, ranked by that position's marked profit, with the meta &quot;this
 proposal&quot;; when nobody holds one it says &quot;nobody yet&quot; in one row rather
-than hiding. The contractors footer does not change, since the contractor
-score is workspace-wide by construction.</p>
+than hiding. <strong>There is no contractors block on a floor.</strong> The contractor
+standings live on <code>/leaderboard</code> alone, because a floor is read to price
+the number and to find where the reader stands among the people pricing
+it.</p>
 <p><strong>The order under the trade is the same at every width</strong> (2026-09-09): the
 two bet verbs, then the ticket, then the proposals board, then the propose
 band, then how this settles, then the market's own activity, then the
-standings footers, then the announcements and the rest. Everything after the
+standings footer, then the announcements and the rest. Everything after the
 verbs is ONE grid item (<code>.pubws-tail</code>), and the ticket rail is its own,
 placed in the DOM between them: so the document order IS the phone order and
 the grid alone puts the rail beside the market on a wide screen. Nothing is
-rendered twice to achieve it. On a phone this replaces an order that put both standings, the
+rendered twice to achieve it. On a phone this replaces an order that put the standings, the
 definition and the announcements between the trade and the proposals, so
 paid work began at 2327px of a 4240px page. A visitor comes to price the
 number or to be paid for moving it, and both of those now happen in the
 first screen and the one after it. The floor column keeps a small gap under
 the top bar on narrow viewports. The loading ghosts draw the same columns.</p>
-<p><strong>Both standings are scoped to THIS workspace.</strong> The traders footer passes the
-workspace to <code>/api/leaderboard</code> (<code>?workspaceId=&lt;id or slug&gt;</code>), so a
-trader's number on a floor is the profit they made ON that floor; the
-contractor board is per workspace by construction. The cross-workspace
-board lives at <code>/leaderboard</code>, where the question genuinely is
-platform-wide.</p>
+<p><strong>The floor's standings are scoped to THIS workspace.</strong> The footer passes
+the workspace to <code>/api/leaderboard</code> (<code>?workspaceId=&lt;id or slug&gt;</code>), so a
+trader's number on a floor is the profit they made ON that floor. The
+cross-workspace board lives at <code>/leaderboard</code>, which also carries a picker
+for reading any one floor's board from there.</p>
 <p><strong>&quot;Show full leaderboard&quot; is a link to <code>/leaderboard</code>, never a board opened
-in place.</strong> The link sits directly under the two footers it extends and is
-their only full-width control; the season's own control lives in the
-season block in the left column.</p>
+in place.</strong> The link sits directly under the footer it extends and is its
+only full-width control; the season's own control lives in the season
+block in the left column.</p>
 <p><strong>The blocks share one anatomy.</strong> Every block, footer or rail, opens
 with a header row (<code>.pubws-lb-head</code>): the tiny uppercase label on the
 left, a right-aligned mono meta on the right, a hairline underneath, rows
 following directly. The meta says what the numbers are: &quot;this market&quot; over
-the traders, &quot;impact&quot; over the contractors, &quot;impact by Sep&quot; over the
+the traders, &quot;this proposal&quot; over the traders on a selected proposal,
+&quot;impact by Sep&quot; over the
 proposals, and the season's countdown over the season block (the one meta
 in primary colour and bold, because it is the number that says whether to
 act today). The proposals board's column label is that header's meta.</p>
-<p><strong>Both leaderboards rank on what the market says right now, not on what
-has settled.</strong> The footers show three rows each; both update on the
-floor's fifteen-second poll, so a single trade reorders them without a
-reload.</p>
+<p><strong>Both boards rank on what the market says right now, not on what
+has settled.</strong> The floor's footer shows ten rows and updates on the
+floor's fifteen-second poll, so a single trade reorders it without a
+reload; <code>/leaderboard</code> ranks the same way in its own tables.</p>
 <ul>
 <li><strong>Top traders</strong> rank by trading profit marked to market: payouts
 collected on resolved markets, plus the current worth of every open
@@ -6986,7 +6993,7 @@ position counts the moment its price moves; nothing waits for
 resolution. On <code>/leaderboard</code> each row also prints the split under the
 total, &quot;settled&quot; (final: resolutions and refunds) and &quot;open&quot; (still a
 mark), so a reader can tell realised money from paper (<code>docs/seasons.md</code>,
-&quot;The score&quot;). The rail's five compact rows print the total only. The
+&quot;The score&quot;). The floor footer's compact rows print the total only. The
 number is measured off the trades, not off the balance, so credits the
 platform handed an account never enter it. <strong>No account is excluded.</strong>
 Anyone who has ever traded in a public workspace is on the board. <strong>A
@@ -7026,7 +7033,7 @@ own unit (a proposal the market thinks hurts the number reads
 negative); dollars earned on approved proposals drop to the row's second
 line, alongside the proposal count. House accounts are NOT excluded
 here: a contractor's score is priced by other people, so it cannot be
-self-granted. The rail scores every pending proposal plus the 200 most
+self-granted. The board scores every pending proposal plus the 200 most
 recently posted approved ones (<code>CONTRACTOR_DECIDED_WINDOW</code>), never a
 workspace's whole history: it is rebuilt on every floor poll and home
 build, and a decided proposal's books are not read at all, since its
@@ -7443,7 +7450,38 @@ Hairline borders are deliberately below it too; they are structure, not text,
 and lifting them to a text contrast would turn the hairlines into rules and
 change the design language. Check a new token with a contrast ratio, not by
 eye.</p>
-<h2 id="docs-ui-conventions-md--h46">The marketplace (/marketplace)</h2>
+<h2 id="docs-ui-conventions-md--h46">The leaderboard (/leaderboard)</h2>
+<p><code>telarchy.com/leaderboard</code> (<code>LeaderPage</code>, <code>.lbp-*</code>) is where the floor's
+&quot;Show full leaderboard&quot; link lands. It carries the boards as TABLES with
+labeled columns (<code>components/LeaderTables.tsx</code>), so what each one scores on
+is legible without hovering: the season standings while a season runs or
+after it settles, then All-time, then Contractors. The floor shows ten
+traders and nothing else; this page is where the whole field, the split
+between settled and open, and the people posting proposals are read.</p>
+<p><strong>One picker says which floor.</strong> Above the boards sits a single select
+(<code>.lbp-scope</code>) listing every public floor by name, with &quot;Every floor&quot; as
+its first and default option. Choosing a floor scopes the all-time board
+and the contractors board to it: the traders board passes
+<code>?workspaceId=&lt;slug&gt;</code> to <code>/api/leaderboard</code>, and the contractors board
+reads that one floor's marketplace payload instead of the union of them
+all. The floor list is the public marketplace list
+(<code>GET /api/marketplace/workspaces/public</code>), the same list the page already
+reads for the contractors, so there is no second vocabulary of floors to
+keep in step.</p>
+<p><strong>The season board is never scoped.</strong> A season is a platform-wide contest
+scored over every public floor, so the picker leaves it alone and the
+section says which floors it covers by covering all of them. Scoping it
+would print a standing that pays nobody.</p>
+<p><strong>The choice lives in the URL</strong>, as <code>?workspace=&lt;slug&gt;</code>, and the page holds
+no filter the URL does not show (the data room's rule). So the back button
+walks the choices, a link to one floor's board is shareable, and the first
+load reads the query rather than defaulting to everything. A query naming
+a floor that is not public answers the way the API does, with an empty
+board, never by widening back to every floor.</p>
+<p><strong>The page polls on the floor's own fifteen-second cadence</strong> while the tab
+is visible and refreshes on tab return. Changing the picker refetches at
+once rather than waiting for the next tick.</p>
+<h2 id="docs-ui-conventions-md--h47">The marketplace (/marketplace)</h2>
 <p><code>telarchy.com/marketplace</code> renders standalone in the same design language
 (<code>.pubws-topbar</code>, Fraunces, mono numerals, one accent). The listings are
 one hairline-ruled BOARD (<code>.mkt-board</code>), not a row of boxed cards: a grid of
@@ -7540,7 +7578,7 @@ stake&quot;), and the door as a pill on
 the right. A faint radial accent glow (<code>.mkt-glow</code>, 9% accent at the
 centre, gone by 62%) sits behind the headline for depth; it is the only
 gradient on the page.</p>
-<h2 id="docs-ui-conventions-md--h47">The cockpit (/admin)</h2>
+<h2 id="docs-ui-conventions-md--h48">The cockpit (/admin)</h2>
 <p><code>telarchy.com/admin</code> is the owner's own page: who showed up, where they
 came from, who signed up, who is waiting, and what people reported. It is
 the one surface in the product with an audience of one, and it reads the
@@ -7574,7 +7612,7 @@ the owner reading the page does not raise the visits, uniques or top-pages
 figures that are supposed to mean a stranger showed up. Filtering it on read
 instead would move those hits into the &quot;bot hits&quot; count, which is a
 different lie.</p>
-<h3 id="docs-ui-conventions-md--h48">The cockpit is tabbed, and only the open tab costs anything</h3>
+<h3 id="docs-ui-conventions-md--h49">The cockpit is tabbed, and only the open tab costs anything</h3>
 <p><code>/admin</code> carries every operational surface there is: outreach, the X
 workbench, the data room's plan entries, traffic, the people to pay, the earn
 table, what the floors were asked, and what people reported. On one page that is a scroll nobody reads
@@ -7587,7 +7625,7 @@ approached from the other side: the cheapest query is the one nobody asked
 for.</p>
 <p>The open tab is in the URL fragment, so a reload comes back where the owner
 was and a link can point at one surface.</p>
-<h3 id="docs-ui-conventions-md--h49">The cockpit may never take the site down</h3>
+<h3 id="docs-ui-conventions-md--h50">The cockpit may never take the site down</h3>
 <p><code>/admin</code> is left open for hours, so its cost is a running cost rather than a
 page load. Three rules keep it from becoming an outage, all of them learned
 from one on 2026-09-09, when the page was left open overnight and the whole
@@ -7615,7 +7653,7 @@ consume that budget on their own, and then every other request fails waiting
 for a connection with <code>timeout exceeded when trying to connect</code>, which reads
 like a database outage and is not one. A dashboard's running cost has to be
 a small fraction of the connection budget, not most of it.</p>
-<h3 id="docs-ui-conventions-md--h50">Journeys: what one visitor did, in order</h3>
+<h3 id="docs-ui-conventions-md--h51">Journeys: what one visitor did, in order</h3>
 <p>The counts say a stranger showed up; they never say what happened next. A
 journey is one visitor's ordered path through the site in a single sitting,
 which is the only thing on the page that can answer &quot;where did they stop&quot;.
@@ -7656,7 +7694,7 @@ it inside an average.</p>
 not the clicks inside a page. The recorded-DOM version and what it would
 cost is <code>notes/session-replay-2026-09-01.md</code>.</p>
 <p>The cockpit shares no code with the deleted console.</p>
-<h2 id="docs-ui-conventions-md--h51">Reusing a component's classes: mind the cascade order</h2>
+<h2 id="docs-ui-conventions-md--h52">Reusing a component's classes: mind the cascade order</h2>
 <p>Several blocks (the proposal form, the account dialog, the Manifold import)
 compose the ticket's own classes and then correct one or two properties.
 <code>style.css</code> is one long file and the <code>.ticket-*</code> base rules live near the
@@ -7672,14 +7710,14 @@ before rewriting the markup.</p>
 placeholder, so it reads as a field awaiting digits rather than as a
 glyph; the hug-the-digits behaviour applies to amounts being actively
 edited.</p>
-<h2 id="docs-ui-conventions-md--h52">When in doubt</h2>
+<h2 id="docs-ui-conventions-md--h53">When in doubt</h2>
 <ul>
 <li>Strip color before adding it.</li>
 <li>Add whitespace before adding a divider.</li>
 <li>Use a hairline before using a card.</li>
 <li>Match an existing pattern before inventing one.</li>
 </ul>
-<h3 id="docs-ui-conventions-md--h53">What a market says about itself, and what your position is worth</h3>
+<h3 id="docs-ui-conventions-md--h54">What a market says about itself, and what your position is worth</h3>
 <p>Three facts sit at the right end of the Discussion / Positions / Trades
 row, as three icons with bare numbers (people, drop, bars: the shape
 Manifold's market header uses): how many
@@ -7709,7 +7747,7 @@ with its condition in the hover, never the headline: the breakeven line
 stays first, because a share's payout is linear in the settled value and
 &quot;to win N&quot; alone, as Manifold prints it for a yes/no share, would read as
 a promise here.</p>
-<h2 id="docs-ui-conventions-md--h54">The data room</h2>
+<h2 id="docs-ui-conventions-md--h55">The data room</h2>
 <p><code>telarchy.com/data-room</code> (<code>DataRoomPage</code>, <code>.dr-*</code>) is the public actions log
 and the one page that fixes its own palette: it renders on the site's dark
 tokens whatever the visitor's theme is, because it is an instrument rather
@@ -7751,7 +7789,7 @@ components as <code>/guides</code>) inside the room's column and palette, with t
 room's tab row above them. <strong>Vision</strong> renders one markdown document the
 same way an announcement body is rendered, under the tab row, with its
 &quot;updated&quot; date in mono.</p>
-<h2 id="docs-ui-conventions-md--h55">The frontend never speaks HTTP directly</h2>
+<h2 id="docs-ui-conventions-md--h56">The frontend never speaks HTTP directly</h2>
 <p><code>src/lib/api.ts</code> is the one module that calls <code>fetch</code>. Everything else, page
 or component, calls a method on <code>api</code>. That is not tidiness: the parity guard
 that proves the UI has no capability the public API lacks reads that single
@@ -7759,7 +7797,7 @@ file, so a component doing its own <code>fetch</code> is a capability nobody can
 is also what makes &quot;an assistant acting as you can do what you can do, and
 nothing more&quot; true by construction rather than by review.</p>
 <p><code>api-parity.test.ts</code> fails the build on a <code>fetch(</code> anywhere else under <code>src/</code>.</p>
-<h2 id="docs-ui-conventions-md--h56">Telling somebody there are credits to earn</h2>
+<h2 id="docs-ui-conventions-md--h57">Telling somebody there are credits to earn</h2>
 <p>Discovery goes where the lack is felt, not where attention is cheapest
 (owner ask 2026-08-30; design
 https://claude.ai/code/artifact/9794469a-2222-4fb9-938a-c519b412d771).

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { LeaderboardEntry, PublicContractor } from '../lib/api';
+import type { LeaderboardEntry } from '../lib/api';
 import { api, type PrizeSeason } from '../lib/api';
 import { pickCurrentSeason } from '../lib/season-clock';
 import { useSeasonClock } from '../lib/useSeasonClock';
@@ -8,14 +8,17 @@ import { BotMark } from './BotMark';
 import { ManifoldLogo } from './ManifoldLogo';
 
 /**
- * The standings under the verbs (docs/ui-conventions.md, "The rails, and
- * the standings under the verbs"): two compact three-row footers under the
- * facts row, "Top traders" and "Top contractors", with one "Show full
- * leaderboard" link under the pair. Footers, not rails: the first screen is
- * the question, the number and the bet verbs, and nothing about other
- * people above the fold. With a proposal selected the traders footer
- * becomes "Traders on this proposal". The season advert (below) lives in
- * the left column, under the market's definition.
+ * The standings under the verbs (docs/ui-conventions.md, "The standings are
+ * one footer, not rails, and not two boards"): ONE compact block under the
+ * facts row, "Top traders", ten rows over two columns, with one "Show full
+ * leaderboard" link under it. Footers, not rails: the first screen is the
+ * question, the number and the bet verbs, and nothing about other people
+ * above the fold. There is no contractors block here; the contractor
+ * standings live on /leaderboard alone, because a floor is read to price
+ * the number and to find where the reader stands among the people pricing
+ * it. With a proposal selected the footer becomes "Traders on this
+ * proposal". The season advert (below) lives in the left column, under the
+ * market's definition.
  */
 
 /** A row in the traders footer while a proposal is selected: an account
@@ -41,28 +44,12 @@ export function useCurrentSeason(): PrizeSeason | null {
   return season;
 }
 
-/** The contractor score, in the hero metric's own unit. Same shape as the
- *  proposal impact chip on the poster, so the footer and the board agree. */
-function formatImpact(value: number, unit: string): string {
-  const abs = Math.abs(value);
-  const decimals = abs >= 100 ? 0 : abs >= 1 ? 1 : 2;
-  const num = abs.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-  return `${value > 0 ? '+' : value < 0 ? '-' : ''}${unit}${num}`;
-}
-
-/** The row's second line: how many proposals are behind the score and what
- *  the owner has actually paid for them. Dollars stopped being the ranking
- *  key on 2026-08-14, so they live here instead of in the score slot. */
-function contractorSubline(c: PublicContractor): string {
-  const parts = [`${c.jobs} ${c.jobs === 1 ? 'proposal' : 'proposals'}`];
-  if (c.pendingJobs > 0) parts.push(`${c.pendingJobs} live`);
-  if (c.earnedUsd > 0) parts.push(`$${Math.round(c.earnedUsd).toLocaleString('en-US')} earned`);
-  return parts.join(' · ');
-}
-
-/** Rows shown per footer. The rail showed five, then ten; a footer under
- *  the verbs is compact by design. */
-const ROWS = 3;
+/** Rows on the footer (owner ask 2026-09-12: "id like for it to show top
+ *  10 in the two columsn on the floor"). Ten, split five and five over the
+ *  two columns. */
+const ROWS = 10;
+/** Rows in the left column; the rest go to the right one. */
+const LEFT = 5;
 
 function initialOf(name: string): string {
   return name.replace(/^@/, '')[0]?.toUpperCase() ?? '?';
@@ -160,8 +147,6 @@ function TraderRow({
 
 export function FloorStandings({
   entries: all,
-  contractors,
-  unit = '',
   meId = null,
   season = null,
   proposalTraders,
@@ -171,10 +156,6 @@ export function FloorStandings({
    *  default; the season and global boards live on /leaderboard, behind
    *  "Show full leaderboard"). */
   entries: LeaderboardEntry[];
-  contractors?: PublicContractor[];
-  /** The hero metric's currency prefix ('$' or ''), so a contractor's priced
-   *  impact reads in the same unit as the market above it. */
-  unit?: string;
   /** This visitor's participant id, so their own row can be marked and, when
    *  they are outside the rows shown, pinned underneath. */
   meId?: string | null;
@@ -186,7 +167,7 @@ export function FloorStandings({
    *  selected, which is the workspace board. */
   proposalTraders?: ProposalTraderRow[] | null;
   /** Distinct bots with a trade on this floor in the last seven days; the
-   *  line under the footers (docs/ui-conventions.md, "A bot says it is
+   *  line under the footer (docs/ui-conventions.md, "A bot says it is
    *  one"). Zero or absent draws nothing. */
   botTraders?: number;
 }) {
@@ -200,109 +181,73 @@ export function FloorStandings({
   // a proposal: there the list is everyone who holds one, complete.
   const mine = meId && !onProposal ? (traded.find(e => e.id === meId) ?? null) : null;
   const minePinned = mine && !entries.some(e => e.id === meId) ? mine : null;
-  const hasTraders = onProposal || entries.length > 0;
-  // The contractors block shows whenever the workspace exposes it (Open
-  // floor), even with nobody paid yet, so the two-sided economy is visible.
-  const showContractors = contractors !== undefined;
-  if (!hasTraders && !showContractors) return null;
+
+  // The rows this render draws, in reading order, with the rank each one
+  // prints. Ranked by the position's marked profit on a proposal, best
+  // first: the rule lives where the rows are drawn, whatever order the
+  // reads arrived in.
+  const rows: Array<{ e: ProposalTraderRow; rank: number | string; pinned?: boolean }> = onProposal
+    ? (proposalTraders ?? [])
+        .slice()
+        .sort((a, b) => b.totalEarnings - a.totalEarnings)
+        .slice(0, ROWS)
+        .map((e, i) => ({ e, rank: i + 1 }))
+    : [
+        ...entries.map((e, i) => ({ e, rank: e.rank ?? i + 1 })),
+        ...(minePinned ? [{ e: minePinned, rank: minePinned.rank ?? '-', pinned: true }] : []),
+      ];
+
+  // Still loading a proposal's holders: nothing, not an empty board.
+  const pending = onProposal && proposalTraders === null;
+  const empty = onProposal && proposalTraders !== null && proposalTraders.length === 0;
+  if (!onProposal && rows.length === 0) return null;
+
+  const draw = (r: (typeof rows)[number]) => (
+    <TraderRow
+      key={`${r.pinned ? 'pin-' : ''}${r.e.id}`}
+      e={r.e}
+      rank={r.rank}
+      meId={meId}
+      season={season}
+      pinned={r.pinned}
+    />
+  );
+  // Ranks 1 to 5 on the left, 6 to 10 on the right (owner ask 2026-09-12).
+  // One column under the other in the DOM, so a phone reads 1 to 10 in
+  // order with no CSS reordering; the pin rides at the foot of the last
+  // column, which is the foot of the stack either way.
+  const left = rows.slice(0, LEFT);
+  const right = rows.slice(LEFT);
+
   return (
     <div className="pubws-standings" aria-label="Standings">
-      <div className="pubws-standings-pair">
-        {hasTraders && (
-          <section className="pubws-lb-block">
-            <div className="pubws-lb-head">
-              <h2 className="pubws-h2">{onProposal ? 'Traders on this proposal' : 'Top traders'}</h2>
-              <span className="pubws-lb-meta">{onProposal ? 'this proposal' : 'this market'}</span>
-            </div>
-            <ol className="pubws-lb">
-              {onProposal ? (
-                proposalTraders === null ? null : proposalTraders.length === 0 ? (
-                  /* Said, not hidden: an empty footer under a proposal would
-                     read as the block having broken. */
-                  <li className="pubws-lb-row pubws-lb-row--empty">nobody yet</li>
-                ) : (
-                  /* Ranked by the position's marked profit, best first: the
-                     rule lives where the rows are drawn, whatever order the
-                     reads arrived in. */
-                  [...proposalTraders]
-                    .sort((a, b) => b.totalEarnings - a.totalEarnings)
-                    .slice(0, ROWS)
-                    .map((e, i) => <TraderRow key={e.id} e={e} rank={i + 1} meId={meId} season={season} />)
-                )
-              ) : (
-                <>
-                  {entries.map((e, i) => (
-                    <TraderRow key={e.id} e={e} rank={e.rank ?? i + 1} meId={meId} season={season} />
-                  ))}
-                  {minePinned && (
-                    <TraderRow e={minePinned} rank={minePinned.rank ?? '-'} meId={meId} season={season} pinned />
-                  )}
-                </>
-              )}
+      <section className="pubws-lb-block">
+        <div className="pubws-lb-head">
+          <h2 className="pubws-h2">{onProposal ? 'Traders on this proposal' : 'Top traders'}</h2>
+          <span className="pubws-lb-meta">{onProposal ? 'this proposal' : 'this market'}</span>
+        </div>
+        {pending ? null : empty ? (
+          /* Said, not hidden: an empty footer under a proposal would read as
+             the block having broken. */
+          <ol className="pubws-lb">
+            <li className="pubws-lb-row pubws-lb-row--empty">nobody yet</li>
+          </ol>
+        ) : right.length > 0 ? (
+          <div className="pubws-lb-cols">
+            <ol className="pubws-lb">{left.map(draw)}</ol>
+            <ol className="pubws-lb" start={LEFT + 1}>
+              {right.map(draw)}
             </ol>
-          </section>
+          </div>
+        ) : (
+          /* Five or fewer: one column, so the board never leaves an empty
+             track beside a short list. */
+          <ol className="pubws-lb">{left.map(draw)}</ol>
         )}
-        {showContractors && (
-          <section className="pubws-lb-block">
-            <div className="pubws-lb-head">
-              <h2 className="pubws-h2">Top contractors</h2>
-              <span className="pubws-lb-meta">impact</span>
-            </div>
-            {contractors!.length > 0 ? (
-              <ol className="pubws-lb">
-                {contractors!.slice(0, ROWS).map((c, i) => {
-                  const name = c.name || 'anonymous';
-                  // The score is what the market currently says this poster's
-                  // proposals are worth. Unpriced ones say so rather than
-                  // printing a confident zero; a workspace with no hero
-                  // market to price against falls back to dollars.
-                  const scored = c.impact !== null && c.pricedJobs > 0;
-                  return (
-                    <li key={c.id} className="pubws-lb-row">
-                      <span className="pubws-lb-rank">{i + 1}</span>
-                      <Link className="pubws-lb-who pubws-name-link" to={`/participants/${encodeURIComponent(c.id)}`}>
-                        <span className="pubws-lb-avatar">
-                          <span>{initialOf(name)}</span>
-                        </span>
-                        <span className="pubws-lb-stack">
-                          <span className="pubws-lb-name">
-                            {name}
-                            <BotMark bot={c.bot} />
-                          </span>
-                          <span className="pubws-lb-sub">{contractorSubline(c)}</span>
-                        </span>
-                      </Link>
-                      {scored ? (
-                        <span
-                          className={`pubws-lb-score${c.impact! > 0 ? ' is-up' : c.impact! < 0 ? ' is-down' : ''}`}
-                          /* No arrow at exactly zero: the market has priced
-                             these proposals and called them a wash, which an
-                             up arrow would misreport as a gain. */
-                          title="What the market says this contractor's proposals are worth: approved minus declined, summed over the live ones."
-                        >
-                          {c.impact! > 0 ? '▲ ' : c.impact! < 0 ? '▼ ' : ''}
-                          {formatImpact(c.impact!, unit)}
-                        </span>
-                      ) : c.impact === null ? (
-                        <span className="pubws-lb-score is-up">${Math.round(c.earnedUsd).toLocaleString('en-US')}</span>
-                      ) : (
-                        <span className="pubws-lb-score pubws-lb-score--muted">not priced yet</span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ol>
-            ) : (
-              <p className="pubws-lb-empty">
-                No proposals on the board yet. Post one and the market prices what it is worth.
-              </p>
-            )}
-          </section>
-        )}
-      </div>
+      </section>
       {/* The way out is a page, not an expander (owner direction 2026-08-24:
           "show full leaderboard should lead to a new page"). One link under
-          the pair it extends; the season's control is in the season advert
+          the board it extends; the season's control is in the season advert
           in the left column. */}
       {botTraders ? (
         <p className="pubws-lb-bots">

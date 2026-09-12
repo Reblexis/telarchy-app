@@ -446,6 +446,27 @@ describe('three columns, and the standings under the verbs', () => {
     expect(container.querySelector('.pubws-facts')?.textContent ?? '').not.toMatch(/2,778|2\.8k/);
   });
 
+  test('THE FLOOR DRAWS NO CONTRACTORS BLOCK, even when the floor payload carries them', async () => {
+    // ws.topContractors is populated by floor(); the floor is one board now,
+    // the traders, and the contractor standings live on /leaderboard alone.
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-standings')).toBeTruthy());
+    const standings = container.querySelector('.pubws-standings') as HTMLElement;
+    expect(standings.querySelectorAll('.pubws-lb-block')).toHaveLength(1);
+    expect(standings.textContent).not.toMatch(/contractor/i);
+  });
+
+  test('ten rows over two columns, ranks 1 to 5 then 6 to 10', async () => {
+    vi.mocked(api.getLeaderboard).mockResolvedValue({ participants: traders(14) } as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelectorAll('.pubws-standings .pubws-lb-row')).toHaveLength(10));
+    const cols = [...container.querySelectorAll('.pubws-standings .pubws-lb-cols > .pubws-lb')];
+    expect(cols).toHaveLength(2);
+    const names = (el: Element) => [...el.querySelectorAll('.pubws-lb-name')].map(n => n.textContent);
+    expect(names(cols[0])).toEqual(['trader1', 'trader2', 'trader3', 'trader4', 'trader5']);
+    expect(names(cols[1])).toEqual(['trader6', 'trader7', 'trader8', 'trader9', 'trader10']);
+  });
+
   test('the standings sit under the trade and the settles block, in the tail', async () => {
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-standings')).toBeTruthy());
@@ -459,9 +480,8 @@ describe('three columns, and the standings under the verbs', () => {
     expect(standings.closest('.pubws-tail')).toBeTruthy();
     expect(standings.closest('.pubws-rail')).toBeNull();
     const blocks = [...standings.querySelectorAll('.pubws-lb-block')];
-    expect(blocks.map(b => b.querySelector('.pubws-h2')?.textContent)).toEqual(['Top traders', 'Top contractors']);
-    expect(blocks[0].querySelectorAll('.pubws-lb-row')).toHaveLength(3);
-    expect(blocks[1].querySelectorAll('.pubws-lb-row')).toHaveLength(3);
+    expect(blocks.map(b => b.querySelector('.pubws-h2')?.textContent)).toEqual(['Top traders']);
+    expect(blocks[0].querySelectorAll('.pubws-lb-row')).toHaveLength(5);
     expect(blocks[0].querySelector('.pubws-lb-meta')?.textContent).toBe('this market');
     const more = standings.querySelectorAll('.pubws-lb-more');
     expect(more).toHaveLength(1);
@@ -683,10 +703,10 @@ describe('three columns, and the standings under the verbs', () => {
     expect(mid![1]).toMatch(/\.pubws-main--floor \.pubws-know-col \{[^}]*grid-row:\s*4/);
     expect(mid![1]).toMatch(/\.pubws-rail--right \{[^}]*grid-row:\s*1 \/ span 4/);
     expect(mid![1]).toMatch(/\.pubws-rail--right \{[^}]*border-left:\s*1px solid var\(--border-color\)/);
-    // The standings: side by side on desktop, stacked on a phone.
-    expect(mid![1]).toMatch(/\.pubws-standings-pair \{[^}]*grid-template-columns:\s*1fr 1fr/);
+    // The standings' ten rows: two columns on a desktop, one on a phone.
+    expect(mid![1]).toMatch(/\.pubws-lb-cols \{[^}]*grid-template-columns:\s*1fr 1fr/);
     const narrow = CSS.match(/@media \(max-width: 1119\.98px\) \{([\s\S]*?)\n\}/);
-    expect(narrow![1]).toMatch(/\.pubws-standings-pair \{[^}]*grid-template-columns:\s*1fr;/);
+    expect(narrow![1]).toMatch(/\.pubws-lb-cols \{[^}]*grid-template-columns:\s*1fr;/);
     // The season advert is set left, in the mono numeral style.
     expect(CSS).toMatch(/\.pubws-season \{[^}]*text-align:\s*left/);
     expect(CSS).toMatch(/\.pubws-season-hero \{[^}]*JetBrains Mono/);

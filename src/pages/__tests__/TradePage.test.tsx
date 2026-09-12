@@ -1625,12 +1625,12 @@ describe('selecting a proposal changes the address', () => {
 });
 
 /**
- * With a proposal selected, the traders footer becomes "Traders on this
- * proposal" (docs/ui-conventions.md, "The rails, and the standings under
- * the verbs"): the rows are the accounts holding a position on either
- * branch of the selected pair, ranked by that position's marked profit,
- * and "nobody yet" in one row when none. Deselecting restores the
- * workspace board. The contractors footer never changes.
+ * With a proposal selected, the standings footer becomes "Traders on this
+ * proposal" (docs/ui-conventions.md, "The standings are one footer, not
+ * rails, and not two boards"): the rows are the accounts holding a position
+ * on either branch of the selected pair, ranked by that position's marked
+ * profit, and "nobody yet" in one row when none. Deselecting restores the
+ * workspace board.
  */
 describe('the traders footer under a selected proposal', () => {
   const leaders = () => ({

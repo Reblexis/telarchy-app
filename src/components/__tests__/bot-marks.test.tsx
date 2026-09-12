@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, test, vi } from 'vitest';
-import type { LeaderboardEntry, PublicContractor } from '../../lib/api';
+import type { LeaderboardEntry } from '../../lib/api';
 
 /**
  * A bot says it is one (docs/ui-conventions.md, "A bot says it is one").
@@ -56,19 +56,6 @@ function trader(n: number, bot?: boolean): LeaderboardEntry {
     ...(bot === undefined ? {} : { bot }),
   } as unknown as LeaderboardEntry;
 }
-function contractor(n: number, bot?: boolean): PublicContractor {
-  return {
-    id: `c${n}`,
-    name: `contractor${n}`,
-    impact: 10,
-    jobs: 1,
-    pendingJobs: 1,
-    pricedJobs: 1,
-    earnedUsd: 0,
-    ...(bot === undefined ? {} : { bot }),
-  } as PublicContractor;
-}
-
 const rowOf = (text: string) => screen.getByText(text).closest('li, tr') as HTMLElement;
 const marked = (el: HTMLElement | null) => !!el?.querySelector('.pubws-bot');
 
@@ -76,7 +63,7 @@ describe('the standings footers', () => {
   test('A BOT ON THE BOARD CARRIES THE MARK; a person does not', () => {
     render(
       <MemoryRouter>
-        <FloorStandings entries={[trader(1, true), trader(2, false), trader(3)]} contractors={[]} />
+        <FloorStandings entries={[trader(1, true), trader(2, false), trader(3)]} />
       </MemoryRouter>,
     );
     expect(marked(rowOf('trader1'))).toBe(true);
@@ -90,16 +77,6 @@ describe('the standings footers', () => {
     expect(mark.textContent).toBe('');
     expect(mark.getAttribute('role')).toBe('img');
     expect(mark.getAttribute('aria-label')).toBe('bot');
-  });
-
-  test('a bot contractor carries the mark', () => {
-    render(
-      <MemoryRouter>
-        <FloorStandings entries={[]} contractors={[contractor(1, true), contractor(2, false)]} />
-      </MemoryRouter>,
-    );
-    expect(marked(rowOf('contractor1'))).toBe(true);
-    expect(marked(rowOf('contractor2'))).toBe(false);
   });
 
   test('a bot among the traders on this proposal carries the mark', () => {
@@ -121,7 +98,7 @@ describe('the standings footers', () => {
   test('THE FOOTER NAMES THE BOTS TRADING HERE and links to building one', () => {
     render(
       <MemoryRouter>
-        <FloorStandings entries={[trader(1)]} contractors={[]} botTraders={3} />
+        <FloorStandings entries={[trader(1)]} botTraders={3} />
       </MemoryRouter>,
     );
     expect(screen.getByText(/3 bots trade here\./)).toBeTruthy();
@@ -132,7 +109,7 @@ describe('the standings footers', () => {
   test('one bot is singular', () => {
     render(
       <MemoryRouter>
-        <FloorStandings entries={[trader(1)]} contractors={[]} botTraders={1} />
+        <FloorStandings entries={[trader(1)]} botTraders={1} />
       </MemoryRouter>,
     );
     expect(screen.getByText(/1 bot trades here\./)).toBeTruthy();
@@ -141,7 +118,7 @@ describe('the standings footers', () => {
   test.each([0, undefined])('no bots (%s), no line', n => {
     render(
       <MemoryRouter>
-        <FloorStandings entries={[trader(1)]} contractors={[]} botTraders={n} />
+        <FloorStandings entries={[trader(1)]} botTraders={n} />
       </MemoryRouter>,
     );
     expect(screen.queryByText(/trades? here/)).toBeNull();
