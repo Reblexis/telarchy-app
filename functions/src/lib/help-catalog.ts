@@ -1293,6 +1293,43 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       description: 'Replace the voice profile (platform admin). Body: { profile }.',
     },
     {
+      method: 'POST',
+      path: '/api/admin/broadcasts',
+      auth: 'admin',
+      description:
+        "Send one announcement to a named audience, once (platform admin; docs/announcements-by-email.md). Body: { subject, body, audience: 'season-entrants', seasonId, replyTo?, dryRun?, broadcastId? }. The audience is every opted-in entry of that season, at the entry's contactEmail (falling back to the account's); an entry with neither is counted as unreachable rather than skipped. Addresses on the suppression list are never written to and are recorded as suppressed. Every recipient ends with a row saying sent, failed or suppressed, so a run can be answered for afterwards. Capped at 500 addresses and paced at two sends a second, because an unpaced loop loses messages to the provider's rate limit and a rejected send is indistinguishable from a delivered one. dryRun resolves the audience and writes nothing. Passing broadcastId re-runs that broadcast for the addresses with no sent row, so a retry finishes the job instead of writing to everyone twice. Every message carries List-Unsubscribe and List-Unsubscribe-Post headers and the same link in its body. Returns { broadcastId, audience, sent, failed, suppressed, unreachable }.",
+      body: {
+        subject: 'string',
+        body: 'string (plain text)',
+        audience: "'season-entrants'",
+        seasonId: 'string (the season whose opted-in entrants receive it)',
+        replyTo: 'string (optional; a mailbox someone reads. Defaults to support@telarchy.com)',
+        dryRun: 'boolean (optional; resolve the audience and send nothing)',
+        broadcastId: 'string (optional; finish a previous run rather than starting a new one)',
+      },
+    },
+    {
+      method: 'GET',
+      path: '/api/admin/broadcasts',
+      auth: 'admin',
+      description:
+        'What has been sent, newest first, each with its subject, audience and the counts of sent, failed and suppressed (platform admin; docs/announcements-by-email.md).',
+    },
+    {
+      method: 'GET',
+      path: '/api/unsubscribe/:token',
+      auth: false,
+      description:
+        'The same unsubscribe, opened in a browser: it stops every future announcement to the address the token names and returns a page saying so. No session (docs/announcements-by-email.md).',
+    },
+    {
+      method: 'POST',
+      path: '/api/unsubscribe/:token',
+      auth: false,
+      description:
+        "Stop every future announcement to the address the token names (docs/announcements-by-email.md). No session: the token is an address and a keyed signature of it, which is the whole credential, because the people a broadcast reaches may hold no account. This is the one-click verb named by List-Unsubscribe-Post and answers 200 with an empty body. GET the same URL unsubscribes and returns a page saying so. A token that does not verify unsubscribes nobody and answers 400. Per-event notification mail is governed by the participant's own switches and is unaffected.",
+    },
+    {
       method: 'GET',
       path: '/api/admin/outreach/prospects',
       auth: 'admin',

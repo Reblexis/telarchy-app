@@ -58,6 +58,10 @@ export const OPTIONAL_AUTH_PREFIXES: ReadonlyArray<{ prefix: string; why: string
   { prefix: '/api/notifications', why: 'per-route gates; consent applied at the mount' },
   { prefix: '/api/feedback', why: 'anonymous bug reports and ideas' },
   {
+    prefix: '/api/unsubscribe',
+    why: 'stopping mail must not need an account: the token is the credential (docs/announcements-by-email.md)',
+  },
+  {
     prefix: '/api/sources',
     why: 'the GitHub OAuth callback arrives with no auth headers; routes gate with requireCapability',
   },

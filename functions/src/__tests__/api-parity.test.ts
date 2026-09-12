@@ -344,6 +344,8 @@ const ROUTER_MOUNTS: Record<string, string> = {
   'cron.ts': '/api/cron',
   'x-workbench.ts': '/api/admin/x',
   'outreach.ts': '/api/admin/outreach',
+  'broadcasts.ts': '/api/admin/broadcasts',
+  'unsubscribe.ts': '/api/unsubscribe',
   'manifold-update.ts': '/api/admin/manifold-update',
   'waitlist.ts': '/api/waitlist',
   'recordLinks.ts': '/api/import',
