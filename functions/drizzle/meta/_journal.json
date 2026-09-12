@@ -869,6 +869,13 @@
       "when": 1789140000000,
       "tag": "0123_proposal_options",
       "breakpoints": true
+    },
+    {
+      "idx": 124,
+      "version": "7",
+      "when": 1789300000000,
+      "tag": "0124_metric_market_title",
+      "breakpoints": true
     }
   ]
 }

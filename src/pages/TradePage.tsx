@@ -2114,7 +2114,17 @@ export function TradePage() {
                   No proposal #{missingNumber} on this floor.
                 </p>
               )}
-              {!selectedJob && (
+              {/* The owner's own question, when they wrote one
+                  (docs/ui-conventions.md, "The question line"): it is the whole
+                  headline, verbatim, so nothing composed is added around it and
+                  the steppers go with it. The metric strip and the date strip
+                  are still how a reader moves between books. */}
+              {!selectedJob && hero.title && (
+                <h2 className={`pubws-instrument-ask pubws-enter pubws-enter--1${flashContract ? ' is-flashed' : ''}`}>
+                  {hero.title}
+                </h2>
+              )}
+              {!selectedJob && !hero.title && (
                 <h2 className={`pubws-instrument-ask pubws-enter pubws-enter--1${flashContract ? ' is-flashed' : ''}`}>
                   What will be {ws.name ? `${possessiveOf(ws.name)} ` : ''}
                   <CycleWord

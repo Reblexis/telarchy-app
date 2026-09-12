@@ -578,7 +578,19 @@ find out:
   the clock, not about the snake. The strip's tab keeps the clock, and the number ticks down with
   the page's minute clock. An hour or day cell, and every other floor,
   reads exactly as before.
-- **The sentence is "What will be {company}'s {metric} {date}?"** The
+- **The owner may write the question themselves** (owner ask 2026-09-12:
+  "add support for custom title of a market"). A metric carries an optional
+  `marketTitle`, at most 200 characters, set through
+  `PUT /api/metrics/:id`; when it is there the headline **is that sentence,
+  verbatim**, and nothing composed is added around it, the cycle words
+  included, since the owner's words are already a whole question. It lives on
+  the metric rather than on a market row because a market is created fresh for
+  every new horizon cell (a game's floor opens one a minute) and the question
+  has to outlive that; renaming the metric leaves it alone. A blank title is
+  no title: the floor composes the question again, which is how an owner takes
+  it back. The metric strip and the date strip are still how a reader moves
+  between books, so nothing is unreachable without the cycle words.
+- **Otherwise the sentence is "What will be {company}'s {metric} {date}?"** The
   scaffold words sit a register quieter (`.pubws-instrument-ask`); the
   metric and the date are the sentence's ink. The company is named
   possessively even though the identity block already carries the name,

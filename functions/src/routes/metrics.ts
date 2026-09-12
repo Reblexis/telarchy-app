@@ -335,8 +335,29 @@ metricsRouter.put(
       timePreference: rawTP,
       resetsEvery: rawResets,
       resolvesNaUntilMeasured: rawNa,
+      marketTitle: rawTitle,
       ...fields
     } = req.body;
+
+    /* The question in the owner's own words (docs/ui-conventions.md, "The
+       question line"). Blank clears it, so an owner can hand the question
+       back to the floor, and it is capped because it is a headline. */
+    const TITLE_MAX = 200;
+    let newTitle: string | null | undefined;
+    if (rawTitle !== undefined) {
+      if (rawTitle === null) newTitle = null;
+      else if (typeof rawTitle !== 'string') {
+        res.status(400).json({ error: 'marketTitle must be a string, or null to clear it' });
+        return;
+      } else {
+        const trimmed = rawTitle.trim();
+        if (trimmed.length > TITLE_MAX) {
+          res.status(400).json({ error: `A market title is at most ${TITLE_MAX} characters` });
+          return;
+        }
+        newTitle = trimmed === '' ? null : trimmed;
+      }
+    }
 
     // The moment the reading DESCRIBES, when it is not now: a September total
     // typed on 3 October belongs to September (owner ask 2026-08-31). It is
@@ -452,6 +473,7 @@ metricsRouter.put(
       if (fields[key] !== undefined) update[key] = fields[key];
     }
     if (hasCredits) update.liquidityCredits = fields.liquidityCredits;
+    if (newTitle !== undefined) update.marketTitle = newTitle;
     if (Object.keys(update).length === 0 && rawTP === undefined && newResets === undefined && newNa === undefined) {
       res.status(400).json({ error: 'No fields to update' });
       return;
@@ -516,6 +538,9 @@ metricsRouter.put(
     // (back to the workspace default), and it must reach the column.
     if (Object.prototype.hasOwnProperty.call(update, 'liquidityCredits'))
       dbUpdate.liquidityCredits = update.liquidityCredits as number | null;
+    // Same shape, same reason: null is "take the question back", not "leave it".
+    if (Object.prototype.hasOwnProperty.call(update, 'marketTitle'))
+      dbUpdate.marketTitle = update.marketTitle as string | null;
     if (newResets !== undefined) dbUpdate.resetsEvery = newResets;
     if (newNa !== undefined) dbUpdate.resolvesNaUntilMeasured = newNa;
     dbUpdate.updatedAt = new Date();

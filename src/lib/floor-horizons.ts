@@ -43,6 +43,9 @@ export interface HorizonView {
   metricName: string;
   /** Display name, tail stripped: "LookPilot net 2026". */
   metricLabel: string;
+  /** The whole question, in the owner's own words, or null when the floor
+   *  composes it from the name, the metric and the date. */
+  title: string | null;
   /** '$' or '' — the tail's currency, display-only. */
   unit: string;
   targetDate: string;
@@ -248,6 +251,9 @@ export function buildHorizonViews(
       metricOrder: m.metricOrder ?? null,
       metricName: m.metricName,
       metricLabel: metricLabelOf(m.metricName),
+      /* Blank is no title: an owner who clears the field hands the question
+         back to the floor rather than leaving an empty headline. */
+      title: m.marketTitle?.trim() ? m.marketTitle.trim() : null,
       unit: currencyOf(m.metricName),
       targetDate: m.targetDate,
       label: horizonLabel(m.targetDate, now, zone),

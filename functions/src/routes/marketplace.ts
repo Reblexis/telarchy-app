@@ -528,12 +528,13 @@ async function buildFloorPayload(ws: PublicWs) {
     );
 
   // One read of the workspace's metric rows serves the order tie-break, the
-  // per-horizon description and the reset rule below.
+  // per-horizon description, the question line and the reset rule below.
   const metricRows = await db
     .select({
       id: metrics.id,
       order: metrics.order,
       description: metrics.description,
+      marketTitle: metrics.marketTitle,
       resetsEvery: metrics.resetsEvery,
       resolvesNaUntilMeasured: metrics.resolvesNaUntilMeasured,
     })
@@ -557,6 +558,11 @@ async function buildFloorPayload(ws: PublicWs) {
         marketId: m.id,
         metricId: m.metricId,
         metricName: m.metricName,
+        // The question in the owner's own words, when they wrote one
+        // (docs/ui-conventions.md, "The question line"). It rides the market
+        // row because that is what the floor's heading is about, but it is
+        // kept on the metric so it outlives each new horizon's book.
+        marketTitle: metricById.get(m.metricId)?.marketTitle ?? null,
         // The market's facts (docs/ui-conventions.md, "What a market says
         // about itself"): how many distinct traders, and credits traded.
         traderCount: tradersByMarket.get(m.id) ?? 0,

@@ -206,3 +206,43 @@ describe('THE NOW CAPTION NAMES THE ATTEMPT', () => {
     expect(nowCaption(container)).not.toContain('attempt');
   });
 });
+
+/**
+ * A metric may carry the question in the owner's own words
+ * (docs/ui-conventions.md, "The question line"; Viktor, 2026-09-12: "add
+ * support for custom title of a market and then edit the title of the main
+ * unconditional market"). When it does, the floor asks that and nothing
+ * else; when it does not, the floor composes the question as it always has.
+ */
+describe('A CUSTOM TITLE IS THE QUESTION, VERBATIM', () => {
+  const titled = (title: unknown, name = 'Snake') => {
+    const ws = h.workspace({ kind: 'snake', url: 'https://snake.example.com' }, name);
+    (ws.markets[0] as Record<string, unknown>).marketTitle = title;
+    return ws;
+  };
+
+  test('the headline is the title the owner wrote, with no name, metric or date added', async () => {
+    vi.mocked(api.getMarketplaceWorkspace).mockImplementation(
+      async () => titled('What length will I reach on this attempt?') as never,
+    );
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-instrument-ask')).toBeTruthy());
+    expect(ask(container)).toBe('What length will I reach on this attempt?');
+    expect(ask(container)).not.toContain("Snake's");
+    expect(ask(container)).not.toContain('60 moves');
+  });
+
+  test('a blank title is no title: the composed question stands', async () => {
+    vi.mocked(api.getMarketplaceWorkspace).mockImplementation(async () => titled('   ') as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-instrument-ask')).toBeTruthy());
+    expect(ask(container)).toBe("What will be Snake's reached length in 60 moves?");
+  });
+
+  test('no title at all: the composed question stands', async () => {
+    vi.mocked(api.getMarketplaceWorkspace).mockImplementation(async () => titled(null) as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-instrument-ask')).toBeTruthy());
+    expect(ask(container)).toBe("What will be Snake's reached length in 60 moves?");
+  });
+});
