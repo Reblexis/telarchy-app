@@ -10,10 +10,18 @@ be possible to say exactly who received it and who did not.
 
 ## The audience
 
-`season-entrants` is the only audience. It is every entry of a prize season
-whose `optedIn` is true, addressed at the entry's `contactEmail`; where that
-is empty the account's own address is used, and an entrant with neither is
-recorded as unreachable rather than skipped quietly.
+`season-entrants` is every entry of a prize season whose `optedIn` is true,
+addressed at the entry's `contactEmail`; where that is empty the account's
+own address is used, and an entrant with neither is recorded as unreachable
+rather than skipped quietly.
+
+`addresses` is a list named in the request, at most fifty of them, for a
+preview to yourself or a note to a handful of people. It is a real audience
+and not a side door: the suppression list still wins, the unsubscribe
+headers still ride along, and every address still gets its recorded row. An
+entry that is not an address refuses the whole send rather than skipping
+that one, because a typo in a list of three is a mistake to fix, not a
+recipient to drop.
 
 The address is the identity here, not the participant. A season entrant may
 have registered through the API and have no account at all, which is the
@@ -75,7 +83,7 @@ the operator decided to send, once, to people who are already here.
 
 | Endpoint | Who | What |
 |---|---|---|
-| `POST /api/admin/broadcasts` | platform admin | Create and send. Body `{ subject, body, audience: 'season-entrants', seasonId?, replyTo?, dryRun? }`. Returns `{ broadcastId, audience, sent, failed, suppressed, unreachable, recipients? }`. |
+| `POST /api/admin/broadcasts` | platform admin | Create and send. Body `{ subject, body, audience: 'season-entrants' \| 'addresses', seasonId?, to?, replyTo?, dryRun? }`. `seasonId` is required for `season-entrants`, `to` for `addresses`. Returns `{ broadcastId, audience, sent, failed, suppressed, unreachable, recipients? }`. |
 | `GET /api/admin/broadcasts` | platform admin | What has been sent, newest first, with its counts. |
 | `GET /api/unsubscribe/:token` | anyone | Unsubscribes the address the token names, and says so. |
 | `POST /api/unsubscribe/:token` | anyone | The same, for one-click clients. 200, empty. |
