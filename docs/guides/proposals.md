@@ -254,6 +254,14 @@ zero, which is a reading, not a missing one), every option's `delta` is its
 gap to that shared top, and no option is named as leading anywhere. The floor's board and strips carry the leader's lead where a
 two-branch proposal carries approved minus declined.
 
+**One call is enough to bet.** `GET /api/proposals?status=pending` carries,
+on every option of every row, the same `marketId` and `consensus` the detail
+call gives, so a bot reads the list and trades. It never fetches proposals
+one by one to learn three market ids (2026-09-12, from the snake's agent
+review: the platform loop was five calls a minute where the owner's own feed
+took three). The list stays bounded: one page's option markets are read in
+one query, whatever the page size.
+
 **Deciding is choosing.** `POST /api/proposals/:id/approve { option }`
 names the option's `id`; without it the call fails with 400
 `option_required`, naming an id the proposal does not have fails with 400

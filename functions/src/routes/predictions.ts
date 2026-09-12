@@ -211,7 +211,33 @@ predictionsRouter.post(
       }
       const proposalFilter =
         typeof reqProposalId === 'string' ? eq(markets.proposalId, reqProposalId) : isNull(markets.proposalId);
-      const branchValue: string = typeof reqBranch === 'string' && reqBranch.trim() ? reqBranch.trim() : 'approved';
+      let branchValue: string;
+      if (typeof reqBranch === 'string' && reqBranch.trim()) {
+        branchValue = reqBranch.trim();
+      } else {
+        // A proposal with options has no `approved` market to fall back on, so
+        // the ids are the answer, not a 404 about a market that cannot exist
+        // (docs/guides/agent-api.md, "A proposal with options").
+        const declared =
+          typeof reqProposalId === 'string'
+            ? (
+                await db
+                  .select({ options: proposals.options })
+                  .from(proposals)
+                  .where(and(eq(proposals.workspaceId, workspaceId), eq(proposals.id, reqProposalId)))
+              )[0]?.options
+            : null;
+        const opts = (declared ?? null) as Array<{ id: string; label: string }> | null;
+        if (opts && opts.length > 0) {
+          res.status(400).json({
+            error: `This proposal has options, so name one as \`branch\`: ${opts.map(o => o.id).join(', ')}.`,
+            code: 'option_required',
+            options: opts,
+          });
+          return;
+        }
+        branchValue = 'approved';
+      }
       const branchFilter = typeof reqProposalId === 'string' ? eq(markets.branch, branchValue) : isNull(markets.branch);
       const [found] = await db
         .select({ id: markets.id })
@@ -785,9 +811,24 @@ predictionsRouter.get(
       return;
     }
 
+    // A position says what it is a position IN (docs/guides/agent-api.md,
+    // "Watching your own account"): the proposal, the option or branch, and
+    // the metric, so a bot need not keep its own market list to read its book.
     let rows = await db
-      .select()
+      .select({
+        id: positions.id,
+        workspaceId: positions.workspaceId,
+        agentId: positions.agentId,
+        marketId: positions.marketId,
+        direction: positions.direction,
+        shares: positions.shares,
+        totalCost: positions.totalCost,
+        proposalId: markets.proposalId,
+        branch: markets.branch,
+        metricName: markets.metricName,
+      })
       .from(positions)
+      .leftJoin(markets, eq(markets.id, positions.marketId))
       .where(and(eq(positions.workspaceId, workspaceId), eq(positions.agentId, agentId)));
     if (req.query.marketId) {
       rows = rows.filter(p => p.marketId === req.query.marketId);

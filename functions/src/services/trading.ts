@@ -197,6 +197,8 @@ export async function executeTradeInTx(
     throw new AppError(
       'This market has no liquidity yet, so there is nothing to trade against. Someone has to fund it first.',
       400,
+      undefined,
+      'market_unfunded',
     );
   const prevConsensus = consensus(shares, b, market.rangeMin, market.rangeMax) ?? null;
 

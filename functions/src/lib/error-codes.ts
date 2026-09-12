@@ -36,6 +36,9 @@ export const ERROR_CODES = [
   'market_voided',
   /** Deactivated by the time preference: sells only. Retryable as a sell. */
   'market_closed',
+  /** The book has no liquidity yet: nothing to trade against, until someone
+   *  funds it. Retryable once funded, unlike the refusals above. */
+  'market_unfunded',
   'market_settling',
   /** The proposal was decided or its deadline passed: both branches are
    *  closed, buys and sells alike, and positions settle at the date. */
