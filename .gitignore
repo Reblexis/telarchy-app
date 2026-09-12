@@ -69,3 +69,9 @@ pgdata/
 *.sqlite
 *.db
 dist-beta/
+
+# A worktree links node_modules in from the shared checkout, and a link is a
+# FILE, which `node_modules/` (directories only) does not match. Tracked once,
+# it replaced the shared checkout's real functions/node_modules with a link to
+# itself on fast-forward (2026-09-12). Match the name at any depth, whatever it is.
+node_modules
