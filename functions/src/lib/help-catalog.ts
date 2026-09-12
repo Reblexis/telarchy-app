@@ -209,7 +209,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
         updateNote: 'string (description of the change)',
         marketRangeMax: 'number (optional; upper bound for prediction market ranges)',
         marketTitle:
-          'string | null (optional; the whole question shown over this metric\'s book, at most 200 characters. Blank or null clears it and the floor composes the question again)',
+          "string | null (optional; the whole question shown over this metric's book, at most 200 characters. Blank or null clears it and the floor composes the question again)",
         resetsEvery:
           'null | "hour" | "day" | "week" | "month" | "year" (optional; the period the number restarts on. Changing it does NOT void markets: it changes which readings the floor attributes to a period, not the settled value)',
         resolvesNaUntilMeasured:
