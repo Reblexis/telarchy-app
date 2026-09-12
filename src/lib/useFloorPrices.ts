@@ -6,8 +6,8 @@ import { api, type FloorPriceBook } from './api';
  * Owner ask, 2026-09-12: "make sure the price refreshes at least once per
  * second ... do it efficinetly tho".
  *
- * Once a second while the tab is visible, each tick delayed by up to 150 ms
- * of jitter so viewers who opened the page together do not ask together; the
+ * Once a second while the tab is visible: each ask starts at most one second
+ * after the previous one was SENT, brought forward by up to 150 ms of jitter so viewers who opened the page together do not ask together; the
  * ETag it last received goes back with every ask, so an unmoved floor answers
  * 304 and nothing here changes. A hidden tab asks for nothing and asks once
  * the moment it returns. Never two asks in flight. A failed ask doubles the
@@ -21,7 +21,10 @@ export const PRICE_BACKOFF_MAX_MS = 30_000;
 
 /** The wait before the next ask, after `failures` consecutive failures. */
 export function priceDelay(failures: number, random: () => number = Math.random): number {
-  const base = failures > 0 ? Math.min(PRICE_BACKOFF_MAX_MS, PRICE_POLL_MS * 2 ** failures) : PRICE_POLL_MS;
+  // Healthy: the whole period from one ask's start to the next, shortened by
+  // jitter so it never exceeds a second. Failing: a growing back-off.
+  if (failures === 0) return PRICE_POLL_MS - Math.floor(random() * PRICE_JITTER_MS);
+  const base = Math.min(PRICE_BACKOFF_MAX_MS, PRICE_POLL_MS * 2 ** failures);
   if (base >= PRICE_BACKOFF_MAX_MS) return PRICE_BACKOFF_MAX_MS;
   return base + Math.floor(random() * PRICE_JITTER_MS);
 }
@@ -48,12 +51,16 @@ export function useFloorPrices(idOrSlug: string | undefined, enabled = true): Fl
       if (timer !== null) clearTimeout(timer);
       timer = null;
     };
-    const schedule = () => {
+    const schedule = (sentAt: number) => {
       if (stopped || inFlight || timer !== null || hidden()) return;
+      // A healthy period runs from when the last ask was SENT, so a slow answer
+      // does not push the next one past a second; a failure waits its back-off
+      // from now.
+      const wait = failures > 0 ? priceDelay(failures) : Math.max(0, priceDelay(0) - (Date.now() - sentAt));
       timer = setTimeout(() => {
         timer = null;
         void ask();
-      }, priceDelay(failures));
+      }, wait);
     };
     const ask = async () => {
       if (stopped || inFlight || hidden()) return;
@@ -73,7 +80,7 @@ export function useFloorPrices(idOrSlug: string | undefined, enabled = true): Fl
         failures += 1;
       } finally {
         inFlight = false;
-        schedule();
+        schedule(askedAt);
       }
     };
     const onVisibility = () => {

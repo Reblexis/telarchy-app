@@ -48,10 +48,10 @@ afterEach(() => {
 });
 
 describe('priceDelay', () => {
-  test('a healthy poll waits one second plus up to 150 ms of jitter', () => {
+  test('a healthy poll starts at most one second after the last began, brought forward by up to 150 ms of jitter', () => {
     expect(PRICE_POLL_MS).toBe(1000);
     expect(priceDelay(0, () => 0)).toBe(1000);
-    expect(priceDelay(0, () => 0.9999)).toBe(1149);
+    expect(priceDelay(0, () => 0.9999)).toBe(851);
   });
 
   test('each consecutive failure doubles the wait, up to thirty seconds', () => {
@@ -64,6 +64,36 @@ describe('priceDelay', () => {
 });
 
 describe('useFloorPrices', () => {
+  // Found on the preview 2026-09-12: the next ask was timed from the END of the
+  // previous answer, so a 200 to 560 ms round trip stretched every period to
+  // 1.25 to 1.7 s, missing the owner's "at least once per second".
+  test('A SLOW ANSWER DOES NOT STRETCH THE ONE-SECOND CADENCE', async () => {
+    getFloorPrices.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ changed: false }), 400)));
+    renderHook(() => useFloorPrices('snake'));
+    await act(async () => {});
+    expect(getFloorPrices).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(999);
+    });
+    expect(getFloorPrices).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(getFloorPrices).toHaveBeenCalledTimes(2);
+  });
+
+  test('AN ANSWER SLOWER THAN A SECOND IS FOLLOWED AT ONCE', async () => {
+    getFloorPrices.mockImplementation(
+      () => new Promise(resolve => setTimeout(() => resolve({ changed: false }), 1300)),
+    );
+    renderHook(() => useFloorPrices('snake'));
+    await act(async () => {});
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1300);
+    });
+    expect(getFloorPrices).toHaveBeenCalledTimes(2);
+  });
+
   test('THE FLOOR ASKS FOR PRICES ONCE A SECOND WHILE THE TAB IS VISIBLE', async () => {
     renderHook(() => useFloorPrices('snake'));
     await act(async () => {});
