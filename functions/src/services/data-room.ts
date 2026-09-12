@@ -4,7 +4,7 @@ import { db } from '../db/client';
 import { pageVisits, trafficDaily } from '../db/schema';
 import { ttlCache } from '../lib/ttl-cache';
 import { humanVisitFilter } from '../lib/visit-log';
-import { type ActionsPage, buildActions, renderActionsText } from './actions';
+import { type ActionsPage, buildActions, clearActionsHold, renderActionsText } from './actions';
 
 /**
  * The data room as a document: the prose and the first page of the public
@@ -78,6 +78,7 @@ const feedCache = ttlCache({
 /** Drop the cached feed. Tests call it; nothing in production does. */
 export function clearDataRoomCache(): void {
   feedCache.clear();
+  clearActionsHold();
 }
 
 /** The room as a document, cached briefly. */

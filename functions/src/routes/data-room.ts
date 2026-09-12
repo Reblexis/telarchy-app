@@ -4,7 +4,7 @@ import { VISION } from '../content/vision';
 import { db } from '../db/client';
 import { workspaces } from '../db/schema';
 import { wrap } from '../lib/wrap';
-import { buildActions, parseActionsQuery } from '../services/actions';
+import { buildActions, buildActionsHeld, parseActionsQuery } from '../services/actions';
 import { buildDataRoomFeed } from '../services/data-room';
 import { buildTimeline } from '../services/timeline';
 
@@ -31,7 +31,7 @@ dataRoomRouter.get(
 dataRoomRouter.get(
   '/actions',
   wrap(async (req, res) => {
-    res.json(await buildActions(parseActionsQuery(req.query as Record<string, unknown>)));
+    res.json(await buildActionsHeld(parseActionsQuery(req.query as Record<string, unknown>)));
   }),
 );
 
