@@ -2548,8 +2548,10 @@ export const api = {
    * (docs/infra/deploy.md, "Prices, one channel across instances").
    */
   getFloorPrices: async (idOrSlug: string, etag?: string | null): Promise<FloorPricesRead> => {
+    // Same-origin credentials, not omitted: the route reads no session so the
+    // cookie costs nothing, and a branch preview under /beta routes by that
+    // cookie, so omitting it sent every preview poll to a 404 and a back-off.
     const res = await fetch(`${API_BASE}/api/marketplace/${encodeURIComponent(idOrSlug)}/prices`, {
-      credentials: 'omit',
       cache: 'no-store',
       headers: etag ? { 'If-None-Match': etag } : undefined,
     });
