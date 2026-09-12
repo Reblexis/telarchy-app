@@ -629,7 +629,9 @@ describe('the replay', () => {
     expect(container.querySelector('.snake-next')?.textContent).toBe('Step 202: start');
   });
 
-  test('PLAY ADVANCES ONE ENTRY PER TICK AND HOLDS AT THE END', async () => {
+  /* What happens AT the end of a game is two rules of its own, below: an
+     earlier level rolls into the next, the newest holds. */
+  test('PLAY ADVANCES ONE ENTRY PER TICK', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { container } = renderLive();
     await pickGame(container, 1);
@@ -645,12 +647,11 @@ describe('the replay', () => {
     expect(headCell(container)).toEqual([9.5, 2.5]);
     expect(container.querySelector('.snake-next')?.textContent).toBe('Step 238: continued forward');
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(3_000);
+      await vi.advanceTimersByTimeAsync(1_050);
     });
-    // Held at the last entry (37, step 239), not past it, and play is over.
+    // The last entry of game 1 (37, step 239) is drawn before the roll.
     expect(scrub(container).value).toBe('37');
     expect(headCell(container)).toEqual([10.5, 2.5]);
-    expect(screen.getByRole('button', { name: 'Play' })).toBeTruthy();
   });
 
   test('10x plays ten entries a second', async () => {
@@ -680,6 +681,47 @@ describe('the replay', () => {
       await vi.advanceTimersByTimeAsync(1_050);
     });
     expect(scrub(container).value).toBe('1');
+  });
+
+  test('PLAY RUNS STRAIGHT THROUGH THE LEVELS: the end of a game rolls into the next', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { container } = renderLive();
+    await pickGame(container, 1);
+    await waitFor(() => expect(scrub(container).getAttribute('max')).toBe('37'));
+    // The last recorded entry of game 1.
+    fireEvent.change(scrub(container), { target: { value: '37' } });
+    await waitFor(() =>
+      expect(container.querySelector('.snake-next')?.textContent).toBe('Step 239: continued forward'),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_050);
+    });
+    // Game 2 is playing from its first entry, and the picker followed.
+    await waitFor(() => expect((container.querySelector('select.snake-games') as HTMLSelectElement).value).toBe('2'));
+    await waitFor(() => expect(container.querySelector('.snake-next')?.textContent).toBe('Step 0: start'));
+    expect(scrub(container).getAttribute('max')).toBe('400');
+    // And it keeps going, rather than stopping at the boundary.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_050);
+    });
+    expect(scrub(container).value).toBe('1');
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
+  });
+
+  test('the newest recorded game still holds at its end, there being no next level', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { container } = renderLive();
+    await waitFor(() => expect(scrub(container).disabled).toBe(false));
+    await pickGame(container, 2);
+    await waitFor(() => expect(scrub(container).getAttribute('max')).toBe('400'));
+    fireEvent.change(scrub(container), { target: { value: '400' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2_100);
+    });
+    expect(scrub(container).value).toBe('400');
+    expect(screen.getByRole('button', { name: 'Play' })).toBeTruthy();
   });
 
   test('LIVE RETURNS TO POLLING', async () => {

@@ -577,8 +577,16 @@ export function SnakeLive({
         if (total === null) return cur;
         const max = Math.max(0, total - 1);
         if (cur.entry >= max) {
-          setPlaying(false);
-          return cur;
+          /* Play runs straight through the levels (Viktor, 2026-09-12: "in the
+             replay show also the previous levels"): the end of a game rolls
+             into the next one recorded, and only the newest holds. */
+          const onward = games.filter(g => g.number > cur.game).sort((a, b) => a.number - b.number)[0];
+          if (!onward) {
+            setPlaying(false);
+            return cur;
+          }
+          ensureLoaded(onward.number, 0);
+          return { game: onward.number, entry: 0 };
         }
         const next = cur.entry + 1;
         ensureLoaded(cur.game, next);
@@ -589,7 +597,7 @@ export function SnakeLive({
       });
     }, 1_000 / speed);
     return () => window.clearInterval(t);
-  }, [playing, speed, replay, totalOf, ensureLoaded, entryOf, loadWindow]);
+  }, [playing, speed, replay, totalOf, ensureLoaded, entryOf, loadWindow, games]);
 
   const goLive = () => {
     setPlaying(false);

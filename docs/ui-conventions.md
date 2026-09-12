@@ -2627,7 +2627,10 @@ next-move line reads the move the entry records, "Step 231: turned left"
 forward (default)" for one the market left undecided). Picking a game
 opens it at its first entry; Play from realtime opens the newest game at
 its first entry. Play advances one entry per tick at the chosen speed and
-holds at the game's last entry (the button reads Play again). LIVE drops
+**runs straight through the levels**: at a game's last entry it rolls into
+the next game recorded, on that game's own grid, so one press replays every
+level in order. Only the newest recording has nowhere to go, and there play
+holds at the last entry (the button reads Play again). LIVE drops
 the replay, draws the polled state again and the next-move line returns.
 The poll never stops during replay, so LIVE is instant. No library: the
 range input and a timer.
