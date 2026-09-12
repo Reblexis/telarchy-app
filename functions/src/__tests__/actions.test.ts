@@ -60,7 +60,7 @@ import { dataRoomRouter } from '../routes/data-room';
 import { marketplaceRouter } from '../routes/marketplace';
 import { actionsTool, buildActions, KINDS, renderActionsText } from '../services/actions';
 import { clearDataRoomCache } from '../services/data-room';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import { captureQueries, db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -1183,5 +1183,110 @@ describe('the room as a document', () => {
     const text = renderActionsText(page);
     expect(text).toContain('2026-08-10T09:05:00');
     expect(text).toMatch(/trade\s+vire\s+telarchy\s+sold 4 higher shares/);
+  });
+});
+
+/**
+ * Every floor's Live column polls the same read (docs/ui-conventions.md,
+ * "The live log"), and a floor has far more readers than the data room, so
+ * a read naming exactly one workspace and nothing that differs per reader
+ * is held for five seconds per query, one computation in flight at a time
+ * (docs/data-room.md, "The feed"). The log itself is one UNION ALL query,
+ * which is what these count.
+ */
+describe('A READ THAT NAMES ONE WORKSPACE IS HELD FIVE SECONDS', () => {
+  const unions = (qs: string[]) => qs.filter(q => q.includes('UNION ALL')).length;
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test('two identical workspace reads compute the log once and answer the same rows', async () => {
+    await seedFloors();
+    const cap = captureQueries();
+    try {
+      const a = await request(app).get('/api/data-room/actions?workspace=telarchy&limit=30');
+      const b = await request(app).get('/api/data-room/actions?workspace=telarchy&limit=30');
+      expect(a.status).toBe(200);
+      expect(b.status).toBe(200);
+      expect(b.body.rows).toEqual(a.body.rows);
+      expect(unions(cap.queries)).toBe(1);
+    } finally {
+      cap.stop();
+    }
+  });
+
+  test('reads that arrive together share one computation', async () => {
+    await seedFloors();
+    const cap = captureQueries();
+    try {
+      const [a, b, c] = await Promise.all([
+        request(app).get('/api/data-room/actions?workspace=snake&limit=30'),
+        request(app).get('/api/data-room/actions?workspace=snake&limit=30'),
+        request(app).get('/api/data-room/actions?workspace=snake&limit=30'),
+      ]);
+      expect([a.status, b.status, c.status]).toEqual([200, 200, 200]);
+      expect(unions(cap.queries)).toBe(1);
+    } finally {
+      cap.stop();
+    }
+  });
+
+  test('a read with anything that differs per reader is never held', async () => {
+    await seedFloors();
+    const cap = captureQueries();
+    try {
+      await request(app).get('/api/data-room/actions?workspace=telarchy&participant=a1');
+      await request(app).get('/api/data-room/actions?workspace=telarchy&participant=a1');
+      await request(app).get('/api/data-room/actions?workspace=telarchy&after=2026-09-01T00:00:00Z');
+      await request(app).get('/api/data-room/actions?workspace=telarchy&after=2026-09-01T00:00:00Z');
+      expect(unions(cap.queries)).toBe(4);
+    } finally {
+      cap.stop();
+    }
+  });
+
+  test('a read that names no workspace is not held here', async () => {
+    await seedFloors();
+    const cap = captureQueries();
+    try {
+      // Every kind, so the read is the UNION ALL this counts (one kind is one branch).
+      await request(app).get('/api/data-room/actions?limit=5');
+      await request(app).get('/api/data-room/actions?limit=5');
+      expect(unions(cap.queries)).toBe(2);
+    } finally {
+      cap.stop();
+    }
+  });
+
+  test('a different workspace or a different limit is its own read', async () => {
+    await seedFloors();
+    const cap = captureQueries();
+    try {
+      await request(app).get('/api/data-room/actions?workspace=telarchy&limit=30');
+      await request(app).get('/api/data-room/actions?workspace=snake&limit=30');
+      await request(app).get('/api/data-room/actions?workspace=telarchy&limit=10');
+      expect(unions(cap.queries)).toBe(3);
+    } finally {
+      cap.stop();
+    }
+  });
+
+  test('the hold lasts five seconds, then the log is computed again', async () => {
+    await seedFloors();
+    const base = Date.now();
+    let offset = 0;
+    jest.spyOn(Date, 'now').mockImplementation(() => base + offset);
+    const cap = captureQueries();
+    try {
+      await request(app).get('/api/data-room/actions?workspace=telarchy&limit=30');
+      offset = 4_900;
+      await request(app).get('/api/data-room/actions?workspace=telarchy&limit=30');
+      expect(unions(cap.queries)).toBe(1);
+      offset = 5_100;
+      await request(app).get('/api/data-room/actions?workspace=telarchy&limit=30');
+      expect(unions(cap.queries)).toBe(2);
+    } finally {
+      cap.stop();
+    }
   });
 });

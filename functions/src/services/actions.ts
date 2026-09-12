@@ -193,6 +193,43 @@ interface RawRow {
  * spliced into each branch, so a branch cannot forget one. A branch whose
  * kind is not asked for is left out of the union entirely.
  */
+/**
+ * A read that names exactly one workspace and nothing that differs per reader
+ * is held for five seconds per query, one computation in flight at a time
+ * (docs/data-room.md, "The feed"): every floor's Live column polls exactly
+ * that read (docs/ui-conventions.md, "The live log"), and a floor has far more
+ * readers than the data room. Anything with a participant, an instant or a
+ * cursor is computed on request.
+ */
+export const ACTIONS_HOLD_MS = 5_000;
+const held = new Map<string, { at: number; page: Promise<ActionsPage> }>();
+
+function holdKey(query: ActionsQuery): string | null {
+  if (!query.workspace || query.participant || query.after || query.before || query.cursor) return null;
+  return JSON.stringify([query.workspace, [...(query.kinds ?? [])].sort(), query.limit ?? null, query.floors ?? null]);
+}
+
+export function clearActionsHold(): void {
+  held.clear();
+}
+
+export function buildActionsHeld(query: ActionsQuery): Promise<ActionsPage> {
+  const key = holdKey(query);
+  if (key === null) return buildActions(query);
+  const now = Date.now();
+  const hit = held.get(key);
+  if (hit && now - hit.at < ACTIONS_HOLD_MS) return hit.page;
+  const page = buildActions(query);
+  held.set(key, { at: now, page });
+  // A failed computation is not held: the next reader tries again.
+  page.catch(() => {
+    if (held.get(key)?.page === page) held.delete(key);
+  });
+  // Keep the map from growing with workspaces nobody reads any more.
+  if (held.size > 500) for (const [k, v] of held) if (now - v.at >= ACTIONS_HOLD_MS) held.delete(k);
+  return page;
+}
+
 export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
   const limit = query.limit ?? DEFAULT_LIMIT;
   const publicFloors = await db
