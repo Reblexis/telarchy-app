@@ -952,6 +952,10 @@ export interface PublicWorkspaceMarket {
    *  tie-breaker between two metrics read on the same date, and the order the
    *  floor's metric stepper walks. Absent on an older payload. */
   metricOrder?: number | null;
+  /** The question over this book in the owner's own words, when they wrote one
+   *  (docs/ui-conventions.md, "The question line"); null or absent means the
+   *  floor composes it. Kept on the metric, so it outlives each new book. */
+  marketTitle?: string | null;
   targetDate: string;
   resolvesOn: string;
   consensus: number | null;

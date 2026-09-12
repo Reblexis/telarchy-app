@@ -525,6 +525,18 @@ export const metrics = pgTable(
     workspaceId: text('workspace_id').notNull(),
     name: text('name').notNull(),
     description: text('description').notNull().default(''),
+    /**
+     * The question a visitor reads over this metric's book, in the owner's own
+     * words (docs/ui-conventions.md, "The question line"; owner ask
+     * 2026-09-12: "add support for custom title of a market"). NULL means the
+     * floor composes it from the workspace name, the metric and the date.
+     *
+     * On the metric rather than on the market row: a market is created fresh
+     * for every new horizon cell (the snake opens one a minute), so a title
+     * stored per market would be gone within the minute. Renaming the metric
+     * leaves it alone, since the owner wrote it and did not derive it.
+     */
+    marketTitle: text('market_title'),
     value: doublePrecision('value').notNull().default(0),
     formula: text('formula').notNull().default('0'),
     /**
