@@ -1814,7 +1814,7 @@ regardless.
 
 **Prices refresh every second; everything else every fifteen.** While the tab
 is visible the floor asks `GET /api/marketplace/:id/prices` once a second,
-each tick delayed by up to 150 ms of random jitter so viewers who opened the
+each ask starting at most one second after the previous one was sent (an answer slower than that is followed at once), brought forward by up to 150 ms of random jitter so viewers who opened the
 page together do not ask together, and it sends back the ETag it last
 received; a 304 changes nothing. A new body overwrites, in place, every price
 the floor shows: the headline and the chart's live dot, the ticket's quote,
