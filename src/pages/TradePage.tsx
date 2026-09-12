@@ -11,6 +11,7 @@ import { FloorAnnouncements } from '../components/FloorAnnouncements';
 import { FloorChat } from '../components/FloorChat';
 import { FloorChecklist } from '../components/FloorChecklist';
 import { FloorComments } from '../components/FloorComments';
+import { LiveLogBlock, LiveLogStrip } from '../components/FloorLiveLog';
 import { FloorLiveView } from '../components/FloorLiveView';
 import { FloorStandings, type ProposalTraderRow, SeasonAdvert, useCurrentSeason } from '../components/FloorRails';
 import { FloorStrip } from '../components/FloorStrip';
@@ -42,6 +43,7 @@ import { TopBarShortcuts } from '../components/TopBarShortcuts';
 import { type TicketPosition, TradeTicket } from '../components/TradeTicket';
 import { useAuth } from '../hooks/useAuth';
 import { useMyParticipantId } from '../hooks/useMyParticipantId';
+import { useWorkspaceLog } from '../hooks/useWorkspaceLog';
 import type { FloorRef } from '../lib/agent-prompt';
 import type { LeaderboardEntry, LimitOrder, PublicProposal, SnakeState } from '../lib/api';
 import { api, type PublicWorkspace, setActiveWorkspace } from '../lib/api';
@@ -72,6 +74,7 @@ import {
   timeLeftOf,
 } from '../lib/floor-horizons';
 import { dropInline, readInline } from '../lib/inline-data';
+import { isFastWorkspace } from '../lib/live-log';
 import { maxWinLabel } from '../lib/market-quote';
 import { authPath } from '../lib/nextPath';
 import { periodGapOf } from '../lib/period-gap';
@@ -257,6 +260,9 @@ export function TradePage() {
   // over the pending proposals it names. Everything below reads `ws`.
   const [feedQuotes, setFeedQuotes] = useState<FeedQuotes>({});
   const ws = useMemo(() => overlayFeedQuotes(wsRaw, feedQuotes), [wsRaw, feedQuotes]);
+  // The live log (docs/ui-conventions.md, "The live log"): one read of this
+  // workspace's actions, shared by the Live block and the strip under the verbs.
+  const liveLog = useWorkspaceLog(idOrSlug ?? null);
   // The name and one-liner the server planted in a share link's HTML
   // (#telarchy-floor), so the headline paints before the payload lands.
   // Only honoured for the floor this address names; read once and dropped.
@@ -2437,7 +2443,10 @@ export function TradePage() {
                         /* The feed drives the floor (docs/ui-conventions.md): a
                            step or a ruling on the feed reloads the payload at
                            once; a chevron selects its proposal like a row. */
-                        onStep={() => reload()}
+                        onStep={() => {
+                          reload();
+                          liveLog.refresh();
+                        }}
                         /* An arrow names the option it points at, so the
                            ticket opens on that world, not on the default
                            (Viktor, 2026-09-11: "i click the left arrow and it
@@ -2691,6 +2700,16 @@ export function TradePage() {
             the reading order is unchanged. */}
           {/* Keyed by the side so a verb re-seeds the ticket instead of being
               a dead click, exactly as the inline ticket was. */}
+          {/* Below 1500px the live log folds to one line under the verbs. */}
+          {!selectedJob && liveLog.state === 'ready' && (
+            <LiveLogStrip
+              slug={ws.slug ?? idOrSlug ?? ws.workspaceId}
+              rows={liveLog.rows}
+              fast={isFastWorkspace(ws.decisionMinutes)}
+              newIds={liveLog.newIds}
+              onSeen={liveLog.markSeen}
+            />
+          )}
           {!!selectedJob && (selectedJobPastDeadline || selectedJobClosed) && (
             /* Closed before the ruling lands (docs/ui-conventions.md, "A
                proposal past its deadline reads as closed before the ruling
@@ -3407,6 +3426,17 @@ export function TradePage() {
                 latest={ws.latestAnnouncement}
                 total={ws.announcementCount}
                 canManage={canManage}
+              />
+            )}
+            {/* The Live block, from 1500px where this column exists
+                (docs/ui-conventions.md, "The live log"). */}
+            {liveLog.state === 'ready' && (
+              <LiveLogBlock
+                slug={ws.slug ?? idOrSlug ?? ws.workspaceId}
+                rows={liveLog.rows}
+                fast={isFastWorkspace(ws.decisionMinutes)}
+                newIds={liveLog.newIds}
+                onSeen={liveLog.markSeen}
               />
             )}
           </aside>

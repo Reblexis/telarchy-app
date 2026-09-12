@@ -84,9 +84,26 @@ function dayKey(iso: string): string {
 /** The log tab: the stamp, the filter bar and the log (docs/data-room.md,
  *  "The page"). Mounted only while the log is the open tab, so its reads and
  *  its minute poll stop the moment the reader is elsewhere. */
-function LogTab({ onBusy }: { onBusy: (busy: boolean) => void }) {
+/**
+ * The log itself: the stamp, the filter bar, the rows, and More (docs/data-room.md,
+ * "The page"). The data room's Log tab renders it for every floor; a workspace's
+ * own `/<slug>/log` renders it with the workspace fixed (docs/data-room.md, "A
+ * workspace's log"): no floor select, no floor name on a row.
+ */
+export function ActionsLog({
+  onBusy,
+  fixedWorkspace,
+  onVocab,
+}: {
+  onBusy?: (busy: boolean) => void;
+  fixedWorkspace?: string;
+  onVocab?: (vocab: Pick<ActionsPage, 'kinds' | 'workspaces'>) => void;
+}) {
   const [search, setSearch] = useSearchParams();
-  const filters = useMemo(() => readFilters(search), [search]);
+  const filters = useMemo(
+    () => (fixedWorkspace ? { ...readFilters(search), workspace: fixedWorkspace } : readFilters(search)),
+    [search, fixedWorkspace],
+  );
   const filterKey = actionsQueryString(filters);
 
   const [vocab, setVocab] = useState<Pick<ActionsPage, 'kinds' | 'workspaces'> | null>(null);
@@ -110,6 +127,7 @@ function LogTab({ onBusy }: { onBusy: (busy: boolean) => void }) {
       .then(page => {
         if (!live) return;
         setVocab({ kinds: page.kinds, workspaces: page.workspaces });
+        onVocab?.({ kinds: page.kinds, workspaces: page.workspaces });
         setRows(page.rows);
         setNext(page.next);
         setGeneratedAt(page.generatedAt);
@@ -206,13 +224,13 @@ function LogTab({ onBusy }: { onBusy: (busy: boolean) => void }) {
   }, [rows]);
 
   const kindLabel = (id: string) => vocab?.kinds.find(k => k.id === id)?.label ?? id;
-  const anyFilter = FILTER_KEYS.some(k => filters[k]);
+  const anyFilter = FILTER_KEYS.some(k => filters[k] && !(fixedWorkspace && k === 'workspace'));
   const jsonHref = withBase(`/api/data-room/actions${filterKey}`);
 
   useEffect(() => {
-    onBusy(state === 'loading');
+    onBusy?.(state === 'loading');
   }, [state, onBusy]);
-  useEffect(() => () => onBusy(false), [onBusy]);
+  useEffect(() => () => onBusy?.(false), [onBusy]);
 
   return (
     <>
@@ -257,22 +275,24 @@ function LogTab({ onBusy }: { onBusy: (busy: boolean) => void }) {
           ))}
         </div>
         <div className="dr-filters-right">
-          <label className="dr-select-wrap">
-            <span className="dr-select-label">Floor</span>
-            <select
-              className="dr-select"
-              aria-label="Floor"
-              value={filters.workspace ?? ''}
-              onChange={e => setFilter('workspace', e.target.value || null)}
-            >
-              <option value="">Every floor</option>
-              {(vocab?.workspaces ?? []).map(w => (
-                <option key={w.slug} value={w.slug}>
-                  {w.hidden ? `${w.name} (hidden by default)` : w.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          {!fixedWorkspace && (
+            <label className="dr-select-wrap">
+              <span className="dr-select-label">Floor</span>
+              <select
+                className="dr-select"
+                aria-label="Floor"
+                value={filters.workspace ?? ''}
+                onChange={e => setFilter('workspace', e.target.value || null)}
+              >
+                <option value="">Every floor</option>
+                {(vocab?.workspaces ?? []).map(w => (
+                  <option key={w.slug} value={w.slug}>
+                    {w.hidden ? `${w.name} (hidden by default)` : w.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {filters.participant && (
             <button
               type="button"
@@ -326,7 +346,7 @@ function LogTab({ onBusy }: { onBusy: (busy: boolean) => void }) {
                       {r.text}
                     </Link>
                   </span>
-                  {r.workspace && (
+                  {r.workspace && !fixedWorkspace && (
                     <button
                       type="button"
                       className="dr-row-floor"
@@ -356,6 +376,10 @@ function LogTab({ onBusy }: { onBusy: (busy: boolean) => void }) {
       )}
     </>
   );
+}
+
+function LogTab({ onBusy }: { onBusy: (busy: boolean) => void }) {
+  return <ActionsLog onBusy={onBusy} />;
 }
 
 /** Documentation: the guides, rendered by the same components as /guides,
