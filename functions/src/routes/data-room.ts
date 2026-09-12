@@ -4,7 +4,7 @@ import { VISION } from '../content/vision';
 import { db } from '../db/client';
 import { workspaces } from '../db/schema';
 import { wrap } from '../lib/wrap';
-import { buildActions, buildActionsHeld, parseActionsQuery } from '../services/actions';
+import { buildActionsHeld, parseActionsQuery } from '../services/actions';
 import { buildDataRoomFeed } from '../services/data-room';
 import { buildTimeline } from '../services/timeline';
 
