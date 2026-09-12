@@ -202,11 +202,10 @@ describe('useFloorPrices', () => {
       await vi.advanceTimersByTimeAsync(5000);
     });
     expect(getFloorPrices).toHaveBeenCalledTimes(1);
+    // The answer took five seconds, far past the one-second period, so the
+    // next ask follows it at once (docs/ui-conventions.md, the live poll).
     await act(async () => {
       answer({ changed: false });
-    });
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1000);
     });
     expect(getFloorPrices).toHaveBeenCalledTimes(2);
   });

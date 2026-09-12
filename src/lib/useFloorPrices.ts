@@ -57,6 +57,11 @@ export function useFloorPrices(idOrSlug: string | undefined, enabled = true): Fl
       // does not push the next one past a second; a failure waits its back-off
       // from now.
       const wait = failures > 0 ? priceDelay(failures) : Math.max(0, priceDelay(0) - (Date.now() - sentAt));
+      // A period already spent: ask now rather than through a zero-length timer.
+      if (wait === 0) {
+        void ask();
+        return;
+      }
       timer = setTimeout(() => {
         timer = null;
         void ask();
