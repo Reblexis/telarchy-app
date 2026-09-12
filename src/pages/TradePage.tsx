@@ -576,10 +576,10 @@ export function TradePage() {
   // /leaderboard.
   const loadLeaders = () => {
     if (!idOrSlug) return;
-    // The workspace rail shows THIS workspace's own board (owner decision
+    // The footer shows THIS workspace's own board (owner decision
     // 2026-08-22: local by default; the season and global boards live behind
     // "Show full leaderboard"). Enough rows for the top ten after dropping
-    // never-traded participants (owner direction 2026-08-17).
+    // never-traded participants.
     api
       .getLeaderboard(30, idOrSlug)
       .then(r => setLeaders(r.participants ?? []))
@@ -1701,16 +1701,13 @@ export function TradePage() {
                 <Ghost w="50%" h={58} r={10} />
                 <Ghost w="50%" h={58} r={10} />
               </div>
-              {/* The two standings footers under the verbs, in the market
-                  column where they land. */}
+              {/* The standings footer under the verbs, in the market column
+                  where it lands: one head, ten rows over the two columns. */}
               <div className="pubws-ghost-standings" aria-hidden="true">
-                <div>
-                  <Ghost w={90} h={9} style={{ marginBottom: 8 }} />
-                  <GhostRows n={3} />
-                </div>
-                <div>
-                  <Ghost w={110} h={9} style={{ marginBottom: 8 }} />
-                  <GhostRows n={3} />
+                <Ghost w={90} h={9} style={{ marginBottom: 8 }} />
+                <div className="pubws-lb-cols">
+                  <GhostRows n={5} />
+                  <GhostRows n={5} />
                 </div>
               </div>
             </div>
@@ -3351,15 +3348,14 @@ export function TradePage() {
             )}
           </section>
           {/* Under the verbs and the facts row (docs/ui-conventions.md,
-            "The rails, and the standings under the verbs", revised
-            2026-09-06): the two standings footers. Footers, not rails:
-            nothing about other people sits above the fold, and the counts
-            appear in the facts row alone; there is no count strip. */}
+            "The standings are one footer, not rails, and not two boards"):
+            ONE board, the traders, ten rows over two columns. Footers, not
+            rails: nothing about other people sits above the fold, and the
+            counts appear in the facts row alone; there is no count strip.
+            No contractors here: that board lives on /leaderboard. */}
           {hero && active && (
             <FloorStandings
               entries={leaders}
-              contractors={ws.topContractors}
-              unit={unit}
               meId={myParticipantId}
               season={season}
               proposalTraders={selectedJob ? pairHolders : undefined}

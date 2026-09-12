@@ -2199,59 +2199,65 @@ season" control. Three lines, nothing else: no trader or volume count in
 it, no "and", no running sentence. It sits in the left column under the
 definition.
 
-**The standings are footers, not rails.** Under the facts row, two
-compact blocks side by side on desktop and stacked on a phone
-(`.pubws-standings`): "Top traders" and "Top contractors", THREE rows each
-(the rail showed five), the same `.pubws-lb-head` anatomy (tiny uppercase
-label, right-aligned mono meta, hairline, rows), and one "Show full
-leaderboard" link to `/leaderboard` under the pair. They keep every
-ranking rule below and the fifteen-second poll. **With a proposal
-selected, the traders footer becomes "Traders on this proposal"**: the
-same rows, restricted to accounts with a position on either branch of the
-selected pair, ranked by that position's marked profit, with the meta "this
+**The standings are one footer, not rails, and not two boards.** Under
+the facts row stands a single block (`.pubws-standings`): "Top traders",
+TEN rows, with the `.pubws-lb-head` anatomy (tiny uppercase label,
+right-aligned mono meta, hairline, rows) and one "Show full leaderboard"
+link to `/leaderboard` under it. The ten rows fill TWO COLUMNS
+(`.pubws-lb-cols`): ranks 1 to 5 on the left, 6 to 10 on the right on a
+desktop, one column on a phone, where the document order is 1 to 10 in
+order. A footer of five rows or fewer draws one column and leaves no empty
+track. The reader's own row is marked where it stands, and pinned at the
+foot of the last column when they are outside the ten. The board keeps
+every ranking rule below and the fifteen-second poll. **With a proposal selected, the footer becomes
+"Traders on this proposal"**: the same ten rows over the same two columns,
+restricted to accounts with a position on either branch of the selected
+pair, ranked by that position's marked profit, with the meta "this
 proposal"; when nobody holds one it says "nobody yet" in one row rather
-than hiding. The contractors footer does not change, since the contractor
-score is workspace-wide by construction.
+than hiding. **There is no contractors block on a floor.** The contractor
+standings live on `/leaderboard` alone, because a floor is read to price
+the number and to find where the reader stands among the people pricing
+it.
 
 **The order under the trade is the same at every width** (2026-09-09): the
 two bet verbs, then the ticket, then the proposals board, then the propose
 band, then how this settles, then the market's own activity, then the
-standings footers, then the announcements and the rest. Everything after the
+standings footer, then the announcements and the rest. Everything after the
 verbs is ONE grid item (`.pubws-tail`), and the ticket rail is its own,
 placed in the DOM between them: so the document order IS the phone order and
 the grid alone puts the rail beside the market on a wide screen. Nothing is
-rendered twice to achieve it. On a phone this replaces an order that put both standings, the
+rendered twice to achieve it. On a phone this replaces an order that put the standings, the
 definition and the announcements between the trade and the proposals, so
 paid work began at 2327px of a 4240px page. A visitor comes to price the
 number or to be paid for moving it, and both of those now happen in the
 first screen and the one after it. The floor column keeps a small gap under
 the top bar on narrow viewports. The loading ghosts draw the same columns.
 
-**Both standings are scoped to THIS workspace.** The traders footer passes the
-workspace to `/api/leaderboard` (`?workspaceId=<id or slug>`), so a
-trader's number on a floor is the profit they made ON that floor; the
-contractor board is per workspace by construction. The cross-workspace
-board lives at `/leaderboard`, where the question genuinely is
-platform-wide.
+**The floor's standings are scoped to THIS workspace.** The footer passes
+the workspace to `/api/leaderboard` (`?workspaceId=<id or slug>`), so a
+trader's number on a floor is the profit they made ON that floor. The
+cross-workspace board lives at `/leaderboard`, which also carries a picker
+for reading any one floor's board from there.
 
 **"Show full leaderboard" is a link to `/leaderboard`, never a board opened
-in place.** The link sits directly under the two footers it extends and is
-their only full-width control; the season's own control lives in the
-season block in the left column.
+in place.** The link sits directly under the footer it extends and is its
+only full-width control; the season's own control lives in the season
+block in the left column.
 
 **The blocks share one anatomy.** Every block, footer or rail, opens
 with a header row (`.pubws-lb-head`): the tiny uppercase label on the
 left, a right-aligned mono meta on the right, a hairline underneath, rows
 following directly. The meta says what the numbers are: "this market" over
-the traders, "impact" over the contractors, "impact by Sep" over the
+the traders, "this proposal" over the traders on a selected proposal,
+"impact by Sep" over the
 proposals, and the season's countdown over the season block (the one meta
 in primary colour and bold, because it is the number that says whether to
 act today). The proposals board's column label is that header's meta.
 
-**Both leaderboards rank on what the market says right now, not on what
-has settled.** The footers show three rows each; both update on the
-floor's fifteen-second poll, so a single trade reorders them without a
-reload.
+**Both boards rank on what the market says right now, not on what
+has settled.** The floor's footer shows ten rows and updates on the
+floor's fifteen-second poll, so a single trade reorders it without a
+reload; `/leaderboard` ranks the same way in its own tables.
 
 - **Top traders** rank by trading profit marked to market: payouts
   collected on resolved markets, plus the current worth of every open
@@ -2261,7 +2267,7 @@ reload.
   resolution. On `/leaderboard` each row also prints the split under the
   total, "settled" (final: resolutions and refunds) and "open" (still a
   mark), so a reader can tell realised money from paper (`docs/seasons.md`,
-  "The score"). The rail's five compact rows print the total only. The
+  "The score"). The floor footer's compact rows print the total only. The
   number is measured off the trades, not off the balance, so credits the
   platform handed an account never enter it. **No account is excluded.**
   Anyone who has ever traded in a public workspace is on the board. **A
@@ -2301,7 +2307,7 @@ reload.
   negative); dollars earned on approved proposals drop to the row's second
   line, alongside the proposal count. House accounts are NOT excluded
   here: a contractor's score is priced by other people, so it cannot be
-  self-granted. The rail scores every pending proposal plus the 200 most
+  self-granted. The board scores every pending proposal plus the 200 most
   recently posted approved ones (`CONTRACTOR_DECIDED_WINDOW`), never a
   workspace's whole history: it is rebuilt on every floor poll and home
   build, and a decided proposal's books are not read at all, since its
@@ -2759,6 +2765,43 @@ Hairline borders are deliberately below it too; they are structure, not text,
 and lifting them to a text contrast would turn the hairlines into rules and
 change the design language. Check a new token with a contrast ratio, not by
 eye.
+
+## The leaderboard (/leaderboard)
+
+`telarchy.com/leaderboard` (`LeaderPage`, `.lbp-*`) is where the floor's
+"Show full leaderboard" link lands. It carries the boards as TABLES with
+labeled columns (`components/LeaderTables.tsx`), so what each one scores on
+is legible without hovering: the season standings while a season runs or
+after it settles, then All-time, then Contractors. The floor shows ten
+traders and nothing else; this page is where the whole field, the split
+between settled and open, and the people posting proposals are read.
+
+**One picker says which floor.** Above the boards sits a single select
+(`.lbp-scope`) listing every public floor by name, with "Every floor" as
+its first and default option. Choosing a floor scopes the all-time board
+and the contractors board to it: the traders board passes
+`?workspaceId=<slug>` to `/api/leaderboard`, and the contractors board
+reads that one floor's marketplace payload instead of the union of them
+all. The floor list is the public marketplace list
+(`GET /api/marketplace/workspaces/public`), the same list the page already
+reads for the contractors, so there is no second vocabulary of floors to
+keep in step.
+
+**The season board is never scoped.** A season is a platform-wide contest
+scored over every public floor, so the picker leaves it alone and the
+section says which floors it covers by covering all of them. Scoping it
+would print a standing that pays nobody.
+
+**The choice lives in the URL**, as `?workspace=<slug>`, and the page holds
+no filter the URL does not show (the data room's rule). So the back button
+walks the choices, a link to one floor's board is shareable, and the first
+load reads the query rather than defaulting to everything. A query naming
+a floor that is not public answers the way the API does, with an empty
+board, never by widening back to every floor.
+
+**The page polls on the floor's own fifteen-second cadence** while the tab
+is visible and refreshes on tab return. Changing the picker refetches at
+once rather than waiting for the next tick.
 
 ## The marketplace (/marketplace)
 

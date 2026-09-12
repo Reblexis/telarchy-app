@@ -5136,9 +5136,9 @@ textarea.jobform-line--desc {
     border-left: 1px solid var(--border-color);
     padding-left: clamp(1rem, 2vw, 1.6rem);
   }
-  /* Two footers side by side on a wide screen. */
-  .pubws-standings-pair { grid-template-columns: 1fr 1fr; column-gap: 2rem; }
-  .pubws-ghost-standings { grid-template-columns: 1fr 1fr; }
+  /* The footer's ten rows in two columns on a wide screen: 1 to 5 left,
+     6 to 10 right. */
+  .pubws-lb-cols { grid-template-columns: 1fr 1fr; column-gap: 2rem; }
 }
 
 @media (min-width: 1500px) {
@@ -5180,9 +5180,10 @@ textarea.jobform-line--desc {
   /* One column on a phone: the tail sits exactly where the DOM puts it,
      under the ticket, which is under the verbs. */
   .pubws-tail { width: 100%; max-width: 660px; margin: 0 auto; }
-  /* Stacked on a phone. */
-  .pubws-standings-pair { grid-template-columns: 1fr; row-gap: 1.7rem; }
-  .pubws-ghost-standings { grid-template-columns: 1fr; }
+  /* One column on a phone: the DOM order is 1 to 10, so the two lists
+     stack into one continuous run with no gap between the fifth row and
+     the sixth. */
+  .pubws-lb-cols { grid-template-columns: 1fr; row-gap: 0; }
 }
 
 /* The left column's blocks: the definition's page-flow gap is not wanted
@@ -5249,26 +5250,26 @@ textarea.jobform-line--desc {
 .pubws-season-go:hover { color: var(--accent); border-color: var(--accent); }
 .pubws-season-go:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
-/* The standings footers (docs/ui-conventions.md, "The standings are
-   footers, not rails"): a hairline over the pair, the two blocks in a grid
-   (side by side wide, stacked narrow, see the media rules above), and the
-   one "Show full leaderboard" link under both. */
+/* The standings footer (docs/ui-conventions.md, "The standings are one
+   footer, not rails, and not two boards"): a hairline over the block, its
+   ten rows in two columns (side by side wide, one stacked column narrow,
+   see the media rules above), and the one "Show full leaderboard" link
+   under it. */
 .pubws-standings {
   margin-top: 2.2rem;
   padding-top: 1.2rem;
   border-top: 1px solid var(--border-color);
   text-align: left;
 }
-.pubws-standings-pair { display: grid; }
-.pubws-standings .pubws-lb-block + .pubws-lb-block { margin-top: 0; }
+/* The two row columns. The lists carry the gap the head would have given a
+   single list, and neither list adds its own on top. */
+.pubws-lb-cols { display: grid; margin-top: 0.6rem; }
+.pubws-lb-cols > .pubws-lb { margin-top: 0; }
 .pubws-standings .pubws-lb-more { margin-top: 1rem; }
 /* "nobody yet": one quiet row, so the footer never reads as broken. */
 .pubws-lb-row--empty { color: var(--text-tertiary); }
-/* The standings' ghost: two three-row blocks in the same grid. */
+/* The standings' ghost: one head over the same two columns of rows. */
 .pubws-ghost-standings {
-  display: grid;
-  column-gap: 2rem;
-  row-gap: 1.2rem;
   margin-top: 26px;
   padding-top: 18px;
   border-top: 1px solid var(--border-color);
@@ -7311,6 +7312,40 @@ textarea.jobform-line--desc {
   line-height: 1.55;
   color: var(--text-secondary);
 }
+
+/* Which floor the boards are about (docs/ui-conventions.md, "The
+   leaderboard (/leaderboard)"): one control, set left above the boards, in
+   the mono label voice the rest of the site uses for a filter. */
+.lbp-scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: clamp(1.6rem, 4vh, 2.4rem);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+}
+.lbp-scope-select {
+  font: inherit;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 0.28rem 1.6rem 0.28rem 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: transparent
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23888' stroke-width='1.5'/%3E%3C/svg%3E")
+    no-repeat right 0.6rem center;
+  color: var(--text-primary);
+  appearance: none;
+  cursor: pointer;
+}
+.lbp-scope-select:hover { border-color: var(--text-tertiary); }
+.lbp-scope-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lbp-scope-select option { background: var(--bg-secondary); color: var(--text-primary); }
 
 .lbp-section { margin-bottom: 3rem; }
 

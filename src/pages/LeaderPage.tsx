@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { BotMark } from '../components/BotMark';
 import { AllTimeTable, initialOf, SeasonTable } from '../components/LeaderTables';
 import { useAuth } from '../hooks/useAuth';
@@ -15,6 +15,15 @@ import { TopBar } from './TradePage';
  * adapted from the console's leaderboard, because nothing public-facing
  * renders the console UI and that page belongs to a different design.
  *
+ * One picker above the boards says which floor they are about
+ * (docs/ui-conventions.md, "The leaderboard (/leaderboard)"): "Every floor"
+ * by default, and any public floor scopes the all-time and contractor
+ * boards to it. The choice lives in the URL as ?workspace=<slug>, the data
+ * room's rule, so the page holds no filter the URL does not show, the back
+ * button walks the choices and a link to one floor's board is shareable.
+ * The season board is never scoped: a season is scored over every public
+ * floor, so a scoped season standing would pay nobody.
+ *
  * Since 2026-08-28 the boards are TABLES with labeled columns
  * (components/LeaderTables.tsx, owner ask: "more like a table showing the
  * different statistics in different columns, so it's more clear what the
@@ -22,8 +31,20 @@ import { TopBar } from './TradePage';
  * column marked as the scoring key, and the all-time board splits
  * Settled / Open / Total so a marks-only leader is legible at a glance.
  */
+/** A public floor, as the marketplace list reports it: the same list the
+ *  contractors board already reads, so the picker introduces no second
+ *  vocabulary of floors to keep in step. */
+type PublicFloor = { workspaceId: string; name: string; slug?: string | null };
+/** What the query names a floor by: its slug where it has one, since that
+ *  is what a reader recognises in a shared link. */
+const addressOf = (w: PublicFloor) => w.slug || w.workspaceId;
+
 export function LeaderPage() {
   const { user, loading: authLoading } = useAuth();
+  const [search, setSearch] = useSearchParams();
+  // The one filter on this page, and it lives in the URL.
+  const scope = search.get('workspace') ?? '';
+  const [floors, setFloors] = useState<PublicFloor[] | null>(null);
   const [traders, setTraders] = useState<LeaderboardEntry[] | null>(null);
   const [contractors, setContractors] = useState<PublicContractor[] | null>(null);
   // The prize season, on the public board. This is where the floor's "See the
@@ -70,7 +91,7 @@ export function LeaderPage() {
         })
         .catch(e => console.error('seasons fetch failed:', e));
       api
-        .getLeaderboard(200)
+        .getLeaderboard(200, scope || undefined)
         .then(r => {
           if (!cancelled) setTraders((r.participants ?? []).filter(e => e.totalTrades > 0));
         })
@@ -84,8 +105,15 @@ export function LeaderPage() {
       api
         .getPublicWorkspaces()
         .then(async list => {
+          if (!cancelled) setFloors((list ?? []) as PublicFloor[]);
+          // Scoped, the contractors come from the one chosen floor. A scope
+          // that names nothing public contributes nobody, which is what the
+          // trader board does with the same query rather than widening.
+          const wanted = scope
+            ? (list ?? []).filter(w => w.workspaceId === scope || (w.slug ?? '').toLowerCase() === scope.toLowerCase())
+            : (list ?? []);
           const rows = await Promise.all(
-            (list ?? []).map(w =>
+            wanted.map(w =>
               api
                 .getMarketplaceWorkspace(w.slug || w.workspaceId)
                 .then(ws => ws.topContractors ?? [])
@@ -131,7 +159,8 @@ export function LeaderPage() {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, []);
+    // Changing the floor refetches at once rather than waiting for the tick.
+  }, [scope]);
 
   // The viewer's own entry state is the only thing on this page that belongs
   // to the session, so it is the only thing the session's arrival re-fetches.
@@ -153,6 +182,17 @@ export function LeaderPage() {
     meId && traders && !traders.some(e => e.id === meId) ? (traders.find(e => e.id === meId) ?? null) : null;
 
   const seasonLive = season && season.status !== 'draft';
+  // A query naming a floor the list does not carry (private, renamed, a
+  // typo) still shows in the picker: the page may hold no filter the URL
+  // does not show, and the boards are already answering that query.
+  const unlisted = scope && floors !== null && !floors.some(w => addressOf(w) === scope) ? scope : null;
+
+  const pick = (value: string) => {
+    const next = new URLSearchParams(search);
+    if (value) next.set('workspace', value);
+    else next.delete('workspace');
+    setSearch(next);
+  };
 
   return (
     <div className="pubws">
@@ -163,6 +203,22 @@ export function LeaderPage() {
           The season board pays real money on <strong>settled profit</strong>. The all-time board ranks total profit,
           open positions included.
         </p>
+
+        {/* Which floor these boards are about. One control, and its value is
+            the URL's (docs/ui-conventions.md, "The leaderboard
+            (/leaderboard)"). */}
+        <label className="lbp-scope">
+          <span className="lbp-scope-label">Floor</span>
+          <select className="lbp-scope-select" value={scope} onChange={e => pick(e.target.value)}>
+            <option value="">Every floor</option>
+            {(floors ?? []).map(w => (
+              <option key={w.workspaceId} value={addressOf(w)}>
+                {w.name}
+              </option>
+            ))}
+            {unlisted && <option value={unlisted}>{unlisted}</option>}
+          </select>
+        </label>
 
         {/* One line and a link. The pool, the rules and the entry flow live on
             /season (owner direction 2026-08-19); this page is the boards, and
