@@ -1555,9 +1555,8 @@ price itself, in the same underlined register, and the confirm becomes the
 instruction in one line ("Buy Higher under $65,000"; the stake is on screen already), with breakeven
 exactly at the limit; limit orders are a mode of the same ticket, never a
 second panel. The Sell tab has the same mode: the position's shares slider,
-the price, and an ink confirm ("Sell 166.4 at $80,000"). Neither tab offers
-Limit on a book whose trading closes within 10 minutes. Spec:
-docs/limit-orders.md.
+the price, and an ink confirm ("Sell 166.4 at $80,000"). Both tabs offer
+Limit on every book, however soon it closes. Spec: docs/limit-orders.md.
 
 **The payoff line is one rule with two rows of type, and nothing else**
 (owner, 2026-09-01: "i want the visualization line to only show on top the

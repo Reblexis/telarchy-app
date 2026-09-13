@@ -125,8 +125,8 @@ step. This is enforced structurally rather than by discipline: there is one
 `executeTradeInTx` in `services/trading.ts`, and both the trade route and the
 fill pass call it.
 
-Two properties the implementation must keep, because losing either turns a
-limit order into something else:
+Three properties the implementation must keep, because losing any of them
+turns a limit order into something else:
 
 - **A stranger's order can never fail your trade.** Each fill runs in its own
   savepoint inside the triggering trade's transaction. An order that cannot
@@ -177,9 +177,8 @@ needed; the existing cap and the charter's coordination rule still govern.
 A buy placed without `side` behaves and answers exactly as before sells
 existed; the new fields are additions.
 
-The API accepts an order on any open book, including one whose trading
-closes within minutes. The ticket does not offer one there (below), because
-the close releases it before anyone is likely to reach its price.
+Every open book takes limit orders, in the API and in the ticket alike,
+however soon its trading closes.
 
 A trade's own `limit` (docs/guides/agent-api.md, "Guard the price") is not a
 limit order. It fills now, up to its bound, and hands back what it did not
@@ -198,10 +197,8 @@ is optional and hidden until wanted:
 - A `Quick` / `Limit` toggle in the ticket's header, Manifold-style, on
   both tabs: on Buy once a side is picked, on Sell once there is a position
   to sell. Default is `Quick`, so the common case gains nothing to read.
-- **No `Limit` on a book whose trading closes within 10 minutes**, on either
-  tab: a proposal that decides that soon (every book on a one-minute floor
-  such as the snake) releases a resting order at the close, so offering one
-  offers nothing.
+- **`Limit` is offered on every book**, a one-minute snake proposal
+  included; nothing about a book's close hides it.
 - Choosing `Limit` reveals one mono input in metric space, prefilled
   with the current call, and the confirm restates the instruction:
   **"Buy Higher under $65,000"**. The stake is already on screen in the

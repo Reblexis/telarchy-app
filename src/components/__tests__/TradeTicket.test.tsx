@@ -370,39 +370,6 @@ describe('selling at a price', () => {
   });
 });
 
-describe('a book that closes soon', () => {
-  const higher = { direction: 'higher' as const, shares: 40.5, totalCost: 18 };
-  const inMinutes = (m: number) => new Date(Date.now() + m * 60_000).toISOString();
-
-  test('no Limit on the Buy tab when trading closes within 10 minutes', () => {
-    render(
-      <TradeTicket {...base} closesAt={inMinutes(5)} onPlaceLimit={async () => {}} onPlaceSellLimit={async () => {}} />,
-    );
-    pick('Higher');
-    expect(screen.queryByRole('group', { name: 'Order type' })).toBeNull();
-  });
-
-  test('no Limit on the Sell tab when trading closes within 10 minutes', () => {
-    render(
-      <TradeTicket
-        {...base}
-        positions={[higher]}
-        closesAt={inMinutes(1)}
-        onPlaceLimit={async () => {}}
-        onPlaceSellLimit={async () => {}}
-      />,
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Sell' }));
-    expect(screen.queryByRole('group', { name: 'Order type' })).toBeNull();
-  });
-
-  test('Limit stays when trading closes later than 10 minutes', () => {
-    render(<TradeTicket {...base} closesAt={inMinutes(11)} onPlaceLimit={async () => {}} />);
-    pick('Higher');
-    expect(screen.getByRole('group', { name: 'Order type' })).toBeTruthy();
-  });
-});
-
 describe('what a composed limit order does not say', () => {
   test('no release time and no waiting line', () => {
     render(<TradeTicket {...base} onPlaceLimit={async () => {}} />);

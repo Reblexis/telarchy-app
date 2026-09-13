@@ -2806,9 +2806,6 @@ export function TradePage() {
                 onPlaceLimit={trading ? placeLimit : async () => {}}
                 onCancelLimit={trading ? cancelLimit : undefined}
                 onPlaceSellLimit={trading ? placeSellLimit : undefined}
-                /* A pending proposal's book closes at its deadline; within ten
-                   minutes of it the ticket offers no Limit (docs/limit-orders.md). */
-                closesAt={selectedJob && !selectedJobDecided ? (selectedJob.decideBy ?? null) : null}
                 onRequireSignup={trading ? undefined : () => navigate(authPath('signup', location))}
                 initialDir={betModal === 'manage' || betModal === null ? undefined : betModal}
                 manageMode={betModal === 'manage'}
