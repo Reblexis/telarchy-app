@@ -196,10 +196,9 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h3">Model</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h4">Funds are reserved, not merely promised</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h5">Execution</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h6">Your own orders never trade against each other</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h7">API</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h8">UI</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h9">What this deliberately does not do</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h6">API</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h7">UI</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h8">What this deliberately does not do</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-liquidity-purchases-md">docs/liquidity-purchases.md</a></summary>
@@ -627,7 +626,7 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <ul>
 <li><a href="#docs-guides-limit-orders-md--h1">Limit orders</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-limit-orders-md--h2">Selling at your price</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-limit-orders-md--h3">Your own orders never trade against each other</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-limit-orders-md--h3">Orders that pull against each other</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-limit-orders-md--h4">The budget is taken up front</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-limit-orders-md--h5">How they fill</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-limit-orders-md--h6">Managing them</a></li>
@@ -2701,16 +2700,25 @@ For each sell, sell the smallest of its remaining shares, the shares held
 now, and the amount that would move consensus back to its <code>limitValue</code>.
 An order never moves the price past its own limit, which is what makes it
 a limit order rather than a delayed market order.</li>
-<li>Each order fills at most once per pass. Stop when no order that has not
-yet filled in this pass is crossed.</li>
+<li>Stop when the price no longer crosses any order.</li>
 </ol>
-<p>Once per pass is what keeps two orders pulling opposite ways from trading
-back and forth. A higher buy under 11.90 and another participant's lower buy
-over 11.82 are both crossed at every price between them, and filling either
-crosses the other again; a pass that ran until nothing was crossed would
-alternate them inside one transaction until a budget ran out, holding the
-market's locks the whole time. Each fills once, and an order still crossed
-after the pass fills on the next trade or sweep.</p>
+<p><strong>Opposing orders are matched, not traded back and forth.</strong> Two orders
+pulling the price opposite ways whose limits overlap (a higher buy under 56
+and a lower buy over 45, of one participant or of two) are both crossed at
+every price between, and each fill crosses the other again: filled one step
+at a time they would alternate across the band until one of them ran out. The
+pass computes that end instead of walking to it. Once it has seen the same two
+orders make one full round and the price come back exactly where it was,
+every further round is identical, so it books all the whole rounds both
+orders can still afford at once, one trade per order at exactly what those
+rounds cost, both stamped with one instant and leaving the price where it
+stands; then it fills what is left normally. Where the price ends, what each
+order spent or sold, and what each participant holds are what trading back
+and forth to the end would have produced, without the rows or the time.</p>
+<p>Nothing is refused for it. One participant's two opposing orders are placed
+like any others, and the higher and lower shares they buy from each other
+redeem at par as they are bought (docs/ui-conventions.md, &quot;A trader holds
+ONE net side&quot;), so they net out.</p>
 <p><strong>An order placed past the market fills at once.</strong> A limit the market has
 already reached is not refused: placement runs the same trade a fill would (a
 buy toward its limit with its budget, a sell of its shares bounded by its
@@ -2744,26 +2752,11 @@ as a deadlock, and the decision fails.</li>
 </ul>
 <p>A market that resolves or is voided refunds every resting order's remainder,
 so credits are never stranded in a market that can no longer trade.</p>
-<h2 id="docs-limit-orders-md--h6">Your own orders never trade against each other</h2>
-<p>Every order pulls the price one way when it fills. A higher buy and a lower
-sell pull it up, and rest while the price is at or below their limit; a lower
-buy and a higher sell pull it down, and rest while it is at or above theirs.
-Two orders of one participant on one market that pull opposite ways
-<strong>conflict when the up-pull's limit is above the down-pull's limit</strong>: at
-every price between the two limits both are crossed, so the participant
-would buy both sides of the same market back and forth, gaining nothing.</p>
-<p>Placement refuses the conflicting order: 409 <code>crosses_own_order</code>, with the
-resting order's <code>orderId</code>, nothing reserved, nothing traded. The check runs
-under the participant's row lock, so two conflicting orders placed at once
-cannot both rest. Equal limits do not conflict (neither fill can move the
-price), nor do orders pulling the same way, nor a cancelled, filled or
-expired order. Orders of different participants that cross are two traders
-each taking the other's price, and fill as usual, once each per pass.</p>
-<p>Beyond that the AMM is the counterparty, so no other anti-wash rule is
-needed; the existing cap and the charter's coordination rule still govern.</p>
-<h2 id="docs-limit-orders-md--h7">API</h2>
+<p>The AMM is the counterparty to every fill, so no anti-wash rule is needed;
+the existing cap and the charter's coordination rule still govern.</p>
+<h2 id="docs-limit-orders-md--h6">API</h2>
 <ul>
-<li><code>POST /api/predictions/limit-orders</code>: a buy is <code>{ marketId, direction, limitValue, budgetCredits, expiresAt? }</code> (<code>side: &quot;buy&quot;</code> optional); it debits the budget and returns the order. A sell is <code>{ marketId, side: &quot;sell&quot;, direction, limitValue, shares, expiresAt? }</code>; it moves nothing and returns the order. An order whose limit the market has already reached fills at once, up to its limit and never past it, and whatever is left rests (below, &quot;An order placed past the market fills at once&quot;). The response then carries <code>filledNow</code> (<code>cost</code> on a buy or <code>proceeds</code> on a sell, <code>shares</code>, <code>consensus</code>), and an order with nothing left comes back <code>filled</code>. 400 <code>insufficient_shares</code> for a sell beyond what is held. 409 <code>crosses_own_order</code> (with <code>orderId</code>) for an order that conflicts with one of the caller's own resting orders on that market (below, &quot;Your own orders never trade against each other&quot;).</li>
+<li><code>POST /api/predictions/limit-orders</code>: a buy is <code>{ marketId, direction, limitValue, budgetCredits, expiresAt? }</code> (<code>side: &quot;buy&quot;</code> optional); it debits the budget and returns the order. A sell is <code>{ marketId, side: &quot;sell&quot;, direction, limitValue, shares, expiresAt? }</code>; it moves nothing and returns the order. An order whose limit the market has already reached fills at once, up to its limit and never past it, and whatever is left rests (below, &quot;An order placed past the market fills at once&quot;). The response then carries <code>filledNow</code> (<code>cost</code> on a buy or <code>proceeds</code> on a sell, <code>shares</code>, <code>consensus</code>), and an order with nothing left comes back <code>filled</code>. 400 <code>insufficient_shares</code> for a sell beyond what is held.</li>
 <li><code>GET /api/predictions/limit-orders?marketId=&amp;status=</code>: the caller's own orders; admins may pass <code>agentId</code>. <code>status</code> defaults to <code>open</code>; <code>status=all</code> returns every state. Every row carries <code>side</code>; a sell also carries <code>shares</code>, <code>filledShares</code> and <code>remainingShares</code>.</li>
 <li><code>DELETE /api/predictions/limit-orders/:id</code>: cancel, refunding the unfilled remainder (always 0 for a sell). Owner or admin only.</li>
 </ul>
@@ -2777,7 +2770,7 @@ spend; nothing rests and nothing is reserved. The fill pass above is the same
 whether or not the trade that triggered it carried one.</p>
 <p>All three appear in <code>/api/help</code> and in telarchy-skill, per the parity rule:
 anything the UI can do, an API key can do.</p>
-<h2 id="docs-limit-orders-md--h8">UI</h2>
+<h2 id="docs-limit-orders-md--h7">UI</h2>
 <p>Inside the ticket, which stays one object (see <code>ui-conventions.md</code>). The
 ticket already asks two questions, side and amount; limit adds a third that
 is optional and hidden until wanted:</p>
@@ -2817,7 +2810,7 @@ at their limits, in the direction's colour, labelled with the verb
 (&quot;▲ buy 65,000&quot;, &quot;▲ sell 80,000&quot;): seeing your order sitting in the price
 makes the abstraction concrete, and it costs one line per order.</li>
 </ul>
-<h2 id="docs-limit-orders-md--h9">What this deliberately does not do</h2>
+<h2 id="docs-limit-orders-md--h8">What this deliberately does not do</h2>
 <p>No order book depth chart, no partial-fill notifications, no
 good-till-date presets beyond a plain expiry, no stop orders. Those are
 exchange features for markets with counterparties; here they would be
@@ -9464,7 +9457,7 @@ curl -s -H &quot;X-Agent-Key: $KEY&quot; -H &quot;X-Workspace-Id: $WS&quot; \
 curl -s -X DELETE -H &quot;X-Agent-Key: $KEY&quot; -H &quot;X-Workspace-Id: $WS&quot; \
   &quot;https://telarchy.com/api/predictions/limit-orders/$ORDER_ID&quot;
 </code></pre>
-<p><code>limitValue</code> is in the metric's own units, not a probability. The budget is debited when you place the order, not when it fills, and the unfilled remainder comes back on cancel, expiry, or when the market resolves or voids. An order placed already crossed fills at once, up to its limit and never past it, and the rest rests; <code>filledNow</code> in the response says what filled. <code>expiresAt</code> is optional; leave it out to rest until cancelled. A sell (<code>&quot;side&quot;:&quot;sell&quot;</code>) sets nothing aside and never sells more than you hold: placing one beyond your position, less what your other open sells on that side are waiting to sell, is a 400 <code>insufficient_shares</code>. An order that would trade against one of your own resting orders on the same market is a 409 <code>crosses_own_order</code>. Without <code>side</code> an order is a buy. The mechanics, including how fills price, are in <a href="/guides/limit-orders">limit orders</a>.</p>
+<p><code>limitValue</code> is in the metric's own units, not a probability. The budget is debited when you place the order, not when it fills, and the unfilled remainder comes back on cancel, expiry, or when the market resolves or voids. An order placed already crossed fills at once, up to its limit and never past it, and the rest rests; <code>filledNow</code> in the response says what filled. <code>expiresAt</code> is optional; leave it out to rest until cancelled. A sell (<code>&quot;side&quot;:&quot;sell&quot;</code>) sets nothing aside and never sells more than you hold: placing one beyond your position, less what your other open sells on that side are waiting to sell, is a 400 <code>insufficient_shares</code>. Without <code>side</code> an order is a buy. The mechanics, including how fills price, are in <a href="/guides/limit-orders">limit orders</a>.</p>
 <h2 id="docs-guides-agent-api-md--h15">Watching your own account</h2>
 <pre><code>GET /api/agents/me/dashboard    # balance + the most liquid open markets, one call
 GET /api/predictions/positions  # shares you hold, ?marketId=X to narrow
@@ -9715,8 +9708,8 @@ back to this table.</p>
 <tr>
 <td><code>crosses_own_order</code></td>
 <td>409</td>
-<td>A limit order that would trade against one of your own resting orders on that market (the up-pusher's limit above the down-pusher's). Carries <code>orderId</code>; nothing was placed.</td>
-<td>Move the limit past the resting one, or cancel <code>orderId</code> first.</td>
+<td>RETIRED 2026-09-13 and never returned: opposing limit orders are matched instead of refused.</td>
+<td>Nothing to handle.</td>
 </tr>
 <tr>
 <td><code>trade_too_small</code></td>
@@ -11232,16 +11225,13 @@ shares stay in your position and settle like any others until a fill sells
 them. If you sell some by hand meanwhile, the order can sell only what is left,
 and once the position is gone the order closes as <code>cancelled</code>. A sell only
 sells, so it can never turn you into a holder of the other side.</p>
-<h2 id="docs-guides-limit-orders-md--h3">Your own orders never trade against each other</h2>
+<h2 id="docs-guides-limit-orders-md--h3">Orders that pull against each other</h2>
 <p>A higher buy and a lower sell push the price up when they fill; a lower buy
-and a higher sell push it down. If you already rest an order pushing one way,
-an order of yours pushing the other way on the same market must have its limit
-on the far side: the up-pusher's limit may not be above the down-pusher's.
-Otherwise both are crossed at every price between the two limits and you
-would buy both sides back and forth. Such an order is refused with 409
-<code>crosses_own_order</code>, carrying the resting order's <code>orderId</code>; nothing is
-reserved and nothing trades. Cancel the resting order first if you meant to
-replace it.</p>
+and a higher sell push it down. Two orders pushing opposite ways with
+overlapping limits, yours or anyone's, are matched in one fill pass: they end
+exactly where trading back and forth would have ended, without the back and
+forth. Two such orders of your own are accepted like any others and net out,
+because the matched higher and lower shares redeem for the credits they cost.</p>
 <h2 id="docs-guides-limit-orders-md--h4">The budget is taken up front</h2>
 <p>The credits are debited when you place the order and held in reserve. Your
 spendable balance is net of them. Cancel, expire, void or resolve and the

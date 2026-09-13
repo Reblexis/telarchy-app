@@ -131,3 +131,15 @@ every snake proposal. **Decided (Viktor, 2026-09-13):** "no its not supposed
 to be this way there isnt supposed to be anything like that". The rule is gone
 from docs/limit-orders.md and docs/ui-conventions.md; both tabs offer Limit
 on every book.
+
+## 2026-09-13: Opposing orders are matched, not refused
+
+The first fix refused an order that would trade against the same participant's
+resting order (409 `crosses_own_order`). **Decided (Viktor, 2026-09-13):** "no it
+shouldnt be refuseed  ... it should just cancel out proparly... wtf... it should
+just not go back and forth and instead get computed properly where it ends up not
+blocked...". The refusal is gone and the code retired (published codes never
+change meaning). The fill pass now detects two orders repeating an identical round
+and books all the whole rounds both can afford at once, one trade per order at what
+those rounds cost, so the pass ends exactly where the back and forth would have.
+The once-per-pass rule it replaced left the pair alternating slowly across sweeps.

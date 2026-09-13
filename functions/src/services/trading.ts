@@ -42,7 +42,19 @@ export type TradeMode =
       direction?: 0 | 1;
     }
   | { type: 'sell'; direction: 0 | 1; dirLabel: 'higher' | 'lower'; sellShares: number }
-  | { type: 'buy'; direction: 0 | 1; dirLabel: 'higher' | 'lower'; amount: number };
+  | { type: 'buy'; direction: 0 | 1; dirLabel: 'higher' | 'lower'; amount: number }
+  | {
+      /** Whole rounds of two opposing limit orders booked at once, at exactly
+       *  what the rounds they replace cost (docs/limit-orders.md, "Opposing
+       *  orders are matched, not traded back and forth"). No AMM pricing. */
+      type: 'priced';
+      direction: 0 | 1;
+      dirLabel: 'higher' | 'lower';
+      isSell: boolean;
+      shares: number;
+      /** Buy: credits paid. Sell: credits received. */
+      credits: number;
+    };
 
 export interface TradeOutcome {
   tradeId: string;
@@ -138,6 +150,13 @@ export async function executeTradeInTx(
      * the book the trade actually meets.
      */
     limit?: number;
+    /** The trade row's instant; rows sharing one replay as a single move. */
+    at?: Date;
+    /** The price the trade row records before and after, when the book this
+     *  trade leaves is only a step inside a move that ends elsewhere. */
+    recordConsensus?: number | null;
+    /** The book whose price splits a redemption across its two rows. */
+    splitBook?: [number, number];
   },
 ): Promise<TradeOutcome> {
   const { workspaceId, agentId, marketId, mode } = opts;
@@ -216,7 +235,7 @@ export async function executeTradeInTx(
   // docs/market-integrity.md "A market resolves on its reading, not on a
   // clock"). The resolved and voided refusals above are the whole gate.
 
-  if (!market.active && mode.type !== 'sell') {
+  if (!market.active && !(mode.type === 'sell' || (mode.type === 'priced' && mode.isSell))) {
     throw new AppError('Market is closed; only selling existing positions is allowed', 400, undefined, 'market_closed');
   }
 
@@ -258,6 +277,12 @@ export async function executeTradeInTx(
     amount = r.amount;
     cost = r.cost;
     dirLabel = direction === 1 ? 'higher' : 'lower';
+  } else if (mode.type === 'priced') {
+    direction = mode.direction;
+    dirLabel = mode.dirLabel;
+    amount = mode.shares;
+    isSell = mode.isSell;
+    if (!isSell) cost = mode.credits;
   } else if (mode.type === 'sell') {
     direction = mode.direction;
     dirLabel = mode.dirLabel;
@@ -277,7 +302,16 @@ export async function executeTradeInTx(
   // "dont block the actual trade"; docs/guides/agent-api.md, "Guard the
   // price").
   const guarded = opts.limit !== undefined || (mode.type === 'targetValue' && mode.direction !== undefined);
-  const requested = mode.type === 'buy' ? mode.amount : mode.type === 'targetValue' ? mode.maxBudget : mode.sellShares;
+  const requested =
+    mode.type === 'buy'
+      ? mode.amount
+      : mode.type === 'targetValue'
+        ? mode.maxBudget
+        : mode.type === 'priced'
+          ? mode.isSell
+            ? mode.shares
+            : mode.credits
+          : mode.sellShares;
   let limited = false;
   const priceMoved = (bound: number) =>
     new AppError(
@@ -318,7 +352,7 @@ export async function executeTradeInTx(
     const posShares = posRow?.shares ?? 0;
     if (posShares < amount)
       throw new AppError('Insufficient shares to sell', 400, { available: posShares }, 'insufficient_shares');
-    proceeds = directionSellProceeds(shares, direction, amount, b);
+    proceeds = mode.type === 'priced' ? mode.credits : directionSellProceeds(shares, direction, amount, b);
     if (proceeds <= 0) {
       if (limited && opts.limit !== undefined) throw priceMoved(opts.limit);
       throw new AppError('Trade too small', 400, undefined, 'trade_too_small');
@@ -422,9 +456,9 @@ export async function executeTradeInTx(
     // a -> b" (docs/ui-conventions.md, "What the platform records at trade
     // time"). Written here, in the same transaction, so it can never drift
     // from the book it describes.
-    consensusBefore: prevConsensus,
-    consensusAfter: newConsensus,
-    createdAt: new Date(),
+    consensusBefore: opts.recordConsensus !== undefined ? opts.recordConsensus : prevConsensus,
+    consensusAfter: opts.recordConsensus !== undefined ? opts.recordConsensus : newConsensus,
+    createdAt: opts.at ?? new Date(),
   });
 
   // A buy can leave the trader holding both sides; those matched pairs are
@@ -432,7 +466,9 @@ export async function executeTradeInTx(
   // dead weight (docs/ui-conventions.md, "A trader holds ONE net side").
   // After the trade row above, so the replay reads the buy and then the
   // redemption in the order they happened. Selling never creates a pair.
-  const redeemed = isSell ? 0 : await redeemMatchedPairs(tx, { workspaceId, agentId, marketId, book: newShares, b });
+  const redeemed = isSell
+    ? 0
+    : await redeemMatchedPairs(tx, { workspaceId, agentId, marketId, book: newShares, b, priceAt: opts.splitBook });
   // Drop the price caches so the floor and the chart show this trade on the
   // very next fetch. If the enclosing transaction rolls back this cost one
   // spurious cache miss, nothing more.
@@ -516,6 +552,8 @@ async function redeemMatchedPairs(
     /** The book as this trade left it. */
     book: [number, number];
     b: number;
+    /** The book whose price splits the credits; the trade's own by default. */
+    priceAt?: [number, number];
   },
 ): Promise<number> {
   const { workspaceId, agentId, marketId, book, b } = args;
@@ -531,7 +569,7 @@ async function redeemMatchedPairs(
   const pairs = Math.min((higher?.shares as number) ?? 0, (lower?.shares as number) ?? 0);
   if (!(pairs > 1e-9) || !higher || !lower) return 0;
 
-  const p = pHigher(book, b);
+  const p = pHigher(args.priceAt ?? book, b);
   // The two rows sum to exactly `pairs`, whatever the rounding does to the
   // split: the trader is paid for pairs, not for two independent sells.
   const higherPart = Math.round(pairs * p * 1e6) / 1e6;
@@ -825,6 +863,8 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
   // What each order still has to do, tracked in memory so the loop sees its own fills.
   const remaining = new Map(live.map(o => [o.id, leftIn(o)]));
   const blocked = new Set<string>();
+  // The fills since the last break in the pattern, for spotting a repeated round.
+  const history: RoundEntry[] = [];
 
   // One iteration per fill. The bound is a backstop against a pathological
   // rounding loop, not an expected limit; each pass either uncrosses an order
@@ -897,9 +937,7 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
     }
 
     remaining.set(order.id, done.left);
-    // Once per pass: two orders pulling opposite ways re-cross each other
-    // after every fill, and would otherwise alternate until a budget ran out.
-    blocked.add(order.id);
+    if (done.closed) blocked.add(order.id);
     if (done.shares > 0) {
       fills.push({
         orderId: order.id,
@@ -913,10 +951,222 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
         consensus: done.consensus,
         closed: done.closed,
       });
+      const [after] = await tx.select({ shares: markets.shares }).from(markets).where(eq(markets.id, marketId));
+      const afterBook = (after!.shares as [number, number]) || [0, 0];
+      history.push({
+        orderId: order.id,
+        shares: done.shares,
+        credits: order.side === 'sell' ? done.proceeds : done.cost,
+        diffAfter: afterBook[1] - afterBook[0],
+      });
+    } else {
+      history.length = 0;
+    }
+
+    // Two opposing orders that have just repeated an identical round will
+    // repeat it until one runs out: book those rounds at once instead of
+    // walking them (docs/limit-orders.md, "Opposing orders are matched, not
+    // traded back and forth").
+    const round = repeatedRound(history, fresh!.liquidity);
+    if (round) {
+      history.length = 0;
+      const first = live.find(o => o.id === round[0].orderId)!;
+      const second = live.find(o => o.id === round[1].orderId)!;
+      const rounds = await affordableRounds(tx, workspaceId, marketId, [first, second], round, remaining);
+      if (rounds >= 1) {
+        const [now] = await tx.select().from(markets).where(eq(markets.id, marketId));
+        const bookNow = (now!.shares as [number, number]) || [0, 0];
+        const priceNow = consensus(bookNow, now!.liquidity, now!.rangeMin, now!.rangeMax) ?? null;
+        const at = new Date();
+        // Buys before sells, so a sell never meets a position its partner has not yet bought into.
+        const pairs = [
+          [first, round[0]],
+          [second, round[1]],
+        ] as const;
+        const ordered = [...pairs].sort((a, b) => (a[0].side === 'sell' ? 1 : 0) - (b[0].side === 'sell' ? 1 : 0));
+        const booked: Array<[OrderRow, FillStep]> = [];
+        try {
+          await tx.transaction(async sp => {
+            for (const [o, entry] of ordered) {
+              booked.push([
+                o,
+                await fillRoundsInTx(
+                  sp,
+                  workspaceId,
+                  marketId,
+                  o,
+                  entry,
+                  rounds,
+                  at,
+                  priceNow,
+                  bookNow,
+                  remaining.get(o.id) ?? 0,
+                ),
+              ]);
+            }
+          });
+        } catch (e) {
+          booked.length = 0;
+          console.error('limit order rounds skipped', { marketId, error: (e as Error).message });
+        }
+        for (const [o, step] of booked) {
+          remaining.set(o.id, step.left);
+          fills.push({
+            orderId: o.id,
+            agentId: o.agentId,
+            side: o.side === 'sell' ? 'sell' : 'buy',
+            direction: o.direction as 'higher' | 'lower',
+            limitValue: o.limitValue,
+            cost: step.cost,
+            proceeds: step.proceeds,
+            shares: step.shares,
+            consensus: step.consensus,
+            closed: false,
+          });
+        }
+      }
     }
   }
 
   return fills;
+}
+
+/** One fill the pass made: which order, how much, and where the book stood after it. */
+interface RoundEntry {
+  orderId: string;
+  shares: number;
+  /** Buy: credits paid. Sell: credits received. */
+  credits: number;
+  /** q_higher - q_lower after the fill: the price, in the book's own terms. */
+  diffAfter: number;
+}
+
+/**
+ * The last two fills, when they repeat the two before them exactly: the same
+ * two orders, the same shares and credits, and the price back where it stood.
+ * The pass picks deterministically from that state, so every further round is
+ * the same round until an order can no longer afford one.
+ */
+function repeatedRound(history: RoundEntry[], b: number): [RoundEntry, RoundEntry] | null {
+  if (history.length < 4) return null;
+  const [a1, b1, a2, b2] = history.slice(-4);
+  const same = (x: number, y: number) => Math.abs(x - y) <= 1e-9 * Math.max(1, Math.abs(x));
+  if (a1.orderId !== a2.orderId || b1.orderId !== b2.orderId || a2.orderId === b2.orderId) return null;
+  if (!same(a1.shares, a2.shares) || !same(b1.shares, b2.shares)) return null;
+  if (!same(a1.credits, a2.credits) || !same(b1.credits, b2.credits)) return null;
+  if (Math.abs(b1.diffAfter - b2.diffAfter) > 1e-9 * Math.max(1, b)) return null;
+  return [a2, b2];
+}
+
+/**
+ * How many more whole rounds both orders can make, one fewer than the most,
+ * so the rounds the pass then walks are the last ones, and a boundary decided
+ * by rounding is walked rather than booked.
+ */
+async function affordableRounds(
+  tx: Tx,
+  workspaceId: string,
+  marketId: string,
+  orders: [OrderRow, OrderRow],
+  round: [RoundEntry, RoundEntry],
+  remaining: Map<string, number>,
+): Promise<number> {
+  let most = Number.POSITIVE_INFINITY;
+  for (const i of [0, 1] as const) {
+    const o = orders[i];
+    const entry = round[i];
+    const partner = orders[1 - i];
+    const left = remaining.get(o.id) ?? 0;
+    if (!(entry.shares > 0)) return 0;
+    if (o.side === 'sell') {
+      most = Math.min(most, Math.floor((left - SHARE_EPS) / entry.shares));
+      // What the position loses per round: this sell, less what the same
+      // participant's partner buy puts back on the same side.
+      const refill =
+        partner.side === 'buy' && partner.agentId === o.agentId && partner.direction === o.direction
+          ? round[1 - i].shares
+          : 0;
+      const drain = entry.shares - refill;
+      if (drain > 1e-12) {
+        const [pos] = await tx
+          .select({ shares: positions.shares })
+          .from(positions)
+          .where(
+            and(eq(positions.id, `${o.agentId}_${marketId}_${o.direction}`), eq(positions.workspaceId, workspaceId)),
+          );
+        const held = (pos?.shares as number | undefined) ?? 0;
+        most = Math.min(most, Math.floor((held - SHARE_EPS) / drain));
+      }
+    } else {
+      if (!(entry.credits > 0)) return 0;
+      most = Math.min(most, Math.floor((left - 0.01) / entry.credits));
+    }
+  }
+  return Number.isFinite(most) ? Math.max(0, most - 1) : 0;
+}
+
+/** Book `rounds` rounds of one order's part at once, at exactly what those rounds cost. */
+async function fillRoundsInTx(
+  sp: Tx,
+  workspaceId: string,
+  marketId: string,
+  order: OrderRow,
+  entry: RoundEntry,
+  rounds: number,
+  at: Date,
+  priceNow: number | null,
+  bookNow: [number, number],
+  left: number,
+): Promise<FillStep> {
+  const shares = entry.shares * rounds;
+  const credits = entry.credits * rounds;
+  const isSell = order.side === 'sell';
+  if (!isSell) {
+    await applyCredits(sp, {
+      agentId: order.agentId,
+      workspaceId,
+      deltaUnits: toUnits(credits),
+      reason: 'limit_order_release',
+      refType: 'market',
+      refId: marketId,
+    });
+  }
+  await executeTradeInTx(sp, {
+    workspaceId,
+    agentId: order.agentId,
+    marketId,
+    mode: {
+      type: 'priced',
+      direction: order.direction === 'higher' ? 1 : 0,
+      dirLabel: order.direction as 'higher' | 'lower',
+      isSell,
+      shares,
+      credits,
+    },
+    at,
+    recordConsensus: priceNow,
+    splitBook: bookNow,
+  });
+  await sp
+    .update(limitOrders)
+    .set(
+      isSell
+        ? {
+            filledShares: sql`coalesce(${limitOrders.filledShares}, 0) + ${shares}`,
+            filledCredits: sql`${limitOrders.filledCredits} + ${credits}`,
+            updatedAt: new Date(),
+          }
+        : { filledCredits: sql`${limitOrders.filledCredits} + ${credits}`, updatedAt: new Date() },
+    )
+    .where(eq(limitOrders.id, order.id));
+  return {
+    cost: isSell ? 0 : credits,
+    proceeds: isSell ? credits : 0,
+    shares,
+    consensus: priceNow,
+    closed: false,
+    left: left - (isSell ? shares : credits),
+  };
 }
 
 /**

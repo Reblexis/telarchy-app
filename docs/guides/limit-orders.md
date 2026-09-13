@@ -51,17 +51,14 @@ them. If you sell some by hand meanwhile, the order can sell only what is left,
 and once the position is gone the order closes as `cancelled`. A sell only
 sells, so it can never turn you into a holder of the other side.
 
-## Your own orders never trade against each other
+## Orders that pull against each other
 
 A higher buy and a lower sell push the price up when they fill; a lower buy
-and a higher sell push it down. If you already rest an order pushing one way,
-an order of yours pushing the other way on the same market must have its limit
-on the far side: the up-pusher's limit may not be above the down-pusher's.
-Otherwise both are crossed at every price between the two limits and you
-would buy both sides back and forth. Such an order is refused with 409
-`crosses_own_order`, carrying the resting order's `orderId`; nothing is
-reserved and nothing trades. Cancel the resting order first if you meant to
-replace it.
+and a higher sell push it down. Two orders pushing opposite ways with
+overlapping limits, yours or anyone's, are matched in one fill pass: they end
+exactly where trading back and forth would have ended, without the back and
+forth. Two such orders of your own are accepted like any others and net out,
+because the matched higher and lower shares redeem for the credits they cost.
 
 ## The budget is taken up front
 
