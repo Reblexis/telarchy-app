@@ -23,8 +23,11 @@ export function LiveView({
   onStep,
   onQuotes,
   books,
+  selectedProposal,
 }: {
   kind: string;
+  /** The proposal the page has open and its option on screen, marked on a chess board. */
+  selectedProposal?: { number: number; option: string | null } | null;
   /** The floor's open books by market id, polled once a second, for the live prices. */
   books?: ReadonlyMap<string, FloorPriceBook> | null;
   slug: string;
@@ -56,7 +59,14 @@ export function LiveView({
           books={books}
         />
       ) : kind === 'chess' ? (
-        <ChessLive slug={slug} onPickProposal={onPickProposal} onStep={onStep} onQuotes={onQuotes} books={books} />
+        <ChessLive
+          slug={slug}
+          onPickProposal={onPickProposal}
+          onStep={onStep}
+          onQuotes={onQuotes}
+          books={books}
+          selectedProposal={selectedProposal}
+        />
       ) : null}
     </div>
   );

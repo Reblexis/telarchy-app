@@ -7563,12 +7563,36 @@ when the last decision belongs to this game), &quot;Settling the game&quot;
 while <code>phase</code> is <code>settling</code>, &quot;Waiting for the next game&quot; between games,
 &quot;Loading&quot; before the first read and &quot;Feed unavailable&quot; after a failed
 one.</li>
-<li><strong>Nothing around the board.</strong> No list of moves and no button or link
-beside or under the board: a move is made on the board or on its
-proposal. <strong>The prices are on the board</strong>: while a piece is picked up,
-each square it can reach carries that move's price (the leader's in the
-approved green, an unpriced one &quot;open&quot;), so a reader sees what the market
-thinks of every move of the piece before pressing one.</li>
+<li><strong>The proposal on screen is marked on the board</strong> (Viktor 2026-09-13:
+&quot;when im in a proposal page make sure that the move corresponding to the
+proposal is highlighted&quot;). When the page has the open move's proposal
+selected, the option on screen (its world) is drawn as a solid arrow in
+the approved green, whether or not it is among the three highest, and its
+two squares are tinted; the three highest keep their accent arrows beside
+it. A proposal that is decided, lapsed or not the open move marks nothing,
+because its move belongs to a position the board no longer shows. <strong>A move
+made on the board always opens the newest open proposal</strong>, from any page:
+pressing a piece and a target, or an arrow, on a decided proposal's page
+opens that move on the open one, and nothing when no move is open.</li>
+<li><strong>The moves, one slim column beside the board</strong> (<code>.chess-movelist</code>,
+Viktor 2026-09-13: &quot;show a sorted list of moves on the right which upon
+hovering over can be selected and also hovering them highlights the
+corresponding move.. the buttons before were too big so just make them
+small but wide.. maybe scrollable if needed.. it should just be one
+column&quot;). Only while a move is open: every legal move, highest price
+first, an unpriced one last as &quot;open&quot;, one row each (<code>.chess-moverow</code>):
+the rank, the piece and the SAN, a thin bar the length of the price
+within the list's range, and the price to one decimal, in the mono type
+at the size of the chart's labels, one line high. The leader's row is in
+the approved green, the proposal on screen's row is marked as its arrow
+is. The column is as tall as the board and scrolls inside itself; it sits
+to the right of the board when the slot fits both, under the board with
+the same height otherwise. <strong>Hovering a row, or focusing it, draws that
+move on the board</strong> (<code>.chess-arrow.is-hover</code>, in the ink, its squares
+tinted) until the pointer leaves; pressing a row opens that option's
+world, as its arrow does. <strong>The prices are on the board too</strong>: while a
+piece is picked up, each square it can reach carries that move's price
+(the leader's in the approved green, an unpriced one &quot;open&quot;).</li>
 </ol>
 <p>The replay row is the snake's (picker, scrubber, play, speed, LIVE): the
 picker lists the games newest first as &quot;Game 3 · vs OppBot · lost&quot;, the

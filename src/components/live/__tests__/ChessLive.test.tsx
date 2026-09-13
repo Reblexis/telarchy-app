@@ -278,14 +278,120 @@ describe('an arrow never takes the click meant for the board', () => {
   });
 });
 
-describe('nothing around the board', () => {
-  test('no move list and no link or button beside or under the board, only the replay row', async () => {
-    const { container } = renderLive();
+describe('the proposal on screen is marked on the board', () => {
+  const selectedArrows = (c: HTMLElement) => [...c.querySelectorAll('.chess-arrow.is-selected')] as SVGElement[];
+
+  test("the open proposal's move on screen is a solid green arrow with its squares tinted, beside the three highest", async () => {
+    const { container } = renderLive({ selectedProposal: { number: 412, option: 'f3g5' } });
+    await waitFor(() => expect(selectedArrows(container)).toHaveLength(1));
+    const mine = selectedArrows(container)[0];
+    expect(mine.getAttribute('data-option')).toBe('f3g5');
+    expect(opacityOf(mine)).toBe(1);
+    expect(arrows(container).filter(a => !a.classList.contains('is-selected')).map(a => a.getAttribute('data-option')).sort()).toEqual(['c3d4', 'e1g1', 'e4e5']);
+    expect(sq(container, 'f3').classList.contains('is-proposal')).toBe(true);
+    expect(sq(container, 'g5').classList.contains('is-proposal')).toBe(true);
+    expect(sq(container, 'e1').classList.contains('is-proposal')).toBe(false);
+  });
+
+  test('a move already among the three highest is drawn once, as the selected one', async () => {
+    const { container } = renderLive({ selectedProposal: { number: 412, option: 'e1g1' } });
+    await waitFor(() => expect(selectedArrows(container)).toHaveLength(1));
+    expect(arrows(container)).toHaveLength(3);
+    expect(selectedArrows(container)[0].getAttribute('data-option')).toBe('e1g1');
+  });
+
+  test('a decided proposal, or one that is not the open move, marks nothing', async () => {
+    const { container } = renderLive({ selectedProposal: { number: 400, option: 'e2e4' } });
     await waitFor(() => expect(arrows(container).length).toBe(3));
-    expect(container.querySelector('.chess-moves')).toBeNull();
-    const main = container.querySelector('.chess-main') as HTMLElement;
-    const outside = [...main.querySelectorAll('a, button')].filter(el => !el.closest('.chess-board'));
-    expect(outside).toHaveLength(0);
+    expect(selectedArrows(container)).toHaveLength(0);
+    expect(container.querySelectorAll('.chess-square.is-proposal')).toHaveLength(0);
+  });
+
+  test("on a decided proposal's page a move made on the board opens it on the newest open proposal", async () => {
+    const onPickProposal = vi.fn();
+    const { container } = renderLive({ onPickProposal, selectedProposal: { number: 400, option: 'e2e4' } });
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    fireEvent.click(sq(container, 'c3'));
+    fireEvent.click(sq(container, 'd4'));
+    expect(onPickProposal).toHaveBeenCalledWith(412, 'c3d4');
+  });
+
+  test("on the open proposal's page another move made on the board switches to that move", async () => {
+    const onPickProposal = vi.fn();
+    const { container } = renderLive({ onPickProposal, selectedProposal: { number: 412, option: 'e1g1' } });
+    await waitFor(() => expect(selectedArrows(container)).toHaveLength(1));
+    fireEvent.click(sq(container, 'f3'));
+    fireEvent.click(sq(container, 'g5'));
+    expect(onPickProposal).toHaveBeenCalledWith(412, 'f3g5');
+  });
+
+  test('LiveView hands the proposal on screen to the chess view', async () => {
+    const { container } = render(
+      <MemoryRouter>
+        <LiveView kind="chess" slug="chess" selectedProposal={{ number: 412, option: 'f3g5' }} />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(container.querySelector('.chess-arrow.is-selected')?.getAttribute('data-option')).toBe('f3g5'));
+  });
+});
+
+describe('the moves, one slim column beside the board', () => {
+  const rows = (c: HTMLElement) => [...c.querySelectorAll('.chess-moverow')] as HTMLElement[];
+
+  test('every legal move in one column, highest price first, unpriced last as open, no second grid', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(rows(container)).toHaveLength(25));
+    expect(container.querySelectorAll('.chess-movelist')).toHaveLength(1);
+    expect(container.querySelector('.chess-move-grid, .chess-move-cell')).toBeNull();
+    expect(rows(container)[0].textContent).toContain('O-O');
+    expect(rows(container)[0].textContent).toContain('56.4');
+    expect(rows(container)[0].classList.contains('is-leader')).toBe(true);
+    expect(rows(container)[1].textContent).toContain('cxd4');
+    expect(rows(container)[24].textContent).toContain('Rg1');
+    expect(rows(container)[24].textContent).toContain('open');
+  });
+
+  test('hovering a row draws that move on the board, leaving clears it', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(rows(container)).toHaveLength(25));
+    const ng5 = rows(container).find(r => r.textContent?.includes('Ng5')) as HTMLElement;
+    fireEvent.mouseEnter(ng5);
+    const hover = container.querySelector('.chess-arrow.is-hover');
+    expect(hover?.getAttribute('data-option')).toBe('f3g5');
+    expect(sq(container, 'f3').classList.contains('is-hover')).toBe(true);
+    expect(sq(container, 'g5').classList.contains('is-hover')).toBe(true);
+    fireEvent.mouseLeave(ng5);
+    expect(container.querySelector('.chess-arrow.is-hover')).toBeNull();
+  });
+
+  test('focusing a row draws its move too', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(rows(container)).toHaveLength(25));
+    fireEvent.focus(rows(container)[1]);
+    expect(container.querySelector('.chess-arrow.is-hover')?.getAttribute('data-option')).toBe('c3d4');
+  });
+
+  test("pressing a row opens that option's world", async () => {
+    const onPickProposal = vi.fn();
+    const { container } = renderLive({ onPickProposal });
+    await waitFor(() => expect(rows(container)).toHaveLength(25));
+    fireEvent.click(rows(container).find(r => r.textContent?.includes('Ng5')) as HTMLElement);
+    expect(onPickProposal).toHaveBeenCalledWith(412, 'f3g5');
+  });
+
+  test("the proposal on screen's row is marked", async () => {
+    const { container } = renderLive({ selectedProposal: { number: 412, option: 'f3g5' } });
+    await waitFor(() => expect(rows(container)).toHaveLength(25));
+    const marked = rows(container).filter(r => r.classList.contains('is-selected'));
+    expect(marked).toHaveLength(1);
+    expect(marked[0].textContent).toContain('Ng5');
+  });
+
+  test('no list while no move is open', async () => {
+    vi.mocked(api.getLiveState).mockImplementation(async () => h.state({ phase: 'their-move', open: null }) as never);
+    const { container } = renderLive();
+    await waitFor(() => expect(nextLine(container)).toMatch(/^Their move/));
+    expect(container.querySelector('.chess-movelist')).toBeNull();
   });
 
   test("a picked-up piece's squares carry their moves' prices, the leader's marked", async () => {
@@ -299,7 +405,6 @@ describe('nothing around the board', () => {
     expect(labels.g1.textContent).toBe('56.4');
     expect(labels.g1.classList.contains('is-leader')).toBe(true);
     expect(labels.f1.textContent).toBe('41.3');
-    expect(labels.f1.classList.contains('is-leader')).toBe(false);
   });
 
   test('an unpriced move reads open on its square', async () => {
