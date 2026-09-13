@@ -2080,3 +2080,16 @@ remaining open points (no-leader caption, default world, "$X if chosen",
 the board row's Choose band, the struck price captioned "stakes
 refunded") were settled in the spec the same day.
 
+**revised 2026-09-13 (Viktor)**: opening a proposal only changes the centre;
+the left column and the live log stay. Viktor: "why wheni go to propposal
+the live log and what not suddenly disappears? i mean the proposal "page" is
+suddenly very different with the surroundings.. i dont think that needs to
+be that way.. it should just chagne the centere if you know i mean". Told
+this reverses the 2026-09-06 rule that the left column exists only in the
+plain market view (and the live log's "a selected proposal shows neither"),
+he answered "yes". The 2026-09-06 reason no longer held: the definition has
+lived under the trade since 2026-09-09, and the left column now holds the
+season block, the announcements and the Live block, all about the floor
+rather than the view. Spec: docs/ui-conventions.md, "Trading floor (root slug
+page)" ("The left column belongs to the floor, not to the view") and "The
+live log", "Where.".

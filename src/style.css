@@ -5159,30 +5159,31 @@ textarea.jobform-line--desc {
 }
 
 @media (min-width: 1500px) {
-  /* Three tracks once there is room, and only in the plain market view
-     (the root carries pubws-main--context): the left column of this
-     market's own context, the market at up to 960px, the proposals rail.
-     A selected proposal keeps the two tracks, centred. */
-  .pubws--center .pubws-main.pubws-main--floor.pubws-main--context {
+  /* Three tracks once there is room, in the plain market view and with a
+     proposal selected alike: the left column belongs to the floor, not to
+     the view, so opening a proposal changes only the centre and the grid
+     never jumps. The left column of this market's own context, the centre
+     at up to 960px, the ticket rail. */
+  .pubws--center .pubws-main.pubws-main--floor {
     grid-template-columns: 280px minmax(0, 960px) 320px;
     grid-template-rows: auto auto auto;
   }
-  .pubws-main--context .pubws-center { grid-column: 2; grid-row: 1; }
-  .pubws-main--context .pubws-tail { grid-column: 2; grid-row: 2; }
-  .pubws-main--context .pubws-know-col { grid-column: 2; grid-row: 3; }
+  .pubws-main--floor .pubws-center { grid-column: 2; grid-row: 1; }
+  .pubws-main--floor .pubws-tail { grid-column: 2; grid-row: 2; }
+  .pubws-main--floor .pubws-know-col { grid-column: 2; grid-row: 3; }
   /* Both rails span both rows of the centre column and start below the
      top bar line, so their headings sit level with the market's. The left
      column is static: it carries the definition, which can run to
      paragraphs, and a sticky block taller than the viewport never scrolls
      its foot into view. */
-  .pubws-main--context .pubws-rail--left {
+  .pubws-main--floor .pubws-rail--left {
     grid-column: 1;
     grid-row: 1 / span 3;
     margin-top: 2.2rem;
     border-right: 1px solid var(--border-color);
     padding-right: clamp(1rem, 2vw, 1.6rem);
   }
-  .pubws-main--context .pubws-rail--right { grid-column: 3; grid-row: 1 / span 3; }
+  .pubws-main--floor .pubws-rail--right { grid-column: 3; grid-row: 1 / span 3; }
 }
 
 @media (max-width: 1119.98px) {
@@ -12712,8 +12713,8 @@ a.pubws-live-row:hover { background: var(--bg-secondary); }
    everywhere else. */
 .pubws-rail--left > .pubws-live { display: none; }
 @media (min-width: 1500px) {
-  .pubws-main--context .pubws-rail--left > .pubws-live { display: block; }
-  .pubws-main--context .pubws-live-strip { display: none; }
+  .pubws-main--floor .pubws-rail--left > .pubws-live { display: block; }
+  .pubws-main--floor .pubws-live-strip { display: none; }
 }
 
 /* A workspace's own log (docs/data-room.md, "A workspace's log"): the room's

@@ -2197,7 +2197,7 @@ https://claude.ai/code/artifact/5fbdd9cc-ba1d-47e9-b834-87ba1d412dfc,
 direction A with C as its destination). The rows are the public actions log
 for this workspace (docs/data-room.md), never a second record.
 
-**Where.** In the plain market view the left column carries a **Live**
+**Where.** The left column carries a **Live**
 block (`FloorLiveLog`, `.pubws-live`) under the season advert and the
 announcements, from 1500px up where the three columns exist, and the line
 below is not drawn. At every width below 1500px, including 1120px to 1499px
@@ -2213,8 +2213,12 @@ line opens the same compact block in place under the verbs, "All activity",
 "Show N more" and the fold control and all, and pressing it again folds it.
 A block opened from the line always opens compact, whatever the floor's
 remembered fold, because pressing the line is the visitor asking to see it. On a phone the order is the verbs, the line,
-the ticket, then the proposals. A selected proposal shows neither: the page
-is about that proposal.
+the ticket, then the proposals. A selected proposal keeps both, because
+opening a proposal changes only the centre column: the block stays in the
+left column, and below 1500px the line sits directly under the proposal's
+trade controls (the same two verbs, naming the world they trade), or in
+their place where a closed proposal draws none; on a phone the order is
+the proposal's trade controls, the line, the ticket, then the rest.
 
 **The block.** A head in the section-head anatomy (`.pubws-lb-head`): the
 live dot and "Live" on the left; on the right "All activity" linking to
@@ -2302,10 +2306,11 @@ the room and the question line sits on one row (the three-column rule of
 2026-09-06, Viktor; design record in the telarchy umbrella,
 `notes/floor-boards-yc-and-venues-2026-09-04.md`). Between 1120px and
 1500px there is no room for three (a 1280px laptop squeezed the centre to
-509px with three tracks). **The left column exists only in the plain market
-view**: with a proposal selected the floor is centre plus ticket at every
-width, because a proposal's page is about the proposal and its two
-branches, not about the metric's definition (Viktor, 2026-09-06). **The
+509px with three tracks). **The left column belongs to the floor, not to the
+view**: it is the same with a proposal selected as in the plain market
+view, and opening a proposal changes only the centre column, so from 1500px
+the floor keeps its three columns in both views and nothing beside the
+centre moves when a proposal opens or closes. **The
 left column is about THIS market and never about other people**: the season
 block and the announcements. Nothing on the first screen ranks anyone,
 because every venue that works puts title, number, chart and trade control

@@ -1796,9 +1796,10 @@ export function TradePage() {
   /* Below 1500px the live log folds to one line directly under the bet verbs
      in the centre column, never in the ticket rail (docs/ui-conventions.md,
      "The live log", "Where."); from 1500px the stylesheet hides it and shows
-     the left column's block. A selected proposal shows neither. */
+     the left column's block. A selected proposal keeps both: its verbs are
+     the same `.pubws-bet`, and opening a proposal changes only the centre. */
   const liveStrip =
-    !selectedJob && liveLog.state === 'ready' ? (
+    liveLog.state === 'ready' ? (
       <LiveLogStrip
         slug={ws.slug ?? idOrSlug ?? ws.workspaceId}
         rows={liveLog.rows}
@@ -1846,13 +1847,11 @@ export function TradePage() {
           onOpenChange={setAskingOtto}
         />
       )}
-      {/* `pubws-main--context` marks the plain view, where the left column
-          carries "What is this market?": the stylesheet uses it to hide the
-          summary line under the question once the three-column layout puts
-          the definition beside the market (docs/ui-conventions.md, "The
-          rails, and the standings under the verbs": the definition is on
-          screen once, never twice). */}
-      <main className={`pubws-main pubws-main--floor${selectedJob ? '' : ' pubws-main--context'}`}>
+      {/* The same classes in both views: the left column belongs to the
+          floor, not to the view, so the grid's tracks never change when a
+          proposal opens or closes (docs/ui-conventions.md, "Trading floor
+          (root slug page)"). */}
+      <main className="pubws-main pubws-main--floor">
         <div className="pubws-center">
           {/* The company IS the page (owner direction 2026-08-18): a cold
             visitor arrives from a link about this business, not about
@@ -3468,43 +3467,39 @@ export function TradePage() {
             definition the market settles on, the season advert, the
             announcements. Its own grid item, so that on a phone the DOM
             order (market, this column, proposals, know) is the stacking
-            order. Only in the plain market view: with a proposal selected
-            the floor is two columns at every width and none of this is on
-            the page, because a proposal's page is about the proposal and
-            its two branches, not about the metric's definition (Viktor,
-            2026-09-06). */}
-        {!selectedJob && (
-          <aside className="pubws-rail pubws-rail--left" aria-label="About this market">
-            {/* The season, advertised rather than narrated: three lines, the
+            order. The same with a proposal selected: this column belongs to
+            the floor, not to the view, and opening a proposal changes only
+            the centre. */}
+        <aside className="pubws-rail pubws-rail--left" aria-label="About this market">
+          {/* The season, advertised rather than narrated: three lines, the
             money first. */}
-            <SeasonAdvert season={season} signedIn={!!user} />
-            {/* The owner's disclosures, under the season advert in the column
+          <SeasonAdvert season={season} signedIn={!!user} />
+          {/* The owner's disclosures, under the season advert in the column
             about this market. A charter that promises
             to announce material news needs the announcements on the page the
             promise is read on, not in a thread under one market. Present only
             when the Public group grants read, the same disclosure rule as the
             ballot: `announcementCount` is absent on a counts-only floor. */}
-            {ws.announcementCount !== undefined && (
-              <FloorAnnouncements
-                idOrSlug={idOrSlug ?? ws.workspaceId}
-                latest={ws.latestAnnouncement}
-                total={ws.announcementCount}
-                canManage={canManage}
-              />
-            )}
-            {/* The Live block, from 1500px where this column exists
+          {ws.announcementCount !== undefined && (
+            <FloorAnnouncements
+              idOrSlug={idOrSlug ?? ws.workspaceId}
+              latest={ws.latestAnnouncement}
+              total={ws.announcementCount}
+              canManage={canManage}
+            />
+          )}
+          {/* The Live block, from 1500px where this column exists
                 (docs/ui-conventions.md, "The live log"). */}
-            {liveLog.state === 'ready' && (
-              <LiveLogBlock
-                slug={ws.slug ?? idOrSlug ?? ws.workspaceId}
-                rows={liveLog.rows}
-                fast={isFastWorkspace(ws.decisionMinutes)}
-                newIds={liveLog.newIds}
-                onSeen={liveLog.markSeen}
-              />
-            )}
-          </aside>
-        )}
+          {liveLog.state === 'ready' && (
+            <LiveLogBlock
+              slug={ws.slug ?? idOrSlug ?? ws.workspaceId}
+              rows={liveLog.rows}
+              fast={isFastWorkspace(ws.decisionMinutes)}
+              newIds={liveLog.newIds}
+              onSeen={liveLog.markSeen}
+            />
+          )}
+        </aside>
         {/* What is left of the know block (docs/ui-conventions.md, "The
             rails, and the standings under the verbs", revised 2026-09-06):
             the checklist for a manager, then the subject block with the

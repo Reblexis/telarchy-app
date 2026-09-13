@@ -601,37 +601,58 @@ describe('three columns, and the standings under the verbs', () => {
     return ws;
   };
 
-  /** The left column exists only in the plain market view (docs/ui-conventions.md,
-   *  "The rails, and the standings under the verbs", Viktor 2026-09-06): a
-   *  proposal's page is about the proposal and its two branches, not about
-   *  the metric's definition. */
-  test('with a proposal selected there is no left column: no definition, no season block, no announcements anywhere', async () => {
+  /** The left column belongs to the floor, not to the view
+   *  (docs/ui-conventions.md, "Trading floor (root slug page)"): opening a
+   *  proposal changes only the centre column. */
+  test('OPENING A PROPOSAL KEEPS THE LEFT COLUMN: the season block and the announcements stay, exactly as in the plain view', async () => {
+    const plain = renderFloor();
+    await waitFor(() =>
+      expect(plain.container.querySelector('.pubws-rail--left [aria-label="Announcements"]')).toBeTruthy(),
+    );
+    await waitFor(() => expect(plain.container.querySelector('.pubws-rail--left .pubws-season')).toBeTruthy());
+    const plainLeft = (plain.container.querySelector('.pubws-rail--left') as HTMLElement).textContent;
+    plain.unmount();
+
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(floorWithProposal() as never);
     const { container } = renderFloor('/lookpilot#proposal=job-1');
-    await waitFor(() => expect(container.querySelector('.pubws-pair-toggle, [aria-label="Proposals"]')).toBeTruthy());
     await waitFor(() => expect(container.querySelector('.pubws-proposal-title')).toBeTruthy());
-    expect(container.querySelector('.pubws-rail--left')).toBeNull();
-    expect(container.querySelector('.pubws-season')).toBeNull();
-    expect(container.querySelector('a[href="/season"]')).toBeNull();
-    expect(container.querySelector('[aria-label="Announcements"]')).toBeNull();
-    expect(container.textContent).not.toMatch(/Refunds ran high this week/);
-    // The rule the market settles on is under the trade at every width,
-    // including here: it is not left-column context any more.
+    const left = container.querySelector('.pubws-main--floor .pubws-rail--left') as HTMLElement;
+    expect(left).toBeTruthy();
+    expect(left.getAttribute('aria-label')).toBe('About this market');
+    expect(left.parentElement).toBe(container.querySelector('.pubws-main--floor'));
+    await waitFor(() => expect(left.querySelector('.pubws-season')).toBeTruthy());
+    await waitFor(() => expect(left.querySelector('[aria-label="Announcements"]')).toBeTruthy());
+    expect(left.querySelector('[aria-label="Announcements"]')?.textContent).toContain('Refunds ran high');
+    expect(follows(left.querySelector('.pubws-season')!, left.querySelector('[aria-label="Announcements"]')!)).toBe(
+      true,
+    );
+    // The same column, word for word.
+    expect(left.textContent).toBe(plainLeft);
+    // Only the centre changed: the proposal is in the centre column, not in the left one.
+    expect(container.querySelector('.pubws-proposal-title')?.closest('.pubws-center')).toBeTruthy();
+    expect(left.querySelector('.pubws-proposal-title')).toBeNull();
+    // The rule the market settles on is under the trade at every width.
     expect(container.querySelector('[aria-label="How this settles"]')).toBeTruthy();
-    // The know block keeps only what it has now: the subject block.
     expect(container.querySelector('.pubws-know-col [aria-label="What is LookPilot"]')).toBeTruthy();
-    // Two columns at every width: the floor root does not carry the context class.
-    const main = container.querySelector('.pubws-main--floor') as HTMLElement;
-    expect(main.classList.contains('pubws-main--context')).toBe(false);
-    // And the proposals rail is still there, beside the pair.
+    // And the ticket rail is still there.
     expect(container.querySelector('.pubws-rail--right')).toBeTruthy();
   });
 
-  test('the plain view carries the context class, and there is no summary line to hide', async () => {
-    const { container } = renderFloor();
-    await waitFor(() => expect(container.querySelector('.pubws-rail--left')).toBeTruthy());
+  test('THE FLOOR KEEPS THREE COLUMNS WHEN A PROPOSAL OPENS: the floor root carries the same classes in both views', async () => {
+    const plain = renderFloor();
+    await waitFor(() => expect(plain.container.querySelector('.pubws-rail--left')).toBeTruthy());
+    const plainClass = (plain.container.querySelector('.pubws-main--floor') as HTMLElement).className;
+    plain.unmount();
+
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(floorWithProposal() as never);
+    const { container } = renderFloor('/lookpilot#proposal=job-1');
+    await waitFor(() => expect(container.querySelector('.pubws-proposal-title')).toBeTruthy());
     const main = container.querySelector('.pubws-main--floor') as HTMLElement;
-    expect(main.classList.contains('pubws-main--context')).toBe(true);
+    expect(main.className).toBe(plainClass);
+    // No view class left for the layout to key on.
+    expect(main.classList.contains('pubws-main--context')).toBe(false);
+    const items = [...main.children].map(el => el.className.split(' ')[1] ?? el.className);
+    expect(items).toEqual(['pubws-center', 'pubws-rail--right', 'pubws-tail', 'pubws-rail--left', 'pubws-know-col']);
     expect(container.querySelector('.pubws-instrument-sum')).toBeNull();
   });
 
@@ -674,18 +695,18 @@ describe('three columns, and the standings under the verbs', () => {
     // From 1500px: three tracks, the left column, the market at up to 960px, the rail at 320px.
     const wide = CSS.match(/@media \(min-width: 1500px\) \{([\s\S]*?)\n\}/);
     expect(wide).toBeTruthy();
-    // ... and ONLY in the plain market view (the root's context class): a
-    // selected proposal keeps the two tracks, centred, at every width, or the
-    // pair sits beside an empty 280px track (preview, 2026-09-06).
-    const grid = wide![1].match(/\.pubws-main--floor\.pubws-main--context \{([^}]*)\}/);
+    // ... in BOTH views: THE FLOOR KEEPS THREE COLUMNS WHEN A PROPOSAL OPENS.
+    // The grid keys on the floor itself, never on a class only the plain view
+    // carries, so opening or closing a proposal never changes the tracks.
+    expect(CSS).not.toMatch(/pubws-main--context/);
+    const grid = wide![1].match(/\.pubws--center \.pubws-main\.pubws-main--floor \{([^}]*)\}/);
     expect(grid).toBeTruthy();
     expect(grid![1]).toMatch(/grid-template-columns:\s*\d+px minmax\(0, 960px\) 320px;/);
-    expect(wide![1]).not.toMatch(/\.pubws-main\.pubws-main--floor \{/);
-    expect(wide![1]).toMatch(/\.pubws-main--context \.pubws-rail--left \{[^}]*grid-column:\s*1/);
-    expect(wide![1]).toMatch(/\.pubws-main--context \.pubws-center \{[^}]*grid-column:\s*2/);
-    expect(wide![1]).toMatch(/\.pubws-main--context \.pubws-rail--right \{[^}]*grid-column:\s*3/);
+    expect(wide![1]).toMatch(/\.pubws-main--floor \.pubws-rail--left \{[^}]*grid-column:\s*1/);
+    expect(wide![1]).toMatch(/\.pubws-main--floor \.pubws-center \{[^}]*grid-column:\s*2/);
+    expect(wide![1]).toMatch(/\.pubws-main--floor \.pubws-rail--right \{[^}]*grid-column:\s*3/);
     expect(wide![1]).toMatch(
-      /\.pubws-main--context \.pubws-rail--left \{[^}]*border-right:\s*1px solid var\(--border-color\)/,
+      /\.pubws-main--floor \.pubws-rail--left \{[^}]*border-right:\s*1px solid var\(--border-color\)/,
     );
     // From 1120px: two tracks, the market at up to 720px and the rail, the
     // left column's context stacked under the market (a 1280px laptop
