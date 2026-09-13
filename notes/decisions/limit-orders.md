@@ -82,3 +82,35 @@ stays in vi0's season score and no prize share moves between entrants.
 The 17:07 UTC declined move (vi0's own opposite limit orders filling against
 each other, then a deadlock on the operator's approve) cost vi0 nothing: 1,102.13
 traded, 1,093.10 redeemed, 9.03 refunded when the book was voided.
+
+## 2026-09-13: Own orders never trade against each other; the market is locked before its orders
+
+**What happened.** At 17:07:04 to 17:07:06 UTC vi0 placed five 1,000 cr buy
+limits on the snake's move 60 of game 3, attempt 4. On the forward book
+(market `27a94ecf`) a Higher buy under 11.90 and a Lower buy over 11.82 were
+both crossed at every price between, and each fill crossed the other again, so
+the fill pass alternated them: 885 trades in 55 seconds (202.56 cr Higher,
+899.56 cr Lower), up to 50 per pass, run by every trade and every 12-second
+sweep. At 17:07:58 the snake operator approved the leading option (left, 12;
+forward 11.9, right 11.8). Approving voids the other books, which locks the
+market and then its orders; the sweep filling the forward book held the orders
+and wanted the market. Postgres detected the deadlock inside `approveProposal`
+and the approve answered 500 after 3.4 s. The operator declined the proposal
+with refund, as its rule says for a failed approval, the snake continued
+forward by default and died (length 12 to 2, attempt 5 began 17:08:05). Every
+stake on the three books was refunded; nobody lost credits. Only one such
+self-crossed pair was placed that day, and none rested afterwards.
+
+The report that reached Viktor blamed the opposing orders alone. They were the
+trigger; the decision failed because of the lock order, which a trade between
+two different participants' crossing orders could hit the same way.
+
+**Built (branch `self-crossing-limit-orders`, not merged):** docs/limit-orders.md
+"Your own orders never trade against each other" (placement answers 409
+`crosses_own_order` with `orderId` when the up-pull's limit is above the
+down-pull's), the fill pass fills each order at most once per pass, and "The
+market is locked before its orders" (the fill pass and the release of a
+closing book take the market row lock first).
+
+**Not changed, for Viktor:** the snake operator declines at once when the
+approve fails; one immediate retry of a 500 would have saved the move.

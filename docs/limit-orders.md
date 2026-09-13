@@ -100,7 +100,16 @@ for the next trade:
    now, and the amount that would move consensus back to its `limitValue`.
    An order never moves the price past its own limit, which is what makes it
    a limit order rather than a delayed market order.
-4. Stop when the price no longer crosses any order.
+4. Each order fills at most once per pass. Stop when no order that has not
+   yet filled in this pass is crossed.
+
+Once per pass is what keeps two orders pulling opposite ways from trading
+back and forth. A higher buy under 11.90 and another participant's lower buy
+over 11.82 are both crossed at every price between them, and filling either
+crosses the other again; a pass that ran until nothing was crossed would
+alternate them inside one transaction until a budget ran out, holding the
+market's locks the whole time. Each fills once, and an order still crossed
+after the pass fills on the next trade or sweep.
 
 **An order placed past the market fills at once.** A limit the market has
 already reached is not refused: placement runs the same trade a fill would (a
@@ -128,17 +137,40 @@ limit order into something else:
   released to the participant's balance immediately before the fill and the
   unused part is re-reserved after it, so a fill leaves spendable balance
   untouched and cannot overdraw.
+- **The market is locked before its orders.** Every path that touches a
+  market's resting orders (a trade, a placement, the sweep, a void, a
+  resolution, a decision) takes the market row's lock first and the orders'
+  locks after it. Taken in the other order, the sweep filling a book and a
+  decision voiding the same book each wait for the other, Postgres kills one
+  as a deadlock, and the decision fails.
 
 A market that resolves or is voided refunds every resting order's remainder,
 so credits are never stranded in a market that can no longer trade.
 
-Self-trading is impossible by construction (the AMM is the counterparty),
-so no anti-wash rule is needed; the existing cap and the charter's
-coordination rule still govern.
+## Your own orders never trade against each other
+
+Every order pulls the price one way when it fills. A higher buy and a lower
+sell pull it up, and rest while the price is at or below their limit; a lower
+buy and a higher sell pull it down, and rest while it is at or above theirs.
+Two orders of one participant on one market that pull opposite ways
+**conflict when the up-pull's limit is above the down-pull's limit**: at
+every price between the two limits both are crossed, so the participant
+would buy both sides of the same market back and forth, gaining nothing.
+
+Placement refuses the conflicting order: 409 `crosses_own_order`, with the
+resting order's `orderId`, nothing reserved, nothing traded. The check runs
+under the participant's row lock, so two conflicting orders placed at once
+cannot both rest. Equal limits do not conflict (neither fill can move the
+price), nor do orders pulling the same way, nor a cancelled, filled or
+expired order. Orders of different participants that cross are two traders
+each taking the other's price, and fill as usual, once each per pass.
+
+Beyond that the AMM is the counterparty, so no other anti-wash rule is
+needed; the existing cap and the charter's coordination rule still govern.
 
 ## API
 
-- `POST /api/predictions/limit-orders`: a buy is `{ marketId, direction, limitValue, budgetCredits, expiresAt? }` (`side: "buy"` optional); it debits the budget and returns the order. A sell is `{ marketId, side: "sell", direction, limitValue, shares, expiresAt? }`; it moves nothing and returns the order. An order whose limit the market has already reached fills at once, up to its limit and never past it, and whatever is left rests (below, "An order placed past the market fills at once"). The response then carries `filledNow` (`cost` on a buy or `proceeds` on a sell, `shares`, `consensus`), and an order with nothing left comes back `filled`. 400 `insufficient_shares` for a sell beyond what is held.
+- `POST /api/predictions/limit-orders`: a buy is `{ marketId, direction, limitValue, budgetCredits, expiresAt? }` (`side: "buy"` optional); it debits the budget and returns the order. A sell is `{ marketId, side: "sell", direction, limitValue, shares, expiresAt? }`; it moves nothing and returns the order. An order whose limit the market has already reached fills at once, up to its limit and never past it, and whatever is left rests (below, "An order placed past the market fills at once"). The response then carries `filledNow` (`cost` on a buy or `proceeds` on a sell, `shares`, `consensus`), and an order with nothing left comes back `filled`. 400 `insufficient_shares` for a sell beyond what is held. 409 `crosses_own_order` (with `orderId`) for an order that conflicts with one of the caller's own resting orders on that market (below, "Your own orders never trade against each other").
 - `GET /api/predictions/limit-orders?marketId=&status=`: the caller's own orders; admins may pass `agentId`. `status` defaults to `open`; `status=all` returns every state. Every row carries `side`; a sell also carries `shares`, `filledShares` and `remainingShares`.
 - `DELETE /api/predictions/limit-orders/:id`: cancel, refunding the unfilled remainder (always 0 for a sell). Owner or admin only.
 

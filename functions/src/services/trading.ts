@@ -793,7 +793,11 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
   const [market] = await tx
     .select()
     .from(markets)
-    .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
+    .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)))
+    // The market before its orders, the order every other path takes: the
+    // sweep locking orders first deadlocked against a decision voiding the
+    // same book (docs/limit-orders.md, "The market is locked before its orders").
+    .for('update');
   if (!market || market.resolved || market.voided || !market.active || market.liquidity <= 0) return [];
 
   const open = await tx
@@ -893,7 +897,9 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
     }
 
     remaining.set(order.id, done.left);
-    if (done.closed) blocked.add(order.id);
+    // Once per pass: two orders pulling opposite ways re-cross each other
+    // after every fill, and would otherwise alternate until a budget ran out.
+    blocked.add(order.id);
     if (done.shares > 0) {
       fills.push({
         orderId: order.id,
@@ -956,6 +962,9 @@ export async function releaseLimitOrdersForMarket(
   marketId: string,
   status: 'cancelled' | 'voided' = 'voided',
 ): Promise<number> {
+  // The market before its orders (docs/limit-orders.md), so closing a book
+  // never waits on a fill that holds the market while it wants the orders.
+  await tx.select({ id: markets.id }).from(markets).where(eq(markets.id, marketId)).for('update');
   const open = await tx
     .select()
     .from(limitOrders)
