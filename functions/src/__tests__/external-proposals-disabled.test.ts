@@ -39,7 +39,7 @@ jest.mock('../lib/notify', () => ({
 import { eq } from 'drizzle-orm';
 import express from 'express';
 import request from 'supertest';
-import { agents, markets, metrics, permissionGroups, proposals, workspaces } from '../db/schema';
+import { agents, markets, metrics, proposals, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
@@ -136,7 +136,11 @@ const put = (body: Record<string, unknown>, caps = OWNER_CAPS) =>
     .send(body);
 
 const getWs = () =>
-  request(app).get(`/api/workspaces/${WS}`).set('X-Test-Agent-Id', OWNER).set('X-Workspace-Id', WS).set('X-Test-Master', '1');
+  request(app)
+    .get(`/api/workspaces/${WS}`)
+    .set('X-Test-Agent-Id', OWNER)
+    .set('X-Workspace-Id', WS)
+    .set('X-Test-Master', '1');
 
 const floor = async () => (await request(app).get(`/api/marketplace/${WS}`)).body;
 
