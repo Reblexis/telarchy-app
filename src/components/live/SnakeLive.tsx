@@ -83,10 +83,12 @@ function impactOf(
        (docs/ui-conventions.md): once the floor's poll has any of the step's
        books, every lead is recomputed from those prices. */
     const marketOf = (a: SnakeAction) => state.open?.quotes?.[a]?.m60?.marketId;
-    const fresh = !!books && ACTIONS.some(a => {
-      const id = marketOf(a);
-      return !!id && books.has(id);
-    });
+    const fresh =
+      !!books &&
+      ACTIONS.some(a => {
+        const id = marketOf(a);
+        return !!id && books.has(id);
+      });
     if (!fresh) return typeof q.lead === 'number' && Number.isFinite(q.lead) ? q.lead : null;
     const priceOf = (a: SnakeAction): number | null => {
       const x = state.open?.quotes?.[a]?.m60;

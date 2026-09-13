@@ -28,9 +28,23 @@ const h = vi.hoisted(() => {
       ['h1g1', 'Rg1', null],
     ];
     const rest: Array<[string, string]> = [
-      ['a2a3', 'a3'], ['a2a4', 'a4'], ['b2b3', 'b3'], ['b2b4', 'b4'], ['g2g3', 'g3'], ['g2g4', 'g4'],
-      ['h2h3', 'h3'], ['h2h4', 'h4'], ['b1a3', 'Na3'], ['b1d2', 'Nbd2'], ['c1d2', 'Bd2'], ['c1e3', 'Be3'],
-      ['d1c2', 'Qc2'], ['d1b3', 'Qb3'], ['d1e2', 'Qe2'], ['c4b5', 'Bb5'], ['c4b3', 'Bb3'],
+      ['a2a3', 'a3'],
+      ['a2a4', 'a4'],
+      ['b2b3', 'b3'],
+      ['b2b4', 'b4'],
+      ['g2g3', 'g3'],
+      ['g2g4', 'g4'],
+      ['h2h3', 'h3'],
+      ['h2h4', 'h4'],
+      ['b1a3', 'Na3'],
+      ['b1d2', 'Nbd2'],
+      ['c1d2', 'Bd2'],
+      ['c1e3', 'Be3'],
+      ['d1c2', 'Qc2'],
+      ['d1b3', 'Qb3'],
+      ['d1e2', 'Qe2'],
+      ['c4b5', 'Bb5'],
+      ['c4b3', 'Bb3'],
     ];
     return [
       ...priced.map(([id, san, p]) => opt(id, san, p)),
@@ -71,17 +85,65 @@ const h = vi.hoisted(() => {
   const MOVES_ = ['e2e4', 'e7e5', 'g1f3', 'b8c6', 'f1c4', 'f8c5', 'c2c3', 'g8f6', 'd2d4', 'e5d4'];
   const games = () => ({
     games: [
-      { number: 2, id: 'g2', color: 'black', opponent: { name: 'OldBot', title: 'BOT', rating: 1900 }, result: 0, plies: 21 },
-      { number: 3, id: 'g3', color: 'white', opponent: { name: 'OppBot', title: 'BOT', rating: 2171 }, result: null, plies: 10 },
+      {
+        number: 2,
+        id: 'g2',
+        color: 'black',
+        opponent: { name: 'OldBot', title: 'BOT', rating: 1900 },
+        result: 0,
+        plies: 21,
+      },
+      {
+        number: 3,
+        id: 'g3',
+        color: 'white',
+        opponent: { name: 'OppBot', title: 'BOT', rating: 2171 },
+        result: null,
+        plies: 10,
+      },
     ],
   });
   const history = () => ({
     game: { number: 2 },
     plies: [
-      { ply: 1, at: 't', by: 'them', uci: 'e2e4', san: 'e4', fen: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1' },
-      { ply: 2, at: 't', by: 'us', uci: 'e7e5', san: 'e5', fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2', kind: 'market', price: 52.5, tied: 1 },
-      { ply: 3, at: 't', by: 'them', uci: 'g1f3', san: 'Nf3', fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2' },
-      { ply: 4, at: 't', by: 'us', uci: 'a7a6', san: 'a6', fen: 'rnbqkbnr/1ppp1ppp/p7/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3', kind: 'undecided', price: null, tied: 0 },
+      {
+        ply: 1,
+        at: 't',
+        by: 'them',
+        uci: 'e2e4',
+        san: 'e4',
+        fen: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',
+      },
+      {
+        ply: 2,
+        at: 't',
+        by: 'us',
+        uci: 'e7e5',
+        san: 'e5',
+        fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+        kind: 'market',
+        price: 52.5,
+        tied: 1,
+      },
+      {
+        ply: 3,
+        at: 't',
+        by: 'them',
+        uci: 'g1f3',
+        san: 'Nf3',
+        fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2',
+      },
+      {
+        ply: 4,
+        at: 't',
+        by: 'us',
+        uci: 'a7a6',
+        san: 'a6',
+        fen: 'rnbqkbnr/1ppp1ppp/p7/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3',
+        kind: 'undecided',
+        price: null,
+        tied: 0,
+      },
     ],
   });
   return { state, games, history };
@@ -102,7 +164,8 @@ const { api } = await import('../../../lib/api');
 const sq = (c: HTMLElement, name: string) => c.querySelector(`[data-square="${name}"]`) as SVGElement;
 const arrows = (c: HTMLElement) => [...c.querySelectorAll('.chess-arrow')] as SVGElement[];
 const opacityOf = (el: SVGElement) => Number(el.style.strokeOpacity || el.getAttribute('stroke-opacity'));
-const dots = (c: HTMLElement) => [...c.querySelectorAll('.chess-target')].map(d => d.getAttribute('data-square')).sort();
+const dots = (c: HTMLElement) =>
+  [...c.querySelectorAll('.chess-target')].map(d => d.getAttribute('data-square')).sort();
 const nextLine = (c: HTMLElement) => c.querySelector('.chess-next')?.textContent ?? '';
 
 function renderLive(props: Record<string, unknown> = {}) {
@@ -149,7 +212,9 @@ describe('the board', () => {
     const black = renderLive();
     await waitFor(() => expect(nextLine(black.container)).toMatch(/^Waiting for /));
     expect(y(black.container, 'a1')).toBeLessThan(y(black.container, 'a8'));
-    expect(Number(sq(black.container, 'h1').getAttribute('x'))).toBeLessThan(Number(sq(black.container, 'a1').getAttribute('x')));
+    expect(Number(sq(black.container, 'h1').getAttribute('x'))).toBeLessThan(
+      Number(sq(black.container, 'a1').getAttribute('x')),
+    );
   });
 
   test('a1 is a dark square and h1 a light one, as on every chessboard', async () => {
@@ -282,11 +347,14 @@ describe('an arrow never takes the click meant for the board', () => {
   test('while a piece is picked up the arrows take no clicks', async () => {
     const { container } = renderLive();
     await waitFor(() => expect(arrows(container).length).toBe(3));
-    for (const a of container.querySelectorAll('.chess-arrow-link')) expect((a as SVGElement).style.pointerEvents).not.toBe('none');
+    for (const a of container.querySelectorAll('.chess-arrow-link'))
+      expect((a as SVGElement).style.pointerEvents).not.toBe('none');
     fireEvent.click(sq(container, 'e1'));
-    for (const a of container.querySelectorAll('.chess-arrow-link')) expect((a as SVGElement).style.pointerEvents).toBe('none');
+    for (const a of container.querySelectorAll('.chess-arrow-link'))
+      expect((a as SVGElement).style.pointerEvents).toBe('none');
     fireEvent.click(sq(container, 'e1'));
-    for (const a of container.querySelectorAll('.chess-arrow-link')) expect((a as SVGElement).style.pointerEvents).not.toBe('none');
+    for (const a of container.querySelectorAll('.chess-arrow-link'))
+      expect((a as SVGElement).style.pointerEvents).not.toBe('none');
   });
 });
 
@@ -299,7 +367,12 @@ describe('the proposal on screen is marked on the board', () => {
     const mine = selectedArrows(container)[0];
     expect(mine.getAttribute('data-option')).toBe('f3g5');
     expect(opacityOf(mine)).toBe(1);
-    expect(arrows(container).filter(a => !a.classList.contains('is-selected')).map(a => a.getAttribute('data-option')).sort()).toEqual(['c3d4', 'e1g1', 'e4e5']);
+    expect(
+      arrows(container)
+        .filter(a => !a.classList.contains('is-selected'))
+        .map(a => a.getAttribute('data-option'))
+        .sort(),
+    ).toEqual(['c3d4', 'e1g1', 'e4e5']);
     expect(sq(container, 'f3').classList.contains('is-proposal')).toBe(true);
     expect(sq(container, 'g5').classList.contains('is-proposal')).toBe(true);
     expect(sq(container, 'e1').classList.contains('is-proposal')).toBe(false);
@@ -343,7 +416,9 @@ describe('the proposal on screen is marked on the board', () => {
         <LiveView kind="chess" slug="chess" selectedProposal={{ number: 412, option: 'f3g5' }} />
       </MemoryRouter>,
     );
-    await waitFor(() => expect(container.querySelector('.chess-arrow.is-selected')?.getAttribute('data-option')).toBe('f3g5'));
+    await waitFor(() =>
+      expect(container.querySelector('.chess-arrow.is-selected')?.getAttribute('data-option')).toBe('f3g5'),
+    );
   });
 });
 
@@ -428,7 +503,13 @@ describe('the moves, one slim column beside the board', () => {
 });
 
 describe("a price on the live view is the book's own, read once a second", () => {
-  const book = (marketId: string, consensus: number) => ({ marketId, consensus, probability: null, pool: 0, tradeCount: 1 });
+  const book = (marketId: string, consensus: number) => ({
+    marketId,
+    consensus,
+    probability: null,
+    pool: 0,
+    tradeCount: 1,
+  });
 
   test('the floor prices replace the feed prices: the leader, its arrow, its square price and the next-move line follow them', async () => {
     const books = new Map([['m-c3d4', book('m-c3d4', 70)]]);
@@ -473,7 +554,7 @@ describe('the next move and the floor', () => {
     await waitFor(() => expect(nextLine(container)).toMatch(/^Next move: O-O in 0:(2|3)\d$/));
   });
 
-  test("waiting for the opponent names them, the move they are answering, and their clock", async () => {
+  test('waiting for the opponent names them, the move they are answering, and their clock', async () => {
     vi.mocked(api.getLiveState).mockImplementation(
       async () =>
         h.state({
@@ -484,15 +565,19 @@ describe('the next move and the floor', () => {
     );
     const { container } = renderLive();
     // TelarchyBot plays white here, so the opponent's clock is black's: 1,700,000 ms is 28:20.
-    await waitFor(() => expect(nextLine(container)).toMatch(/^Waiting for OppBot \(2171\) to reply to O-O · 28:(20|19)$/));
+    await waitFor(() =>
+      expect(nextLine(container)).toMatch(/^Waiting for OppBot \(2171\) to reply to O-O · 28:(20|19)$/),
+    );
     expect(container.querySelector('.chess-next .chess-clock')?.textContent).toMatch(/^28:(20|19)$/);
   });
 
-  test("their clock counts down between feed reads", async () => {
+  test('their clock counts down between feed reads', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.mocked(api.getLiveState).mockImplementation(async () => h.state({ phase: 'their-move', open: null }) as never);
     const { container } = renderLive();
-    await waitFor(() => expect(container.querySelector('.chess-next .chess-clock')?.textContent).toMatch(/^28:(20|19)$/));
+    await waitFor(() =>
+      expect(container.querySelector('.chess-next .chess-clock')?.textContent).toMatch(/^28:(20|19)$/),
+    );
     // Hold the feed where it is so only the page's own clock moves.
     vi.mocked(api.getLiveState).mockImplementation(() => new Promise(() => {}) as never);
     await vi.advanceTimersByTimeAsync(5_000);
@@ -544,7 +629,14 @@ describe('the next move and the floor', () => {
   test('a provisional rating carries a question mark', async () => {
     vi.mocked(api.getLiveState).mockImplementation(
       async () =>
-        h.state({ player: { username: 'TelarchyBot', rating: 2300, provisional: true, games: { played: 1, won: 0, lost: 1, drawn: 0 } } }) as never,
+        h.state({
+          player: {
+            username: 'TelarchyBot',
+            rating: 2300,
+            provisional: true,
+            games: { played: 1, won: 0, lost: 1, drawn: 0 },
+          },
+        }) as never,
     );
     const { container } = renderLive();
     await waitFor(() => expect(container.querySelector('.chess-stats')?.textContent).toContain('Rating 2300?'));

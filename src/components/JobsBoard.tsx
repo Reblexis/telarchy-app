@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import type { PublicProposal } from "../lib/api";
-import { api } from "../lib/api";
-import { horizonLabel } from "../lib/floor-horizons";
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import type { PublicProposal } from '../lib/api';
+import { api } from '../lib/api';
+import { horizonLabel } from '../lib/floor-horizons';
 import {
   isPricedOption,
   MAX_OPTION_LABEL,
@@ -10,10 +10,10 @@ import {
   optionLead,
   optionsFromLabels,
   pairPool,
-} from "../lib/proposal-options";
-import { countdownTo, instantOf, tickIntervalFor } from "../lib/viewer-time";
-import { BotMark } from "./BotMark";
-import { FloorModal } from "./FloorModal";
+} from '../lib/proposal-options';
+import { countdownTo, instantOf, tickIntervalFor } from '../lib/viewer-time';
+import { BotMark } from './BotMark';
+import { FloorModal } from './FloorModal';
 
 /**
  * The jobs board: the proposal side of the trading floor, rendered for
@@ -48,7 +48,7 @@ interface Props {
    *  (docs/ui-conventions.md, "The proposals board", 2026-09-09): selects
    *  the proposal and opens the ticket on that side. Absent on a board that
    *  is only a list, where no row grows verbs. */
-  onTrade?: (id: string, direction: "higher" | "lower") => void;
+  onTrade?: (id: string, direction: 'higher' | 'lower') => void;
   /** An option row names its options instead of Higher and Lower
    *  (docs/ui-conventions.md, "An option row names its options instead of
    *  Higher and Lower"): pressing an option's chip opens that proposal with
@@ -61,12 +61,7 @@ interface Props {
   /** `option` names the chosen option when a proposal with options is
    *  approved from its row (docs/guides/proposals.md, "More than two
    *  options"); a two-branch ruling passes three arguments, as before. */
-  onRule?: (
-    id: string,
-    action: "approve" | "decline",
-    reason?: string,
-    option?: string,
-  ) => void | Promise<void>;
+  onRule?: (id: string, action: 'approve' | 'decline', reason?: string, option?: string) => void | Promise<void>;
   /** `options` is present only when the form's Options row holds two or more
    *  filled labels; otherwise the call has four arguments and posts a
    *  two-branch proposal. */
@@ -121,7 +116,7 @@ function fmtVal(v: number, unit: string): string {
   const decimals = Math.abs(v) >= 100 ? 0 : 1;
   return (
     unit +
-    v.toLocaleString("en-US", {
+    v.toLocaleString('en-US', {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
     })
@@ -130,7 +125,7 @@ function fmtVal(v: number, unit: string): string {
 
 /** A signed impact figure as the ballot prints it: "+12.0", "-3.0", "+120". */
 export function fmtDelta(d: number, unit: string): string {
-  return `${d > 0 ? "+" : d < 0 ? "-" : ""}${fmtVal(Math.abs(d), unit).replace(/^([+-])?/, "")}`;
+  return `${d > 0 ? '+' : d < 0 ? '-' : ''}${fmtVal(Math.abs(d), unit).replace(/^([+-])?/, '')}`;
 }
 
 /** How long a row ruled on under the reader keeps its place before it joins
@@ -140,7 +135,7 @@ const HOLD_MS = 10_000;
 
 /** On the ballot: not yet decided by the owner. */
 export function isPending(p: PublicProposal): boolean {
-  return !p.status || p.status === "pending";
+  return !p.status || p.status === 'pending';
 }
 
 /**
@@ -175,21 +170,16 @@ export function pendingBallot(
      list under the pointer, and a click on "Turn left" opened the next
      minute's "Continue forward". A proposal's deadline, its place in the
      feed's order and its creation are fixed for its whole life. */
-  const dueAt = (p: PublicProposal) =>
-    p.decideBy ? Date.parse(p.decideBy) : Number.POSITIVE_INFINITY;
-  const rankOf = (p: PublicProposal) =>
-    feedOrder?.[p.id] ?? Number.POSITIVE_INFINITY;
-  const madeAt = (p: PublicProposal) =>
-    p.createdAt ? Date.parse(p.createdAt) : Number.POSITIVE_INFINITY;
+  const dueAt = (p: PublicProposal) => (p.decideBy ? Date.parse(p.decideBy) : Number.POSITIVE_INFINITY);
+  const rankOf = (p: PublicProposal) => feedOrder?.[p.id] ?? Number.POSITIVE_INFINITY;
+  const madeAt = (p: PublicProposal) => (p.createdAt ? Date.parse(p.createdAt) : Number.POSITIVE_INFINITY);
   const cmp = (a: number, b: number) => (a === b ? 0 : a < b ? -1 : 1);
   const byDue = (a: PublicProposal, b: PublicProposal) =>
     cmp(dueAt(a), dueAt(b)) ||
     cmp(rankOf(a), rankOf(b)) ||
     cmp(madeAt(a), madeAt(b)) ||
     (a.number ?? 0) - (b.number ?? 0);
-  return proposals
-    .filter((p) => isPending(p) || alsoKeep?.has(p.id))
-    .sort(byDue);
+  return proposals.filter(p => isPending(p) || alsoKeep?.has(p.id)).sort(byDue);
 }
 
 /**
@@ -226,16 +216,16 @@ export { countdownTo };
  * unit and nothing else.
  */
 export const WINDOW_PRESETS: Array<{ minutes: number; label: string }> = [
-  { minutes: 60, label: "1h" },
-  { minutes: 360, label: "6h" },
-  { minutes: 1440, label: "1 day" },
-  { minutes: 4320, label: "3 days" },
-  { minutes: 10080, label: "1 week" },
+  { minutes: 60, label: '1h' },
+  { minutes: 360, label: '6h' },
+  { minutes: 1440, label: '1 day' },
+  { minutes: 4320, label: '3 days' },
+  { minutes: 10080, label: '1 week' },
 ];
 
 /** "1 day", "45 minutes", "3 days": a window said the way a person says it. */
 export function windowLabel(minutes: number): string {
-  const preset = WINDOW_PRESETS.find((p) => p.minutes === minutes);
+  const preset = WINDOW_PRESETS.find(p => p.minutes === minutes);
   if (preset) return preset.label;
   if (minutes < 60) return `${minutes}m`;
   if (minutes < 1440) return `${Math.round(minutes / 60)}h`;
@@ -278,15 +268,7 @@ export const CoinGlyph = () => (
 );
 
 export const DropGlyph = () => (
-  <svg
-    width="9"
-    height="11"
-    viewBox="0 0 12 15"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.4"
-    aria-hidden="true"
-  >
+  <svg width="9" height="11" viewBox="0 0 12 15" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
     <path d="M6 1.5C6 1.5 1.5 6.5 1.5 9.3a4.5 4.5 0 0 0 9 0C10.5 6.5 6 1.5 6 1.5Z" />
   </svg>
 );
@@ -297,39 +279,30 @@ export function poolOf(p: PublicProposal): number {
 }
 
 /** The id rule for typed option labels lives in lib/proposal-options. */
-export { optionIdsOf } from "../lib/proposal-options";
+export { optionIdsOf } from '../lib/proposal-options';
 
 /** Whether the propose line is offered: on an open floor to everyone, on a
  *  floor closed to outside proposals only to a viewer holding manage, the
  *  same rule POST /api/proposals enforces (docs/guides/proposals.md,
  *  "Closing the floor to outside proposals"). */
-export function proposingOffered(
-  externalProposalsDisabled: boolean | undefined,
-  canManage: boolean,
-): boolean {
+export function proposingOffered(externalProposalsDisabled: boolean | undefined, canManage: boolean): boolean {
   return !externalProposalsDisabled || canManage;
 }
 
 /** Whether a proposal carries options instead of the approve/decline pair. */
 export function hasOptions(p: PublicProposal): boolean {
-  return (
-    (p.options?.length ?? 0) > 0 ||
-    p.markets.some((m) => (m.options?.length ?? 0) > 0)
-  );
+  return (p.options?.length ?? 0) > 0 || p.markets.some(m => (m.options?.length ?? 0) > 0);
 }
 
 /** The label of a proposal's option by id, or the id itself when unknown. */
 /** The most option chips a board row carries before it folds to "+N more". */
 const MAX_ROW_CHIPS = 6;
 
-export function optionLabelOf(
-  p: PublicProposal,
-  id: string | null | undefined,
-): string | null {
+export function optionLabelOf(p: PublicProposal, id: string | null | undefined): string | null {
   if (!id) return null;
   return (
-    p.options?.find((o) => o.id === id)?.label ??
-    p.markets.flatMap((m) => m.options ?? []).find((o) => o.id === id)?.label ??
+    p.options?.find(o => o.id === id)?.label ??
+    p.markets.flatMap(m => m.options ?? []).find(o => o.id === id)?.label ??
     id
   );
 }
@@ -338,9 +311,7 @@ export function optionLabelOf(
     Parse it back out so the row can show cost as a structured field. */
 export function splitAsk(title: string): { ask: number | null; rest: string } {
   const m = title.match(/^\$(\d+):\s*(.*)$/s);
-  return m
-    ? { ask: parseInt(m[1], 10), rest: m[2] }
-    : { ask: null, rest: title };
+  return m ? { ask: parseInt(m[1], 10), rest: m[2] } : { ask: null, rest: title };
 }
 
 /**
@@ -350,21 +321,16 @@ export function splitAsk(title: string): { ask: number | null; rest: string } {
  * in it teaches nothing.
  */
 export function metricsPhrase(names: string[]): string {
-  const clean = names.map((n) => n.trim()).filter(Boolean);
-  if (clean.length === 0) return "the number on this page";
+  const clean = names.map(n => n.trim()).filter(Boolean);
+  if (clean.length === 0) return 'the number on this page';
   if (clean.length === 1) return clean[0];
-  return `${clean.slice(0, -1).join(", ")} and ${clean[clean.length - 1]}`;
+  return `${clean.slice(0, -1).join(', ')} and ${clean[clean.length - 1]}`;
 }
 
 function headlineDelta(p: PublicProposal): number | null {
-  const deltas = p.markets
-    .map((m) => m.delta)
-    .filter((d): d is number => d !== null);
+  const deltas = p.markets.map(m => m.delta).filter((d): d is number => d !== null);
   if (deltas.length === 0) return null;
-  return deltas.reduce(
-    (a, b) => (Math.abs(b) > Math.abs(a) ? b : a),
-    deltas[0],
-  );
+  return deltas.reduce((a, b) => (Math.abs(b) > Math.abs(a) ? b : a), deltas[0]);
 }
 
 /**
@@ -386,13 +352,11 @@ export function pairAtHorizon(
   p: PublicProposal,
   targetDate: string | null | undefined,
   metricId?: string | null,
-): PublicProposal["markets"][number] | null {
+): PublicProposal['markets'][number] | null {
   if (!targetDate) return null;
   return (
     p.markets.find(
-      (m) =>
-        m.targetDate === targetDate &&
-        (!metricId || m.metricId === undefined || m.metricId === metricId),
+      m => m.targetDate === targetDate && (!metricId || m.metricId === undefined || m.metricId === metricId),
     ) ?? null
   );
 }
@@ -428,8 +392,7 @@ export function JobsBoard({
   // used as a fallback for an unpriced pair, it printed the active-traders
   // delta under the valuation caption while the ticket said "not yet priced"
   // (owner report, docs/ui-conventions.md "the board reads the pair on screen").
-  const impactOf = (p: PublicProposal) =>
-    horizonDate ? deltaAt(p, horizonDate, horizonMetricId) : headlineDelta(p);
+  const impactOf = (p: PublicProposal) => (horizonDate ? deltaAt(p, horizonDate, horizonMetricId) : headlineDelta(p));
   const [foldOpen, setFoldOpen] = useState(false);
   // The clocks on the rows tick: every second while a pending deadline is
   // under an hour, every minute otherwise (docs/ui-conventions.md, "The
@@ -446,25 +409,25 @@ export function JobsBoard({
      a place to mis-click and approving pays real money. */
   const [ruling, setRuling] = useState<{
     id: string;
-    action: "approve" | "decline";
+    action: 'approve' | 'decline';
     reason: string;
   } | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
-  const [ask, setAsk] = useState("");
+  const [ask, setAsk] = useState('');
   // The window in minutes: a preset, or a custom number and unit.
   const [windowMinutes, setWindowMinutes] = useState(decisionMinutes);
   const [customOpen, setCustomOpen] = useState(false);
-  const [customN, setCustomN] = useState("30");
-  const [customUnit, setCustomUnit] = useState<"m" | "h" | "d">("m");
-  const [title, setTitle] = useState("");
-  const [desc, setDesc] = useState("");
+  const [customN, setCustomN] = useState('30');
+  const [customUnit, setCustomUnit] = useState<'m' | 'h' | 'd'>('m');
+  const [title, setTitle] = useState('');
+  const [desc, setDesc] = useState('');
   const [formBusy, setFormBusy] = useState(false);
-  const [formErr, setFormErr] = useState("");
+  const [formErr, setFormErr] = useState('');
   /* The Options row (docs/ui-conventions.md, "Posting one"): closed by
      default, two label fields when opened, up to six. */
   const [optionsOpen, setOptionsOpen] = useState(false);
-  const [optionLabels, setOptionLabels] = useState<string[]>(["", ""]);
+  const [optionLabels, setOptionLabels] = useState<string[]>(['', '']);
   const [placed, setPlaced] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -472,20 +435,14 @@ export function JobsBoard({
   // direction 2026-08-10). The form only REPORTS them, as a facts row:
   // set means the job can be paid, unset points at the account menu, and
   // the server enforces it either way at creation.
-  const [accountPayout, setAccountPayout] = useState<string | null | undefined>(
-    undefined,
-  );
+  const [accountPayout, setAccountPayout] = useState<string | null | undefined>(undefined);
   useEffect(() => {
     if (!formOpen) return;
     api
       .getParticipant()
-      .then((p) =>
-        setAccountPayout(
-          (p as { payoutHandle?: string | null }).payoutHandle ?? null,
-        ),
-      )
-      .catch((e) => {
-        console.error("participant fetch failed:", e);
+      .then(p => setAccountPayout((p as { payoutHandle?: string | null }).payoutHandle ?? null))
+      .catch(e => {
+        console.error('participant fetch failed:', e);
         setAccountPayout(null);
       });
   }, [formOpen]);
@@ -505,8 +462,7 @@ export function JobsBoard({
   // the decided ones are a record and read newest decision first (owner
   // ask 2026-09-04). docs/ui-conventions.md, "The board opens on the live
   // ballot".
-  const byImpact = (a: PublicProposal, b: PublicProposal) =>
-    (impactOf(b) ?? 0) - (impactOf(a) ?? 0);
+  const byImpact = (a: PublicProposal, b: PublicProposal) => (impactOf(b) ?? 0) - (impactOf(a) ?? 0);
   /* A row ruled on under the reader holds its place (docs/ui-conventions.md,
      "A pending row keeps its place for its whole life"): for ten seconds it
      stays where it stood, its ruling on it, and only then joins the decided
@@ -540,23 +496,18 @@ export function JobsBoard({
      there, so it does not spend the budget. */
   const CAP = 5;
   let budget = CAP;
-  const shownPending = showAll
-    ? pending
-    : pending.filter((p) => held.has(p.id) || budget-- > 0);
+  const shownPending = showAll ? pending : pending.filter(p => held.has(p.id) || budget-- > 0);
   const hiddenPending = pending.length - shownPending.length;
   // Newest decision first; a proposal with no decision time sorts last and
   // impact breaks a tie.
-  const decidedAt = (p: PublicProposal) =>
-    p.resolvedAt ? Date.parse(p.resolvedAt) : Number.NEGATIVE_INFINITY;
+  const decidedAt = (p: PublicProposal) => (p.resolvedAt ? Date.parse(p.resolvedAt) : Number.NEGATIVE_INFINITY);
   const byDecision = (a: PublicProposal, b: PublicProposal) => {
     const ta = decidedAt(a);
     const tb = decidedAt(b);
     if (ta !== tb) return ta > tb ? -1 : 1;
     return byImpact(a, b);
   };
-  const decided = proposals
-    .filter((p) => !isPending(p) && !held.has(p.id))
-    .sort(byDecision);
+  const decided = proposals.filter(p => !isPending(p) && !held.has(p.id)).sort(byDecision);
 
   // A board with nothing pending has no ballot to bury, so the decided ones
   // ARE the list and there is no fold; a board with nothing decided has
@@ -565,8 +516,7 @@ export function JobsBoard({
   // A `#proposal=<id>` link from a notification can point the page at a
   // decided proposal, and the fold must never hide the row the view is
   // pointed at.
-  const decidedSelected =
-    !!selectedId && decided.some((p) => p.id === selectedId);
+  const decidedSelected = !!selectedId && decided.some(p => p.id === selectedId);
   const showDecided = !foldable || foldOpen || decidedSelected;
   const toggleFold = () => {
     // Collapsing releases a selected decided proposal rather than hiding it,
@@ -585,7 +535,7 @@ export function JobsBoard({
 
   const submit = async () => {
     if (!title.trim()) {
-      setFormErr("Add a proposal.");
+      setFormErr('Add a proposal.');
       return;
     }
     // The title carries the price because it reads well and travels
@@ -594,32 +544,29 @@ export function JobsBoard({
     // clean title. Where the money goes comes from the account; the
     // server refuses a paid job without it.
     const fullTitle = askNum > 0 ? `$${askNum}: ${title.trim()}` : title.trim();
-    setFormErr("");
+    setFormErr('');
     setFormBusy(true);
     try {
-      const decideBy = new Date(
-        Date.now() + windowMinutes * 60_000,
-      ).toISOString();
+      const decideBy = new Date(Date.now() + windowMinutes * 60_000).toISOString();
       // Fewer than two filled labels is a two-branch proposal.
       const options = optionsOpen ? optionsFromLabels(optionLabels) : undefined;
-      if (options)
-        await onPropose(fullTitle, desc.trim(), askNum, decideBy, options);
+      if (options) await onPropose(fullTitle, desc.trim(), askNum, decideBy, options);
       else await onPropose(fullTitle, desc.trim(), askNum, decideBy);
       // The green moment: the one place the form earns its color.
       setPlaced(true);
       closeTimer.current = setTimeout(() => {
-        setAsk("");
+        setAsk('');
         setWindowMinutes(decisionMinutes);
         setCustomOpen(false);
-        setTitle("");
-        setDesc("");
+        setTitle('');
+        setDesc('');
         setOptionsOpen(false);
-        setOptionLabels(["", ""]);
+        setOptionLabels(['', '']);
         setPlaced(false);
         setFormOpen(false);
       }, 900);
     } catch (e) {
-      setFormErr((e as Error).message || "Failed to submit");
+      setFormErr((e as Error).message || 'Failed to submit');
     } finally {
       setFormBusy(false);
     }
@@ -639,8 +586,7 @@ export function JobsBoard({
     // first, the four facts as an icon row on the second, the two verbs on
     // the right. Nothing stacked on the right edge, which is what made this
     // row unreadable in a 340px rail.
-    const countdown =
-      isPending(p) && p.decideBy ? countdownTo(p.decideBy, now) : null;
+    const countdown = isPending(p) && p.decideBy ? countdownTo(p.decideBy, now) : null;
     // A priced, live proposal is one you can act on from where you read it.
     // A decided one has nothing left to trade, and an unpriced one has no
     // market to trade against.
@@ -649,41 +595,31 @@ export function JobsBoard({
        options shows one world per option"): the row prints the leader's lead
        behind its label, and a manager chooses rather than approves. */
     const optioned = hasOptions(p);
-    const rowPair = horizonDate
-      ? pairAtHorizon(p, horizonDate, horizonMetricId)
-      : null;
-    const lead = optioned
-      ? optionLead((rowPair ?? p.markets[0])?.options)
-      : null;
-    const chosenLabel =
-      p.status === "approved" ? optionLabelOf(p, p.decidedOption) : null;
+    const rowPair = horizonDate ? pairAtHorizon(p, horizonDate, horizonMetricId) : null;
+    const lead = optioned ? optionLead((rowPair ?? p.markets[0])?.options) : null;
+    const chosenLabel = p.status === 'approved' ? optionLabelOf(p, p.decidedOption) : null;
     /* The options in the order a manager meets them: the leader first, then
        the proposer's order; a tie at the top has no leader, so the
        proposer's order alone. */
-    const optionList = p.options?.length
-      ? p.options
-      : ((rowPair ?? p.markets[0])?.options ?? []);
+    const optionList = p.options?.length ? p.options : ((rowPair ?? p.markets[0])?.options ?? []);
     const leaderId = lead?.leader?.id ?? null;
     const choices = leaderId
-      ? [
-          ...optionList.filter((o) => o.id === leaderId),
-          ...optionList.filter((o) => o.id !== leaderId),
-        ]
+      ? [...optionList.filter(o => o.id === leaderId), ...optionList.filter(o => o.id !== leaderId)]
       : optionList;
     const hasControls = Boolean(
       (canManage && onRule && isPending(p) && !selected) ||
-      (optioned && onOpenOption && isPending(p)) ||
-      (tradeable && !optioned),
+        (optioned && onOpenOption && isPending(p)) ||
+        (tradeable && !optioned),
     );
     return (
-      <li key={p.id} className={selected ? "is-open" : ""}>
-        <div className={`pubws-prow${selected ? " is-selected" : ""}`}>
+      <li key={p.id} className={selected ? 'is-open' : ''}>
+        <div className={`pubws-prow${selected ? ' is-selected' : ''}`}>
           {/* The title owns the first line (docs/ui-conventions.md, "The row is
               two lines"): only the impact shares it, so no control can squeeze
               the title to a few characters. */}
           <div className="pubws-prow-top">
             <button
-              className={`pubws-ballot-row${selected ? " is-selected" : ""}`}
+              className={`pubws-ballot-row${selected ? ' is-selected' : ''}`}
               aria-pressed={selected}
               title={titleRest}
               onClick={() => onSelect(p.id)}
@@ -691,9 +627,7 @@ export function JobsBoard({
               <span className="pubws-ballot-title">
                 {/* The number leads: it is how a person names the proposal
                   ("what does #7 mean?"), so it reads before the words. */}
-                {p.number ? (
-                  <span className="pubws-ballot-num">#{p.number}</span>
-                ) : null}
+                {p.number ? <span className="pubws-ballot-num">#{p.number}</span> : null}
                 {titleRest}
               </span>
             </button>
@@ -703,31 +637,19 @@ export function JobsBoard({
                 absence. An option proposal names its leader first. */}
               {delta !== null && lead?.leader && (
                 <>
-                  <span className="pubws-ballot-lead">
-                    {lead.leader.label}
-                  </span>{" "}
+                  <span className="pubws-ballot-lead">{lead.leader.label}</span>{' '}
                 </>
               )}
               {/* A tie at the top is not a lead: "tied" where the row would
                 print "<leader> +lead" (docs/ui-conventions.md). */}
               {delta !== null && lead?.tied ? (
-                <span className="pubws-ballot-delta pubws-ballot-delta--open">
-                  tied
-                </span>
+                <span className="pubws-ballot-delta pubws-ballot-delta--open">tied</span>
               ) : delta === null ? (
-                <span className="pubws-ballot-delta pubws-ballot-delta--open">
-                  open
-                </span>
+                <span className="pubws-ballot-delta pubws-ballot-delta--open">open</span>
               ) : delta === 0 ? (
-                <span className="pubws-ballot-delta pubws-ballot-delta--open">
-                  ±{unit}0
-                </span>
+                <span className="pubws-ballot-delta pubws-ballot-delta--open">±{unit}0</span>
               ) : (
-                <span
-                  className={`pubws-ballot-delta ${delta > 0 ? "is-up" : "is-down"}`}
-                >
-                  {fmtDelta(delta, unit)}
-                </span>
+                <span className={`pubws-ballot-delta ${delta > 0 ? 'is-up' : 'is-down'}`}>{fmtDelta(delta, unit)}</span>
               )}
             </span>
           </div>
@@ -755,18 +677,14 @@ export function JobsBoard({
                       className="pubws-name-link"
                       role="link"
                       tabIndex={0}
-                      onClick={(ev) => {
+                      onClick={ev => {
                         ev.stopPropagation();
-                        navigate(
-                          `/participants/${encodeURIComponent(p.proposedByHandle!)}`,
-                        );
+                        navigate(`/participants/${encodeURIComponent(p.proposedByHandle!)}`);
                       }}
-                      onKeyDown={(ev) => {
-                        if (ev.key === "Enter") {
+                      onKeyDown={ev => {
+                        if (ev.key === 'Enter') {
                           ev.stopPropagation();
-                          navigate(
-                            `/participants/${encodeURIComponent(p.proposedByHandle!)}`,
-                          );
+                          navigate(`/participants/${encodeURIComponent(p.proposedByHandle!)}`);
                         }
                       }}
                     >
@@ -787,7 +705,7 @@ export function JobsBoard({
                   deadline is one amber chip"): red inside the last day. */}
               {countdown && (
                 <span
-                  className={`pubws-ballot-clock${countdown.urgent ? " is-urgent" : ""}`}
+                  className={`pubws-ballot-clock${countdown.urgent ? ' is-urgent' : ''}`}
                   aria-label="Decision in"
                   title={`The owner decides by ${instantOf(p.decideBy)}`}
                 >
@@ -804,15 +722,9 @@ export function JobsBoard({
                 <DropGlyph />
                 {Math.round(poolOf(p)).toLocaleString()}
               </span>
-              {p.status && p.status !== "pending" && (
-                <span
-                  className={`pubws-ballot-status is-${p.lapsedAt ? "lapsed" : p.status}`}
-                >
-                  {p.lapsedAt
-                    ? "lapsed"
-                    : chosenLabel
-                      ? `Chose ${chosenLabel}`
-                      : p.status}
+              {p.status && p.status !== 'pending' && (
+                <span className={`pubws-ballot-status is-${p.lapsedAt ? 'lapsed' : p.status}`}>
+                  {p.lapsedAt ? 'lapsed' : chosenLabel ? `Chose ${chosenLabel}` : p.status}
                 </span>
               )}
             </span>
@@ -826,18 +738,14 @@ export function JobsBoard({
                     <button
                       type="button"
                       className="pubws-dir pubws-dir--mini pubws-dir--approve"
-                      onClick={() =>
-                        setRuling({ id: p.id, action: "approve", reason: "" })
-                      }
+                      onClick={() => setRuling({ id: p.id, action: 'approve', reason: '' })}
                     >
-                      {optioned ? "Choose" : "Approve"}
+                      {optioned ? 'Choose' : 'Approve'}
                     </button>
                     <button
                       type="button"
                       className="pubws-dir pubws-dir--mini"
-                      onClick={() =>
-                        setRuling({ id: p.id, action: "decline", reason: "" })
-                      }
+                      onClick={() => setRuling({ id: p.id, action: 'decline', reason: '' })}
                     >
                       Decline
                     </button>
@@ -847,15 +755,8 @@ export function JobsBoard({
                   <span className="pubws-prow-acts pubws-optchips">
                     {(() => {
                       const valueOf = (id: string) => {
-                        const quote =
-                          (rowPair ?? p.markets[0])?.options?.find(
-                            (q) => q.id === id,
-                          ) ?? null;
-                        return quote &&
-                          isPricedOption(quote) &&
-                          quote.consensus !== null
-                          ? quote.consensus
-                          : null;
+                        const quote = (rowPair ?? p.markets[0])?.options?.find(q => q.id === id) ?? null;
+                        return quote && isPricedOption(quote) && quote.consensus !== null ? quote.consensus : null;
                       };
                       /* A row never runs past its column (docs/ui-conventions.md, "An
                          option row names its options"): past six options the six
@@ -863,29 +764,23 @@ export function JobsBoard({
                       const folded =
                         optionList.length > MAX_ROW_CHIPS
                           ? [...optionList]
-                              .sort(
-                                (a, b) =>
-                                  (valueOf(b.id) ?? -Infinity) -
-                                  (valueOf(a.id) ?? -Infinity),
-                              )
+                              .sort((a, b) => (valueOf(b.id) ?? -Infinity) - (valueOf(a.id) ?? -Infinity))
                               .slice(0, MAX_ROW_CHIPS)
                           : optionList;
                       return [
-                        ...folded.map((o) => {
+                        ...folded.map(o => {
                           const value = valueOf(o.id);
                           const leads = leaderId === o.id;
                           return (
                             <button
                               key={o.id}
                               type="button"
-                              className={`pubws-dir pubws-dir--mini pubws-optchip${leads ? " is-leader" : ""}`}
+                              className={`pubws-dir pubws-dir--mini pubws-optchip${leads ? ' is-leader' : ''}`}
                               onClick={() => onOpenOption(p.id, o.id)}
                             >
-                              <span className="pubws-optchip-label">
-                                {o.label}
-                              </span>{" "}
+                              <span className="pubws-optchip-label">{o.label}</span>{' '}
                               <span className="pubws-optchip-value">
-                                {value === null ? "open" : fmtVal(value, unit)}
+                                {value === null ? 'open' : fmtVal(value, unit)}
                               </span>
                             </button>
                           );
@@ -909,14 +804,14 @@ export function JobsBoard({
                     <button
                       type="button"
                       className="pubws-dir pubws-dir--mini pubws-dir--higher"
-                      onClick={() => onTrade?.(p.id, "higher")}
+                      onClick={() => onTrade?.(p.id, 'higher')}
                     >
                       Higher
                     </button>
                     <button
                       type="button"
                       className="pubws-dir pubws-dir--mini pubws-dir--lower"
-                      onClick={() => onTrade?.(p.id, "lower")}
+                      onClick={() => onTrade?.(p.id, 'lower')}
                     >
                       Lower
                     </button>
@@ -931,75 +826,60 @@ export function JobsBoard({
              and Decline asks for the reason the charter publishes, with the
              confirm off until one is typed. */
           <div className={`pubws-rule pubws-rule--${ruling.action}`}>
-            {ruling.action === "approve" && optioned ? (
+            {ruling.action === 'approve' && optioned ? (
               <p className="pubws-rule-what">
-                Choosing one {askUsd ? `pays $${askUsd}, ` : ""}voids every
-                other option and refunds its stakes at what they cost, and
-                records every option at the call standing this instant.
+                Choosing one {askUsd ? `pays $${askUsd}, ` : ''}voids every other option and refunds its stakes at what
+                they cost, and records every option at the call standing this instant.
               </p>
-            ) : ruling.action === "approve" ? (
+            ) : ruling.action === 'approve' ? (
               <p className="pubws-rule-what">
-                Approving pays {askUsd === null ? "nothing" : `$${askUsd}`} and
-                records every pair at the call standing this instant.
+                Approving pays {askUsd === null ? 'nothing' : `$${askUsd}`} and records every pair at the call standing
+                this instant.
               </p>
             ) : (
               <>
-                <span className="pubws-rule-label">
-                  Why you are declining it, published on the proposal
-                </span>
+                <span className="pubws-rule-label">Why you are declining it, published on the proposal</span>
                 <textarea
                   className="pubws-rule-reason"
                   rows={2}
                   value={ruling.reason}
-                  onChange={(e) =>
-                    setRuling({ ...ruling, reason: e.target.value })
-                  }
+                  onChange={e => setRuling({ ...ruling, reason: e.target.value })}
                 />
               </>
             )}
             <div className="pubws-rule-acts">
-              {ruling.action === "approve" &&
+              {ruling.action === 'approve' &&
                 optioned &&
-                choices.map((o) => (
+                choices.map(o => (
                   <button
                     key={o.id}
                     type="button"
-                    className={`pubws-decide${leaderId === o.id ? " pubws-decide--approve" : ""}`}
+                    className={`pubws-decide${leaderId === o.id ? ' pubws-decide--approve' : ''}`}
                     onClick={() => {
                       setRuling(null);
-                      void onRule?.(p.id, "approve", undefined, o.id);
+                      void onRule?.(p.id, 'approve', undefined, o.id);
                     }}
                   >
                     Choose {o.label}
                   </button>
                 ))}
-              {!(ruling.action === "approve" && optioned) && (
+              {!(ruling.action === 'approve' && optioned) && (
                 <button
                   type="button"
-                  className={`pubws-decide pubws-decide--${ruling.action === "approve" ? "approve" : "decline"}`}
-                  disabled={
-                    ruling.action === "decline" &&
-                    ruling.reason.trim().length === 0
-                  }
+                  className={`pubws-decide pubws-decide--${ruling.action === 'approve' ? 'approve' : 'decline'}`}
+                  disabled={ruling.action === 'decline' && ruling.reason.trim().length === 0}
                   onClick={() => {
-                    const reason =
-                      ruling.action === "decline"
-                        ? ruling.reason.trim()
-                        : undefined;
+                    const reason = ruling.action === 'decline' ? ruling.reason.trim() : undefined;
                     setRuling(null);
                     void onRule?.(p.id, ruling.action, reason);
                   }}
                 >
-                  {ruling.action === "approve"
-                    ? `Approve and pay ${askUsd === null ? "nothing" : `$${askUsd}`}`
-                    : "Decline and publish"}
+                  {ruling.action === 'approve'
+                    ? `Approve and pay ${askUsd === null ? 'nothing' : `$${askUsd}`}`
+                    : 'Decline and publish'}
                 </button>
               )}
-              <button
-                type="button"
-                className="pubws-decide"
-                onClick={() => setRuling(null)}
-              >
+              <button type="button" className="pubws-decide" onClick={() => setRuling(null)}>
                 Cancel
               </button>
             </div>
@@ -1017,27 +897,19 @@ export function JobsBoard({
             the header's meta, the same anatomy as the standings rail. */}
         {proposals.length > 0 && (
           <span className="pubws-lb-meta" aria-hidden="true">
-            {horizonDate
-              ? `impact by ${horizonLabel(horizonDate)}`
-              : "impact if done"}
+            {horizonDate ? `impact by ${horizonLabel(horizonDate)}` : 'impact if done'}
           </span>
         )}
       </div>
 
       {proposals.length === 0 ? (
-        <p className="pubws-lb-empty">
-          Nothing on the ballot yet. Yours could be first.
-        </p>
+        <p className="pubws-lb-empty">Nothing on the ballot yet. Yours could be first.</p>
       ) : (
         <ul className="pubws-ballot">
           {shownPending.map(row)}
           {hiddenPending > 0 && (
             <li>
-              <button
-                type="button"
-                className="pubws-ballot-all"
-                onClick={() => setShowAll(true)}
-              >
+              <button type="button" className="pubws-ballot-all" onClick={() => setShowAll(true)}>
                 {hiddenPending} more open
               </button>
             </li>
@@ -1048,13 +920,13 @@ export function JobsBoard({
                   head's anatomy: the count left, the action right. */}
               <button
                 type="button"
-                className={`pubws-ballot-fold${showDecided ? " is-open" : ""}`}
+                className={`pubws-ballot-fold${showDecided ? ' is-open' : ''}`}
                 aria-expanded={showDecided}
                 onClick={toggleFold}
               >
                 <span className="pubws-ballot-fold-count">{`${decided.length} decided`}</span>
                 <span className="pubws-ballot-fold-act">
-                  {showDecided ? "Hide" : "Show"}
+                  {showDecided ? 'Hide' : 'Show'}
                   <svg
                     className="pubws-ballot-fold-chev"
                     width="11"
@@ -1104,10 +976,7 @@ export function JobsBoard({
           facts table, and color only speaks as state, red for errors and
           green for the placed flash. Escape and the backdrop close. */}
       {formOpen && (
-        <FloorModal
-          onClose={() => setFormOpen(false)}
-          label="Offer to do the work"
-        >
+        <FloorModal onClose={() => setFormOpen(false)} label="Offer to do the work">
           <div className="jobform">
             <div className="ticket-head jobform-head">
               <div className="jobform-askblock">
@@ -1117,9 +986,7 @@ export function JobsBoard({
                   <input
                     value={ask}
                     style={{ width: `${Math.max(4, ask.length)}ch` }}
-                    onChange={(e) =>
-                      setAsk(e.target.value.replace(/[^0-9]/g, ""))
-                    }
+                    onChange={e => setAsk(e.target.value.replace(/[^0-9]/g, ''))}
                     placeholder="0"
                     inputMode="numeric"
                     aria-label="Price in USD (required)"
@@ -1127,20 +994,16 @@ export function JobsBoard({
                   />
                 </label>
               </div>
-              <button
-                className="ticket-close"
-                aria-label="Close"
-                onClick={() => setFormOpen(false)}
-              >
+              <button className="ticket-close" aria-label="Close" onClick={() => setFormOpen(false)}>
                 ×
               </button>
             </div>
 
             <label className="jobform-field">
               <span className="ticket-label">
-                Proposal{" "}
+                Proposal{' '}
                 <span
-                  className={`jobform-count${title.length >= 70 ? " is-max" : title.length >= 60 ? " is-near" : ""}`}
+                  className={`jobform-count${title.length >= 70 ? ' is-max' : title.length >= 60 ? ' is-near' : ''}`}
                 >
                   {title.length}/70
                 </span>
@@ -1148,8 +1011,8 @@ export function JobsBoard({
               <input
                 className="jobform-line jobform-line--title"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder={`I will do a very useful thing for ${workspaceName || "this company"}`}
+                onChange={e => setTitle(e.target.value)}
+                placeholder={`I will do a very useful thing for ${workspaceName || 'this company'}`}
                 maxLength={70}
                 aria-label="Proposal title"
               />
@@ -1160,7 +1023,7 @@ export function JobsBoard({
               <textarea
                 className="jobform-line jobform-line--desc"
                 value={desc}
-                onChange={(e) => setDesc(e.target.value)}
+                onChange={e => setDesc(e.target.value)}
                 placeholder={`This will affect ${metricsPhrase(metricNames)} in this way because of these reasons`}
                 rows={3}
                 aria-label="Proposal pitch"
@@ -1176,14 +1039,12 @@ export function JobsBoard({
             <div className="jobform-field jobform-options">
               <button
                 type="button"
-                className={`jobform-options-toggle${optionsOpen ? " is-open" : ""}`}
+                className={`jobform-options-toggle${optionsOpen ? ' is-open' : ''}`}
                 aria-expanded={optionsOpen}
-                onClick={() => setOptionsOpen((v) => !v)}
+                onClick={() => setOptionsOpen(v => !v)}
               >
                 Options
-                <span className="jobform-count">
-                  {optionsOpen ? "choose between these" : "approve or decline"}
-                </span>
+                <span className="jobform-count">{optionsOpen ? 'choose between these' : 'approve or decline'}</span>
               </button>
               {optionsOpen && (
                 <>
@@ -1193,26 +1054,16 @@ export function JobsBoard({
                       className="jobform-line jobform-line--option"
                       value={label}
                       maxLength={MAX_OPTION_LABEL}
-                      placeholder={
-                        i === 0
-                          ? "Headline A"
-                          : i === 1
-                            ? "Headline B"
-                            : `Option ${i + 1}`
-                      }
+                      placeholder={i === 0 ? 'Headline A' : i === 1 ? 'Headline B' : `Option ${i + 1}`}
                       aria-label={`Option ${i + 1} label`}
-                      onChange={(e) =>
-                        setOptionLabels((ls) =>
-                          ls.map((l, j) => (j === i ? e.target.value : l)),
-                        )
-                      }
+                      onChange={e => setOptionLabels(ls => ls.map((l, j) => (j === i ? e.target.value : l)))}
                     />
                   ))}
                   {optionLabels.length < MAX_OPTIONS && (
                     <button
                       type="button"
                       className="jobform-add-option"
-                      onClick={() => setOptionLabels((ls) => [...ls, ""])}
+                      onClick={() => setOptionLabels(ls => [...ls, ''])}
                     >
                       + add option
                     </button>
@@ -1229,11 +1080,11 @@ export function JobsBoard({
             <div className="jobform-field">
               <span className="ticket-label">Decided within</span>
               <div className="jobform-windows" aria-label="Decided within">
-                {WINDOW_PRESETS.map((p) => (
+                {WINDOW_PRESETS.map(p => (
                   <button
                     key={p.minutes}
                     type="button"
-                    className={`jobform-window${!customOpen && windowMinutes === p.minutes ? " is-on" : ""}`}
+                    className={`jobform-window${!customOpen && windowMinutes === p.minutes ? ' is-on' : ''}`}
                     aria-pressed={!customOpen && windowMinutes === p.minutes}
                     onClick={() => {
                       setCustomOpen(false);
@@ -1245,7 +1096,7 @@ export function JobsBoard({
                 ))}
                 <button
                   type="button"
-                  className={`jobform-window${customOpen ? " is-on" : ""}`}
+                  className={`jobform-window${customOpen ? ' is-on' : ''}`}
                   aria-pressed={customOpen}
                   onClick={() => setCustomOpen(true)}
                 >
@@ -1261,33 +1112,22 @@ export function JobsBoard({
                     className="jobform-line jobform-line--n"
                     inputMode="numeric"
                     value={customN}
-                    onChange={(e) => {
-                      const raw = e.target.value.replace(/[^0-9]/g, "");
+                    onChange={e => {
+                      const raw = e.target.value.replace(/[^0-9]/g, '');
                       setCustomN(raw);
                       const n = parseInt(raw, 10);
-                      if (n > 0)
-                        setWindowMinutes(
-                          n *
-                            (customUnit === "d"
-                              ? 1440
-                              : customUnit === "h"
-                                ? 60
-                                : 1),
-                        );
+                      if (n > 0) setWindowMinutes(n * (customUnit === 'd' ? 1440 : customUnit === 'h' ? 60 : 1));
                     }}
                     aria-label="Custom window"
                   />
                   <select
                     className="jobform-line jobform-line--unit"
                     value={customUnit}
-                    onChange={(e) => {
-                      const u = e.target.value as "m" | "h" | "d";
+                    onChange={e => {
+                      const u = e.target.value as 'm' | 'h' | 'd';
                       setCustomUnit(u);
                       const n = parseInt(customN, 10);
-                      if (n > 0)
-                        setWindowMinutes(
-                          n * (u === "d" ? 1440 : u === "h" ? 60 : 1),
-                        );
+                      if (n > 0) setWindowMinutes(n * (u === 'd' ? 1440 : u === 'h' ? 60 : 1));
                     }}
                     aria-label="Custom window unit"
                   >
@@ -1300,10 +1140,7 @@ export function JobsBoard({
             </div>
 
             {needsPayout && (
-              <p className="ticket-err">
-                A paid proposal needs payment details first: add them in your
-                account menu.
-              </p>
+              <p className="ticket-err">A paid proposal needs payment details first: add them in your account menu.</p>
             )}
             {formErr && <p className="ticket-err">{formErr}</p>}
             {/* The whole deal rides the confirm itself (owner direction
@@ -1311,27 +1148,24 @@ export function JobsBoard({
                 so the sub-line repeats the board's phrase verbatim. Hidden
                 on the placed flash so the green moment stays clean. */}
             <button
-              className={`ticket-go${placed ? " is-placed" : ""}`}
+              className={`ticket-go${placed ? ' is-placed' : ''}`}
               disabled={formBusy || (!placed && !formValid)}
               onClick={() => void submit()}
             >
               {placed
-                ? "Added to ballot"
+                ? 'Added to ballot'
                 : formBusy
-                  ? "Submitting…"
+                  ? 'Submitting…'
                   : formValid && askNum > 0
                     ? `Offer this for $${askNum}`
-                    : "Propose"}
+                    : 'Propose'}
               {!placed && (
                 <span className="ticket-go-sub">
                   {/* The bounty is the workspace's own proposalReward, like
                       the board above: a hardcoded 500 cr promised what most
                       floors do not pay. */}
                   Free to post. Approved means you are paid in real money
-                  {proposalReward > 0 ? (
-                    <>, plus {proposalReward.toLocaleString()}&nbsp;cr</>
-                  ) : null}
-                  .
+                  {proposalReward > 0 ? <>, plus {proposalReward.toLocaleString()}&nbsp;cr</> : null}.
                 </span>
               )}
             </button>

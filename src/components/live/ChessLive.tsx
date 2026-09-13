@@ -226,7 +226,12 @@ function Board({
   const proposalSquares = squaresOf(proposalMove);
   const hoverSquares = squaresOf(hoverMove);
   return (
-    <svg className="chess-board" viewBox={`0 0 ${8 * S} ${8 * S}`} role="img" aria-label={`Chess board, ${color} at the bottom`}>
+    <svg
+      className="chess-board"
+      viewBox={`0 0 ${8 * S} ${8 * S}`}
+      role="img"
+      aria-label={`Chess board, ${color} at the bottom`}
+    >
       <title>Chess board</title>
       {squares.map(sq => {
         const [x, y] = xy(sq, color);
@@ -367,7 +372,10 @@ function resultWord(g: ChessGame): string {
 /** An option's price from the floor's one-second prices poll when that poll has
  *  its book, else the feed's (docs/ui-conventions.md, "A price on the live view
  *  is the book's own, read once a second"). */
-function withBooks(options: ChessOption[], books: ReadonlyMap<string, { consensus: number | null }> | null | undefined): ChessOption[] {
+function withBooks(
+  options: ChessOption[],
+  books: ReadonlyMap<string, { consensus: number | null }> | null | undefined,
+): ChessOption[] {
   if (!books || books.size === 0) return options;
   return options.map(o => {
     const b = o.marketId ? books.get(o.marketId) : undefined;
@@ -402,7 +410,10 @@ export function ChessLive({
   /* When the last feed read landed: a running clock counts down from it. */
   const [fetchedAt, setFetchedAt] = useState(0);
   const [now, setNow] = useState(() => Date.now());
-  const [selectionState, setSelectionState] = useState<{ id: string | null; square: string | null }>({ id: null, square: null });
+  const [selectionState, setSelectionState] = useState<{ id: string | null; square: string | null }>({
+    id: null,
+    square: null,
+  });
   /* The move a list row is hovered or focused on (docs/ui-conventions.md, "The chess feed", item 4). */
   const [hoverState, setHoverState] = useState<{ id: string | null; move: string | null }>({ id: null, move: null });
   const onStepRef = useRef(onStep);
@@ -610,7 +621,10 @@ export function ChessLive({
         arrows: liveArrows(),
       };
 
-  const targetSquares = open && selected ? [...new Set(open.options.filter(o => o.id.startsWith(selected)).map(o => o.id.slice(2, 4)))] : [];
+  const targetSquares =
+    open && selected
+      ? [...new Set(open.options.filter(o => o.id.startsWith(selected)).map(o => o.id.slice(2, 4)))]
+      : [];
   const boardLeader = open ? leaderOf(openOptions) : null;
   const targets = targetSquares.map(square => {
     const candidates = openOptions.filter(o => selected !== null && o.id.startsWith(`${selected}${square}`));
@@ -657,7 +671,8 @@ export function ChessLive({
           ? `chosen at ${replayRow.price.toFixed(1)}`
           : 'chosen at random';
       line = {
-        text: replayRow.by === 'us' ? `Move ${n}: ${replayRow.san}, ${chosen}` : `Move ${n}: they played ${replayRow.san}`,
+        text:
+          replayRow.by === 'us' ? `Move ${n}: ${replayRow.san}, ${chosen}` : `Move ${n}: they played ${replayRow.san}`,
         cls: 'is-replay',
       };
     }
@@ -667,7 +682,10 @@ export function ChessLive({
     const leader = leaderOf(openOptions);
     const seconds = (Date.parse(open.deadline) - now) / 1000;
     const head = leader ? `Next move: ${leader.san}` : 'Next move';
-    line = seconds < 1 ? { text: `${head}, deciding`, cls: 'is-decided' } : { text: `${head} in `, clock: clock(seconds), cls: 'is-open' };
+    line =
+      seconds < 1
+        ? { text: `${head}, deciding`, cls: 'is-decided' }
+        : { text: `${head} in `, clock: clock(seconds), cls: 'is-open' };
   } else if (state.phase === 'their-move' && game) {
     /* Waiting for the opponent (docs/ui-conventions.md, "The chess feed", item
        2): who, the move of ours they are answering, and their clock ticking. */
@@ -677,7 +695,8 @@ export function ChessLive({
     const what = d && d.game === game.number ? `to reply to ${d.san}` : 'to move';
     const theirs: Color = game.color === 'white' ? 'black' : 'white';
     const ms = game.clocks?.[theirs];
-    const left = typeof ms === 'number' && Number.isFinite(ms) ? ms / 1000 - (fetchedAt ? (now - fetchedAt) / 1000 : 0) : null;
+    const left =
+      typeof ms === 'number' && Number.isFinite(ms) ? ms / 1000 - (fetchedAt ? (now - fetchedAt) / 1000 : 0) : null;
     line =
       left === null
         ? { text: `Waiting for ${who} ${what}`, cls: 'is-default' }

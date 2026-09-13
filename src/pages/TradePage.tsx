@@ -2372,11 +2372,7 @@ export function TradePage() {
                             })
                           : null}
                         {jobOptioned && jobOptionList.length > MAX_WORLD_CELLS && (
-                          <button
-                            type="button"
-                            className="pubws-world-more"
-                            onClick={() => setShowAllOptions(v => !v)}
-                          >
+                          <button type="button" className="pubws-world-more" onClick={() => setShowAllOptions(v => !v)}>
                             {showAllOptions ? 'Show fewer' : `Show all ${jobOptionList.length}`}
                           </button>
                         )}
