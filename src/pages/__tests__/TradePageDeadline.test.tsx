@@ -286,7 +286,9 @@ describe('limit orders on every book', () => {
     renderFloor();
     await selectContract();
     fireEvent.click(await screen.findByRole('button', { name: /Bet Higher/ }));
-    const ticket = (await screen.findByRole('group', { name: 'Order type' })).closest('[aria-label="Place a trade"]') as HTMLElement;
+    const ticket = (await screen.findByRole('group', { name: 'Order type' })).closest(
+      '[aria-label="Place a trade"]',
+    ) as HTMLElement;
     fireEvent.click(within(ticket).getByRole('button', { name: 'Sell' }));
     expect(await within(ticket).findByRole('group', { name: 'Order type' })).toBeTruthy();
   });

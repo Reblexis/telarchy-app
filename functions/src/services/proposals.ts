@@ -1,4 +1,3 @@
-import { retryTransient } from '../lib/transient-retry';
 import { randomUUID } from 'crypto';
 import { and, asc, eq, inArray, isNotNull, isNull, lt, sql } from 'drizzle-orm';
 import { db } from '../db/client';
@@ -24,6 +23,7 @@ import { allowLedgerAdmin } from '../lib/ledger-admin';
 import { emitPricesChanged } from '../lib/market-events';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { isOptionBranch, optionDeltas } from '../lib/proposal-options';
+import { retryTransient } from '../lib/transient-retry';
 import {
   fromUnits,
   liquiditySpendableUnits,
@@ -885,41 +885,41 @@ export async function approveProposal(
 
   await retryTransient(() =>
     db.transaction(async tx => {
-    const [owner] = await tx.select().from(agents).where(eq(agents.id, ownerAgentId)).for('update');
-    if (!owner) throw new AppError('Workspace owner participant not found', 409);
-    if (!sufficientBalance(owner.balance as number, reward)) {
-      throw new AppError(
-        `Workspace owner balance insufficient to pay proposal reward: need ${reward}, have ${fromUnits(owner.balance as number)}`,
-        409,
-      );
-    }
-    await applyCredits(tx, {
-      agentId: ownerAgentId,
-      workspaceId,
-      deltaUnits: -toUnits(reward),
-      reason: 'proposal_reward',
-      refType: 'proposal',
-      refId: proposalId,
-    });
-    await applyCredits(tx, {
-      agentId: proposal.proposedBy,
-      workspaceId,
-      deltaUnits: toUnits(reward),
-      reason: 'proposal_reward',
-      refType: 'proposal',
-      refId: proposalId,
-    });
-    await tx
-      .update(proposals)
-      .set({
-        status: 'approved',
-        decidedPricing,
-        decidedOption: chosen,
-        rewardPaid: reward,
-        resolvedAt: new Date(),
-        resolvedBy: resolvedBy ?? ownerAgentId,
-      })
-      .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+      const [owner] = await tx.select().from(agents).where(eq(agents.id, ownerAgentId)).for('update');
+      if (!owner) throw new AppError('Workspace owner participant not found', 409);
+      if (!sufficientBalance(owner.balance as number, reward)) {
+        throw new AppError(
+          `Workspace owner balance insufficient to pay proposal reward: need ${reward}, have ${fromUnits(owner.balance as number)}`,
+          409,
+        );
+      }
+      await applyCredits(tx, {
+        agentId: ownerAgentId,
+        workspaceId,
+        deltaUnits: -toUnits(reward),
+        reason: 'proposal_reward',
+        refType: 'proposal',
+        refId: proposalId,
+      });
+      await applyCredits(tx, {
+        agentId: proposal.proposedBy,
+        workspaceId,
+        deltaUnits: toUnits(reward),
+        reason: 'proposal_reward',
+        refType: 'proposal',
+        refId: proposalId,
+      });
+      await tx
+        .update(proposals)
+        .set({
+          status: 'approved',
+          decidedPricing,
+          decidedOption: chosen,
+          rewardPaid: reward,
+          resolvedAt: new Date(),
+          resolvedBy: resolvedBy ?? ownerAgentId,
+        })
+        .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
     }),
   );
   await closeProposalTrading(proposalId, workspaceId);

@@ -1,4 +1,3 @@
-import { retryTransient } from '../lib/transient-retry';
 import { randomUUID } from 'crypto';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../db/client';
@@ -18,6 +17,7 @@ import { bookCreditsFor } from '../lib/horizon-credits';
 import { emitPricesChanged } from '../lib/market-events';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { desiredMarketDates, generatesMarkets, getLeafDescendantNames } from '../lib/time-preference';
+import { retryTransient } from '../lib/transient-retry';
 import { liquiditySpendableUnits, MIN_LIQUIDITY_CONTRIBUTION, toUnits } from '../lib/validation';
 import type { TimePreference } from '../types';
 import { applyCredits } from './credits';
@@ -133,80 +133,80 @@ export async function voidMarket(
     db.transaction(async tx => {
       refunded = 0;
       alreadyVoided = false;
-    // Claim the market first, the same way settlement does. Two voids can
-    // arrive together (the refresh cron and an operator, or a resolve's N/A
-    // void racing a manual one), and both used to read `resolved = false`
-    // outside the transaction and both refund (bug hunt 2026-08-31,
-    // settlement-idempotency.test.ts).
-    const [claimed] = await tx
-      .select({ resolved: markets.resolved, pool: markets.pool })
-      .from(markets)
-      .where(and(eq(markets.id, market.id), eq(markets.workspaceId, workspaceId)))
-      .for('update');
-    if (!claimed || claimed.resolved) {
-      alreadyVoided = true;
-      return;
-    }
-    // A voided book leaves the floor's open books: the prices read must move
-    // (docs/infra/deploy.md, "Prices, one channel across instances").
-    emitPricesChanged(workspaceId, market.id);
-    // The pool under the lock, not the one on the row the caller handed in:
-    // refreshRelativeDateMarkets reads its markets once and voids them much
-    // later, with funding transactions possible in between.
-    const pool = claimed.pool ?? 0;
+      // Claim the market first, the same way settlement does. Two voids can
+      // arrive together (the refresh cron and an operator, or a resolve's N/A
+      // void racing a manual one), and both used to read `resolved = false`
+      // outside the transaction and both refund (bug hunt 2026-08-31,
+      // settlement-idempotency.test.ts).
+      const [claimed] = await tx
+        .select({ resolved: markets.resolved, pool: markets.pool })
+        .from(markets)
+        .where(and(eq(markets.id, market.id), eq(markets.workspaceId, workspaceId)))
+        .for('update');
+      if (!claimed || claimed.resolved) {
+        alreadyVoided = true;
+        return;
+      }
+      // A voided book leaves the floor's open books: the prices read must move
+      // (docs/infra/deploy.md, "Prices, one channel across instances").
+      emitPricesChanged(workspaceId, market.id);
+      // The pool under the lock, not the one on the row the caller handed in:
+      // refreshRelativeDateMarkets reads its markets once and voids them much
+      // later, with funding transactions possible in between.
+      const pool = claimed.pool ?? 0;
 
-    // What each participant still has in this market: their trades summed, so
-    // money they already took back out by selling is not handed to them twice.
-    // Read from trades rather than positions because positions.totalCost is
-    // gross buys by design (see the position cap) and cannot answer this.
-    const stakeRows = await tx
-      .select({
-        agentId: trades.agentId,
-        netCash: sql<number>`coalesce(sum(${trades.cost}), 0)::float`,
-      })
-      .from(trades)
-      .where(and(eq(trades.workspaceId, workspaceId), eq(trades.marketId, market.id)))
-      .groupBy(trades.agentId);
+      // What each participant still has in this market: their trades summed, so
+      // money they already took back out by selling is not handed to them twice.
+      // Read from trades rather than positions because positions.totalCost is
+      // gross buys by design (see the position cap) and cannot answer this.
+      const stakeRows = await tx
+        .select({
+          agentId: trades.agentId,
+          netCash: sql<number>`coalesce(sum(${trades.cost}), 0)::float`,
+        })
+        .from(trades)
+        .where(and(eq(trades.workspaceId, workspaceId), eq(trades.marketId, market.id)))
+        .groupBy(trades.agentId);
 
-    await tx
-      .update(markets)
-      .set({ resolved: true, resolvedAt: new Date(), actualValue: null, voided: true, active: false, pool: 0 })
-      .where(and(eq(markets.id, market.id), eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
+      await tx
+        .update(markets)
+        .set({ resolved: true, resolvedAt: new Date(), actualValue: null, voided: true, active: false, pool: 0 })
+        .where(and(eq(markets.id, market.id), eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
-    for (const row of stakeRows) {
-      // Floored at zero: a void never debits. Someone who sold out above
-      // their cost keeps the gain and is refunded nothing.
+      for (const row of stakeRows) {
+        // Floored at zero: a void never debits. Someone who sold out above
+        // their cost keeps the gain and is refunded nothing.
+        //
+        // Not rounded to cents: balances are stored in nanocredits, and
+        // rounding a refund up hands out a fraction of a credit nobody had at
+        // stake (caught by the conservation test, which saw a cancel leave a
+        // trader 0.0038 credits richer than they started).
+        const refund = Math.max(0, Number(row.netCash));
+        if (refund <= 0) continue;
+        refunded += refund;
+        await applyCredits(tx, {
+          agentId: row.agentId,
+          workspaceId,
+          deltaUnits: toUnits(refund),
+          reason: 'void_refund',
+          refType: 'market',
+          refId: market.id,
+          also: { spentBetting: sql`${agents.spentBetting} - ${refund}` },
+        });
+      }
+
+      // Credits reserved by orders that will now never fill go back to their
+      // owners, or voiding a market would quietly strand them.
       //
-      // Not rounded to cents: balances are stored in nanocredits, and
-      // rounding a refund up hands out a fraction of a credit nobody had at
-      // stake (caught by the conservation test, which saw a cancel leave a
-      // trader 0.0038 credits richer than they started).
-      const refund = Math.max(0, Number(row.netCash));
-      if (refund <= 0) continue;
-      refunded += refund;
-      await applyCredits(tx, {
-        agentId: row.agentId,
-        workspaceId,
-        deltaUnits: toUnits(refund),
-        reason: 'void_refund',
-        refType: 'market',
-        refId: market.id,
-        also: { spentBetting: sql`${agents.spentBetting} - ${refund}` },
-      });
-    }
-
-    // Credits reserved by orders that will now never fill go back to their
-    // owners, or voiding a market would quietly strand them.
-    //
-    // Deliberately NOT added to `refunded` before the pool is settled up: a
-    // resting order's budget is held on its owner's own balance at placement
-    // (routes/predictions.ts, reason 'limit_order_hold') and never enters
-    // markets.pool, so subtracting it from the pool destroyed exactly that
-    // many LP credits (bug hunt 2026-08-31). The resolve path already gets
-    // this right, and this is the line that disagreed with it.
-    const lpLeftover = Math.round((pool - refunded) * 100) / 100;
-    refunded += await releaseLimitOrdersForMarket(tx, market.id, 'voided');
-    await distributeLPLeftover(tx, market.id, lpLeftover, workspaceId);
+      // Deliberately NOT added to `refunded` before the pool is settled up: a
+      // resting order's budget is held on its owner's own balance at placement
+      // (routes/predictions.ts, reason 'limit_order_hold') and never enters
+      // markets.pool, so subtracting it from the pool destroyed exactly that
+      // many LP credits (bug hunt 2026-08-31). The resolve path already gets
+      // this right, and this is the line that disagreed with it.
+      const lpLeftover = Math.round((pool - refunded) * 100) / 100;
+      refunded += await releaseLimitOrdersForMarket(tx, market.id, 'voided');
+      await distributeLPLeftover(tx, market.id, lpLeftover, workspaceId);
     }),
   );
 
