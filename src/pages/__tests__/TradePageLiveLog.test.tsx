@@ -6,11 +6,12 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
- * The live log on the floor (docs/ui-conventions.md, "The live log"): in the
- * plain market view the left column carries the Live block and, below 1500px,
- * the folded line sits directly under the bet verbs in the centre column,
- * never in the ticket column; both from one read of the workspace's log; a
- * live feed's step reads it again at once; a selected proposal shows neither.
+ * The live log on the floor (docs/ui-conventions.md, "The live log"): the
+ * left column carries the Live block and, below 1500px, the folded line sits
+ * directly under the bet verbs in the centre column, never in the ticket
+ * column; both from one read of the workspace's log; a live feed's step reads
+ * it again at once; a selected proposal keeps both, because opening a
+ * proposal changes only the centre.
  */
 
 const h = vi.hoisted(() => {
@@ -233,14 +234,15 @@ describe('the live log on the floor', () => {
   test('FROM 1500PX THE LINE IS NOT DRAWN AND THE LEFT BLOCK IS, and below it the left block is hidden', () => {
     // The left block is hidden by default (below 1500px) ...
     expect(CSS).toMatch(/\.pubws-rail--left > \.pubws-live \{\s*display:\s*none;?\s*\}/);
-    // ... and the 1500px rule that holds the live log swaps the two, only in
-    // the plain market view (the root's context class).
+    // ... and the 1500px rule that holds the live log swaps the two, on the
+    // floor whichever view is on screen.
     const wide = [...CSS.matchAll(/@media \(min-width: 1500px\) \{([\s\S]*?)\n\}/g)]
       .map(m => m[1])
       .find(b => b.includes('pubws-live'));
     expect(wide).toBeTruthy();
-    expect(wide).toMatch(/\.pubws-main--context \.pubws-rail--left > \.pubws-live \{\s*display:\s*block;?\s*\}/);
-    expect(wide).toMatch(/\.pubws-main--context \.pubws-live-strip \{\s*display:\s*none;?\s*\}/);
+    expect(wide).toMatch(/\.pubws-main--floor \.pubws-rail--left > \.pubws-live \{\s*display:\s*block;?\s*\}/);
+    expect(wide).toMatch(/\.pubws-main--floor \.pubws-live-strip \{\s*display:\s*none;?\s*\}/);
+    expect(CSS).not.toMatch(/pubws-main--context/);
     // No rule anywhere hides the line by where it used to live.
     expect(CSS).not.toMatch(/pubws-rail--right[^{]*\.pubws-live-strip/);
   });
@@ -285,10 +287,64 @@ describe('the live log on the floor', () => {
     await waitFor(() => expect(actionCalls().length).toBe(before + 1));
   });
 
-  test('A SELECTED PROPOSAL SHOWS NEITHER the block nor the line', async () => {
+  test('OPENING A PROPOSAL KEEPS THE LEFT COLUMN: the Live block stays in it, from one read of the log', async () => {
     const { container } = renderFloor('/snake/p/95');
     await waitFor(() => expect(document.querySelector('.pubws-proposal-title')?.textContent).toContain('#95'));
-    expect(container.querySelector('.pubws-live')).toBeNull();
-    expect(container.querySelector('.pubws-live-strip')).toBeNull();
+    await waitFor(() => expect(container.querySelector('.pubws-rail--left .pubws-live')).toBeTruthy());
+    const left = container.querySelector('.pubws-main--floor .pubws-rail--left') as HTMLElement;
+    expect(left.getAttribute('aria-label')).toBe('About this market');
+    expect(left.querySelector('.pubws-live')?.textContent).toContain('vi0');
+    expect(left.querySelector('.pubws-proposal-title')).toBeNull();
+    expect(actionCalls()).toHaveLength(1);
+  });
+
+  test("OPENING A PROPOSAL KEEPS THE LIVE LINE BELOW 1500PX, under the proposal's trade controls and never in the ticket column", async () => {
+    const { container } = renderFloor('/snake/p/95');
+    await waitFor(() => expect(document.querySelector('.pubws-proposal-title')?.textContent).toContain('#95'));
+    await waitFor(() => expect(container.querySelector('.pubws-live-strip')).toBeTruthy());
+    expect(container.querySelectorAll('.pubws-live-strip')).toHaveLength(1);
+    const strip = container.querySelector('.pubws-live-strip') as HTMLElement;
+    const bet = container.querySelector('.pubws-bet') as HTMLElement;
+    expect(bet).toBeTruthy();
+    // The proposal's verbs name the world they trade.
+    expect(bet.textContent).toMatch(/if approved/);
+    expect(bet.nextElementSibling).toBe(strip);
+    expect(strip.closest('.pubws-center')).toBeTruthy();
+    expect(strip.closest('.pubws-rail--right')).toBeNull();
+    const rail = container.querySelector('aside.pubws-rail--right[aria-label="Your trade"]') as HTMLElement;
+    expect(rail).toBeTruthy();
+    expect(rail.querySelector('.pubws-live-strip, .pubws-live')).toBeNull();
+  });
+
+  test('ON A PHONE THE PROPOSAL ORDER IS TRADE CONTROLS, LINE, TICKET', async () => {
+    const { container } = renderFloor('/snake/p/95');
+    await waitFor(() => expect(document.querySelector('.pubws-proposal-title')?.textContent).toContain('#95'));
+    await waitFor(() => expect(container.querySelector('.pubws-live-strip')).toBeTruthy());
+    const bet = container.querySelector('.pubws-bet') as HTMLElement;
+    const strip = container.querySelector('.pubws-live-strip') as HTMLElement;
+    const ticket = container.querySelector('aside.pubws-rail--right[aria-label="Your trade"]') as HTMLElement;
+    const tail = container.querySelector('.pubws-tail') as HTMLElement;
+    expect(follows(bet, strip)).toBe(true);
+    expect(follows(strip, ticket)).toBe(true);
+    expect(follows(ticket, tail)).toBe(true);
+  });
+
+  test('a closed proposal draws no verbs and the line still sits in the centre column', async () => {
+    const closed = h.workspace();
+    closed.proposals[0].status = 'approved';
+    const load = vi.mocked(api.getMarketplaceWorkspace as never as () => Promise<unknown>);
+    load.mockImplementation(async () => closed);
+    try {
+      const { container } = renderFloor('/snake/p/95');
+      await waitFor(() => expect(document.querySelector('.pubws-proposal-title')?.textContent).toContain('#95'));
+      await waitFor(() => expect(container.querySelector('.pubws-live-strip')).toBeTruthy());
+      expect(container.querySelector('.pubws-bet')).toBeNull();
+      const strip = container.querySelector('.pubws-live-strip') as HTMLElement;
+      expect(strip.closest('.pubws-center')).toBeTruthy();
+      expect(strip.closest('.pubws-rail--right')).toBeNull();
+      expect(container.querySelector('.pubws-rail--left .pubws-live')).toBeTruthy();
+    } finally {
+      load.mockImplementation(async () => h.workspace());
+    }
   });
 });
