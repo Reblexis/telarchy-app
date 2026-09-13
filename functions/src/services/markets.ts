@@ -1,3 +1,4 @@
+import { retryTransient } from '../lib/transient-retry';
 import { randomUUID } from 'crypto';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../db/client';
@@ -124,7 +125,14 @@ export async function voidMarket(
   let refunded = 0;
   let alreadyVoided = false;
 
-  await db.transaction(async tx => {
+  // A deadlock or serialization failure rolls the whole transaction back, and
+  // the claim below makes a second run refund nothing twice, so it runs again
+  // (docs/guides/proposals.md, "A decision never fails because the database
+  // was busy").
+  await retryTransient(() =>
+    db.transaction(async tx => {
+      refunded = 0;
+      alreadyVoided = false;
     // Claim the market first, the same way settlement does. Two voids can
     // arrive together (the refresh cron and an operator, or a resolve's N/A
     // void racing a manual one), and both used to read `resolved = false`
@@ -199,7 +207,8 @@ export async function voidMarket(
     const lpLeftover = Math.round((pool - refunded) * 100) / 100;
     refunded += await releaseLimitOrdersForMarket(tx, market.id, 'voided');
     await distributeLPLeftover(tx, market.id, lpLeftover, workspaceId);
-  });
+    }),
+  );
 
   // A caller that lost the claim voided nothing, so it announces nothing:
   // the winner already published the reason.

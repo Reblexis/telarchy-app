@@ -108,6 +108,14 @@ once. The prices immediately before the close are the decision record. So
 the number you decide on is the last one anybody could trade, and nothing
 is spent on a book after it can no longer change the decision.
 
+**A decision never fails because the database was busy.** Closing the books
+competes for locks with trades and limit-order fills on them; when Postgres
+ends that contest as a deadlock or a serialization failure it rolls the
+losing transaction back whole, and the decision runs that transaction again
+(up to three attempts) instead of answering an error. Every step it retries
+checks its own work under the lock first, so running one twice refunds
+nobody twice.
+
 **Undecided at the deadline, a proposal lapses.** Both branches are voided
 and everyone is refunded: nobody ruled, so neither world is the one we are
 in and there is nothing to settle against. Its status is `lapsed`, its own

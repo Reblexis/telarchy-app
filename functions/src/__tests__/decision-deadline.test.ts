@@ -306,3 +306,44 @@ describe('undecided at the deadline, a proposal lapses', () => {
     expect((await proposal(id)).status).toBe('pending');
   });
 });
+
+describe('a decision never fails because the database was busy', () => {
+  test('an approve whose void deadlocks once still stands, and refunds the branch exactly once', async () => {
+    await seed();
+    const id = await posted();
+    const { declined } = await pairOf(id);
+    expect((await trade(TRADER, declined.id, { direction: 'higher', amount: 5 })).status).toBe(201);
+    const [before] = await db.select().from(agents).where(eq(agents.id, TRADER));
+
+    // The first transaction the approve opens is ended by Postgres as a
+    // deadlock, the way the snake's approve was on 2026-09-13.
+    const deadlock = Object.assign(new Error('Failed query'), {
+      cause: Object.assign(new Error('deadlock detected'), { code: '40P01' }),
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handle = db as any;
+    const original = handle.transaction;
+    let thrown = false;
+    handle.transaction = (...args: unknown[]) => {
+      if (!thrown) {
+        thrown = true;
+        return Promise.reject(deadlock);
+      }
+      return original.apply(db, args);
+    };
+    try {
+      await approveProposal(id, WS, OWNER);
+    } finally {
+      handle.transaction = original;
+    }
+
+    expect(thrown).toBe(true);
+    expect((await proposal(id)).status).toBe('approved');
+    const [voided] = await db.select().from(markets).where(eq(markets.id, declined.id));
+    expect(voided.voided).toBe(true);
+    const [after] = await db.select().from(agents).where(eq(agents.id, TRADER));
+    // Refunded once: the stake back to within a nanocredit of rounding, never twice.
+    const refund = (after.balance as number) - (before.balance as number);
+    expect(Math.abs(refund - toUnits(5))).toBeLessThanOrEqual(1);
+  });
+});
