@@ -3200,6 +3200,27 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
 .pubws-optchip.is-leader { color: var(--higher); border-color: var(--higher); }
 .pubws-optchip.is-leader .pubws-optchip-value { color: var(--higher); }
 .pubws-optchip:hover:not(:disabled) { background: var(--higher-soft); border-color: var(--higher); }
+/* Past six options a board row ends in "+N more", which opens the proposal
+   (docs/ui-conventions.md, "An option row names its options"). */
+.pubws-optchip-more { color: var(--text-secondary); white-space: nowrap; }
+/* Past six options the world cells end in "Show all N" / "Show fewer": a
+   quiet cell in the row, not a price. */
+.pubws-world-more {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0.9rem;
+  border: 0;
+  background: var(--bg-primary);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.pubws-world-more:hover { color: var(--text-primary); }
 
 .pubws-position {
   margin-top: 0.9rem;
