@@ -546,6 +546,9 @@ export interface HomeListing {
   description?: string | null;
   openMarketCount?: number;
   proposalStats?: { pending?: number };
+  /** Credits traded per hour over the last 24 hours; the home page features
+   *  the highest (docs/ui-conventions.md, "The marketplace"). */
+  volumePerHour?: number;
   /** The floor payload, or null when the server could not build it. */
   floor: PublicWorkspace | null;
 }

@@ -938,3 +938,18 @@ describe("AN ARROW NAMES THE OPTION IT POINTS AT (Viktor, 2026-09-11: 'i click t
     expect(picks[0][1]).toBe('left');
   });
 });
+
+describe('THE HOME PAGE DRAWS THE BOARD WITHOUT ITS REPLAY ROW', () => {
+  test('replay={false} draws the board and the next-move line, and no replay controls', async () => {
+    const { container } = renderLive({ replay: false });
+    await waitFor(() => expect(container.querySelector('.snake-board')).toBeTruthy());
+    expect(container.querySelector('.snake-next')).toBeTruthy();
+    expect(screen.queryByRole('group', { name: 'Replay' })).toBeNull();
+    expect(container.querySelector('.snake-scrub')).toBeNull();
+  });
+
+  test('the replay row stays by default, on the market page', async () => {
+    renderLive();
+    expect(await screen.findByRole('group', { name: 'Replay' })).toBeInTheDocument();
+  });
+});

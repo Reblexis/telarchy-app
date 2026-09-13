@@ -432,7 +432,8 @@ marketplaceRouter.get(
 export interface HomePayload {
   at: string;
   seasons: PublicSeason[];
-  listings: Array<PublicListing & { floor: unknown | null }>;
+  /** volumePerHour: credits traded per hour over the last 24 hours. */
+  listings: Array<PublicListing & { volumePerHour: number; floor: unknown | null }>;
 }
 
 /**
@@ -461,10 +462,30 @@ export async function buildHomePayload(
       }
     }),
   );
+  // Credits traded per hour over the last 24 hours, per listed workspace: the
+  // home page features the highest (docs/ui-conventions.md, "The
+  // marketplace"). One aggregate over the window, bounded by trades_created_idx.
+  const since = new Date(Date.now() - 24 * 3_600_000);
+  const volumeRows =
+    ids.length > 0
+      ? await db
+          .select({
+            workspaceId: trades.workspaceId,
+            credits: sql<number>`coalesce(sum(abs(${trades.cost})), 0)::float`,
+          })
+          .from(trades)
+          .where(and(inArray(trades.workspaceId, ids), gte(trades.createdAt, since)))
+          .groupBy(trades.workspaceId)
+      : [];
+  const creditsByWorkspace = new Map(volumeRows.map(r => [r.workspaceId, Number(r.credits)]));
   return {
     at: new Date().toISOString(),
     seasons,
-    listings: listings.map((l, i) => ({ ...l, floor: floors[i] })),
+    listings: listings.map((l, i) => ({
+      ...l,
+      volumePerHour: Math.round(((creditsByWorkspace.get(l.workspaceId) ?? 0) / 24) * 100) / 100,
+      floor: floors[i],
+    })),
   };
 }
 

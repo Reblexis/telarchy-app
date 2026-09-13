@@ -1529,7 +1529,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/marketplace/home',
       auth: false,
       description:
-        'The home page in one call: seasons plus every public workspace with its floor payload. Returns { at, seasons, listings: [{ ...one GET /api/marketplace/workspaces/public row, floor }] } where seasons is exactly the array GET /api/seasons returns, floor is exactly the body GET /api/marketplace/:workspaceId returns for that workspace (null if it could not be built), and at is when the payload was assembled: it is memoized for 15 seconds, and a full document load of telarchy.com/ carries the same object inline as <script id="telarchy-home" type="application/json">.',
+        'The home page in one call: seasons plus every public workspace with its floor payload. Returns { at, seasons, listings: [{ ...one GET /api/marketplace/workspaces/public row, volumePerHour, floor }] } where volumePerHour is the credits traded per hour on that workspace over the last 24 hours (the absolute cost of every trade in the window, summed, divided by 24; the home page features the highest), seasons is exactly the array GET /api/seasons returns, floor is exactly the body GET /api/marketplace/:workspaceId returns for that workspace (null if it could not be built), and at is when the payload was assembled: it is memoized for 15 seconds, and a full document load of telarchy.com/ carries the same object inline as <script id="telarchy-home" type="application/json">.',
     },
     {
       method: 'GET',

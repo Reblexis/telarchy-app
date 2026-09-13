@@ -38,7 +38,7 @@ jest.mock('../lib/public-seasons', () => {
 import { and, eq } from 'drizzle-orm';
 import express from 'express';
 import request from 'supertest';
-import { agents, markets, metrics, permissionGroups, prizeSeasons } from '../db/schema';
+import { agents, markets, metrics, permissionGroups, prizeSeasons, trades } from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
@@ -171,7 +171,8 @@ describe('GET /api/marketplace/home', () => {
     expect(home.body.listings).toHaveLength(1);
     const row = home.body.listings[0];
     expect(row.workspaceId).toBe(PUBLIC_WS);
-    const { floor: rowFloor, ...rest } = row;
+    const { floor: rowFloor, volumePerHour, ...rest } = row;
+    expect(typeof volumePerHour).toBe('number');
     expect(rest).toEqual(list.body[0]);
     expect(rowFloor.markets.length).toBeGreaterThan(0);
     expect(rowFloor.markets[0].marketId).toBe(MARKET);
@@ -276,5 +277,39 @@ describe('GET /api/marketplace/home', () => {
     expect(res.status).toBe(200);
     expect(res.body.listings).toBeDefined();
     expect(res.body.workspaceId).toBeUndefined();
+  });
+});
+
+describe('EACH LISTING CARRIES THE CREDITS TRADED PER HOUR OVER THE LAST 24 HOURS', () => {
+  const trade = (id: string, cost: number, hoursAgo: number) => ({
+    id,
+    agentId: OWNER,
+    workspaceId: PUBLIC_WS,
+    marketId: MARKET,
+    direction: 'higher',
+    shares: Math.abs(cost),
+    cost,
+    createdAt: new Date(Date.now() - hoursAgo * 3_600_000),
+  });
+
+  test("the home page features the busiest floor by this number: every trade's absolute cost in the last 24 hours, divided by 24", async () => {
+    await seed();
+    // A buy of 30 and a sell of 18 an hour or two ago: 48 credits changed hands.
+    await db.insert(trades).values([trade('t-buy', 30, 1), trade('t-sell', -18, 2)]);
+    const res = await request(app).get('/api/marketplace/home');
+    expect(res.body.listings[0].volumePerHour).toBeCloseTo(2, 6);
+  });
+
+  test('a trade older than 24 hours does not count', async () => {
+    await seed();
+    await db.insert(trades).values([trade('t-recent', 24, 3), trade('t-old', 5000, 25)]);
+    const res = await request(app).get('/api/marketplace/home');
+    expect(res.body.listings[0].volumePerHour).toBeCloseTo(1, 6);
+  });
+
+  test('a floor with no trade in 24 hours reads 0, never missing', async () => {
+    await seed();
+    const res = await request(app).get('/api/marketplace/home');
+    expect(res.body.listings[0].volumePerHour).toBe(0);
   });
 });

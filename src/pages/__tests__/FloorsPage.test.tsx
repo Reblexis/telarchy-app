@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -21,12 +21,20 @@ vi.mock('../TradePage', () => ({
   TopBar: ({ busy }: { busy?: boolean }) => <nav data-testid="topbar" data-busy={String(!!busy)} />,
 }));
 
+// The featured card draws the floor's live board; the board itself has its
+// own spec (components/live/__tests__/SnakeLive.test.tsx).
+vi.mock('../../components/live/SnakeLive', () => ({
+  SnakeLive: ({ slug, replay }: { slug: string; replay?: boolean }) => (
+    <div data-testid="snake-live" data-slug={slug} data-replay={String(replay)} />
+  ),
+}));
+
 // Labels and the card's hero come from lib/floor-horizons, the same model the
 // floor page uses, so this spec asserts the real strings: a card and the floor
 // it links to must never name the number differently.
 
 import { api } from '../../lib/api';
-import { FloorsPage } from '../FloorsPage';
+import { FloorsPage, pickFeatured } from '../FloorsPage';
 
 const listing = {
   workspaceId: 'ws1',
@@ -786,5 +794,166 @@ describe('liquidity on the cell, with a proposal with options', () => {
     renderPage();
     expect(await screen.findByTitle(/1,500 credits in the pools/)).toHaveTextContent('1,500');
     expect(document.body.textContent).not.toMatch(/NaN/);
+  });
+});
+
+/**
+ * THE MOST TRADED FLOOR IS FEATURED ABOVE THE BOARD (docs/ui-conventions.md,
+ * "The marketplace"; Viktor 2026-09-13: "lets make the snake the primary
+ * workspace the most highglighted one.. on the landing page.. right now its
+ * the last one"). The busiest floor by credits traded per hour over the last
+ * 24 hours gets one full-width card between the season strip and the board,
+ * and is not repeated in the board.
+ */
+describe('THE MOST TRADED FLOOR IS FEATURED ABOVE THE BOARD', () => {
+  const snakeRow = {
+    workspaceId: 'ws-snake',
+    slug: 'snake',
+    name: 'Snake',
+    description: 'A snake game steered by this market.',
+    proposalStats: { total: 0, approved: 0, declined: 0, declinedSpam: 0, withdrawn: 0, pending: 0 },
+  };
+  const snakeFloor = {
+    participantCount: 23,
+    tradesThisWeek: 2548,
+    liveFeed: { kind: 'snake', url: 'https://snake.telarchy.com' },
+    markets: [
+      {
+        marketId: 'm-snake',
+        metricName: 'Reached length',
+        marketTitle: 'What length will I reach on this attempt?',
+        consensus: 30,
+        targetDate: '2026-12',
+        pool: 3000,
+      },
+    ],
+    marketHistory: [],
+    marketHistoryMarketId: 'm-snake',
+  };
+  function withRows(rows: Array<Record<string, unknown>>, floors: Record<string, unknown> = {}) {
+    vi.mocked(api.getPublicWorkspaces).mockResolvedValue(rows as never);
+    vi.mocked(api.getMarketplaceWorkspace).mockImplementation(
+      async (slug: string) => (floors[slug] ?? (slug === 'snake' ? snakeFloor : payload)) as never,
+    );
+  }
+  const boardNames = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll('.mkt-board .mkt-cell-name')).map(n => n.textContent);
+
+  test('Snake was the last card although it trades the most (2026-09-13): the busiest floor by volume an hour is featured, not repeated in the board', async () => {
+    withRows([
+      { ...listing, volumePerHour: 1 },
+      { ...snakeRow, volumePerHour: 15_369 },
+    ]);
+    const { container } = renderPage();
+    const card = await screen.findByRole('region', { name: /most traded now/i });
+    expect(within(card).getByText('Snake')).toBeInTheDocument();
+    expect(within(card).getByText(/most traded now/i)).toBeInTheDocument();
+    expect(within(card).getByText('15k cr an hour')).toBeInTheDocument();
+    expect(within(card).getByText('What length will I reach on this attempt?')).toBeInTheDocument();
+    await waitFor(() => expect(boardNames(container)).toEqual(['LookPilot']));
+  });
+
+  test('the card sits between the season strip and the board', async () => {
+    withRows([
+      { ...listing, volumePerHour: 1 },
+      { ...snakeRow, volumePerHour: 15_369 },
+    ]);
+    const { container } = renderPage();
+    const card = await screen.findByRole('region', { name: /most traded now/i });
+    await screen.findByText('Season 0');
+    const season = container.querySelector('.mkt-season') as HTMLElement;
+    const board = container.querySelector('.mkt-board') as HTMLElement;
+    expect(season.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(card.compareDocumentPosition(board) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  test('its two buttons are the hero market on its page, and the page still never says bet or floor', async () => {
+    withRows([
+      { ...listing, volumePerHour: 1 },
+      { ...snakeRow, volumePerHour: 15_369 },
+    ]);
+    const { container } = renderPage();
+    const card = await screen.findByRole('region', { name: /most traded now/i });
+    expect(within(card).getByRole('link', { name: /higher/i })).toHaveAttribute('href', '/snake#market=m-snake');
+    expect(within(card).getByRole('link', { name: /lower/i })).toHaveAttribute('href', '/snake#market=m-snake');
+    expect(container.textContent).not.toMatch(/\bbet\b/i);
+    expect(container.textContent).not.toMatch(/floor/i);
+  });
+
+  test('a floor with a live feed shows its live board without the replay row', async () => {
+    withRows([
+      { ...listing, volumePerHour: 1 },
+      { ...snakeRow, volumePerHour: 15_369 },
+    ]);
+    renderPage();
+    const card = await screen.findByRole('region', { name: /most traded now/i });
+    const live = await within(card).findByTestId('snake-live');
+    expect(live).toHaveAttribute('data-slug', 'snake');
+    expect(live).toHaveAttribute('data-replay', 'false');
+  });
+
+  test('a featured floor without a live feed shows its market spark instead', async () => {
+    withRows([
+      { ...listing, volumePerHour: 40 },
+      { ...snakeRow, volumePerHour: 2 },
+    ]);
+    const { container } = renderPage();
+    const card = await screen.findByRole('region', { name: /most traded now/i });
+    expect(within(card).getByText('LookPilot')).toBeInTheDocument();
+    await waitFor(() => expect(card.querySelector('.mkt-spark')).toBeTruthy());
+    expect(within(card).queryByTestId('snake-live')).toBeNull();
+    await waitFor(() => expect(boardNames(container)).toEqual(['Snake']));
+  });
+
+  test('a tie goes to the deeper liquidity', async () => {
+    withRows([
+      { ...listing, volumePerHour: 10 },
+      { ...snakeRow, volumePerHour: 10 },
+    ]);
+    renderPage();
+    const card = await screen.findByRole('region', { name: /most traded now/i });
+    // Snake's pool is 3,000 against LookPilot's 1,000.
+    await waitFor(() => expect(within(card).getByText('Snake')).toBeInTheDocument());
+  });
+
+  test('when no floor traded in 24 hours there is no card and the board is unchanged', async () => {
+    withRows([
+      { ...listing, volumePerHour: 0 },
+      { ...snakeRow, volumePerHour: 0 },
+    ]);
+    const { container } = renderPage();
+    await screen.findByText('LookPilot');
+    await waitFor(() => expect(boardNames(container).sort()).toEqual(['LookPilot', 'Snake']));
+    expect(screen.queryByRole('region', { name: /most traded now/i })).toBeNull();
+  });
+
+  test('an older payload without the number features nothing', async () => {
+    withRows([listing, snakeRow]);
+    const { container } = renderPage();
+    await screen.findByText('LookPilot');
+    await waitFor(() => expect(boardNames(container).length).toBe(2));
+    expect(container.querySelector('.mkt-featured')).toBeNull();
+  });
+
+  test("the caller's own not-yet-public floor is never featured", () => {
+    const base = {
+      slug: null,
+      description: null,
+      pendingJobs: 0,
+      hero: null,
+      participants: null,
+      tradesThisWeek: null,
+    };
+    const mine = {
+      ...base,
+      workspaceId: 'mine',
+      name: 'Mine',
+      liquidity: 9_999,
+      volumePerHour: 9_999,
+      mineVisibility: 'private',
+    };
+    const pub = { ...base, workspaceId: 'pub', name: 'Pub', liquidity: 1, volumePerHour: 1 };
+    expect(pickFeatured([mine, pub] as never)?.workspaceId).toBe('pub');
+    expect(pickFeatured([mine] as never)).toBeNull();
   });
 });
