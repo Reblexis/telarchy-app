@@ -11441,22 +11441,41 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .pubws-board { text-align: left; }
 .pubws-tail > * + * { margin-top: clamp(2.2rem, 6vh, 3.2rem); }
 
-/* The proposal row (docs/ui-conventions.md, "The proposals board", revised
-   2026-09-09): two lines, and only one of them is loud. Title and impact on
-   the first, the four facts as an icon row on the second, the two verbs on
-   the right. Nothing is stacked on the right edge. */
+/* The proposal row (docs/ui-conventions.md, "The proposals board", "The row
+   is two lines, and only one of them is loud"; revised 2026-09-13): the title
+   owns the first line, beside only the impact; the facts and every control
+   share the second, the controls wrapping under the facts rather than taking
+   width from the title. Nothing is stacked on the right edge. */
 .pubws-prow {
   display: flex;
-  align-items: center;
-  gap: 0.9rem;
+  flex-direction: column;
+  gap: 0.35rem;
   padding: 0.7rem 0;
 }
-.pubws-prow .pubws-ballot-row {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.3rem;
+.pubws-prow-top {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+}
+.pubws-prow-top .pubws-ballot-row {
   flex: 1;
   min-width: 0;
+}
+.pubws-prow-top .pubws-ballot-title {
+  min-width: 0;
+}
+.pubws-prow-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.9rem;
+}
+.pubws-prow-controls {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
 }
 .pubws-prow-meta {
   display: flex;
@@ -11482,21 +11501,12 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   display: inline-flex;
   align-items: baseline;
   gap: 0.4rem;
+  white-space: nowrap;
 }
 .pubws-prow-acts {
-  flex: none;
   display: inline-flex;
+  justify-content: flex-end;
   gap: 0.4rem;
-}
-@media (max-width: 520px) {
-  /* On a phone the verbs drop under the row rather than squeezing the title. */
-  .pubws-prow {
-    flex-wrap: wrap;
-  }
-  .pubws-prow-acts {
-    width: 100%;
-    justify-content: flex-end;
-  }
 }
 
 /* The untouched ticket in the rail says what to do with it. */

@@ -2093,3 +2093,13 @@ season block, the announcements and the Live block, all about the floor
 rather than the view. Spec: docs/ui-conventions.md, "Trading floor (root slug
 page)" ("The left column belongs to the floor, not to the view") and "The
 live log", "Where.".
+
+**revised 2026-09-13 (Viktor)**: the proposal row's title owns its first line;
+the facts and every control share the second. Viktor on the board:
+"as you can see lot of the text of the proposal is clipped an hard to read
+figure out a better /design so its readable", and later, on a manager's snake
+row showing "6..." under Choose, Decline and three option chips, "why sis this
+still so clipped". Of three directions on the design canvas (A: title owns
+its line; B: one line, choose from the proposal; C: a card per proposal) he
+picked A: "ok do it". Spec: docs/ui-conventions.md, "The proposals board",
+"The row is two lines, and only one of them is loud".

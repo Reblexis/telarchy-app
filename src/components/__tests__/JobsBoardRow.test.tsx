@@ -100,7 +100,7 @@ describe('the row is two lines, and only one of them is loud', () => {
     );
   });
 
-  test('nothing is stacked on the right edge: impact and verbs are one horizontal group', () => {
+  test('nothing is stacked on the right edge: the impact holds only the number', () => {
     const { container } = board();
     const row = container.querySelector('.pubws-prow') as HTMLElement;
     // Everything that used to hang under the impact (pool, clock) is on the

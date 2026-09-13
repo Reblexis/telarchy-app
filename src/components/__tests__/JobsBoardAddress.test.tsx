@@ -109,8 +109,10 @@ describe('a proposal has an address but no link control', () => {
 describe('the proposer sees their own proposal', () => {
   test('a pending proposal by the viewer prints "yours"; another\'s does not', () => {
     board({ viewerId: 'odoacre' });
-    expect(screen.getByTitle('Replace the slogan').textContent).toMatch(/yours/);
-    expect(screen.getByTitle('Apply to YC').textContent).not.toMatch(/yours/);
+    // "yours" is among the facts, which sit on the row's second line.
+    const rowOf = (title: string) => screen.getByTitle(title).closest('.pubws-prow') as HTMLElement;
+    expect(rowOf('Replace the slogan').textContent).toMatch(/yours/);
+    expect(rowOf('Apply to YC').textContent).not.toMatch(/yours/);
   });
 
   test('a signed-out viewer sees no "yours" anywhere', () => {
@@ -124,6 +126,6 @@ describe('the proposer sees their own proposal', () => {
       // Nothing pending, so the decided ones are the list and no fold hides them.
       proposals: [proposal('p-9', 9, 'Old idea', 'odoacre', 'approved')],
     });
-    expect(screen.getByTitle('Old idea').textContent).not.toMatch(/yours/);
+    expect((screen.getByTitle('Old idea').closest('.pubws-prow') as HTMLElement).textContent).not.toMatch(/yours/);
   });
 });

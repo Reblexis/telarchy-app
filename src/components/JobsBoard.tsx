@@ -593,21 +593,56 @@ export function JobsBoard({
     const choices = leaderId
       ? [...optionList.filter(o => o.id === leaderId), ...optionList.filter(o => o.id !== leaderId)]
       : optionList;
+    const hasControls = Boolean(
+      (canManage && onRule && isPending(p) && !selected) ||
+        (optioned && onOpenOption && isPending(p)) ||
+        (tradeable && !optioned),
+    );
     return (
       <li key={p.id} className={selected ? 'is-open' : ''}>
         <div className={`pubws-prow${selected ? ' is-selected' : ''}`}>
-          <button
-            className={`pubws-ballot-row${selected ? ' is-selected' : ''}`}
-            aria-pressed={selected}
-            title={titleRest}
-            onClick={() => onSelect(p.id)}
-          >
-            <span className="pubws-ballot-title">
-              {/* The number leads: it is how a person names the proposal
+          {/* The title owns the first line (docs/ui-conventions.md, "The row is
+              two lines"): only the impact shares it, so no control can squeeze
+              the title to a few characters. */}
+          <div className="pubws-prow-top">
+            <button
+              className={`pubws-ballot-row${selected ? ' is-selected' : ''}`}
+              aria-pressed={selected}
+              title={titleRest}
+              onClick={() => onSelect(p.id)}
+            >
+              <span className="pubws-ballot-title">
+                {/* The number leads: it is how a person names the proposal
                   ("what does #7 mean?"), so it reads before the words. */}
-              {p.number ? <span className="pubws-ballot-num">#{p.number}</span> : null}
-              {titleRest}
+                {p.number ? <span className="pubws-ballot-num">#{p.number}</span> : null}
+                {titleRest}
+              </span>
+            </button>
+            <span className="pubws-prow-impact pubws-ballot-impact">
+              {/* "open" = nobody has priced it yet; a hard 0 means the two
+                worlds are priced the same, which is a statement, not an
+                absence. An option proposal names its leader first. */}
+              {delta !== null && lead?.leader && (
+                <>
+                  <span className="pubws-ballot-lead">{lead.leader.label}</span>{' '}
+                </>
+              )}
+              {/* A tie at the top is not a lead: "tied" where the row would
+                print "<leader> +lead" (docs/ui-conventions.md). */}
+              {delta !== null && lead?.tied ? (
+                <span className="pubws-ballot-delta pubws-ballot-delta--open">tied</span>
+              ) : delta === null ? (
+                <span className="pubws-ballot-delta pubws-ballot-delta--open">open</span>
+              ) : delta === 0 ? (
+                <span className="pubws-ballot-delta pubws-ballot-delta--open">±{unit}0</span>
+              ) : (
+                <span className={`pubws-ballot-delta ${delta > 0 ? 'is-up' : 'is-down'}`}>{fmtDelta(delta, unit)}</span>
+              )}
             </span>
+          </div>
+          {/* The second line: the facts, and on their right every control the
+              row carries, wrapping under the facts when they do not fit. */}
+          <div className="pubws-prow-bottom">
             {/* The facts as an ICON ROW, the same vocabulary the market's own
                 facts use: four labelled facts under every row is a paragraph
                 per proposal. Each icon carries its words as a hover. */}
@@ -680,87 +715,70 @@ export function JobsBoard({
                 </span>
               )}
             </span>
-          </button>
-          <span className="pubws-prow-impact pubws-ballot-impact">
-            {/* "open" = nobody has priced it yet; a hard 0 means the two
-                worlds are priced the same, which is a statement, not an
-                absence. An option proposal names its leader first. */}
-            {delta !== null && lead?.leader && (
-              <>
-                <span className="pubws-ballot-lead">{lead.leader.label}</span>{' '}
-              </>
-            )}
-            {/* A tie at the top is not a lead: "tied" where the row would
-                print "<leader> +lead" (docs/ui-conventions.md). */}
-            {delta !== null && lead?.tied ? (
-              <span className="pubws-ballot-delta pubws-ballot-delta--open">tied</span>
-            ) : delta === null ? (
-              <span className="pubws-ballot-delta pubws-ballot-delta--open">open</span>
-            ) : delta === 0 ? (
-              <span className="pubws-ballot-delta pubws-ballot-delta--open">±{unit}0</span>
-            ) : (
-              <span className={`pubws-ballot-delta ${delta > 0 ? 'is-up' : 'is-down'}`}>{fmtDelta(delta, unit)}</span>
-            )}
-          </span>
-          {/* Not on the row the page is already pointed at: that proposal's
+            {hasControls && (
+              <span className="pubws-prow-controls">
+                {/* Not on the row the page is already pointed at: that proposal's
               own ruling band is on screen, and two Approves for one proposal
               is one too many. */}
-          {canManage && onRule && isPending(p) && !selected && (
-            <span className="pubws-prow-acts">
-              <button
-                type="button"
-                className="pubws-dir pubws-dir--mini pubws-dir--approve"
-                onClick={() => setRuling({ id: p.id, action: 'approve', reason: '' })}
-              >
-                {optioned ? 'Choose' : 'Approve'}
-              </button>
-              <button
-                type="button"
-                className="pubws-dir pubws-dir--mini"
-                onClick={() => setRuling({ id: p.id, action: 'decline', reason: '' })}
-              >
-                Decline
-              </button>
-            </span>
-          )}
-          {optioned && onOpenOption && isPending(p) && (
-            <span className="pubws-prow-acts pubws-optchips">
-              {optionList.map(o => {
-                const quote = (rowPair ?? p.markets[0])?.options?.find(q => q.id === o.id) ?? null;
-                const value = quote && isPricedOption(quote) && quote.consensus !== null ? quote.consensus : null;
-                const leads = leaderId === o.id;
-                return (
-                  <button
-                    key={o.id}
-                    type="button"
-                    className={`pubws-dir pubws-dir--mini pubws-optchip${leads ? ' is-leader' : ''}`}
-                    onClick={() => onOpenOption(p.id, o.id)}
-                  >
-                    <span className="pubws-optchip-label">{o.label}</span>{' '}
-                    <span className="pubws-optchip-value">{value === null ? 'open' : fmtVal(value, unit)}</span>
-                  </button>
-                );
-              })}
-            </span>
-          )}
-          {tradeable && !optioned && (
-            <span className="pubws-prow-acts">
-              <button
-                type="button"
-                className="pubws-dir pubws-dir--mini pubws-dir--higher"
-                onClick={() => onTrade?.(p.id, 'higher')}
-              >
-                Higher
-              </button>
-              <button
-                type="button"
-                className="pubws-dir pubws-dir--mini pubws-dir--lower"
-                onClick={() => onTrade?.(p.id, 'lower')}
-              >
-                Lower
-              </button>
-            </span>
-          )}
+                {canManage && onRule && isPending(p) && !selected && (
+                  <span className="pubws-prow-acts">
+                    <button
+                      type="button"
+                      className="pubws-dir pubws-dir--mini pubws-dir--approve"
+                      onClick={() => setRuling({ id: p.id, action: 'approve', reason: '' })}
+                    >
+                      {optioned ? 'Choose' : 'Approve'}
+                    </button>
+                    <button
+                      type="button"
+                      className="pubws-dir pubws-dir--mini"
+                      onClick={() => setRuling({ id: p.id, action: 'decline', reason: '' })}
+                    >
+                      Decline
+                    </button>
+                  </span>
+                )}
+                {optioned && onOpenOption && isPending(p) && (
+                  <span className="pubws-prow-acts pubws-optchips">
+                    {optionList.map(o => {
+                      const quote = (rowPair ?? p.markets[0])?.options?.find(q => q.id === o.id) ?? null;
+                      const value = quote && isPricedOption(quote) && quote.consensus !== null ? quote.consensus : null;
+                      const leads = leaderId === o.id;
+                      return (
+                        <button
+                          key={o.id}
+                          type="button"
+                          className={`pubws-dir pubws-dir--mini pubws-optchip${leads ? ' is-leader' : ''}`}
+                          onClick={() => onOpenOption(p.id, o.id)}
+                        >
+                          <span className="pubws-optchip-label">{o.label}</span>{' '}
+                          <span className="pubws-optchip-value">{value === null ? 'open' : fmtVal(value, unit)}</span>
+                        </button>
+                      );
+                    })}
+                  </span>
+                )}
+                {tradeable && !optioned && (
+                  <span className="pubws-prow-acts">
+                    <button
+                      type="button"
+                      className="pubws-dir pubws-dir--mini pubws-dir--higher"
+                      onClick={() => onTrade?.(p.id, 'higher')}
+                    >
+                      Higher
+                    </button>
+                    <button
+                      type="button"
+                      className="pubws-dir pubws-dir--mini pubws-dir--lower"
+                      onClick={() => onTrade?.(p.id, 'lower')}
+                    >
+                      Lower
+                    </button>
+                  </span>
+                )}
+              </span>
+            )}
+          </div>
         </div>
         {ruling?.id === p.id && (
           /* The ruling itself, on the row: Approve names the money it pays
