@@ -1779,6 +1779,20 @@ export function TradePage() {
 
   const canTrade = ws.joinAs === 'trader';
   const trading = !!user && joined && canTrade;
+  /* Below 1500px the live log folds to one line directly under the bet verbs
+     in the centre column, never in the ticket rail (docs/ui-conventions.md,
+     "The live log", "Where."); from 1500px the stylesheet hides it and shows
+     the left column's block. A selected proposal shows neither. */
+  const liveStrip =
+    !selectedJob && liveLog.state === 'ready' ? (
+      <LiveLogStrip
+        slug={ws.slug ?? idOrSlug ?? ws.workspaceId}
+        rows={liveLog.rows}
+        fast={isFastWorkspace(ws.decisionMinutes)}
+        newIds={liveLog.newIds}
+        onSeen={liveLog.markSeen}
+      />
+    ) : null;
 
   return (
     <div className="pubws pubws--center">
@@ -2722,8 +2736,13 @@ export function TradePage() {
                       : 'This market has no liquidity yet, so there is nothing to trade against.'}
                   </p>
                 ))}
+              {liveStrip}
             </section>
-          ) : null}
+          ) : (
+            /* No verbs for this reader (signed in, not joined): the line
+               still belongs to the centre column, where the verbs would be. */
+            liveStrip
+          )}
         </div>
         {/* The right rail: the ticket, and nothing else. */}
         <aside className="pubws-rail pubws-rail--right" aria-label="Your trade">
@@ -2736,16 +2755,6 @@ export function TradePage() {
             the reading order is unchanged. */}
           {/* Keyed by the side so a verb re-seeds the ticket instead of being
               a dead click, exactly as the inline ticket was. */}
-          {/* Below 1500px the live log folds to one line under the verbs. */}
-          {!selectedJob && liveLog.state === 'ready' && (
-            <LiveLogStrip
-              slug={ws.slug ?? idOrSlug ?? ws.workspaceId}
-              rows={liveLog.rows}
-              fast={isFastWorkspace(ws.decisionMinutes)}
-              newIds={liveLog.newIds}
-              onSeen={liveLog.markSeen}
-            />
-          )}
           {!!selectedJob && (selectedJobPastDeadline || selectedJobClosed) && (
             /* Closed before the ruling lands (docs/ui-conventions.md, "A
                proposal past its deadline reads as closed before the ruling

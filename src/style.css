@@ -12413,9 +12413,10 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 }
 
 /* ---- The live log (docs/ui-conventions.md, "The live log") ------------ */
-/* The floor's Live column in the left rail from 1500px, and the one-line
-   strip under the verbs below that. Section-head anatomy, hairline rows,
-   mono times; a row that arrived since the first read is tinted. */
+/* The floor's Live column in the left rail from 1500px, and below that the
+   one-line strip directly under the bet verbs in the centre column (never in
+   the ticket rail), led by the Live label. Section-head anatomy, hairline
+   rows, mono times; a row that arrived since the first read is tinted. */
 .pubws-live { text-align: left; }
 .pubws-live-head { gap: 0.75rem; }
 .pubws-live-title {

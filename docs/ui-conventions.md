@@ -2195,12 +2195,20 @@ for this workspace (docs/data-room.md), never a second record.
 
 **Where.** In the plain market view the left column carries a **Live**
 block (`FloorLiveLog`, `.pubws-live`) under the season advert and the
-announcements, from 1500px up where the three columns exist. Below 1500px
-and on a phone the same log folds to one line under the bet verbs
-(`.pubws-live-strip`): the live dot, the newest row as one ellipsized line,
-its time, and a chevron; pressing the line opens the block in place and
-pressing it again folds it. A selected proposal shows neither: the page is
-about that proposal.
+announcements, from 1500px up where the three columns exist, and the line
+below is not drawn. At every width below 1500px, including 1120px to 1499px
+where the ticket rail stands beside the market, the same log folds to one
+line directly under the two bet verbs in the centre column
+(`.pubws-live-strip`), never in the ticket column: the right rail holds the
+ticket and nothing else. Where the verbs are not drawn (a visitor signed in
+but not joined), the line takes their place in the centre column. The line
+starts with the Live label in the block head's anatomy (the live dot and
+"Live" in `.pubws-live-title`), so it never reads as a picker; then the
+newest row as one ellipsized line, its time, and a chevron. Pressing the
+line opens the block in place under the verbs, "All activity" and all, and
+pressing it again folds it. On a phone the order is the verbs, the line,
+the ticket, then the proposals. A selected proposal shows neither: the page
+is about that proposal.
 
 **The block.** A head in the section-head anatomy (`.pubws-lb-head`): the
 live dot and "Live" on the left, "All activity" linking to `/<slug>/log` on

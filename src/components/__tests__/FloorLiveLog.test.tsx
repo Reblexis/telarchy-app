@@ -155,23 +155,31 @@ describe('the folded strip under the verbs', () => {
     );
   }
 
-  test('folded, it is one line: the live dot, the newest row, its time', () => {
+  test('THE LIVE LINE STARTS WITH THE LIVE LABEL: the dot and "Live" in the block head\'s anatomy, then the newest row, its time, the chevron', () => {
     const { container } = strip();
     const line = container.querySelector('.pubws-live-strip-line') as HTMLButtonElement;
     expect(line.getAttribute('aria-expanded')).toBe('false');
-    expect(line.querySelector('.pubws-live-dot')).toBeTruthy();
-    expect(line.textContent).toContain('Profitable forecasters read 9, was 8');
-    expect(line.textContent).toContain(clockOf('2026-09-12T18:40:06Z'));
+    const first = line.firstElementChild as HTMLElement;
+    expect(first.classList.contains('pubws-live-title')).toBe(true);
+    expect(first.querySelector('.pubws-live-dot')).toBeTruthy();
+    expect(first.textContent).toBe('Live');
+    const parts = [...line.children].map(c => c.className);
+    expect(parts).toEqual(['pubws-live-title', 'pubws-live-strip-text', 'pubws-live-time', 'pubws-live-chev']);
+    expect(line.querySelector('.pubws-live-strip-text')?.textContent).toBe('Profitable forecasters read 9, was 8');
+    expect(line.querySelector('.pubws-live-time')?.textContent).toBe(clockOf('2026-09-12T18:40:06Z'));
     expect(container.querySelector('.pubws-live')).toBeNull();
   });
 
-  test('pressing the line opens the block in place, and pressing again folds it', () => {
+  test('PRESSING THE LINE OPENS THE BLOCK AND PRESSING AGAIN FOLDS IT, the open block linking All activity to the workspace log', () => {
     const { container } = strip();
     const line = container.querySelector('.pubws-live-strip-line') as HTMLButtonElement;
     fireEvent.click(line);
     expect(line.getAttribute('aria-expanded')).toBe('true');
-    expect(container.querySelector('.pubws-live')).toBeTruthy();
+    const opened = container.querySelector('.pubws-live-strip .pubws-live') as HTMLElement;
+    expect(opened).toBeTruthy();
+    expect(within(opened).getByRole('link', { name: 'All activity' }).getAttribute('href')).toBe('/telarchy/log');
     fireEvent.click(line);
+    expect(line.getAttribute('aria-expanded')).toBe('false');
     expect(container.querySelector('.pubws-live')).toBeNull();
   });
 

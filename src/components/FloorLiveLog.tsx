@@ -121,7 +121,11 @@ export function LiveLogBlock({ slug, rows, fast, newIds, onSeen }: Props) {
   );
 }
 
-/** Below 1500px: one line under the verbs that opens the block in place. */
+/**
+ * Below 1500px: one line directly under the bet verbs in the centre column,
+ * never in the ticket column, that opens the block in place. It starts with
+ * the Live label in the block head's anatomy so it never reads as a picker.
+ */
 export function LiveLogStrip(props: Props) {
   const [open, setOpen] = useState(false);
   const newest = props.rows[0];
@@ -129,7 +133,10 @@ export function LiveLogStrip(props: Props) {
   return (
     <div className="pubws-live-strip">
       <button type="button" className="pubws-live-strip-line" aria-expanded={open} onClick={() => setOpen(o => !o)}>
-        <span className="pubws-live-dot" aria-hidden="true" />
+        <span className="pubws-live-title">
+          <span className="pubws-live-dot" aria-hidden="true" />
+          <span>Live</span>
+        </span>
         <span className="pubws-live-strip-text">
           <Who row={newest} />
           {newest.kind === 'trade' ? shortTradeText(newest) : newest.text}
