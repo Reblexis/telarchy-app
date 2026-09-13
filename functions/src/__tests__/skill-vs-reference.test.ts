@@ -153,7 +153,12 @@ describe('THE RULE: the market wins a market only when its closing call is close
 describe("THE RULE: the benchmark is the reference's latest mature estimate filed before the resolution", () => {
   test('a market with only a spawn forecast is not scored', async () => {
     await forecast(await market({ call: 52 }), 60, { stage: 'spawn' });
-    expect(await skillVsReference30d(NOW)).toEqual({ winRate: null, markets: 0, marketError: null, referenceError: null });
+    expect(await skillVsReference30d(NOW)).toEqual({
+      winRate: null,
+      markets: 0,
+      marketError: null,
+      referenceError: null,
+    });
   });
 
   test("another participant's mature forecast is not the reference's", async () => {
@@ -240,6 +245,11 @@ describe('published beside the win rate', () => {
   });
 
   test('nothing scored reads null, not zero: a zero would say the floor lost every market', async () => {
-    expect(await skillVsReference30d(NOW)).toEqual({ winRate: null, markets: 0, marketError: null, referenceError: null });
+    expect(await skillVsReference30d(NOW)).toEqual({
+      winRate: null,
+      markets: 0,
+      marketError: null,
+      referenceError: null,
+    });
   });
 });
