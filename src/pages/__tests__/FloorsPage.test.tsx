@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -1017,5 +1020,51 @@ describe("THE HOME PAGE'S NUMBERS ARE NEVER OLDER THAN 15 SECONDS", () => {
     });
     expect(screen.getByText('$77,316')).toBeInTheDocument();
     expect(screen.getByText('LookPilot')).toBeInTheDocument();
+  });
+});
+
+/**
+ * THE BOARD NEVER ENDS ON AN EMPTY SLOT (docs/ui-conventions.md, "The
+ * marketplace"). Viktor 2026-09-13: with Snake featured above, two floors
+ * were left and the listing cell, spanning two columns, wrapped to its own
+ * row and left a large empty block beside the floors. jsdom lays out no
+ * grid, so this reads the stylesheet: explicit column counts per width and a
+ * listing cell that fills whatever its row has left.
+ */
+describe('THE BOARD NEVER ENDS ON AN EMPTY SLOT', () => {
+  const CSS = readFileSync(join(dirname(dirname(dirname(fileURLToPath(import.meta.url)))), 'style.css'), 'utf8');
+  const squash = (s: string) => s.replace(/\s+/g, ' ');
+  const css = squash(CSS);
+
+  test('the board has explicit columns: one, two from 640px, three from 1000px', () => {
+    expect(css).toMatch(/\.mkt-board \{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
+    expect(css).toMatch(
+      /@media \(min-width: 640px\) \{[^@]*\.mkt-board \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \}/,
+    );
+    expect(css).toMatch(
+      /@media \(min-width: 1000px\) \{[^@]*\.mkt-board \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\); \}/,
+    );
+    expect(css).not.toMatch(/\.mkt-board \{[^}]*auto-fill/);
+  });
+
+  test('Two floors left an empty block beside the listing cell (2026-09-13): at three columns it fills one, two or three slots, whatever its row has left', () => {
+    const wide = css.slice(css.indexOf('@media (min-width: 1000px)'));
+    expect(wide).toMatch(/\.mkt-cell--new:nth-child\(3n\+1\) \{ grid-column: 1 \/ -1; \}/);
+    expect(wide).toMatch(/\.mkt-cell--new:nth-child\(3n\+2\) \{ grid-column: span 2; \}/);
+    expect(wide).toMatch(/\.mkt-cell--new:nth-child\(3n\) \{ grid-column: span 1; \}/);
+  });
+
+  test('at two columns it takes the last slot beside an odd floor, else the whole row', () => {
+    const mid = css.slice(css.indexOf('@media (min-width: 640px)'));
+    expect(mid).toMatch(/\.mkt-cell--new:nth-child\(odd\) \{ grid-column: 1 \/ -1; \}/);
+    expect(css).not.toMatch(/\.mkt-cell--new \{ grid-column: span 2; \}/);
+  });
+
+  test('the listing cell is the last child of the board, which the nth-child rules count on', async () => {
+    const { container } = renderPage();
+    await screen.findByText('LookPilot');
+    await waitFor(() => expect(container.querySelector('.mkt-board > .mkt-cell--new')).toBeTruthy());
+    const board = container.querySelector('.mkt-board') as HTMLElement;
+    expect(board.lastElementChild).toHaveClass('mkt-cell--new');
   });
 });
