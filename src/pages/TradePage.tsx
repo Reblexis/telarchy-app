@@ -2551,6 +2551,13 @@ export function TradePage() {
                         /* The live prices are the books' own, once a second
                            (docs/ui-conventions.md). */
                         books={floorPrices.books}
+                        /* The proposal on screen is marked on a chess board
+                           (docs/ui-conventions.md, "The chess feed"). */
+                        selectedProposal={
+                          selectedJob && typeof selectedJob.number === 'number'
+                            ? { number: selectedJob.number, option: jobOptioned ? branch : null }
+                            : null
+                        }
                       />
                     ) : chartView === 'value' ? (
                       <NumberChart

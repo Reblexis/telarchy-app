@@ -2748,12 +2748,36 @@ going trough the proposal the official way"):
    while `phase` is `settling`, "Waiting for the next game" between games,
    "Loading" before the first read and "Feed unavailable" after a failed
    one.
-3. **Nothing around the board.** No list of moves and no button or link
-   beside or under the board: a move is made on the board or on its
-   proposal. **The prices are on the board**: while a piece is picked up,
-   each square it can reach carries that move's price (the leader's in the
-   approved green, an unpriced one "open"), so a reader sees what the market
-   thinks of every move of the piece before pressing one.
+3. **The proposal on screen is marked on the board** (Viktor 2026-09-13:
+   "when im in a proposal page make sure that the move corresponding to the
+   proposal is highlighted"). When the page has the open move's proposal
+   selected, the option on screen (its world) is drawn as a solid arrow in
+   the approved green, whether or not it is among the three highest, and its
+   two squares are tinted; the three highest keep their accent arrows beside
+   it. A proposal that is decided, lapsed or not the open move marks nothing,
+   because its move belongs to a position the board no longer shows. **A move
+   made on the board always opens the newest open proposal**, from any page:
+   pressing a piece and a target, or an arrow, on a decided proposal's page
+   opens that move on the open one, and nothing when no move is open.
+4. **The moves, one slim column beside the board** (`.chess-movelist`,
+   Viktor 2026-09-13: "show a sorted list of moves on the right which upon
+   hovering over can be selected and also hovering them highlights the
+   corresponding move.. the buttons before were too big so just make them
+   small but wide.. maybe scrollable if needed.. it should just be one
+   column"). Only while a move is open: every legal move, highest price
+   first, an unpriced one last as "open", one row each (`.chess-moverow`):
+   the rank, the piece and the SAN, a thin bar the length of the price
+   within the list's range, and the price to one decimal, in the mono type
+   at the size of the chart's labels, one line high. The leader's row is in
+   the approved green, the proposal on screen's row is marked as its arrow
+   is. The column is as tall as the board and scrolls inside itself; it sits
+   to the right of the board when the slot fits both, under the board with
+   the same height otherwise. **Hovering a row, or focusing it, draws that
+   move on the board** (`.chess-arrow.is-hover`, in the ink, its squares
+   tinted) until the pointer leaves; pressing a row opens that option's
+   world, as its arrow does. **The prices are on the board too**: while a
+   piece is picked up, each square it can reach carries that move's price
+   (the leader's in the approved green, an unpriced one "open").
 
 The replay row is the snake's (picker, scrubber, play, speed, LIVE): the
 picker lists the games newest first as "Game 3 · vs OppBot · lost", the

@@ -12609,6 +12609,61 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .chess-target-bg.is-leader { fill: var(--higher); stroke: var(--higher); }
 .chess-target-price { font-family: var(--font-mono); font-weight: 700; fill: #17171c; font-variant-numeric: tabular-nums; }
 .chess-target-price.is-leader { fill: #fbf9f4; }
+/* The proposal on screen: its move in the approved green, its squares tinted
+   (docs/ui-conventions.md, "The chess feed", item 3). A hovered list row: its
+   move in the ink, its squares tinted (item 4). */
+.chess-arrow.is-selected { stroke: var(--higher); }
+.chess-arrow.is-hover { stroke: var(--text-primary); }
+.chess-square.is-light.is-proposal { fill: #cfe3d4; }
+.chess-square.is-dark.is-proposal { fill: #a9cdb4; }
+.chess-square.is-light.is-hover { fill: #e4dcc6; }
+.chess-square.is-dark.is-hover { fill: #c4b893; }
+/* The moves, one slim column beside the board (item 4): rows one line high,
+   as tall as the board and scrolling inside, under the board when narrow. */
+.chess-main { align-items: stretch; }
+.chess-board-col { flex: 1 1 320px; max-width: 520px; }
+.chess-movelist {
+  flex: 1 1 220px;
+  min-width: 200px;
+  max-width: 340px;
+  max-height: min(520px, 72vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  align-self: flex-start;
+  border-top: 1px solid var(--border-color);
+  scrollbar-width: thin;
+}
+.chess-moverow {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr) 3.4rem 2.9rem;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 26px;
+  padding: 0 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  text-decoration: none;
+  cursor: pointer;
+}
+.chess-moverow:hover, .chess-moverow:focus-visible { background: var(--bg-secondary); color: var(--text-primary); outline: none; }
+.chess-moverow.is-leader { color: var(--higher); }
+.chess-moverow.is-selected { background: color-mix(in srgb, var(--higher) 14%, transparent); }
+.chess-moverow-rank { color: var(--text-tertiary); font-size: 0.66rem; }
+.chess-moverow-san { display: flex; align-items: center; gap: 0.35rem; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.chess-moverow-glyph { font-family: 'DejaVu Sans', 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols 2', serif; font-weight: 400; color: var(--text-secondary); }
+.chess-moverow-bar { display: block; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--border-color) 55%, transparent); overflow: hidden; }
+.chess-moverow-bar > span { display: block; height: 4px; background: var(--text-tertiary); }
+.chess-moverow.is-leader .chess-moverow-bar > span { background: var(--higher); }
+.chess-moverow-price { text-align: right; font-weight: 600; }
+@media (max-width: 640px) {
+  .chess-movelist { max-width: none; flex-basis: 100%; max-height: 45vh; }
+}
 
 /* ---- The live log (docs/ui-conventions.md, "The live log") ------------ */
 /* The floor's Live column in the left rail from 1500px, and below that the

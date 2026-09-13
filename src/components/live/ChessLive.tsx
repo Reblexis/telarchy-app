@@ -167,12 +167,25 @@ function hitPath(from: string, to: string, color: Color): string {
   return `M ${n(x1 + ux * start)} ${n(y1 + uy * start)} L ${n(x2 - ux * S * 0.18)} ${n(y2 - uy * S * 0.18)}`;
 }
 
-type Arrow = { option: string; from: string; to: string; opacity: number; href?: string; number?: number };
+type Arrow = {
+  option: string;
+  from: string;
+  to: string;
+  opacity: number;
+  href?: string;
+  number?: number;
+  /** The proposal on screen's move (docs/ui-conventions.md, "The chess feed", item 3). */
+  selected?: boolean;
+  /** The move under the pointer in the list (item 4). */
+  hover?: boolean;
+};
 
 function Board({
   fen,
   color,
   last,
+  proposalMove,
+  hoverMove,
   arrows,
   targets,
   selected,
@@ -182,6 +195,10 @@ function Board({
   fen: string | null;
   color: Color;
   last: string | null;
+  /** The proposal on screen's move when it is the open move: its squares tinted. */
+  proposalMove: string | null;
+  /** The move a list row is hovered or focused on: its squares tinted. */
+  hoverMove: string | null;
   arrows: Arrow[];
   targets: Array<{ square: string; text: string; leader: boolean }>;
   selected: string | null;
@@ -195,6 +212,9 @@ function Board({
     return out;
   }, []);
   const lastSquares = last ? [last.slice(0, 2), last.slice(2, 4)] : [];
+  const squaresOf = (m: string | null) => (m ? [m.slice(0, 2), m.slice(2, 4)] : []);
+  const proposalSquares = squaresOf(proposalMove);
+  const hoverSquares = squaresOf(hoverMove);
   return (
     <svg className="chess-board" viewBox={`0 0 ${8 * S} ${8 * S}`} role="img" aria-label={`Chess board, ${color} at the bottom`}>
       <title>Chess board</title>
@@ -205,6 +225,8 @@ function Board({
           'chess-square',
           light ? 'is-light' : 'is-dark',
           lastSquares.includes(sq) ? 'is-last' : '',
+          proposalSquares.includes(sq) ? 'is-proposal' : '',
+          hoverSquares.includes(sq) ? 'is-hover' : '',
           selected === sq ? 'is-selected' : '',
         ]
           .filter(Boolean)
@@ -282,7 +304,7 @@ function Board({
         const d = arrowPath(a.from, a.to, color);
         const mark = (
           <path
-            className="chess-arrow"
+            className={`chess-arrow${a.selected ? ' is-selected' : ''}${a.hover ? ' is-hover' : ''}`}
             data-option={a.option}
             d={d}
             fill="none"
@@ -349,9 +371,12 @@ export function ChessLive({
   onStep,
   onQuotes,
   books,
+  selectedProposal,
   replay: showReplay = true,
 }: {
   slug: string;
+  /** The proposal the page has open and the option on screen, for marking its move. */
+  selectedProposal?: { number: number; option: string | null } | null;
   /** The floor's open books by market id, polled once a second. */
   books?: ReadonlyMap<string, { consensus: number | null }> | null;
   replay?: boolean;
@@ -365,7 +390,9 @@ export function ChessLive({
   const [state, setState] = useState<ChessState | null>(null);
   const [failed, setFailed] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selectionState, setSelectionState] = useState<{ id: string | null; square: string | null }>({ id: null, square: null });
+  /* The move a list row is hovered or focused on (docs/ui-conventions.md, "The chess feed", item 4). */
+  const [hoverState, setHoverState] = useState<{ id: string | null; move: string | null }>({ id: null, move: null });
   const onStepRef = useRef(onStep);
   onStepRef.current = onStep;
   const onQuotesRef = useRef(onQuotes);
@@ -510,23 +537,47 @@ export function ChessLive({
 
   /* A new position clears the piece a reader had picked up. */
   const openId = open?.proposal.id ?? null;
-  useEffect(() => setSelected(null), [openId]);
+  /* A piece picked up, or a row hovered, belongs to the move it was made on:
+     a new position clears both by construction, never by an effect that can
+     land after a click. */
+  const selected = selectionState.id !== null && selectionState.id === openId ? selectionState.square : null;
+  const hoverMove = hoverState.id !== null && hoverState.id === openId ? hoverState.move : null;
+  const setSelected = (square: string | null) => setSelectionState({ id: openId, square });
 
   const replayRow = replay && replay.entry > 0 ? (plies[replay.game]?.[replay.entry - 1] ?? null) : null;
   const replayColor: Color = replay ? (games.find(g => g.number === replay.game)?.color ?? color) : color;
 
+  /* The proposal on screen is marked on the board when it is the open move
+     (docs/ui-conventions.md, "The chess feed", item 3). */
+  const proposalMove =
+    open &&
+    selectedProposal &&
+    selectedProposal.number === open.proposal.number &&
+    selectedProposal.option &&
+    open.options.some(o => o.id === selectedProposal.option)
+      ? selectedProposal.option
+      : null;
+  const liveHover = open && hoverMove && open.options.some(o => o.id === hoverMove) ? hoverMove : null;
+  /** An option's world on this floor, opened in place (the arrows and the list share it). */
+  const optionHref = (id: string) => (open ? `/${slug}/p/${open.proposal.number}?option=${id}` : '');
   const liveArrows = (): Arrow[] => {
     if (!open) return [];
-    const top = ranked(openOptions).filter(priced).slice(0, 3);
+    const top = ranked(openOptions)
+      .filter(priced)
+      .slice(0, 3)
+      .filter(o => o.id !== proposalMove && o.id !== liveHover);
     const ops = leadOpacities(top.map(o => o.price));
-    return top.map((o, i) => ({
-      option: o.id,
-      from: o.id.slice(0, 2),
-      to: o.id.slice(2, 4),
-      opacity: ops[i],
+    const at = (id: string) => ({
+      option: id,
+      from: id.slice(0, 2),
+      to: id.slice(2, 4),
       number: open.proposal.number,
-      href: `/${slug}/p/${open.proposal.number}?option=${o.id}`,
-    }));
+      href: `/${slug}/p/${open.proposal.number}?option=${id}`,
+    });
+    const out: Arrow[] = top.map((o, i) => ({ ...at(o.id), opacity: ops[i] }));
+    if (proposalMove && proposalMove !== liveHover) out.push({ ...at(proposalMove), opacity: 1, selected: true });
+    if (liveHover) out.push({ ...at(liveHover), opacity: 1, hover: true, selected: liveHover === proposalMove });
+    return out;
   };
 
   const drawn = replay
@@ -629,6 +680,8 @@ export function ChessLive({
               fen={drawn.fen}
               color={drawn.color}
               last={drawn.last}
+              proposalMove={replay ? null : proposalMove}
+              hoverMove={replay ? null : liveHover}
               arrows={drawn.arrows}
               targets={targets}
               selected={selected}
@@ -641,6 +694,50 @@ export function ChessLive({
             {line.clock !== undefined && <span className="chess-clock">{line.clock}</span>}
           </p>
         </div>
+        {open && openOptions.length > 0 && (
+          /* The moves, one slim column beside the board (docs/ui-conventions.md, "The chess feed", item 4). */
+          <div className="chess-movelist" role="list" aria-label="Moves, highest price first">
+            {(() => {
+              const list = ranked(openOptions);
+              const pricedList = list.filter(priced);
+              const lo = pricedList.length ? Math.min(...pricedList.map(o => o.price as number)) : 0;
+              const hi = pricedList.length ? Math.max(...pricedList.map(o => o.price as number)) : 0;
+              const board = piecesOf(game?.fen ?? null);
+              return list.map((o, i) => {
+                const piece = board.get(o.id.slice(0, 2));
+                const width = priced(o) ? (hi > lo ? 6 + 94 * (((o.price as number) - lo) / (hi - lo)) : 100) : 0;
+                const cls = `chess-moverow${boardLeader?.id === o.id ? ' is-leader' : ''}${proposalMove === o.id ? ' is-selected' : ''}`;
+                return (
+                  <a
+                    key={o.id}
+                    role="listitem"
+                    className={cls}
+                    href={optionHref(o.id)}
+                    onClick={e => {
+                      if (!onPickProposal) return;
+                      e.preventDefault();
+                      pick(o.id);
+                    }}
+                    onMouseEnter={() => setHoverState({ id: openId, move: o.id })}
+                    onMouseLeave={() => setHoverState(h => (h.move === o.id ? { id: null, move: null } : h))}
+                    onFocus={() => setHoverState({ id: openId, move: o.id })}
+                    onBlur={() => setHoverState(h => (h.move === o.id ? { id: null, move: null } : h))}
+                  >
+                    <span className="chess-moverow-rank">{i + 1}</span>
+                    <span className="chess-moverow-san">
+                      {piece && <span className="chess-moverow-glyph">{`${GLYPH[piece.toLowerCase()]}\uFE0E`}</span>}
+                      {o.san}
+                    </span>
+                    <span className="chess-moverow-bar">
+                      <span style={{ width: `${width}%` }} />
+                    </span>
+                    <span className="chess-moverow-price">{priced(o) ? (o.price as number).toFixed(1) : 'open'}</span>
+                  </a>
+                );
+              });
+            })()}
+          </div>
+        )}
       </div>
       {showReplay && (
         <div className="snake-replay chess-replay" role="group" aria-label="Replay">
