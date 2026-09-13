@@ -152,6 +152,18 @@ describe('the board', () => {
     expect(Number(sq(black.container, 'h1').getAttribute('x'))).toBeLessThan(Number(sq(black.container, 'a1').getAttribute('x')));
   });
 
+  test('a1 is a dark square and h1 a light one, as on every chessboard', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(container.querySelectorAll('.chess-square').length).toBe(64));
+    const shade = (n: string) => (sq(container, n).classList.contains('is-dark') ? 'dark' : sq(container, n).classList.contains('is-light') ? 'light' : 'none');
+    expect(shade('a1')).toBe('dark');
+    expect(shade('h1')).toBe('light');
+    expect(shade('a8')).toBe('light');
+    expect(shade('h8')).toBe('dark');
+    expect(shade('d4')).toBe('dark');
+    expect(shade('e4')).toBe('light');
+  });
+
   test('the two squares of the last move are tinted', async () => {
     const { container } = renderLive();
     await waitFor(() => expect(sq(container, 'e5')?.classList.contains('is-last')).toBe(true));

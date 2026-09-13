@@ -230,7 +230,7 @@ function Board({
       <title>Chess board</title>
       {squares.map(sq => {
         const [x, y] = xy(sq, color);
-        const light = (FILES.indexOf(sq[0]) + Number(sq[1])) % 2 === 1;
+        const light = (FILES.indexOf(sq[0]) + Number(sq[1])) % 2 === 0; // a1 dark, h1 light
         const cls = [
           'chess-square',
           light ? 'is-light' : 'is-dark',
