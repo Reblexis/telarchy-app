@@ -251,7 +251,8 @@ three answers, "which of these four headlines do we ship" has four, and
 posting each answer as its own approve-or-decline proposal spends twice the
 liquidity and asks the reader to compare numbers across pages. A proposal
 can therefore carry **options**: `POST /api/proposals { title, description,
-options: [{ id, label }, ...] }`, two to six of them, each `id` a short
+options: [{ id, label }, ...] }`, two to 218 of them (218 is the most legal
+moves a chess position has, so one proposal can offer every move), each `id` a short
 handle (1 to 24 of `a-z 0-9 -`, unique within the proposal, and never
 `approved` or `declined`), each `label` up to 40 characters, the words a
 reader chooses between. A proposal without `options` is the ordinary

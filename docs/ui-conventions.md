@@ -981,7 +981,8 @@ counting:
   cell is underlined in the same green its chart line wears. Every priced cell is a button
   (`aria-pressed`) that puts that option on the chart and the ticket; a press sticks: nothing the page does while it settles (resolving the address to the proposal, loading its books) undoes a pick, however early it was made; an
   unpriced one says "no liquidity" and cannot be pressed, as any pair does.
-  Up to six options fit one row on the desktop floor; on a phone the row
+  Up to six options fit one row on the desktop floor, and more wrap onto further
+  rows in the same order; on a phone the row
   wraps to two cells per line, the last-read cell first. There is no
   declined cell, because there is no declined world.
 - **The hero is the lead.** The big number is the leader's consensus minus

@@ -3,7 +3,7 @@
  * docs/vision.md, "Options"; docs/data-room.md, the proposal and decision
  * rows).
  *
- * A proposal may carry two to six options in place of the approve/decline
+ * A proposal may carry two to 218 options in place of the approve/decline
  * pair. One market per option per priced (metric, date), branch set to the
  * option id, each opening where the approved branch would. Each option's
  * delta is its consensus minus the best of the others, the row's delta is
@@ -230,7 +230,7 @@ function expectAllVoided(rows: Array<{ voided: boolean; resolved: boolean }>) {
 }
 
 describe('the option list is validated at the door', () => {
-  test('the parser accepts two to six well-formed options and refuses everything else', () => {
+  test('the parser accepts two to 218 well-formed options and refuses everything else', () => {
     expect(parseProposalOptions(undefined)).toEqual({ ok: true, options: null });
     expect(parseProposalOptions(null)).toEqual({ ok: true, options: null });
     const two = parseProposalOptions([
@@ -251,7 +251,7 @@ describe('the option list is validated at the door', () => {
     };
     expect(bad([{ id: 'a', label: 'A' }])).toMatch(/two/i);
     expect(bad('left,right')).toMatch(/options/i);
-    expect(bad(Array.from({ length: 7 }, (_, i) => ({ id: `o${i}`, label: `O ${i}` })))).toMatch(/six/i);
+    expect(bad(Array.from({ length: 219 }, (_, i) => ({ id: `o${i}`, label: `O ${i}` })))).toMatch(/218/);
     expect(
       bad([
         { id: 'a', label: 'A' },
@@ -298,7 +298,7 @@ describe('the option list is validated at the door', () => {
 
   test.each([
     ['one option', [OPTIONS[0]]],
-    ['seven options', Array.from({ length: 7 }, (_, i) => ({ id: `o${i}`, label: `Option ${i}` }))],
+    ['219 options', Array.from({ length: 219 }, (_, i) => ({ id: `o${i}`, label: `Option ${i}` }))],
     ['a duplicate id', [OPTIONS[0], OPTIONS[0]]],
     ['the id approved', [{ id: 'approved', label: 'Yes' }, OPTIONS[1]]],
     ['the id declined', [{ id: 'declined', label: 'No' }, OPTIONS[1]]],
@@ -314,6 +314,62 @@ describe('the option list is validated at the door', () => {
     const rows = await db.select({ id: proposals.id }).from(proposals).where(eq(proposals.workspaceId, WS));
     expect(rows).toEqual([]);
   });
+});
+
+describe('every legal move of a chess position is one proposal', () => {
+  const many = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `m${i}`, label: `Move ${i}` }));
+
+  test('the parser accepts 218 options, the most legal moves a chess position has, and refuses 219', () => {
+    expect(parseProposalOptions(many(7)).ok).toBe(true);
+    expect(parseProposalOptions(many(218)).ok).toBe(true);
+    const over = parseProposalOptions(many(219));
+    expect(over.ok).toBe(false);
+    expect(over.ok ? '' : over.error).toMatch(/218/);
+  });
+
+  test('a move in UCI is an option id and the move in SAN is its label', () => {
+    const r = parseProposalOptions([
+      { id: 'e7e8q', label: 'exd8=Q+' },
+      { id: 'e1c1', label: 'O-O-O' },
+      { id: 'b1d2', label: 'Nbd2#' },
+    ]);
+    expect(r.ok).toBe(true);
+  });
+
+  test('a proposal with 40 options spawns 40 books and choosing one voids the other 39 and refunds their stakes', async () => {
+    await seed();
+    const opts = many(40);
+    const res = await post({ title: 'Game 1, move 12', options: opts, liquiditySubsidy: 1 });
+    expect(res.status).toBe(201);
+    const rows = await marketsOf(res.body.id);
+    expect(rows).toHaveLength(40);
+    expect(new Set(rows.map(r => r.branch))).toEqual(new Set(opts.map(o => o.id)));
+    const chosen = rows.find(r => r.branch === 'm17')!;
+    const other = rows.find(r => r.branch === 'm3')!;
+    const before = await balanceOf(TRADER);
+    await tradeOn(chosen.id, TRADER, 20);
+    await tradeOn(other.id, TRADER, 20);
+    const a = await approve(res.body.id, { option: 'm17' });
+    expect(a.status).toBeLessThan(300);
+    const after = await marketsOf(res.body.id);
+    for (const r of after) expect(r.voided).toBe(r.branch !== 'm17');
+    // The stake on m3 came back; only the chosen book's stake is still out.
+    const spent = before - (await balanceOf(TRADER));
+    expect(spent).toBeGreaterThan(0);
+    expect(spent).toBeLessThanOrEqual(toUnits(20) + 1);
+  }, 60_000);
+
+  test('the detail read of a 218-option proposal carries every option with its market id', async () => {
+    await seed();
+    const res = await post({ title: 'Game 1, move 30', options: many(218), liquiditySubsidy: 1 });
+    expect(res.status).toBe(201);
+    const body = await detail(res.body.id);
+    const row = (body.markets as Array<{ options: Array<{ id: string; marketId: string }> | null }>).find(
+      m => Array.isArray(m.options),
+    )!;
+    expect(row.options).toHaveLength(218);
+    for (const o of row.options) expect(typeof o.marketId).toBe('string');
+  }, 60_000);
 });
 
 describe('one world per option', () => {

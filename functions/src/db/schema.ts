@@ -1020,7 +1020,7 @@ export const proposals = pgTable(
     decidedPricing: jsonb('decided_pricing').$type<DecidedPair[]>(),
     /**
      * The proposal's options (docs/guides/proposals.md, "More than two
-     * options"): null on the ordinary two-branch proposal, else two to six
+     * options"): null on the ordinary two-branch proposal, else two to 218
      * { id, label }. Its markets carry the option id as `branch`, one world
      * per option and no declined world. Migration 0123.
      */
