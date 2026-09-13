@@ -7537,11 +7537,13 @@ telarchy-chess service publishes (its <code>docs/chess.md</code>, &quot;The feed
 <code>/state</code> carries <code>phase</code> (<code>our-move</code>, <code>their-move</code>, <code>settling</code>,
 <code>seeking</code>), <code>game: { number, id, url, color, opponent: {name, title, rating}, fen, moves (UCI), turn, clocks, status, result }</code>, <code>open: { move, proposal: {id,number,url}, deadline, tradeable, options: [{ id (UCI), san, price, lead, marketId, reason? }] }</code> with one option per legal move, and
 <code>recentDecisions[]</code> (newest first, <code>{ game, move, chosen, san, price, kind }</code>); <code>/games</code> is <code>{ games: [{ number, id, color, opponent, result, plies }] }</code> and <code>/history?game=</code> is <code>{ game, plies: [{ ply, by: &quot;us&quot; | &quot;them&quot;, uci, san, fen, kind?, price? }] }</code>. It is drawn as the snake is,
-in the same slot and the same three layers, with a move list where the
-snake has none (design A of <code>notes/design/chess-moves</code> in the telarchy
-umbrella, Viktor 2026-09-13: &quot;ok do A make sure that it can also be
-selected by doing the move on the chessboard just like with snake
-clicking the arrow&quot;):</p>
+in the same slot and the same layers, the moves drawn on the board and
+nothing around it (Viktor 2026-09-13: &quot;ok do A make sure that it can also
+be selected by doing the move on the chessboard just like with snake
+clicking the arrow&quot;, then &quot;just visualize them on the board in the live
+visualization and no buttons around the board as that is making it just
+messy.. inputing the moves will be done on the board itself by clicking or
+going trough the proposal the official way&quot;):</p>
 <ol>
 <li><strong>The board</strong> (<code>.chess-board</code>, an svg of 64 squares in the floor's
 ground tones) seen from TelarchyBot's side: white at the bottom when
@@ -7572,15 +7574,12 @@ when the last decision belongs to this game), &quot;Settling the game&quot;
 while <code>phase</code> is <code>settling</code>, &quot;Waiting for the next game&quot; between games,
 &quot;Loading&quot; before the first read and &quot;Feed unavailable&quot; after a failed
 one.</li>
-<li><strong>The moves, highest price first</strong> (<code>.chess-moves</code>), only while a move
-is open: a caption &quot;N moves, highest price first&quot;, the twelve highest
-as rows (rank, piece and SAN, a bar the length of the price within the
-list's range, the price to one decimal), the leader's row in the
-approved green with &quot;· leads&quot;, then &quot;The other M&quot; in a compact grid of
-SAN and price. An unpriced option sorts last and reads &quot;open&quot;. Every
-row and cell is a link opening that option's world, as its arrow does.
-Beside the board when the slot is wide enough for both, under it
-otherwise.</li>
+<li><strong>Nothing around the board.</strong> No list of moves and no button or link
+beside or under the board: a move is made on the board or on its
+proposal. <strong>The prices are on the board</strong>: while a piece is picked up,
+each square it can reach carries that move's price (the leader's in the
+approved green, an unpriced one &quot;open&quot;), so a reader sees what the market
+thinks of every move of the piece before pressing one.</li>
 </ol>
 <p>The replay row is the snake's (picker, scrubber, play, speed, LIVE): the
 picker lists the games newest first as &quot;Game 3 · vs OppBot · lost&quot;, the
@@ -7594,7 +7593,7 @@ reports the open move's option prices by proposal id for the floor's own
 cells, and a new open proposal (or none) reloads the floor, as the snake's
 step does.</p>
 <p><strong>A price on the live view is the book's own, read once a second.</strong> The
-snake's arrows and the chess arrows, move list and next-move line take
+snake's arrows and the chess arrows, target prices and next-move line take
 every option's price from the floor's one-second prices poll (<code>GET /api/marketplace/:id/prices</code>, &quot;The floor's live poll&quot;), matched by the
 option's <code>marketId</code> in the feed; the feed's own <code>price</code> stands only for a
 book the poll has not answered yet. A lead is recomputed from those prices

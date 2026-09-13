@@ -278,37 +278,65 @@ describe('an arrow never takes the click meant for the board', () => {
   });
 });
 
+describe('nothing around the board', () => {
+  test('no move list and no link or button beside or under the board, only the replay row', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    expect(container.querySelector('.chess-moves')).toBeNull();
+    const main = container.querySelector('.chess-main') as HTMLElement;
+    const outside = [...main.querySelectorAll('a, button')].filter(el => !el.closest('.chess-board'));
+    expect(outside).toHaveLength(0);
+  });
+
+  test("a picked-up piece's squares carry their moves' prices, the leader's marked", async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    fireEvent.click(sq(container, 'e1'));
+    const labels = Object.fromEntries(
+      [...container.querySelectorAll('.chess-target-price')].map(t => [t.getAttribute('data-square'), t]),
+    );
+    expect(Object.keys(labels).sort()).toEqual(['d2', 'e2', 'f1', 'g1']);
+    expect(labels.g1.textContent).toBe('56.4');
+    expect(labels.g1.classList.contains('is-leader')).toBe(true);
+    expect(labels.f1.textContent).toBe('41.3');
+    expect(labels.f1.classList.contains('is-leader')).toBe(false);
+  });
+
+  test('an unpriced move reads open on its square', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    fireEvent.click(sq(container, 'h1'));
+    expect(container.querySelector('.chess-target-price[data-square="g1"]')?.textContent).toBe('open');
+  });
+});
+
 describe("a price on the live view is the book's own, read once a second", () => {
   const book = (marketId: string, consensus: number) => ({ marketId, consensus, probability: null, pool: 0, tradeCount: 1 });
 
-  test('the floor prices replace the feed prices: the leader, its arrow, its row and the next-move line follow them', async () => {
+  test('the floor prices replace the feed prices: the leader, its arrow, its square price and the next-move line follow them', async () => {
     const books = new Map([['m-c3d4', book('m-c3d4', 70)]]);
     const { container } = renderLive({ books });
-    await waitFor(() => expect(container.querySelectorAll('.chess-move-row').length).toBe(12));
-    const rows = [...container.querySelectorAll('.chess-move-row')];
-    expect(rows[0].textContent).toContain('cxd4');
-    expect(rows[0].textContent).toContain('70.0');
-    expect(rows[0].textContent).toContain('leads');
+    await waitFor(() => expect(nextLine(container)).toMatch(/^Next move: cxd4 in /));
     const by = Object.fromEntries(arrows(container).map(a => [a.getAttribute('data-option'), a]));
     expect(opacityOf(by.c3d4)).toBeCloseTo(0.9, 5);
-    expect(nextLine(container)).toMatch(/^Next move: cxd4 in /);
+    fireEvent.click(sq(container, 'c3'));
+    expect(container.querySelector('.chess-target-price[data-square="d4"]')?.textContent).toBe('70.0');
   });
 
   test('a new price moves the board at once, without waiting for the next feed read', async () => {
-    const onQuotes = vi.fn();
     const { container, rerender } = render(
       <MemoryRouter>
-        <ChessLive slug="chess" onQuotes={onQuotes} books={new Map()} />
+        <ChessLive slug="chess" books={new Map()} />
       </MemoryRouter>,
     );
-    await waitFor(() => expect(container.querySelectorAll('.chess-move-row').length).toBe(12));
+    await waitFor(() => expect(nextLine(container)).toMatch(/^Next move: O-O in /));
     const reads = vi.mocked(api.getLiveState).mock.calls.length;
     rerender(
       <MemoryRouter>
-        <ChessLive slug="chess" onQuotes={onQuotes} books={new Map([['m-e4e5', book('m-e4e5', 80)]])} />
+        <ChessLive slug="chess" books={new Map([['m-e4e5', book('m-e4e5', 80)]])} />
       </MemoryRouter>,
     );
-    await waitFor(() => expect(container.querySelector('.chess-move-row')?.textContent).toContain('e5'));
+    await waitFor(() => expect(nextLine(container)).toMatch(/^Next move: e5 in /));
     expect(vi.mocked(api.getLiveState).mock.calls.length).toBe(reads);
   });
 
@@ -318,44 +346,7 @@ describe("a price on the live view is the book's own, read once a second", () =>
         <LiveView kind="chess" slug="chess" books={new Map([['m-f3g5', book('m-f3g5', 90)]])} />
       </MemoryRouter>,
     );
-    await waitFor(() => expect(container.querySelector('.chess-move-row')?.textContent).toContain('Ng5'));
-  });
-});
-
-describe('the moves, highest price first', () => {
-  test('twelve rows by price, the leader marked, the rest in the compact grid, unpriced last as open', async () => {
-    const { container } = renderLive();
-    await waitFor(() => expect(container.querySelectorAll('.chess-move-row').length).toBe(12));
-    const rows = [...container.querySelectorAll('.chess-move-row')];
-    expect(rows[0].textContent).toContain('O-O');
-    expect(rows[0].textContent).toContain('56.4');
-    expect(rows[0].textContent).toContain('leads');
-    expect(rows[0].classList.contains('is-leader')).toBe(true);
-    expect(rows[1].textContent).toContain('cxd4');
-    expect(container.querySelector('.chess-moves')?.textContent).toContain('25 moves, highest price first');
-    const rest = [...container.querySelectorAll('.chess-move-cell')];
-    expect(rest).toHaveLength(13);
-    expect(container.querySelector('.chess-moves')?.textContent).toContain('The other 13');
-    expect(rest[rest.length - 1].textContent).toContain('Rg1');
-    expect(rest[rest.length - 1].textContent).toContain('open');
-  });
-
-  test('a row and a cell each open their option', async () => {
-    const onPickProposal = vi.fn();
-    const { container } = renderLive({ onPickProposal });
-    await waitFor(() => expect(container.querySelectorAll('.chess-move-row').length).toBe(12));
-    fireEvent.click(container.querySelectorAll('.chess-move-row')[1]);
-    expect(onPickProposal).toHaveBeenLastCalledWith(412, 'c3d4');
-    const cells = container.querySelectorAll('.chess-move-cell');
-    fireEvent.click(cells[cells.length - 1]);
-    expect(onPickProposal).toHaveBeenLastCalledWith(412, 'h1g1');
-  });
-
-  test('no list while no move is open', async () => {
-    vi.mocked(api.getLiveState).mockImplementation(async () => h.state({ phase: 'their-move', open: null }) as never);
-    const { container } = renderLive();
-    await waitFor(() => expect(sq(container, 'e1')).toBeTruthy());
-    expect(container.querySelector('.chess-moves')).toBeNull();
+    await waitFor(() => expect(nextLine(container)).toMatch(/^Next move: Ng5 in /));
   });
 });
 

@@ -18,7 +18,6 @@ import { leadOpacities } from './SnakeLive';
 
 const POLL_MS = 2_000;
 const S = 60;
-const TOP_ROWS = 12;
 const FILES = 'abcdefgh';
 
 type Color = 'white' | 'black';
@@ -184,7 +183,7 @@ function Board({
   color: Color;
   last: string | null;
   arrows: Arrow[];
-  targets: string[];
+  targets: Array<{ square: string; text: string; leader: boolean }>;
   selected: string | null;
   onSquare: (square: string) => void;
   onPick?: (n: number, option?: string) => void;
@@ -240,9 +239,32 @@ function Board({
           </text>
         );
       })}
-      {targets.map(sq => {
-        const [cx, cy] = centre(sq, color);
-        return <circle key={`t-${sq}`} className="chess-target" data-square={sq} cx={cx} cy={cy} r={S * 0.14} />;
+      {targets.map(t => {
+        const [cx, cy] = centre(t.square, color);
+        return (
+          <g key={`t-${t.square}`} className="chess-target-mark">
+            <circle className="chess-target" data-square={t.square} cx={cx} cy={cy - S * 0.08} r={S * 0.12} />
+            {/* The price is on the board (docs/ui-conventions.md, "The chess feed", item 3). */}
+            <rect
+              className={`chess-target-bg${t.leader ? ' is-leader' : ''}`}
+              x={cx - S * 0.42}
+              y={cy + S * 0.1}
+              width={S * 0.84}
+              height={S * 0.3}
+              rx={S * 0.06}
+            />
+            <text
+              className={`chess-target-price${t.leader ? ' is-leader' : ''}`}
+              data-square={t.square}
+              x={cx}
+              y={cy + S * 0.32}
+              textAnchor="middle"
+              fontSize={S * 0.21}
+            >
+              {t.text}
+            </text>
+          </g>
+        );
       })}
       {FILES.split('').map((f, i) => (
         <text
@@ -524,7 +546,17 @@ export function ChessLive({
         arrows: liveArrows(),
       };
 
-  const targets = open && selected ? [...new Set(open.options.filter(o => o.id.startsWith(selected)).map(o => o.id.slice(2, 4)))] : [];
+  const targetSquares = open && selected ? [...new Set(open.options.filter(o => o.id.startsWith(selected)).map(o => o.id.slice(2, 4)))] : [];
+  const boardLeader = open ? leaderOf(openOptions) : null;
+  const targets = targetSquares.map(square => {
+    const candidates = openOptions.filter(o => selected !== null && o.id.startsWith(`${selected}${square}`));
+    const move = candidates.find(o => o.id.endsWith('q')) ?? candidates[0];
+    return {
+      square,
+      text: move && priced(move) ? move.price.toFixed(1) : 'open',
+      leader: !!move && boardLeader?.id === move.id,
+    };
+  });
 
   const pick = (option: string) => {
     if (!open) return;
@@ -536,7 +568,7 @@ export function ChessLive({
       setSelected(null);
       return;
     }
-    if (selected && targets.includes(sq)) {
+    if (selected && targetSquares.includes(sq)) {
       const candidates = open.options.filter(o => o.id.startsWith(`${selected}${sq}`));
       const chosen = candidates.find(o => o.id.endsWith('q')) ?? candidates[0];
       setSelected(null);
@@ -583,24 +615,6 @@ export function ChessLive({
     line = { text: 'Waiting for the next game', cls: 'is-idle' };
   }
 
-  /* The moves, highest price first. */
-  const list = open ? ranked(openOptions) : [];
-  const leader = open ? leaderOf(openOptions) : null;
-  const pricedList = list.filter(priced);
-  const lo = pricedList.length ? Math.min(...pricedList.map(o => o.price as number)) : 0;
-  const hi = pricedList.length ? Math.max(...pricedList.map(o => o.price as number)) : 0;
-  const pieces = piecesOf(open ? (game?.fen ?? null) : null);
-  const glyphOf = (o: ChessOption) => {
-    const p = pieces.get(o.id.slice(0, 2));
-    return p ? `${GLYPH[p.toLowerCase()]}︎` : '';
-  };
-  const hrefOf = (o: ChessOption) => (open ? `/${slug}/p/${open.proposal.number}?option=${o.id}` : '#');
-  const onRow = (o: ChessOption) => (e: React.MouseEvent) => {
-    if (!onPickProposal) return;
-    e.preventDefault();
-    pick(o.id);
-  };
-
   const scrubGame = replay?.game ?? games[0]?.number;
   const scrubTotal = scrubGame === undefined ? undefined : plies[scrubGame]?.length;
   const scrubMax = scrubTotal ?? 0;
@@ -627,52 +641,6 @@ export function ChessLive({
             {line.clock !== undefined && <span className="chess-clock">{line.clock}</span>}
           </p>
         </div>
-        {open && list.length > 0 && (
-          <div className="chess-moves">
-            <div className="chess-moves-cap">
-              <span>{`${list.length} moves, highest price first`}</span>
-              <span>Price</span>
-            </div>
-            {list.slice(0, TOP_ROWS).map((o, i) => {
-              const isLeader = leader?.id === o.id;
-              const width = priced(o) && hi > lo ? 8 + 92 * ((o.price - lo) / (hi - lo)) : priced(o) ? 100 : 0;
-              return (
-                <a
-                  key={o.id}
-                  className={`chess-move-row${isLeader ? ' is-leader' : ''}`}
-                  href={hrefOf(o)}
-                  onClick={onRow(o)}
-                >
-                  <span className="chess-move-rank">{i + 1}</span>
-                  <span className="chess-move-san">
-                    <span className="chess-move-glyph">{glyphOf(o)}</span>
-                    {o.san}
-                    {isLeader ? ' · leads' : ''}
-                  </span>
-                  <span className="chess-move-bar">
-                    <span style={{ width: `${width}%` }} />
-                  </span>
-                  <span className="chess-move-price">{priced(o) ? o.price.toFixed(1) : 'open'}</span>
-                </a>
-              );
-            })}
-            {list.length > TOP_ROWS && (
-              <>
-                <div className="chess-moves-cap is-rest">
-                  <span>{`The other ${list.length - TOP_ROWS}`}</span>
-                </div>
-                <div className="chess-move-grid">
-                  {list.slice(TOP_ROWS).map(o => (
-                    <a key={o.id} className="chess-move-cell" href={hrefOf(o)} onClick={onRow(o)}>
-                      <span>{o.san}</span>
-                      <span className="chess-move-price">{priced(o) ? o.price.toFixed(1) : 'open'}</span>
-                    </a>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        )}
       </div>
       {showReplay && (
         <div className="snake-replay chess-replay" role="group" aria-label="Replay">

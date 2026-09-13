@@ -12579,11 +12579,11 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 
 /* The chess feed (docs/ui-conventions.md, "The chess feed"): the board in the
    floor's ground tones seen from TelarchyBot's side, the three highest prices
-   as arrows in the accent, the snake's next-move line, and the moves ranked
-   by price beside the board when the slot is wide enough, under it otherwise. */
+   as arrows in the accent, the snake's next-move line, and nothing around the
+   board: a picked-up piece's squares carry their moves' prices. */
 .chess-live { display: flex; flex-direction: column; gap: 0.7rem; }
 .chess-main { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.9rem 1.2rem; min-width: 0; }
-.chess-board-col { flex: 1 1 300px; max-width: 460px; display: flex; flex-direction: column; gap: 0.7rem; min-width: 0; }
+.chess-board-col { flex: 1 1 300px; max-width: 560px; display: flex; flex-direction: column; gap: 0.7rem; min-width: 0; }
 .chess-board-box { width: 100%; max-width: 100%; }
 .chess-board { display: block; width: 100%; height: auto; aspect-ratio: 1; max-width: 100%; border: 1px solid var(--border-color); border-radius: 6px; user-select: none; }
 .chess-square { cursor: default; }
@@ -12604,23 +12604,11 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .chess-clock { color: var(--accent); }
 .chess-next.is-decided, .chess-next.is-default, .chess-next.is-replay { color: var(--text-secondary); }
 .chess-next.is-idle { color: var(--text-tertiary); font-weight: 500; }
-.chess-moves { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; }
-.chess-moves-cap { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0 0.6rem 0.4rem; border-bottom: 1px solid var(--border-color); font-family: var(--font-mono); font-size: 0.68rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); }
-.chess-moves-cap.is-rest { margin-top: 0.8rem; }
-.chess-move-row { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr) minmax(40px, 30%) 3.2rem; align-items: center; gap: 0.5rem; min-height: 44px; padding: 0 0.6rem; border-bottom: 1px solid var(--border-color); color: var(--text-primary); text-decoration: none; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.chess-move-row:hover { background: var(--bg-secondary); color: var(--text-primary); }
-.chess-move-row.is-leader { background: color-mix(in srgb, var(--higher) 12%, transparent); color: var(--higher); }
-.chess-move-rank { font-size: 0.7rem; color: var(--text-tertiary); }
-.chess-move-san { display: flex; align-items: center; gap: 0.4rem; font-size: 0.95rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chess-move-glyph { font-family: 'DejaVu Sans', 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols 2', serif; color: var(--text-secondary); font-weight: 400; }
-.chess-move-bar { display: block; height: 6px; }
-.chess-move-bar > span { display: block; height: 6px; border-radius: 3px; background: var(--border-color); }
-.chess-move-row.is-leader .chess-move-bar > span { background: var(--higher); }
-.chess-move-price { text-align: right; font-weight: 600; font-size: 1rem; }
-.chess-move-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); column-gap: 1rem; }
-.chess-move-cell { display: flex; justify-content: space-between; align-items: center; min-height: 32px; padding: 0 0.5rem; border-bottom: 1px solid var(--border-color); color: var(--text-primary); text-decoration: none; font-family: var(--font-mono); font-size: 0.82rem; }
-.chess-move-cell:hover { background: var(--bg-secondary); color: var(--text-primary); }
-.chess-move-cell .chess-move-price { font-size: 0.82rem; font-weight: 500; color: var(--text-secondary); }
+.chess-target-mark { pointer-events: none; }
+.chess-target-bg { fill: rgba(251, 249, 244, 0.92); stroke: #cfc7b3; stroke-width: 1px; }
+.chess-target-bg.is-leader { fill: var(--higher); stroke: var(--higher); }
+.chess-target-price { font-family: var(--font-mono); font-weight: 700; fill: #17171c; font-variant-numeric: tabular-nums; }
+.chess-target-price.is-leader { fill: #fbf9f4; }
 
 /* ---- The live log (docs/ui-conventions.md, "The live log") ------------ */
 /* The floor's Live column in the left rail from 1500px, and below that the
