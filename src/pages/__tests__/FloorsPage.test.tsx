@@ -1068,3 +1068,261 @@ describe('THE BOARD NEVER ENDS ON AN EMPTY SLOT', () => {
     expect(board.lastElementChild).toHaveClass('mkt-cell--new');
   });
 });
+
+/**
+ * THE FEATURED CARD SHOWS ITS MOST TRADED OPEN PROPOSAL (docs/ui-conventions.md,
+ * "The marketplace"; Viktor 2026-09-13 picked direction 1: "show the current
+ * proposals for the latest move as well.. to demonstrate the mechanism", in
+ * general "the most volumed proposal or whatever that is active").
+ */
+describe('THE FEATURED CARD SHOWS ITS MOST TRADED OPEN PROPOSAL', () => {
+  const inSeconds = (s: number) => new Date(Date.now() + s * 1000).toISOString();
+  const optionProposal = (over: Record<string, unknown> = {}) => ({
+    id: 'p-move-90',
+    number: 6791,
+    title: 'Game 3, attempt 1, move 90',
+    status: 'pending',
+    decideBy: inSeconds(24),
+    closedAt: null,
+    createdAt: new Date(Date.now() - 36_000).toISOString(),
+    options: [
+      { id: 'forward', label: 'Continue forward' },
+      { id: 'left', label: 'Turn left' },
+      { id: 'right', label: 'Turn right' },
+    ],
+    markets: [
+      {
+        metricName: 'Reached length',
+        targetDate: '2026-12',
+        approvedConsensus: null,
+        declinedConsensus: null,
+        delta: 2.98,
+        options: [
+          {
+            id: 'forward',
+            label: 'Continue forward',
+            marketId: 'mf',
+            consensus: 14.02,
+            liquidity: 800,
+            pool: 1250,
+            traders: 1,
+            volume: 250,
+            delta: -2.98,
+          },
+          {
+            id: 'left',
+            label: 'Turn left',
+            marketId: 'ml',
+            consensus: 17,
+            liquidity: 800,
+            pool: 1091,
+            traders: 1,
+            volume: 91,
+            delta: 2.98,
+          },
+          {
+            id: 'right',
+            label: 'Turn right',
+            marketId: 'mr',
+            consensus: 14.02,
+            liquidity: 800,
+            pool: 1250,
+            traders: 1,
+            volume: 250,
+            delta: -2.98,
+          },
+        ],
+      },
+    ],
+    ...over,
+  });
+  const snakeRow = {
+    workspaceId: 'ws-snake',
+    slug: 'snake',
+    name: 'Snake',
+    description: 'A snake game.',
+    proposalStats: { pending: 1 },
+    volumePerHour: 15_000,
+  };
+  const snakeFloorWith = (proposals: unknown[]) => ({
+    participantCount: 23,
+    tradesThisWeek: 2548,
+    liveFeed: { kind: 'snake', url: 'https://snake.telarchy.com' },
+    markets: [
+      {
+        marketId: 'm-snake',
+        metricName: 'Reached length',
+        marketTitle: 'What length will I reach on this attempt?',
+        consensus: 30,
+        targetDate: '2026-12',
+        pool: 3000,
+      },
+    ],
+    marketHistory: [],
+    marketHistoryMarketId: 'm-snake',
+    proposals,
+  });
+  const serve = (rows: unknown[], floors: Record<string, unknown>) => {
+    vi.mocked(api.getPublicWorkspaces).mockResolvedValue(rows as never);
+    vi.mocked(api.getMarketplaceWorkspace).mockImplementation(
+      async (slug: string) => (floors[slug] ?? payload) as never,
+    );
+  };
+  const deciding = async () => {
+    const card = await screen.findByRole('region', { name: /most traded now/i });
+    return within(card).findByRole('group', { name: /deciding now/i });
+  };
+
+  test("the snake's current move shows under the number: each option with its price and impact, the leader marked, rows linking to the proposal", async () => {
+    serve([{ ...listing, volumePerHour: 1 }, snakeRow], { snake: snakeFloorWith([optionProposal()]) });
+    renderPage();
+    const block = await deciding();
+    expect(within(block).getByText(/deciding now/i)).toBeInTheDocument();
+    expect(within(block).getByText('Game 3, attempt 1, move 90')).toBeInTheDocument();
+    expect(within(block).getByText('#6791')).toBeInTheDocument();
+    const rows = within(block).getAllByRole('link');
+    expect(rows.map(r => r.textContent)).toEqual([
+      expect.stringMatching(/Continue forward.*14\.0.*-3\.0/),
+      expect.stringMatching(/Turn left.*leads.*17\.0.*\+3\.0/),
+      expect.stringMatching(/Turn right.*14\.0.*-3\.0/),
+    ]);
+    expect(rows[1]).toHaveClass('is-leader');
+    expect(rows[0]).not.toHaveClass('is-leader');
+    for (const r of rows) expect(r).toHaveAttribute('href', '/snake#proposal=p-move-90');
+    expect(
+      within(block).getByText(/Each option is priced by what traders forecast it does to Reached length\./),
+    ).toBeInTheDocument();
+  });
+
+  test('the countdown to the decision ticks beside the label', async () => {
+    serve([{ ...listing, volumePerHour: 1 }, snakeRow], { snake: snakeFloorWith([optionProposal()]) });
+    renderPage();
+    const block = await deciding();
+    expect(within(block).getByText(/decides in 0:2\d/)).toBeInTheDocument();
+  });
+
+  test('a tie at the top marks no one', async () => {
+    const tied = optionProposal();
+    (tied.markets[0].options as Array<{ consensus: number }>)[1].consensus = 14.02;
+    serve([{ ...listing, volumePerHour: 1 }, snakeRow], { snake: snakeFloorWith([tied]) });
+    renderPage();
+    const block = await deciding();
+    expect(within(block).queryByText('leads')).toBeNull();
+    expect(block.querySelector('.is-leader')).toBeNull();
+  });
+
+  test('the most traded open proposal wins over a newer quieter one, and a decided or closed one never shows', async () => {
+    const busy = optionProposal({
+      id: 'p-busy',
+      number: 1,
+      title: 'Busy one',
+      createdAt: new Date(Date.now() - 600_000).toISOString(),
+    });
+    const quiet = optionProposal({ id: 'p-quiet', number: 2, title: 'Quiet newer one' });
+    (quiet.markets[0].options as Array<{ volume: number }>).forEach(o => {
+      o.volume = 1;
+    });
+    const decided = optionProposal({ id: 'p-done', number: 3, title: 'Decided one', status: 'approved' });
+    (decided.markets[0].options as Array<{ volume: number }>).forEach(o => {
+      o.volume = 99_999;
+    });
+    const closed = optionProposal({
+      id: 'p-closed',
+      number: 4,
+      title: 'Closed one',
+      closedAt: new Date().toISOString(),
+    });
+    (closed.markets[0].options as Array<{ volume: number }>).forEach(o => {
+      o.volume = 99_999;
+    });
+    serve([{ ...listing, volumePerHour: 1 }, snakeRow], { snake: snakeFloorWith([decided, closed, quiet, busy]) });
+    renderPage();
+    const block = await deciding();
+    expect(within(block).getByText('Busy one')).toBeInTheDocument();
+  });
+
+  test('equal volume goes to the newest', async () => {
+    const older = optionProposal({
+      id: 'p-old',
+      number: 1,
+      title: 'Older',
+      createdAt: new Date(Date.now() - 600_000).toISOString(),
+    });
+    const newer = optionProposal({
+      id: 'p-new',
+      number: 2,
+      title: 'Newer',
+      createdAt: new Date(Date.now() - 1_000).toISOString(),
+    });
+    serve([{ ...listing, volumePerHour: 1 }, snakeRow], { snake: snakeFloorWith([older, newer]) });
+    renderPage();
+    const block = await deciding();
+    expect(within(block).getByText('Newer')).toBeInTheDocument();
+  });
+
+  test('an approve or decline proposal shows If approved and If declined with the impact of approving', async () => {
+    const pairFloor = {
+      ...payload,
+      proposals: [
+        {
+          id: 'p-reviews',
+          number: 12,
+          title: 'Answer every negative Steam review',
+          status: 'pending',
+          decideBy: inSeconds(2 * 86_400 + 6 * 3_600 + 30),
+          closedAt: null,
+          createdAt: new Date().toISOString(),
+          options: null,
+          markets: [
+            {
+              metricName: 'LookPilot revenue (monthly, USD)',
+              targetDate: '2026-09',
+              approvedConsensus: 8507.76,
+              declinedConsensus: 6668.79,
+              delta: 1838.97,
+              options: null,
+              approvedVolume: 56,
+              declinedVolume: 0,
+            },
+          ],
+        },
+      ],
+    };
+    serve(
+      [
+        { ...listing, volumePerHour: 40 },
+        { ...snakeRow, volumePerHour: 1 },
+      ],
+      { lookpilot: pairFloor, snake: snakeFloorWith([]) },
+    );
+    renderPage();
+    const block = await deciding();
+    const rows = within(block).getAllByRole('link');
+    expect(rows.map(r => r.textContent)).toEqual([
+      expect.stringMatching(/If approved.*\$8,508/),
+      expect.stringMatching(/If declined.*\$6,669/),
+    ]);
+    expect(rows[0]).toHaveClass('is-leader');
+    expect(within(block).getByText('+$1,839')).toBeInTheDocument();
+    expect(within(block).getByText(/decides in 2d 6h/)).toBeInTheDocument();
+    for (const r of rows) expect(r).toHaveAttribute('href', '/lookpilot#proposal=p-reviews');
+  });
+
+  test('a featured floor with no open proposal shows no deciding block', async () => {
+    serve([{ ...listing, volumePerHour: 1 }, snakeRow], {
+      snake: snakeFloorWith([optionProposal({ status: 'declined' })]),
+    });
+    renderPage();
+    const card = await screen.findByRole('region', { name: /most traded now/i });
+    await waitFor(() => expect(within(card).getByText('Snake')).toBeInTheDocument());
+    expect(within(card).queryByRole('group', { name: /deciding now/i })).toBeNull();
+  });
+
+  test('the card still never says bet or floor', async () => {
+    serve([{ ...listing, volumePerHour: 1 }, snakeRow], { snake: snakeFloorWith([optionProposal()]) });
+    const { container } = renderPage();
+    await deciding();
+    expect(container.textContent).not.toMatch(/\bbet\b/i);
+    expect(container.textContent).not.toMatch(/floor/i);
+  });
+});
