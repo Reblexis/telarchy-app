@@ -2721,7 +2721,8 @@ going trough the proposal the official way"):
 
 1. **The board** (`.chess-board`, an svg of 64 squares in the floor's
    ground tones) seen from TelarchyBot's side: white at the bottom when
-   `game.color` is white, black at the bottom otherwise. The pieces are
+   `game.color` is white, black at the bottom otherwise. a1 is a dark
+   square and h1 a light one, as on every chessboard. The pieces are
    the position in `game.fen`; the two squares of the last move
    (`game.moves`' last) are tinted. **Arrows for the three highest
    prices** of an open move (`.chess-arrow`), shaded as the snake's
