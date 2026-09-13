@@ -246,6 +246,38 @@ describe('a move made on the board opens its option', () => {
   });
 });
 
+describe('an arrow never takes the click meant for the board', () => {
+  // Reported on the beta, 2026-09-13: a real click on a piece under the leader's arrow tail could not reach the square.
+  test("an arrow's pressable area starts outside the square it leaves", async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    const board = container.querySelector('.chess-board') as SVGSVGElement;
+    const side = Number(board.getAttribute('viewBox')?.split(' ')[2]) / 8;
+    for (const hit of [...container.querySelectorAll('.chess-arrow-hit')]) {
+      const link = hit.closest('a') as Element;
+      const from = (link.getAttribute('href')?.match(/option=([a-h][1-8])/) ?? [])[1] as string;
+      const rect = sq(container, from);
+      const cx = Number(rect.getAttribute('x')) + side / 2;
+      const cy = Number(rect.getAttribute('y')) + side / 2;
+      const m = /^M\s*([\d.]+)\s+([\d.]+)/.exec(hit.getAttribute('d') ?? '') as RegExpExecArray;
+      const dist = Math.hypot(Number(m[1]) - cx, Number(m[2]) - cy);
+      const halfWidth = Number(hit.getAttribute('stroke-width')) / 2;
+      // The hit stroke's rounded cap reaches halfWidth behind its start: all of it outside the square's half side.
+      expect(dist - halfWidth).toBeGreaterThanOrEqual(side / 2);
+    }
+  });
+
+  test('while a piece is picked up the arrows take no clicks', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    for (const a of container.querySelectorAll('.chess-arrow-link')) expect((a as SVGElement).style.pointerEvents).not.toBe('none');
+    fireEvent.click(sq(container, 'e1'));
+    for (const a of container.querySelectorAll('.chess-arrow-link')) expect((a as SVGElement).style.pointerEvents).toBe('none');
+    fireEvent.click(sq(container, 'e1'));
+    for (const a of container.querySelectorAll('.chess-arrow-link')) expect((a as SVGElement).style.pointerEvents).not.toBe('none');
+  });
+});
+
 describe('the moves, highest price first', () => {
   test('twelve rows by price, the leader marked, the rest in the compact grid, unpriced last as open', async () => {
     const { container } = renderLive();

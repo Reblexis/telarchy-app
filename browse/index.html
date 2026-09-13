@@ -7539,7 +7539,11 @@ option) selects it and marks each square it can move to with a dot;
 pressing one of those squares opens that move's world exactly as its
 arrow does (a promotion opens the queen's); pressing anywhere else
 clears the selection. Pieces that cannot move, and every piece while no
-move is open, do nothing. A new position draws at once; nothing is ever
+move is open, do nothing. <strong>An arrow never takes the click meant for the
+board</strong>: its pressable area starts outside the square it leaves, so a
+piece under an arrow's tail can still be picked up, and while a piece is
+picked up the arrows take no clicks at all, so the square pressed is the
+move made. A new position draws at once; nothing is ever
 painted outside the board.</li>
 <li><strong>The next move</strong> (<code>.chess-next</code>), the snake's line in the snake's
 type: &quot;Next move: O-O in 0:31&quot; (the leader's SAN, counting down to

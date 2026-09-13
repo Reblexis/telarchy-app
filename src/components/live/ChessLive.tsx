@@ -153,6 +153,21 @@ function arrowPath(from: string, to: string, color: Color): string {
   ].join(' ');
 }
 
+/** The arrow's pressable stroke: as wide as half a square, starting far enough past its own
+ *  square's edge that even its rounded cap stays off that square, so the piece under the tail
+ *  can always be picked up (docs/ui-conventions.md, "The chess feed"). */
+const HIT_WIDTH = S * 0.5;
+function hitPath(from: string, to: string, color: Color): string {
+  const [x1, y1] = centre(from, color);
+  const [x2, y2] = centre(to, color);
+  const d = Math.hypot(x2 - x1, y2 - y1) || 1;
+  const ux = (x2 - x1) / d;
+  const uy = (y2 - y1) / d;
+  const start = Math.min(S / 2 + HIT_WIDTH / 2 + 1, d - S * 0.18);
+  const n = (v: number) => Number(v.toFixed(2));
+  return `M ${n(x1 + ux * start)} ${n(y1 + uy * start)} L ${n(x2 - ux * S * 0.18)} ${n(y2 - uy * S * 0.18)}`;
+}
+
 type Arrow = { option: string; from: string; to: string; opacity: number; href?: string; number?: number };
 
 function Board({
@@ -261,6 +276,8 @@ function Board({
             key={a.option}
             className="chess-arrow-link"
             href={a.href}
+            /* A piece is picked up: the square pressed next is the move, never an arrow. */
+            style={selected !== null ? { pointerEvents: 'none' } : undefined}
             aria-label={`${a.option}: open its world on proposal #${a.number}`}
             onClick={e => {
               if (!onPick) return;
@@ -268,7 +285,14 @@ function Board({
               onPick(a.number as number, a.option);
             }}
           >
-            <path className="chess-arrow-hit" d={d} fill="none" stroke="transparent" strokeWidth={S * 0.5} strokeLinecap="round" />
+            <path
+              className="chess-arrow-hit"
+              d={hitPath(a.from, a.to, color)}
+              fill="none"
+              stroke="transparent"
+              strokeWidth={HIT_WIDTH}
+              strokeLinecap="round"
+            />
             {mark}
           </a>
         );
