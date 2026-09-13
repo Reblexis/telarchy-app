@@ -134,17 +134,33 @@ export function currentStoreName(): 'beta' | 'production' {
 export function captureQueries(): { queries: string[]; stop(): void } {
   const queries: string[] = [];
   const original = client.query.bind(client);
+  const originalTransaction = client.transaction.bind(client);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (client as any).query = (text: string, ...rest: unknown[]) => {
     queries.push(text);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (original as any)(text, ...rest);
   };
+  // A transaction runs its statements on the client PGlite hands its callback,
+  // not on `client.query`, so a lock taken inside one is captured here.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (client as any).transaction = (fn: (tx: any) => Promise<unknown>) =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    originalTransaction(async (tx: any) => {
+      const txQuery = tx.query.bind(tx);
+      tx.query = (text: string, ...rest: unknown[]) => {
+        queries.push(text);
+        return txQuery(text, ...rest);
+      };
+      return fn(tx);
+    });
   return {
     queries,
     stop() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (client as any).query = original;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (client as any).transaction = originalTransaction;
     },
   };
 }

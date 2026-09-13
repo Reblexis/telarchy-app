@@ -26,6 +26,7 @@ export const ERROR_CODES = [
   'insufficient_balance',
   /** Selling more shares than the position holds. */
   'insufficient_shares',
+  'crosses_own_order',
   /** Priced out at zero: the budget cannot buy a share at this curve. */
   'trade_too_small',
   /** No such market in this workspace. */

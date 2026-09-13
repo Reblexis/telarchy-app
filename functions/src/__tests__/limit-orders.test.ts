@@ -44,8 +44,8 @@ import { fromUnits, toUnits } from '../lib/validation';
 import { authMiddleware } from '../middleware/auth';
 import { predictionsRouter } from '../routes/predictions';
 import { voidMarket } from '../services/markets';
-import { sweepLimitOrders } from '../services/trading';
-import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import { releaseLimitOrdersForMarket, sweepLimitOrders } from '../services/trading';
+import { captureQueries, db, ensureMigrations, truncateAll } from './harness/test-db';
 
 const app = express();
 app.use(express.json());
@@ -781,5 +781,178 @@ describe('selling at a price: cancelling, closing, listing', () => {
     await as(RESTER).place({ direction: 'higher', limitValue: 40, budgetCredits: 100 });
     const res = await as(RESTER).list();
     expect(res.body[0]).toMatchObject({ side: 'buy', shares: null, filledShares: null, remainingShares: null });
+  });
+});
+
+/**
+ * Your own orders never trade against each other (docs/limit-orders.md). A
+ * higher buy and a lower sell pull the price up; a lower buy and a higher
+ * sell pull it down. Two of one participant's orders pulling opposite ways,
+ * with the up-pull's limit above the down-pull's, are both crossed at every
+ * price between, and each fill crosses the other again. On the snake on
+ * 2026-09-13 one such pair filled 885 times in 55 seconds.
+ */
+describe('your own orders never trade against each other', () => {
+  test('an order that would trade against your own resting order is refused, and nothing is reserved or traded', async () => {
+    await seed();
+    const resting = await as(RESTER).place({ direction: 'higher', limitValue: 45, budgetCredits: 100 });
+    expect(resting.status).toBe(201);
+    expect(resting.body.status).toBe('open');
+
+    // A lower buy over 40 is crossed at 50 and would fill down to 40, through the higher buy under 45.
+    const res = await as(RESTER).place({ direction: 'lower', limitValue: 40, budgetCredits: 100 });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('crosses_own_order');
+    expect(res.body.orderId).toBe(resting.body.id);
+
+    expect(await balanceOf(RESTER)).toBeCloseTo(900, 5);
+    expect(await priceOf()).toBeCloseTo(50, 5);
+    expect(await db.select().from(limitOrders)).toHaveLength(1);
+    expect(await heldShares(RESTER, 'lower')).toBe(0);
+    expect(await heldShares(RESTER, 'higher')).toBe(0);
+  });
+
+  test('a higher buy above your own resting lower buy is refused', async () => {
+    await seed();
+    const resting = await as(RESTER).place({ direction: 'lower', limitValue: 55, budgetCredits: 100 });
+    expect(resting.body.status).toBe('open');
+    const res = await as(RESTER).place({ direction: 'higher', limitValue: 60, budgetCredits: 100 });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('crosses_own_order');
+    expect(await balanceOf(RESTER)).toBeCloseTo(900, 5);
+  });
+
+  test('a higher sell below your own resting higher buy is refused', async () => {
+    const held = await holding('higher');
+    const resting = await as(RESTER).place({ direction: 'higher', limitValue: 60, budgetCredits: 100 });
+    expect(resting.body.status).toBe('open');
+    const before = await priceOf();
+    const res = await as(RESTER).place({ side: 'sell', direction: 'higher', limitValue: 55, shares: held / 2 });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('crosses_own_order');
+    expect(await heldShares(RESTER, 'higher')).toBeCloseTo(held, 6);
+    expect(await priceOf()).toBeCloseTo(before, 6);
+  });
+
+  test('a lower sell above your own resting lower buy is refused', async () => {
+    const held = await holding('lower');
+    const resting = await as(RESTER).place({ direction: 'lower', limitValue: 40, budgetCredits: 100 });
+    expect(resting.body.status).toBe('open');
+    const res = await as(RESTER).place({ side: 'sell', direction: 'lower', limitValue: 45, shares: held / 2 });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('crosses_own_order');
+    expect(await heldShares(RESTER, 'lower')).toBeCloseTo(held, 6);
+  });
+
+  test('your orders pulling opposite ways with the limits apart both rest', async () => {
+    await seed();
+    expect((await as(RESTER).place({ direction: 'higher', limitValue: 45, budgetCredits: 100 })).status).toBe(201);
+    expect((await as(RESTER).place({ direction: 'lower', limitValue: 55, budgetCredits: 100 })).status).toBe(201);
+  });
+
+  test('equal limits do not conflict', async () => {
+    await seed();
+    expect((await as(RESTER).place({ direction: 'higher', limitValue: 45, budgetCredits: 100 })).status).toBe(201);
+    expect((await as(RESTER).place({ direction: 'lower', limitValue: 45, budgetCredits: 100 })).status).toBe(201);
+  });
+
+  test('your orders pulling the same way never conflict', async () => {
+    await seed();
+    expect((await as(RESTER).place({ direction: 'higher', limitValue: 45, budgetCredits: 100 })).status).toBe(201);
+    expect((await as(RESTER).place({ direction: 'higher', limitValue: 40, budgetCredits: 100 })).status).toBe(201);
+  });
+
+  test('a cancelled order no longer conflicts', async () => {
+    await seed();
+    const resting = await as(RESTER).place({ direction: 'higher', limitValue: 45, budgetCredits: 100 });
+    expect((await as(RESTER).cancel(resting.body.id)).status).toBe(200);
+    expect((await as(RESTER).place({ direction: 'lower', limitValue: 40, budgetCredits: 100 })).status).toBe(201);
+  });
+
+  test("another participant's crossing order is not refused", async () => {
+    await seed();
+    await as(RESTER).place({ direction: 'higher', limitValue: 45, budgetCredits: 100 });
+    expect((await as(MOVER).place({ direction: 'lower', limitValue: 40, budgetCredits: 100 })).status).toBe(201);
+  });
+
+  test('two opposing orders of one participant do not trade back and forth hundreds of times', async () => {
+    // A pair that rests from before the rule existed: the fill pass itself must not loop on it.
+    await seed();
+    await as(RESTER).place({ direction: 'higher', limitValue: 45, budgetCredits: 300 });
+    await db.insert(limitOrders).values({
+      id: 'order-pre-rule-lower',
+      workspaceId: WS,
+      marketId: MARKET,
+      agentId: RESTER,
+      side: 'buy',
+      direction: 'lower',
+      limitValue: 40,
+      budgetCredits: 300,
+      filledCredits: 0,
+      status: 'open',
+    });
+    await db
+      .update(agents)
+      .set({ balance: toUnits(400) })
+      .where(eq(agents.id, RESTER));
+
+    const r = await sweepLimitOrders();
+    expect(r.fills).toBeLessThanOrEqual(2);
+  });
+});
+
+describe('the fill pass fills each order once per pass', () => {
+  test("two participants' crossing orders each fill once per pass, not back and forth until a budget runs out", async () => {
+    await seed();
+    await as(RESTER).place({ direction: 'higher', limitValue: 45, budgetCredits: 500 });
+    // Fills at once down to 40, which fills RESTER back up to 45 and leaves MOVER's order crossed.
+    const placed = await as(MOVER).place({ direction: 'lower', limitValue: 40, budgetCredits: 500 });
+    expect(placed.status).toBe(201);
+
+    const r = await sweepLimitOrders();
+    expect(r.fills).toBe(2);
+    const orders = await db.select().from(limitOrders);
+    for (const o of orders) expect(o.status).toBe('open');
+  });
+});
+
+describe('the market is locked before its orders', () => {
+  function firstLock(queries: string[], table: string): number {
+    return queries.findIndex(q => new RegExp(`from "${table}"[\\s\\S]*for update`, 'i').test(q));
+  }
+
+  test('the sweep locks the market before any resting order, so a decision voiding the book cannot deadlock against it', async () => {
+    await seed();
+    await as(RESTER).place({ direction: 'higher', limitValue: 45, budgetCredits: 100 });
+    const capture = captureQueries();
+    try {
+      await sweepLimitOrders();
+    } finally {
+      capture.stop();
+    }
+    const market = firstLock(capture.queries, 'markets');
+    const orders = firstLock(capture.queries, 'limit_orders');
+    expect(orders).toBeGreaterThanOrEqual(0);
+    expect(market).toBeGreaterThanOrEqual(0);
+    expect(market).toBeLessThan(orders);
+  });
+
+  test('releasing a closing book locks the market before its orders', async () => {
+    await seed();
+    await as(RESTER).place({ direction: 'higher', limitValue: 45, budgetCredits: 100 });
+    const capture = captureQueries();
+    try {
+      await db.transaction(async tx => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await releaseLimitOrdersForMarket(tx as any, MARKET, 'cancelled');
+      });
+    } finally {
+      capture.stop();
+    }
+    const market = firstLock(capture.queries, 'markets');
+    const orders = firstLock(capture.queries, 'limit_orders');
+    expect(orders).toBeGreaterThanOrEqual(0);
+    expect(market).toBeGreaterThanOrEqual(0);
+    expect(market).toBeLessThan(orders);
   });
 });
