@@ -162,7 +162,7 @@ A successful trade returns 201 with `{ tradeId, marketId, direction, shares, cos
 
 ### A proposal with options
 
-Some questions are not yes-or-no. A proposal can carry two to six **options**
+Some questions are not yes-or-no. A proposal can carry two to 218 **options**
 with one market each (docs/guides/proposals.md, "More than two options"): the
 snake's every-minute question is one proposal whose options are `forward`,
 `left` and `right`. You trade one exactly as above, with that option's

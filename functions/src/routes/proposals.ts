@@ -98,7 +98,7 @@ proposalsRouter.post(
       res.status(400).json({ error: 'title is required' });
       return;
     }
-    // Two to six options in place of the approve/decline pair, or none
+    // Two to 218 options in place of the approve/decline pair, or none
     // (docs/guides/proposals.md, "More than two options").
     const parsedOptions = parseProposalOptions(rawOptions);
     if (!parsedOptions.ok) {

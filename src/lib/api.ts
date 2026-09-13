@@ -1837,7 +1837,7 @@ export const api = {
     /** The decision deadline, an ISO instant in the future; the floor's
      *  decisionMinutes from now when omitted. */
     decideBy?: string;
-    /** Two to six options make a proposal with options (docs/guides/
+    /** Two to 218 options make a proposal with options (docs/guides/
      *  proposals.md, "More than two options"); absent is a two-branch one. */
     options?: ProposalOption[];
   }) => request('/api/proposals', { method: 'POST', body: JSON.stringify(body) }),

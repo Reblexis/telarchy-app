@@ -5928,7 +5928,8 @@ today (&quot;· leads&quot; after its label), the others are plain, and the sele
 cell is underlined in the same green its chart line wears. Every priced cell is a button
 (<code>aria-pressed</code>) that puts that option on the chart and the ticket; a press sticks: nothing the page does while it settles (resolving the address to the proposal, loading its books) undoes a pick, however early it was made; an
 unpriced one says &quot;no liquidity&quot; and cannot be pressed, as any pair does.
-Up to six options fit one row on the desktop floor; on a phone the row
+Up to six options fit one row on the desktop floor, and more wrap onto further
+rows in the same order; on a phone the row
 wraps to two cells per line, the last-read cell first. There is no
 declined cell, because there is no declined world.</li>
 <li><strong>The hero is the lead.</strong> The big number is the leader's consensus minus
@@ -8534,7 +8535,7 @@ template.</p>
 <li><strong>Decline</strong> (good faith) - mirror image of approve. The approved-branch markets are voided and refunded; the declined-branch markets stay live and resolve against actual metric, producing a counterfactual calibration record we can score the decision against later.</li>
 <li><strong>Withdraw / decline as spam</strong> - both branches voided, all stakes refunded. Decline as spam additionally charges the proposer the workspace's <code>spamPenalty</code>, capped at their balance, paid to the owner. <code>refund: true</code> on decline voids both branches.</li>
 </ol>
-<p><strong>Options.</strong> A proposal may carry <code>options: [{ id, label }]</code>, two to six, in place of the approve/decline pair: one conditional market per option per active leaf-metric market, <code>branch</code> set to the option id, each opening at the baseline price (less the ask where the metric burns dollars). The headline per option is its consensus minus the best other option, so the leader's number is its lead. <code>POST /api/proposals/:id/approve { option }</code> keeps the chosen option's markets and voids the rest with refund; decline, spam, withdraw, remove and lapse void them all. <code>docs/guides/proposals.md</code>, &quot;More than two options&quot;, is the contract.</p>
+<p><strong>Options.</strong> A proposal may carry <code>options: [{ id, label }]</code>, two to 218, in place of the approve/decline pair: one conditional market per option per active leaf-metric market, <code>branch</code> set to the option id, each opening at the baseline price (less the ask where the metric burns dollars). The headline per option is its consensus minus the best other option, so the leader's number is its lead. <code>POST /api/proposals/:id/approve { option }</code> keeps the chosen option's markets and voids the rest with refund; decline, spam, withdraw, remove and lapse void them all. <code>docs/guides/proposals.md</code>, &quot;More than two options&quot;, is the contract.</p>
 <p>Approve, decline and withdraw act only on a pending proposal; <code>DELETE /api/proposals/:id</code> (remove, <code>manage</code>) acts on any.</p>
 <p>A per-proposal message thread (<code>proposals/{proposalId}/messages</code>) enables proposer-admin negotiation before a decision is made.</p>
 <p>Any participant with <code>manage</code> capability can also refresh conditional markets at any time to pick up newly created base markets.</p>
@@ -9307,7 +9308,7 @@ GET /api/status?trends=1&amp;trendsLimit=5   # fewer history points, fewer token
 <p>Sells shares you hold. A closed market accepts sells and nothing else; resolved and voided markets accept nothing.</p>
 <p>A successful trade returns 201 with <code>{ tradeId, marketId, direction, shares, cost, probability, consensus }</code> (a sell reports <code>proceeds</code> instead of <code>cost</code>). If your trade crossed someone's resting limit order, the response also carries <code>limitFills</code> (each with its <code>side</code>, <code>direction</code>, <code>limitValue</code> and <code>cost</code>, and on a sell its <code>proceeds</code> and <code>shares</code>) and <code>settledConsensus</code>, the price after those fills executed.</p>
 <h3 id="docs-guides-agent-api-md--h9">A proposal with options</h3>
-<p>Some questions are not yes-or-no. A proposal can carry two to six <strong>options</strong>
+<p>Some questions are not yes-or-no. A proposal can carry two to 218 <strong>options</strong>
 with one market each (docs/guides/proposals.md, &quot;More than two options&quot;): the
 snake's every-minute question is one proposal whose options are <code>forward</code>,
 <code>left</code> and <code>right</code>. You trade one exactly as above, with that option's
@@ -11964,7 +11965,8 @@ too, so a decline paid nobody. Fixed; the behaviour above is what runs.)</em></p
 three answers, &quot;which of these four headlines do we ship&quot; has four, and
 posting each answer as its own approve-or-decline proposal spends twice the
 liquidity and asks the reader to compare numbers across pages. A proposal
-can therefore carry <strong>options</strong>: <code>POST /api/proposals { title, description, options: [{ id, label }, ...] }</code>, two to six of them, each <code>id</code> a short
+can therefore carry <strong>options</strong>: <code>POST /api/proposals { title, description, options: [{ id, label }, ...] }</code>, two to 218 of them (218 is the most legal
+moves a chess position has, so one proposal can offer every move), each <code>id</code> a short
 handle (1 to 24 of <code>a-z 0-9 -</code>, unique within the proposal, and never
 <code>approved</code> or <code>declined</code>), each <code>label</code> up to 40 characters, the words a
 reader chooses between. A proposal without <code>options</code> is the ordinary
