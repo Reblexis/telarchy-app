@@ -6962,12 +6962,20 @@ direction A with C as its destination). The rows are the public actions log
 for this workspace (docs/data-room.md), never a second record.</p>
 <p><strong>Where.</strong> In the plain market view the left column carries a <strong>Live</strong>
 block (<code>FloorLiveLog</code>, <code>.pubws-live</code>) under the season advert and the
-announcements, from 1500px up where the three columns exist. Below 1500px
-and on a phone the same log folds to one line under the bet verbs
-(<code>.pubws-live-strip</code>): the live dot, the newest row as one ellipsized line,
-its time, and a chevron; pressing the line opens the block in place and
-pressing it again folds it. A selected proposal shows neither: the page is
-about that proposal.</p>
+announcements, from 1500px up where the three columns exist, and the line
+below is not drawn. At every width below 1500px, including 1120px to 1499px
+where the ticket rail stands beside the market, the same log folds to one
+line directly under the two bet verbs in the centre column
+(<code>.pubws-live-strip</code>), never in the ticket column: the right rail holds the
+ticket and nothing else. Where the verbs are not drawn (a visitor signed in
+but not joined), the line takes their place in the centre column. The line
+starts with the Live label in the block head's anatomy (the live dot and
+&quot;Live&quot; in <code>.pubws-live-title</code>), so it never reads as a picker; then the
+newest row as one ellipsized line, its time, and a chevron. Pressing the
+line opens the block in place under the verbs, &quot;All activity&quot; and all, and
+pressing it again folds it. On a phone the order is the verbs, the line,
+the ticket, then the proposals. A selected proposal shows neither: the page
+is about that proposal.</p>
 <p><strong>The block.</strong> A head in the section-head anatomy (<code>.pubws-lb-head</code>): the
 live dot and &quot;Live&quot; on the left, &quot;All activity&quot; linking to <code>/&lt;slug&gt;/log</code> on
 the right. Under it the newest rows first, at most 30. A row is the time in
