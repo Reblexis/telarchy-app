@@ -106,21 +106,58 @@ describe('limit mode', () => {
     fireEvent.click(screen.getByText('Limit'));
     const input = screen.getByLabelText('Limit price in $') as HTMLInputElement;
     fireEvent.change(input, { target: { value: '40000' } });
-    expect(screen.getByText('Buy Higher with 25 cr under $40,000')).toBeTruthy();
+    expect(screen.getByText('Buy Higher under $40,000')).toBeTruthy();
   });
 
-  test('a limit on the wrong side of the call is refused before it is sent', () => {
+  test('a limit the market already passed is sent, with a warning of what fills now', async () => {
     const onPlaceLimit = vi.fn(async () => {});
-    render(<TradeTicket {...base} onPlaceLimit={onPlaceLimit} />);
+    render(<TradeTicket {...base} probability={0.1} onPlaceLimit={onPlaceLimit} />);
     pick('Higher');
     fireEvent.click(screen.getByText('Limit'));
     fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '60000' } });
 
-    expect(screen.getByText(/fills right now/)).toBeTruthy();
+    expect(screen.getByText(/The market is already under \$60,000: [\d.,]+ cr fills now/)).toBeTruthy();
+    const confirm = screen.getByText('Buy Higher under $60,000').closest('button') as HTMLButtonElement;
+    expect(confirm.disabled).toBe(false);
+    fireEvent.click(confirm);
+    await waitFor(() => expect(onPlaceLimit).toHaveBeenCalledWith('higher', 60000, 25));
+  });
+
+  test('a limit outside the market range is refused before it is sent', () => {
+    const onPlaceLimit = vi.fn(async () => {});
+    render(<TradeTicket {...base} probability={0.1} onPlaceLimit={onPlaceLimit} />);
+    pick('Higher');
+    fireEvent.click(screen.getByText('Limit'));
+    fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '600000' } });
+
+    expect(screen.getByText(/Between \$0(\.00)? and \$500,000/)).toBeTruthy();
     const confirm = screen.getByText(/Set a price for Higher/).closest('button') as HTMLButtonElement;
     expect(confirm.disabled).toBe(true);
     fireEvent.click(confirm);
     expect(onPlaceLimit).not.toHaveBeenCalled();
+  });
+
+  test('a limit the market already passed casts the ghost of the fill it makes now', () => {
+    const onPreview = vi.fn();
+    render(<TradeTicket {...base} probability={0.1} onPreview={onPreview} onPlaceLimit={async () => {}} />);
+    pick('Higher');
+    fireEvent.click(screen.getByText('Limit'));
+    fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '60000' } });
+    const last = onPreview.mock.calls.at(-1)?.[0];
+    expect(last).toEqual(expect.objectContaining({ direction: 'higher' }));
+    // It lands on the limit or short of it, never past: 60,000 of 500,000 is 0.12.
+    expect(last.newProb).toBeGreaterThan(0.1);
+    expect(last.newProb).toBeLessThanOrEqual(0.12 + 1e-9);
+  });
+
+  test('the buy limit confirm names the side and the price, not the stake', () => {
+    render(<TradeTicket {...base} onPlaceLimit={async () => {}} />);
+    pick('Higher');
+    fireEvent.click(screen.getByText('Limit'));
+    fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '40000' } });
+    const confirm = screen.getByText(/^Buy Higher/).closest('button') as HTMLButtonElement;
+    expect(confirm.textContent).toBe('Buy Higher under $40,000');
+    expect(confirm.textContent).not.toMatch(/cr/);
   });
 
   test('a lower order wants a limit above the call', () => {
@@ -128,7 +165,7 @@ describe('limit mode', () => {
     pick('Lower');
     fireEvent.click(screen.getByText('Limit'));
     fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '70000' } });
-    expect(screen.getByText('Buy Lower with 25 cr over $70,000')).toBeTruthy();
+    expect(screen.getByText('Buy Lower over $70,000')).toBeTruthy();
   });
 
   test('placing sends the limit, not a market trade', async () => {
@@ -138,7 +175,7 @@ describe('limit mode', () => {
     pick('Higher');
     fireEvent.click(screen.getByText('Limit'));
     fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '40000' } });
-    fireEvent.click(screen.getByText('Buy Higher with 25 cr under $40,000'));
+    fireEvent.click(screen.getByText('Buy Higher under $40,000'));
 
     await waitFor(() => expect(onPlaceLimit).toHaveBeenCalledWith('higher', 40000, 25));
     expect(onTrade).not.toHaveBeenCalled();
@@ -170,9 +207,33 @@ describe('resting orders', () => {
     createdAt: new Date().toISOString(),
   };
 
-  test('each order states its limit and what is still waiting', () => {
+  test('a buy order names its verb, its limit and the credits left', () => {
     render(<TradeTicket {...base} orders={[order]} onPlaceLimit={async () => {}} onCancelLimit={async () => {}} />);
-    expect(screen.getByText(/under \$40,000 · 40.0 cr waiting/)).toBeTruthy();
+    expect(screen.getByText(/buy under \$40,000 · 40.0 cr/)).toBeTruthy();
+    expect(screen.queryByText(/waiting/)).toBeNull();
+  });
+
+  test('a lower buy order reads "buy over"', () => {
+    const lower = { ...order, id: 'ord-2', direction: 'lower' as const, limitValue: 80_000 };
+    render(<TradeTicket {...base} orders={[lower]} onPlaceLimit={async () => {}} onCancelLimit={async () => {}} />);
+    expect(screen.getByText(/buy over \$80,000 · 40.0 cr/)).toBeTruthy();
+  });
+
+  test('a sell order names its verb, its limit and the shares left', () => {
+    const sell = {
+      ...order,
+      id: 'ord-3',
+      side: 'sell' as const,
+      limitValue: 80_000,
+      budgetCredits: 0,
+      filledCredits: 0,
+      remainingCredits: 0,
+      shares: 40.5,
+      filledShares: 0,
+      remainingShares: 40.5,
+    };
+    render(<TradeTicket {...base} orders={[sell]} onPlaceLimit={async () => {}} onCancelLimit={async () => {}} />);
+    expect(screen.getByText(/sell at \$80,000 · 40.5 sh/)).toBeTruthy();
   });
 
   test('cancelling calls back with the order id', async () => {
@@ -180,6 +241,176 @@ describe('resting orders', () => {
     render(<TradeTicket {...base} orders={[order]} onPlaceLimit={async () => {}} onCancelLimit={onCancelLimit} />);
     fireEvent.click(screen.getByText('Cancel'));
     await waitFor(() => expect(onCancelLimit).toHaveBeenCalledWith('ord-1'));
+  });
+});
+
+describe('selling at a price', () => {
+  const higher = { direction: 'higher' as const, shares: 40.5, totalCost: 18 };
+  const lower = { direction: 'lower' as const, shares: 40.5, totalCost: 18 };
+  const sellTab = () => fireEvent.click(screen.getByRole('button', { name: 'Sell' }));
+  const orderType = () => screen.queryByRole('group', { name: 'Order type' });
+
+  test('the Sell tab offers Limit when there is a position to sell', () => {
+    render(
+      <TradeTicket {...base} positions={[higher]} onPlaceLimit={async () => {}} onPlaceSellLimit={async () => {}} />,
+    );
+    sellTab();
+    expect(within(orderType() as HTMLElement).getByText('Limit')).toBeTruthy();
+  });
+
+  test('the Sell tab offers no Limit with nothing to sell', () => {
+    render(<TradeTicket {...base} positions={[]} onPlaceLimit={async () => {}} onPlaceSellLimit={async () => {}} />);
+    sellTab();
+    expect(orderType()).toBeNull();
+  });
+
+  test('a sell limit restates the whole instruction', () => {
+    render(
+      <TradeTicket {...base} positions={[higher]} onPlaceLimit={async () => {}} onPlaceSellLimit={async () => {}} />,
+    );
+    sellTab();
+    fireEvent.click(within(orderType() as HTMLElement).getByText('Limit'));
+    fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '80000' } });
+    expect(screen.getByText('Sell 40.5 at $80,000')).toBeTruthy();
+    expect(screen.getByText('sell at this or higher')).toBeTruthy();
+  });
+
+  test('a sell limit states the least the shares bring at the limit', () => {
+    render(
+      <TradeTicket {...base} positions={[higher]} onPlaceLimit={async () => {}} onPlaceSellLimit={async () => {}} />,
+    );
+    sellTab();
+    fireEvent.click(within(orderType() as HTMLElement).getByText('Limit'));
+    fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '80000' } });
+    // 40.5 higher shares at $80,000 of a $0..$500,000 range: 40.5 x 0.16.
+    expect(screen.getByText('6.5 cr or more')).toBeTruthy();
+  });
+
+  test('a sell limit the market already passed is sent, with a warning of what sells now', async () => {
+    const onPlaceSellLimit = vi.fn(async () => {});
+    render(
+      <TradeTicket
+        {...base}
+        probability={0.1}
+        positions={[higher]}
+        onPlaceLimit={async () => {}}
+        onPlaceSellLimit={onPlaceSellLimit}
+      />,
+    );
+    sellTab();
+    fireEvent.click(within(orderType() as HTMLElement).getByText('Limit'));
+    fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '40000' } });
+
+    expect(screen.getByText(/The market is already over \$40,000: [\d.,]+ of 40\.5 shares sell now/)).toBeTruthy();
+    fireEvent.click(screen.getByText('Sell 40.5 at $40,000'));
+    await waitFor(() => expect(onPlaceSellLimit).toHaveBeenCalledWith('higher', 40000, 40.5));
+  });
+
+  test('placing a sell limit sends the side held, the price and the shares, and trades nothing', async () => {
+    const onSell = vi.fn(async () => {});
+    const onPlaceSellLimit = vi.fn(async () => {});
+    render(
+      <TradeTicket
+        {...base}
+        positions={[higher]}
+        onSell={onSell}
+        onPlaceLimit={async () => {}}
+        onPlaceSellLimit={onPlaceSellLimit}
+      />,
+    );
+    sellTab();
+    fireEvent.click(within(orderType() as HTMLElement).getByText('Limit'));
+    fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '80000' } });
+    fireEvent.click(screen.getByText('Sell 40.5 at $80,000'));
+    await waitFor(() => expect(onPlaceSellLimit).toHaveBeenCalledWith('higher', 80000, 40.5));
+    expect(onSell).not.toHaveBeenCalled();
+  });
+
+  test('a sell limit can never be for more than the position', async () => {
+    const onPlaceSellLimit = vi.fn(async () => {});
+    render(
+      <TradeTicket {...base} positions={[higher]} onPlaceLimit={async () => {}} onPlaceSellLimit={onPlaceSellLimit} />,
+    );
+    sellTab();
+    fireEvent.click(within(orderType() as HTMLElement).getByText('Limit'));
+    fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '80000' } });
+    fireEvent.change(screen.getByLabelText('Shares of higher to sell'), { target: { value: '1000' } });
+    fireEvent.click(screen.getByText('Sell 40.5 at $80,000'));
+    await waitFor(() => expect(onPlaceSellLimit).toHaveBeenCalledWith('higher', 80000, 40.5));
+  });
+
+  test('a lower position sells when the market falls to its price', () => {
+    render(
+      <TradeTicket {...base} positions={[lower]} onPlaceLimit={async () => {}} onPlaceSellLimit={async () => {}} />,
+    );
+    sellTab();
+    fireEvent.click(within(orderType() as HTMLElement).getByText('Limit'));
+    fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '20000' } });
+    expect(screen.getByText('sell at this or lower')).toBeTruthy();
+    expect(screen.getByText('Sell 40.5 at $20,000')).toBeTruthy();
+  });
+
+  test('a sell limit opens on the position with no Sell or Cancel pill', () => {
+    render(
+      <TradeTicket {...base} positions={[higher]} onPlaceLimit={async () => {}} onPlaceSellLimit={async () => {}} />,
+    );
+    sellTab();
+    fireEvent.click(within(orderType() as HTMLElement).getByText('Limit'));
+    expect(screen.getByLabelText('Shares of higher to sell')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
+  });
+
+  test('quick selling is unchanged by the sell limit', () => {
+    render(
+      <TradeTicket {...base} positions={[higher]} onPlaceLimit={async () => {}} onPlaceSellLimit={async () => {}} />,
+    );
+    sellTab();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Sell' }).at(-1) as HTMLElement);
+    expect(screen.getByText(/Sell all for/)).toBeTruthy();
+  });
+});
+
+describe('a book that closes soon', () => {
+  const higher = { direction: 'higher' as const, shares: 40.5, totalCost: 18 };
+  const inMinutes = (m: number) => new Date(Date.now() + m * 60_000).toISOString();
+
+  test('no Limit on the Buy tab when trading closes within 10 minutes', () => {
+    render(
+      <TradeTicket {...base} closesAt={inMinutes(5)} onPlaceLimit={async () => {}} onPlaceSellLimit={async () => {}} />,
+    );
+    pick('Higher');
+    expect(screen.queryByRole('group', { name: 'Order type' })).toBeNull();
+  });
+
+  test('no Limit on the Sell tab when trading closes within 10 minutes', () => {
+    render(
+      <TradeTicket
+        {...base}
+        positions={[higher]}
+        closesAt={inMinutes(1)}
+        onPlaceLimit={async () => {}}
+        onPlaceSellLimit={async () => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Sell' }));
+    expect(screen.queryByRole('group', { name: 'Order type' })).toBeNull();
+  });
+
+  test('Limit stays when trading closes later than 10 minutes', () => {
+    render(<TradeTicket {...base} closesAt={inMinutes(11)} onPlaceLimit={async () => {}} />);
+    pick('Higher');
+    expect(screen.getByRole('group', { name: 'Order type' })).toBeTruthy();
+  });
+});
+
+describe('what a composed limit order does not say', () => {
+  test('no release time and no waiting line', () => {
+    render(<TradeTicket {...base} onPlaceLimit={async () => {}} />);
+    pick('Higher');
+    fireEvent.click(screen.getByText('Limit'));
+    fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '40000' } });
+    expect(screen.queryByText(/Until filled/)).toBeNull();
+    expect(screen.queryByText(/waits|cancel anytime|until \d/i)).toBeNull();
   });
 });
 
@@ -764,7 +995,7 @@ describe('the payoff line', () => {
     pick('Higher');
     fireEvent.click(screen.getByText('Limit'));
     fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '40000' } });
-    expect(screen.getByText('Buy Higher with 25 cr under $40,000')).toBeTruthy();
+    expect(screen.getByText('Buy Higher under $40,000')).toBeTruthy();
   });
 
   test('the line prices the FILL, not a walk the order never takes', () => {
@@ -785,10 +1016,11 @@ describe('the payoff line', () => {
     pick('Higher');
     fireEvent.click(screen.getByText('Limit'));
     // Buying higher waits for a cheaper price, so a limit above the current
-    // call would fill at once: the ticket says so and draws no payoff.
+    // call fills at once, at prices between the call and the limit: the
+    // ticket says what fills now and draws no payoff line.
     fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '400000' } });
     expect(container.querySelector('.scale')).toBeNull();
-    expect(screen.getByText(/or it fills right now/)).toBeTruthy();
+    expect(screen.getByText(/The market is already under \$400,000: [\d.,]+ cr fills now/)).toBeTruthy();
   });
 
   test('a held position is priced by the SALE, not by a settlement line', () => {
@@ -873,7 +1105,7 @@ describe('decimal stakes', () => {
     pick('Higher', '2.5');
     fireEvent.click(screen.getByText('Limit'));
     fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '40000' } });
-    fireEvent.click(screen.getByText('Buy Higher with 2.5 cr under $40,000'));
+    fireEvent.click(screen.getByText('Buy Higher under $40,000'));
     await waitFor(() => expect(onPlaceLimit).toHaveBeenCalledWith('higher', 40000, 2.5));
   });
 });

@@ -625,10 +625,11 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li><details><summary><a class="file" href="#file--docs-guides-limit-orders-md">docs/guides/limit-orders.md</a></summary>
 <ul>
 <li><a href="#docs-guides-limit-orders-md--h1">Limit orders</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-limit-orders-md--h2">The budget is taken up front</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-limit-orders-md--h3">How they fill</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-limit-orders-md--h4">Managing them</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-limit-orders-md--h5">What does not exist</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-limit-orders-md--h2">Selling at your price</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-limit-orders-md--h3">The budget is taken up front</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-limit-orders-md--h4">How they fill</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-limit-orders-md--h5">Managing them</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-limit-orders-md--h6">What does not exist</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-guides-markets-md">docs/guides/markets.md</a></summary>
@@ -2122,7 +2123,7 @@ profile already carries.</p>
 </tr>
 <tr>
 <td><code>order</code></td>
-<td>a participant placed a limit order (side, level, budget), and later it filled, was cancelled, expired or was voided</td>
+<td>a participant placed a limit order (buy or sell, side, level, budget or shares), and later it filled, was cancelled, expired or was voided</td>
 <td><code>limit_orders</code>: one row at <code>createdAt</code>, and one at <code>updatedAt</code> for a status other than <code>open</code></td>
 </tr>
 <tr>
@@ -2592,6 +2593,12 @@ the price to it.</p>
 <p>Buy <code>direction</code> in market <code>M</code> with up to <code>budget</code> credits, but only while
 the market's consensus is at or beyond <code>limitValue</code>.</p>
 </blockquote>
+<p>or, on the sell side:</p>
+<blockquote>
+<p>Sell up to <code>shares</code> of the <code>direction</code> position held in market <code>M</code>, but
+only while the market's consensus is at or beyond <code>limitValue</code> in that
+position's favour.</p>
+</blockquote>
 <p>Fields (<code>limit_orders</code>):</p>
 <div class="tablewrap"><table>
 <thead>
@@ -2606,8 +2613,12 @@ the market's consensus is at or beyond <code>limitValue</code>.</p>
 <td>scope and owner</td>
 </tr>
 <tr>
+<td><code>side</code></td>
+<td><code>buy</code> | <code>sell</code>; <code>buy</code> when omitted, so every order placed before sells existed is a buy</td>
+</tr>
+<tr>
 <td><code>direction</code></td>
-<td><code>higher</code> | <code>lower</code></td>
+<td><code>higher</code> | <code>lower</code>: the side bought, or the held position sold</td>
 </tr>
 <tr>
 <td><code>limitValue</code></td>
@@ -2615,11 +2626,19 @@ the market's consensus is at or beyond <code>limitValue</code>.</p>
 </tr>
 <tr>
 <td><code>budgetCredits</code></td>
-<td>total credits committed, decremented as fills happen</td>
+<td>buy: total credits committed, decremented as fills happen. sell: 0</td>
 </tr>
 <tr>
 <td><code>filledCredits</code></td>
-<td>how much has executed</td>
+<td>buy: credits spent so far. sell: proceeds received so far</td>
+</tr>
+<tr>
+<td><code>shares</code></td>
+<td>sell: shares to sell. buy: null</td>
+</tr>
+<tr>
+<td><code>filledShares</code></td>
+<td>sell: shares sold so far. buy: null</td>
 </tr>
 <tr>
 <td><code>status</code></td>
@@ -2635,11 +2654,14 @@ the market's consensus is at or beyond <code>limitValue</code>.</p>
 </tr>
 </tbody>
 </table></div>
-<p><strong>Direction and limit read together</strong>: a <code>higher</code> order with <code>limitValue</code>
+<p><strong>Direction and limit read together</strong>: a <code>higher</code> buy with <code>limitValue</code>
 $65k means &quot;buy higher while consensus is at or below $65k&quot; (the market is
-cheaper than I think it should be). A <code>lower</code> order with $80k means &quot;buy
-lower while consensus is at or above $80k&quot;. The UI must state this in words,
-because sign errors here cost real credits.</p>
+cheaper than I think it should be). A <code>lower</code> buy with $80k means &quot;buy
+lower while consensus is at or above $80k&quot;. A <code>higher</code> sell with $80k means
+&quot;sell my higher shares while consensus is at or above $80k&quot;, and a <code>lower</code>
+sell with $50k &quot;sell my lower shares while consensus is at or below $50k&quot;:
+a sell waits for the price its position wants. The UI must state this in
+words, because sign errors here cost real credits.</p>
 <h2 id="docs-limit-orders-md--h4">Funds are reserved, not merely promised</h2>
 <p>The failure this design exists to prevent: an order resting for a week
 against a balance the trader has since spent elsewhere, filling into a
@@ -2648,6 +2670,18 @@ negative balance or silently failing at the worst moment.</p>
 like the proposal listing stake. Cancelling or expiring refunds the
 unfilled remainder. Balance shown in the ticket is spendable balance, i.e.
 net of open reservations, or the number lies.</p>
+<p><strong>A sell reserves nothing, and never sells more than is held.</strong> Its shares
+stay in the position, which keeps settlement, payouts and every board
+reading positions exactly as they are. Instead two checks hold the rule:</p>
+<ul>
+<li>Placement refuses <code>shares</code> beyond the position minus the shares still
+waiting in the same participant's other open sells on that side and market
+(400 <code>insufficient_shares</code>, with <code>available</code>).</li>
+<li>Each fill sells at most the shares held at that moment. Selling by hand
+therefore shrinks what a sell order can sell, and an order whose position
+is gone closes as <code>cancelled</code>.</li>
+</ul>
+<p>A sell only ever sells, so it can never flip a holder to the other side.</p>
 <h2 id="docs-limit-orders-md--h5">Execution</h2>
 <p>No matching engine. <strong>Every trade in a market triggers a fill pass on that
 market</strong>, inside the same transaction that moved the price, and an in-process
@@ -2659,12 +2693,21 @@ for the next trade:</p>
 <li>Load every open order on that market whose limit the current price has
 reached or passed, ordered by how far they are from the current price,
 so the ones the price passed first fill first.</li>
-<li>For each, buy in its direction with the smaller of its remaining budget
-and the amount that would move consensus back to its <code>limitValue</code>. An
-order never moves the price past its own limit, which is what makes it a
-limit order rather than a delayed market order.</li>
+<li>For each buy, buy in its direction with the smaller of its remaining
+budget and the amount that would move consensus back to its <code>limitValue</code>.
+For each sell, sell the smallest of its remaining shares, the shares held
+now, and the amount that would move consensus back to its <code>limitValue</code>.
+An order never moves the price past its own limit, which is what makes it
+a limit order rather than a delayed market order.</li>
 <li>Stop when the price no longer crosses any order.</li>
 </ol>
+<p><strong>An order placed past the market fills at once.</strong> A limit the market has
+already reached is not refused: placement runs the same trade a fill would (a
+buy toward its limit with its budget, a sell of its shares bounded by its
+limit), then the fill pass for other orders that move crossed, and rests what
+is left, all in one transaction. A buy reserves only the remainder. Refusing
+these orders left a trader a market order that could run past their price, or
+nothing.</p>
 <p>Fills are ordinary trades: same position rows, same
 <code>replayMarketTradePoints</code> history, so the chart shows them like any other
 step. This is enforced structurally rather than by discipline: there is one
@@ -2690,10 +2733,15 @@ so no anti-wash rule is needed; the existing cap and the charter's
 coordination rule still govern.</p>
 <h2 id="docs-limit-orders-md--h6">API</h2>
 <ul>
-<li><code>POST /api/predictions/limit-orders</code>: body <code>{ marketId, direction, limitValue, budgetCredits, expiresAt? }</code>. Debits the budget, returns the order. 400 if <code>limitValue</code> is already crossed (that is a market order; say so rather than filling instantly and surprising the trader).</li>
-<li><code>GET /api/predictions/limit-orders?marketId=&amp;status=</code>: the caller's own orders; admins may pass <code>agentId</code>. <code>status</code> defaults to <code>open</code>; <code>status=all</code> returns every state.</li>
-<li><code>DELETE /api/predictions/limit-orders/:id</code>: cancel, refunding the unfilled remainder. Owner or admin only.</li>
+<li><code>POST /api/predictions/limit-orders</code>: a buy is <code>{ marketId, direction, limitValue, budgetCredits, expiresAt? }</code> (<code>side: &quot;buy&quot;</code> optional); it debits the budget and returns the order. A sell is <code>{ marketId, side: &quot;sell&quot;, direction, limitValue, shares, expiresAt? }</code>; it moves nothing and returns the order. An order whose limit the market has already reached fills at once, up to its limit and never past it, and whatever is left rests (below, &quot;An order placed past the market fills at once&quot;). The response then carries <code>filledNow</code> (<code>cost</code> on a buy or <code>proceeds</code> on a sell, <code>shares</code>, <code>consensus</code>), and an order with nothing left comes back <code>filled</code>. 400 <code>insufficient_shares</code> for a sell beyond what is held.</li>
+<li><code>GET /api/predictions/limit-orders?marketId=&amp;status=</code>: the caller's own orders; admins may pass <code>agentId</code>. <code>status</code> defaults to <code>open</code>; <code>status=all</code> returns every state. Every row carries <code>side</code>; a sell also carries <code>shares</code>, <code>filledShares</code> and <code>remainingShares</code>.</li>
+<li><code>DELETE /api/predictions/limit-orders/:id</code>: cancel, refunding the unfilled remainder (always 0 for a sell). Owner or admin only.</li>
 </ul>
+<p>A buy placed without <code>side</code> behaves and answers exactly as before sells
+existed; the new fields are additions.</p>
+<p>The API accepts an order on any open book, including one whose trading
+closes within minutes. The ticket does not offer one there (below), because
+the close releases it before anyone is likely to reach its price.</p>
 <p>A trade's own <code>limit</code> (docs/guides/agent-api.md, &quot;Guard the price&quot;) is not a
 limit order. It fills now, up to its bound, and hands back what it did not
 spend; nothing rests and nothing is reserved. The fill pass above is the same
@@ -2705,27 +2753,42 @@ anything the UI can do, an API key can do.</p>
 ticket already asks two questions, side and amount; limit adds a third that
 is optional and hidden until wanted:</p>
 <ul>
-<li>A <code>Quick</code> / <code>Limit</code> toggle in the ticket's header, Manifold-style,
-revealed once a side is picked. Default is <code>Quick</code>, i.e. today's
-behaviour, so the common case gains nothing to read.</li>
+<li>A <code>Quick</code> / <code>Limit</code> toggle in the ticket's header, Manifold-style, on
+both tabs: on Buy once a side is picked, on Sell once there is a position
+to sell. Default is <code>Quick</code>, so the common case gains nothing to read.</li>
+<li><strong>No <code>Limit</code> on a book whose trading closes within 10 minutes</strong>, on either
+tab: a proposal that decides that soon (every book on a one-minute floor
+such as the snake) releases a resting order at the close, so offering one
+offers nothing.</li>
 <li>Choosing <code>Limit</code> reveals one mono input in metric space, prefilled
-with the current call, and the confirm restates the whole instruction:
-<strong>&quot;Buy Higher with 25 cr under $65,000&quot;</strong>. The confirm never says
-&quot;place order&quot; alone; an instruction the trader cannot read back is an
-instruction they did not give.</li>
+with the current call, and the confirm restates the instruction:
+<strong>&quot;Buy Higher under $65,000&quot;</strong>. The stake is already on screen in the
+composer, so the confirm names the side and the price and stays one line in
+the 293px rail. It never says &quot;place order&quot; alone; an instruction the
+trader cannot read back is an instruction they did not give.</li>
 <li>Choosing <code>Limit</code> prefills a legal limit just inside the current call
 on the side that rests, so the field opens with an answer rather than an
-error to clear. A limit on the wrong side of the call is refused in the
-ticket, before it is sent, naming which side it belongs on.</li>
-<li>A composed limit order casts no ghost on the chart, because it moves no
-price today. The ghost is reserved for what a confirm would do immediately.</li>
+error to clear. A limit the market has already passed is not refused: one warning line under it says what fills now (&quot;The market is already under $60,000: 12.4 cr fills now&quot;; on a sell, &quot;12 of 40 shares sell now&quot;), and the confirm places it. A limit outside the market's range is refused in the ticket, before it is sent.</li>
+<li>A composed limit order casts no ghost on the chart, because it moves no price today. The ghost is reserved for what a confirm would do immediately, so a limit the market has already passed casts the ghost of the fill it makes now.</li>
+<li><strong>A sell limit</strong> is the Sell tab in <code>Limit</code> mode: the held position's row
+with its shares slider (all of it by default, never more), the price input,
+one line saying what the pair means (&quot;sell at this or higher&quot; for a
+higher position, &quot;sell at this or lower&quot; for a lower one; short enough to
+stay one line in the ticket), what is being sold
+and what it brings (&quot;You get N cr or more&quot;, the shares at the limit price,
+since every share of a fill sells at the limit or better), and an ink
+confirm that restates the instruction: <strong>&quot;Sell 166.4 at $80,000&quot;</strong>. A limit the market has already passed warns and fills at once, as on Buy.</li>
+<li>The ticket never states when an order is released. That it rests until it
+fills, is cancelled, or its book closes is understood without saying.</li>
 <li>Resting orders list under the ticket as one quiet line each, in the same
-register as a held position: direction, limit, remaining budget, and a
-cancel. Filled and cancelled orders do not linger; they are in the
-activity rail.</li>
+register as a held position, naming the verb: &quot;buy under $65,000 · 25 cr&quot;,
+&quot;buy over $80,000 · 25 cr&quot;, &quot;sell at $80,000 · 166.4 sh&quot;, each with a
+Cancel, the only thing a resting order can have done to it. Filled and
+cancelled orders do not linger; they are in the activity rail.</li>
 <li>The chart draws the viewer's own resting orders as faint horizontal rules
-at their limits, in the direction's colour: seeing your order sitting in
-the price makes the abstraction concrete, and it costs one line per order.</li>
+at their limits, in the direction's colour, labelled with the verb
+(&quot;▲ buy 65,000&quot;, &quot;▲ sell 80,000&quot;): seeing your order sitting in the price
+makes the abstraction concrete, and it costs one line per order.</li>
 </ul>
 <h2 id="docs-limit-orders-md--h8">What this deliberately does not do</h2>
 <p>No order book depth chart, no partial-fill notifications, no
@@ -6390,9 +6453,12 @@ it does, and a full-width red track at 100% reads as an error bar rather
 than a size.</p>
 <p>Limit mode swaps the composer's right half from the landing value to the
 price itself, in the same underlined register, and the confirm becomes the
-whole instruction (&quot;Buy Higher with 25 cr under $65,000&quot;), with breakeven
+instruction in one line (&quot;Buy Higher under $65,000&quot;; the stake is on screen already), with breakeven
 exactly at the limit; limit orders are a mode of the same ticket, never a
-second panel. Spec: docs/limit-orders.md.</p>
+second panel. The Sell tab has the same mode: the position's shares slider,
+the price, and an ink confirm (&quot;Sell 166.4 at $80,000&quot;). Neither tab offers
+Limit on a book whose trading closes within 10 minutes. Spec:
+docs/limit-orders.md.</p>
 <p><strong>The payoff line is one rule with two rows of type, and nothing else</strong>
 (owner, 2026-09-01: &quot;i want the visualization line to only show on top the
 credit gains/losses and on bottom the different values it settles at thats
@@ -6462,9 +6528,7 @@ the slider saying what the pair means (&quot;buy when the market falls under
 it&quot;); limit mode has no second price row of its own. Its rule prices the
 FILL rather than a walk it never takes: the whole stake gone at the far end
 of the range, a credit a share at the near one, and the colour change
-exactly at the limit, which is the whole appeal of naming your own price. A
-limit the market has already passed fills at once rather than resting, so
-the ticket says so and draws nothing.</p>
+exactly at the limit, which is the whole appeal of naming your own price. A limit the market has already passed fills at once up to the limit and rests the rest. That fill prices between the call and the limit, so the rule prices nothing: the ticket says in one line what fills now and draws the ghost of that fill.</p>
 <p>One degradation. A market with no range has no landing value, no break-even
 and no payout to state, so the ticket falls back to a stake and a confirm
 rather than inventing any of them.</p>
@@ -9233,7 +9297,7 @@ GET /api/status?trends=1&amp;trendsLimit=5   # fewer history points, fewer token
 <pre><code class="language-json">{ &quot;marketId&quot;: &quot;…&quot;, &quot;direction&quot;: &quot;higher&quot;, &quot;sellShares&quot;: 12.5 }
 </code></pre>
 <p>Sells shares you hold. A closed market accepts sells and nothing else; resolved and voided markets accept nothing.</p>
-<p>A successful trade returns 201 with <code>{ tradeId, marketId, direction, shares, cost, probability, consensus }</code> (a sell reports <code>proceeds</code> instead of <code>cost</code>). If your trade crossed someone's resting limit order, the response also carries <code>limitFills</code> and <code>settledConsensus</code>, the price after those fills executed.</p>
+<p>A successful trade returns 201 with <code>{ tradeId, marketId, direction, shares, cost, probability, consensus }</code> (a sell reports <code>proceeds</code> instead of <code>cost</code>). If your trade crossed someone's resting limit order, the response also carries <code>limitFills</code> (each with its <code>side</code>, <code>direction</code>, <code>limitValue</code> and <code>cost</code>, and on a sell its <code>proceeds</code> and <code>shares</code>) and <code>settledConsensus</code>, the price after those fills executed.</p>
 <h3 id="docs-guides-agent-api-md--h9">A proposal with options</h3>
 <p>Some questions are not yes-or-no. A proposal can carry two to six <strong>options</strong>
 with one market each (docs/guides/proposals.md, &quot;More than two options&quot;): the
@@ -9341,11 +9405,16 @@ replays its result.</li>
 <p><strong>Nothing caps your spend per market.</strong> Size a campaign against your balance and the book: no workspace setting limits what one participant may buy in one market, in either direction. A buy fails for exactly two money reasons, insufficient balance and a trade too small to price.</p>
 <p>Trades are throttled harder than anything else you will call: 150 per minute, and holding a key does not exempt you. See <a href="/guides/api-reference">the endpoint catalog</a> for the rest of the limits.</p>
 <h2 id="docs-guides-agent-api-md--h14">Limit orders</h2>
-<p>A resting order buys a direction only while the market's price is at or beyond a value you name.</p>
+<p>A resting order buys a direction, or sells shares you hold, only while the market's price is at or beyond a value you name.</p>
 <pre><code class="language-bash">curl -s -X POST https://telarchy.com/api/predictions/limit-orders \
   -H &quot;X-Agent-Key: $KEY&quot; -H &quot;X-Workspace-Id: $WS&quot; -H &quot;Content-Type: application/json&quot; \
   -d '{&quot;marketId&quot;:&quot;'&quot;$MARKET&quot;'&quot;,&quot;direction&quot;:&quot;higher&quot;,&quot;limitValue&quot;:600,&quot;budgetCredits&quot;:20,
        &quot;expiresAt&quot;:&quot;2026-12-31T00:00:00Z&quot;}'
+
+# Sell 40 of the higher shares you hold, but only once the price is at or above 800.
+curl -s -X POST https://telarchy.com/api/predictions/limit-orders \
+  -H &quot;X-Agent-Key: $KEY&quot; -H &quot;X-Workspace-Id: $WS&quot; -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;marketId&quot;:&quot;'&quot;$MARKET&quot;'&quot;,&quot;side&quot;:&quot;sell&quot;,&quot;direction&quot;:&quot;higher&quot;,&quot;limitValue&quot;:800,&quot;shares&quot;:40}'
 
 curl -s -H &quot;X-Agent-Key: $KEY&quot; -H &quot;X-Workspace-Id: $WS&quot; \
   &quot;https://telarchy.com/api/predictions/limit-orders?status=open&quot;
@@ -9353,7 +9422,7 @@ curl -s -H &quot;X-Agent-Key: $KEY&quot; -H &quot;X-Workspace-Id: $WS&quot; \
 curl -s -X DELETE -H &quot;X-Agent-Key: $KEY&quot; -H &quot;X-Workspace-Id: $WS&quot; \
   &quot;https://telarchy.com/api/predictions/limit-orders/$ORDER_ID&quot;
 </code></pre>
-<p><code>limitValue</code> is in the metric's own units, not a probability. The budget is debited when you place the order, not when it fills, and the unfilled remainder comes back on cancel, expiry, or when the market resolves or voids. An order placed already crossed is refused with 400, because that is a market order in disguise: place a trade instead. <code>expiresAt</code> is optional; leave it out to rest until cancelled. The mechanics, including how fills price, are in <a href="/guides/limit-orders">limit orders</a>.</p>
+<p><code>limitValue</code> is in the metric's own units, not a probability. The budget is debited when you place the order, not when it fills, and the unfilled remainder comes back on cancel, expiry, or when the market resolves or voids. An order placed already crossed fills at once, up to its limit and never past it, and the rest rests; <code>filledNow</code> in the response says what filled. <code>expiresAt</code> is optional; leave it out to rest until cancelled. A sell (<code>&quot;side&quot;:&quot;sell&quot;</code>) sets nothing aside and never sells more than you hold: placing one beyond your position, less what your other open sells on that side are waiting to sell, is a 400 <code>insufficient_shares</code>. Without <code>side</code> an order is a buy. The mechanics, including how fills price, are in <a href="/guides/limit-orders">limit orders</a>.</p>
 <h2 id="docs-guides-agent-api-md--h15">Watching your own account</h2>
 <pre><code>GET /api/agents/me/dashboard    # balance + the most liquid open markets, one call
 GET /api/predictions/positions  # shares you hold, ?marketId=X to narrow
@@ -11093,16 +11162,35 @@ take.</p>
 order fills while the consensus is at or <strong>below</strong> its limit; a <code>lower</code> order
 fills while it is at or <strong>above</strong>. The example above says: buy higher while the
 market is priced at $38,000 or less.</p>
-<p>If the price is already on your side when you place it, that is a market order,
-and the API says so with a 400 rather than filling something you did not ask
-for. Place a trade instead.</p>
-<h2 id="docs-guides-limit-orders-md--h2">The budget is taken up front</h2>
+<p>If the price is already on your side when you place it, the order fills at once,
+up to your limit and never past it, and whatever is left rests. The response's
+<code>filledNow</code> says what filled (<code>cost</code> or <code>proceeds</code>, <code>shares</code>, <code>consensus</code>); an
+order with nothing left comes back <code>filled</code>.</p>
+<h2 id="docs-guides-limit-orders-md--h2">Selling at your price</h2>
+<p>A sell order is the same instruction for shares you already hold: sell this
+many of my position, but only while the price is where I want it.</p>
+<pre><code>POST /api/predictions/limit-orders
+{ &quot;marketId&quot;: &quot;...&quot;, &quot;side&quot;: &quot;sell&quot;, &quot;direction&quot;: &quot;higher&quot;,
+  &quot;limitValue&quot;: 80000, &quot;shares&quot;: 166.4 }
+</code></pre>
+<p><code>direction</code> names the position you are selling. A <code>higher</code> sell fills while the
+consensus is at or <strong>above</strong> its limit, a <code>lower</code> sell while it is at or
+<strong>below</strong>: each waits for the price its position wants. Leave <code>side</code> out and
+the order is a buy, exactly as before.</p>
+<p>A sell never sells more than you hold. Placing one refuses <code>shares</code> beyond your
+position minus what your other open sells on that side are still waiting to
+sell (400 <code>insufficient_shares</code>, with <code>available</code>). Nothing is set aside: the
+shares stay in your position and settle like any others until a fill sells
+them. If you sell some by hand meanwhile, the order can sell only what is left,
+and once the position is gone the order closes as <code>cancelled</code>. A sell only
+sells, so it can never turn you into a holder of the other side.</p>
+<h2 id="docs-guides-limit-orders-md--h3">The budget is taken up front</h2>
 <p>The credits are debited when you place the order and held in reserve. Your
 spendable balance is net of them. Cancel, expire, void or resolve and the
 unfilled remainder comes back.</p>
 <p>This is the part that catches people out: a resting order is money you have
 already committed, not an intention.</p>
-<h2 id="docs-guides-limit-orders-md--h3">How they fill</h2>
+<h2 id="docs-guides-limit-orders-md--h4">How they fill</h2>
 <p>There is no matching engine and no polling. Two things run the fill pass:</p>
 <ul>
 <li>Every trade in a market runs it inside that trade's own transaction, so an
@@ -11118,7 +11206,7 @@ position, same cap accounting, same trade record.</p>
 trade, because each fill runs in its own savepoint. And a fill spends the
 reservation you already made, never fresh balance you were using for something
 else.</p>
-<h2 id="docs-guides-limit-orders-md--h4">Managing them</h2>
+<h2 id="docs-guides-limit-orders-md--h5">Managing them</h2>
 <pre><code>GET    /api/predictions/limit-orders?status=open
 DELETE /api/predictions/limit-orders/:id
 </code></pre>
@@ -11127,7 +11215,7 @@ to open. Each row carries what is left of its budget. Cancelling returns the
 unfilled remainder and tells you how much came back.</p>
 <p><code>expiresAt</code> is optional and must be in the future. Expired orders are swept
 whenever the list is read or a fill pass runs.</p>
-<h2 id="docs-guides-limit-orders-md--h5">What does not exist</h2>
+<h2 id="docs-guides-limit-orders-md--h6">What does not exist</h2>
 <p>No order book depth, no stop orders, no partial-fill notifications, no
 good-till-date presets beyond a plain expiry. If you want to know your order
 filled, read your positions or your trades.</p>

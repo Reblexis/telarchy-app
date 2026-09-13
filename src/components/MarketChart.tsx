@@ -37,7 +37,7 @@ interface Props {
   /** The viewer's own resting limit orders, drawn as faint rules at their
       limits. Seeing your order sitting in the price is what makes the
       abstraction concrete, and it costs one line each. */
-  orders?: Array<{ id: string; direction: 'higher' | 'lower'; limitValue: number }>;
+  orders?: Array<{ id: string; direction: 'higher' | 'lower'; limitValue: number; side?: 'buy' | 'sell' }>;
   /** The other branch of a conditional pair, drawn as a second, quieter
       line (owner decision 2026-08-10: both branches on the page, the gap
       between them IS the priced impact). `tone` colours it; the primary
@@ -611,7 +611,7 @@ export function MarketChart({
           <g key={o.id} className={`mchart-order mchart-order--${o.direction}`}>
             <line className="mchart-order-line" x1={PAD_L} x2={W - PAD_R} y1={y(o.limitValue)} y2={y(o.limitValue)} />
             <text className="mchart-order-label" x={PAD_L + 4} y={y(o.limitValue) - 4}>
-              {o.direction === 'higher' ? '▲' : '▼'} your order {cNum(o.limitValue)}
+              {o.direction === 'higher' ? '▲' : '▼'} {o.side === 'sell' ? 'sell' : 'buy'} {cNum(o.limitValue)}
             </text>
           </g>
         ))}

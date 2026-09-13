@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useEarnAvailable } from '../hooks/useEarnAvailable';
-import { previewSell, previewSellPrice, previewTargetBet, previewTrade } from '../lib/amm';
+import { previewSell, previewSellPrice, previewTargetBet, previewTrade, sharesSoldToPrice } from '../lib/amm';
 import type { LimitOrder } from '../lib/api';
 import { amountToSlider, SLIDER_STEPS, sliderToAmount } from '../lib/bet-slider';
 import { maxWinLabel } from '../lib/market-quote';
@@ -25,7 +25,7 @@ import { PayoffLine } from './PayoffLine';
  * Progressive disclosure survives the redesign: an untouched ticket shows
  * only the two side pills, and the rest of the card exists once a side is
  * picked. Limit mode swaps in a price input and turns the confirm into the
- * whole instruction ("Buy Higher with 25 cr under $65,000"), because an
+ * instruction ("Buy Higher under $65,000"), because an
  * instruction the trader cannot read back is an instruction they did not
  * give. Design: docs/limit-orders.md.
  */
@@ -92,6 +92,11 @@ interface Props {
   orders?: LimitOrder[];
   onPlaceLimit?: (direction: 'higher' | 'lower', limitValue: number, budgetCredits: number) => Promise<void>;
   onCancelLimit?: (id: string) => Promise<void>;
+  /** Rest a sell of `shares` of the held `direction` position at `limitValue`. */
+  onPlaceSellLimit?: (direction: 'higher' | 'lower', limitValue: number, shares: number) => Promise<void>;
+  /** When trading on this book closes (a proposal's decision deadline). Within
+      CLOSES_SOON_MS of it neither tab offers Limit (docs/limit-orders.md). */
+  closesAt?: string | null;
   /** Open with a side already chosen (the floor's Lower/Higher buttons
       preselect it when they spawn the ticket in a dialog). */
   initialDir?: 'higher' | 'lower';
@@ -129,6 +134,9 @@ function fmtCompact(v: number): string {
   if (v >= 1_000) return `${Math.round(v / 100) / 10}k`;
   return fmtStake(v);
 }
+
+/** A book closing sooner than this offers no Limit: the close would release the order first. */
+const CLOSES_SOON_MS = 10 * 60 * 1000;
 
 /** The ticket's stake precision: a millionth of a credit (docs/ui-conventions.md). */
 const STAKE_DECIMALS = 6;
@@ -179,6 +187,8 @@ export function TradeTicket({
   orders = [],
   onPlaceLimit,
   onCancelLimit,
+  onPlaceSellLimit,
+  closesAt,
   initialDir,
   manageMode = false,
   subject,
@@ -245,8 +255,15 @@ export function TradeTicket({
     limitNum !== null && Number.isFinite(limitNum) && !limit.endsWith('.')
       ? limitNum.toLocaleString('en-US', { maximumFractionDigits: 2 })
       : limit;
-  const canLimit = !!onPlaceLimit && consensus !== null && rangeMin !== undefined && rangeMax !== undefined;
+  const closesSoon = !!closesAt && new Date(closesAt).getTime() - Date.now() < CLOSES_SOON_MS;
+  const hasRange = consensus !== null && rangeMin !== undefined && rangeMax !== undefined;
+  const canLimit = !!onPlaceLimit && hasRange && !closesSoon;
   const isLimit = mode === 'limit' && canLimit;
+  // The Sell tab's limit sells the one position held (the server keeps a
+  // trader to a single net side), so it exists only while there is one.
+  const canSellLimit = !!onPlaceSellLimit && hasRange && !closesSoon && held !== null;
+  const isSellLimit = tab === 'sell' && mode === 'limit' && canSellLimit;
+  const limitOn = tab === 'sell' ? isSellLimit : isLimit;
   const span = rangeMin !== undefined && rangeMax !== undefined ? rangeMax - rangeMin : null;
   // A typed target previews (and places) the server's targetValue mode; a
   // hand-picked side and amount preview a budget buy. Both replay the
@@ -269,21 +286,56 @@ export function TradeTicket({
    */
   const shownValue = newValue ?? (span !== null && rangeMin !== undefined ? consensus : null);
 
-  // A resting order is only resting if the market has not already reached it.
-  // Buying higher means waiting for a cheaper price, so the limit sits below
-  // the current call; buying lower waits for a dearer one, so it sits above.
+  // A limit has to sit inside the market's range. One the market has already
+  // passed is not an error: it fills at once up to the limit and the rest
+  // rests (docs/limit-orders.md), which the warning below says.
   const limitError = (() => {
     if (!isLimit || limitNum === null || consensus === null) return null;
     if (!Number.isFinite(limitNum)) return 'Enter a number';
     if (rangeMin !== undefined && rangeMax !== undefined && (limitNum <= rangeMin || limitNum >= rangeMax)) {
       return `Between ${unit}${fmtValue(rangeMin)} and ${unit}${fmtValue(rangeMax)}`;
     }
-    if (dir === 'higher' && limitNum >= consensus) return `Below ${unit}${fmtValue(consensus)}, or it fills right now`;
-    if (dir === 'lower' && limitNum <= consensus) return `Above ${unit}${fmtValue(consensus)}, or it fills right now`;
     return null;
   })();
 
   const limitReady = isLimit && limitNum !== null && Number.isFinite(limitNum) && !limitError;
+
+  // What a buy limit the market has already passed fills now: the same
+  // targetValue trade the server runs, bounded by the budget.
+  const buyFillNow = (() => {
+    if (!limitReady || limitNum === null || consensus === null || !dir || amountNum <= 0) return null;
+    if (span === null || rangeMin === undefined || Math.abs(limitNum - consensus) < 0.01) return null;
+    const passed = dir === 'higher' ? limitNum > consensus : limitNum < consensus;
+    if (!passed) return null;
+    const r = previewTargetBet(probability, liquidity, rangeMin, rangeMin + span, limitNum, amountNum, held);
+    if (!r || r.direction !== dir || r.cost <= 0) return null;
+    return { cost: Math.min(r.cost, amountNum), newProb: r.newProb };
+  })();
+
+  // A sell waits for the price its position wants: a higher position sells at
+  // or above its limit, a lower one at or below.
+  const sellLimitError = (() => {
+    if (!isSellLimit || limitNum === null || consensus === null || !held) return null;
+    if (!Number.isFinite(limitNum)) return 'Enter a number';
+    if (rangeMin !== undefined && rangeMax !== undefined && (limitNum <= rangeMin || limitNum >= rangeMax)) {
+      return `Between ${unit}${fmtValue(rangeMin)} and ${unit}${fmtValue(rangeMax)}`;
+    }
+    return null;
+  })();
+  const sellLimitReady = isSellLimit && limitNum !== null && Number.isFinite(limitNum) && !sellLimitError;
+
+  // What a sell limit the market has already passed sells now: the shares
+  // that bring the call to the limit, never more than the size being sold.
+  const sellFillNow = (() => {
+    if (!sellLimitReady || limitNum === null || consensus === null || !held) return null;
+    if (span === null || rangeMin === undefined || Math.abs(limitNum - consensus) < 0.01) return null;
+    const passed = held.direction === 'higher' ? limitNum < consensus : limitNum > consensus;
+    if (!passed) return null;
+    const size = Math.min(held.shares, Math.max(0, sellShares));
+    const n = Math.min(sharesSoldToPrice(probability, liquidity, held.direction, (limitNum - rangeMin) / span), size);
+    if (!(n > 0)) return null;
+    return { shares: n, of: size, newProb: previewSellPrice(probability, liquidity, held.direction, n) };
+  })();
 
   // The win, said comprehensibly. A share's payout is linear in the settled
   // value, so "to win X" (the payout at the range's very edge) reads as a
@@ -295,7 +347,10 @@ export function TradeTicket({
     if (isLimit) {
       // A fill happens at the limit itself, so the limit IS the breakeven,
       // which is the whole appeal of naming your price.
-      if (!limitReady || limitNum === null) return null;
+      // A limit the market has already passed fills now at prices between the
+      // call and the limit, so the limit is not its breakeven: no payoff line,
+      // only the warning and the ghost of the fill.
+      if (!limitReady || limitNum === null || buyFillNow) return null;
       const p = (limitNum - rangeMin) / span;
       const price = dir === 'higher' ? p : 1 - p;
       if (price <= 0.001) return null;
@@ -315,11 +370,16 @@ export function TradeTicket({
 
   useEffect(() => {
     if (tab !== 'buy') return;
-    // A resting order does not move the price today, so it casts no ghost.
-    const show = composed && dir && !isLimit;
+    // A resting order does not move the price today, so it casts no ghost; a
+    // limit the market has already passed does, with the fill it makes now.
+    if (isLimit) {
+      onPreview?.(buyFillNow && dir ? { direction: dir, newProb: buyFillNow.newProb } : null);
+      return;
+    }
+    const show = composed && dir;
     onPreview?.(show ? { direction: dir, newProb: composed.newProb } : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, dir, amountNum, probability, liquidity, isLimit, target, held?.direction, held?.shares]);
+  }, [tab, dir, amountNum, probability, liquidity, isLimit, limitNum, target, held?.direction, held?.shares]);
   // A sale casts the same ghost (docs/ui-conventions.md, "The price and the
   // chart", 2026-09-10): where the call lands if the shares on the size
   // slider are sold, in the sold side's colour. Nothing while the panel is
@@ -329,12 +389,16 @@ export function TradeTicket({
     const pos = sellDir ? positions.find(p => p.direction === sellDir) : null;
     const n = pos ? Math.min(pos.shares, Math.max(0, sellShares)) : 0;
     onPreview?.(
-      pos && sellDir && n > 0
-        ? { direction: sellDir, newProb: previewSellPrice(probability, liquidity, sellDir, n) }
-        : null,
+      isSellLimit
+        ? sellFillNow && sellDir
+          ? { direction: sellDir, newProb: sellFillNow.newProb }
+          : null
+        : pos && sellDir && n > 0
+          ? { direction: sellDir, newProb: previewSellPrice(probability, liquidity, sellDir, n) }
+          : null,
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, sellDir, sellShares, probability, liquidity, positions]);
+  }, [tab, sellDir, sellShares, probability, liquidity, positions, isSellLimit, limitNum]);
   // Clear the ghost when the ticket unmounts.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => () => onPreview?.(null), []);
@@ -438,6 +502,24 @@ export function TradeTicket({
     }
   };
 
+  const placeSellLimit = async (p: TicketPosition, shares: number) => {
+    if (busy || !onPlaceSellLimit || limitNum === null || !sellLimitReady) return;
+    setError('');
+    setNote(null);
+    setBusy('place-sell');
+    try {
+      // A resting sale is not guarded either: its price is the order.
+      await onPlaceSellLimit(p.direction, limitNum, shares);
+      setLimit('');
+      setMode('quick');
+      setSellDir(null);
+    } catch (e) {
+      setError((e as Error).message || 'Order failed');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const cancelOrder = async (id: string) => {
     if (busy || !onCancelLimit) return;
     setError('');
@@ -461,15 +543,40 @@ export function TradeTicket({
     setError('');
   };
 
+  // Prefill just inside the current call, on the side that rests, so the
+  // field opens with a legal answer rather than an error to clear first. A buy
+  // of higher and a sell of lower both wait below the call.
+  const seedLimit = (forTab: 'buy' | 'sell') => {
+    if (consensus === null || span === null || rangeMin === undefined || rangeMax === undefined) return;
+    const step = Math.max(span * 0.02, 1);
+    const below = forTab === 'sell' ? held?.direction === 'lower' : dir === 'higher';
+    const seed = below ? consensus - step : consensus + step;
+    setLimit(String(Math.round(Math.min(rangeMax - 1, Math.max(rangeMin + 1, seed)))));
+  };
+
+  /** The Sell tab's limit opens on the held position, all of it, never more. */
+  const openSellPanel = () => {
+    if (!held) return;
+    setSellDir(held.direction);
+    setSellShares(held.shares);
+  };
+
   const enterLimit = () => {
     setMode('limit');
     setError('');
-    // Prefill just inside the current call, on the side that rests, so the
-    // field opens with a legal answer rather than an error to clear first.
-    if (!limit && consensus !== null && span !== null && rangeMin !== undefined && rangeMax !== undefined) {
-      const step = Math.max(span * 0.02, 1);
-      const seed = dir === 'higher' ? consensus - step : consensus + step;
-      setLimit(String(Math.round(Math.min(rangeMax - 1, Math.max(rangeMin + 1, seed)))));
+    if (!limit) seedLimit(tab);
+    if (tab === 'sell') openSellPanel();
+  };
+
+  const switchTab = (next: 'buy' | 'sell') => {
+    if (next === tab) return;
+    setTab(next);
+    setError('');
+    // A price typed on one tab rests on the wrong side of the call for the other.
+    setLimit('');
+    if (mode === 'limit') {
+      seedLimit(next);
+      if (next === 'sell') openSellPanel();
     }
   };
 
@@ -488,7 +595,9 @@ export function TradeTicket({
     if (isLimit) {
       if (limitNum === null || limitError) return `Set a price for ${sideWord}`;
       // The whole instruction, in one readable sentence.
-      return `Buy ${sideWord} with ${fmtStake(amountNum)} cr ${dir === 'higher' ? 'under' : 'over'} ${unit}${fmtValue(limitNum)}`;
+      // The stake is on screen in the composer; the confirm names the side and
+      // the price, and stays one line in the 293px rail.
+      return `Buy ${sideWord} ${dir === 'higher' ? 'under' : 'over'} ${unit}${fmtValue(limitNum)}`;
     }
     if (target !== null) {
       // A typed target is an instruction about the landing value, and the
@@ -558,7 +667,7 @@ export function TradeTicket({
           type="button"
           className={`ticket-tab${tab === 'buy' ? ' is-active' : ''}`}
           aria-pressed={tab === 'buy'}
-          onClick={() => setTab('buy')}
+          onClick={() => switchTab('buy')}
         >
           Buy
         </button>
@@ -566,20 +675,20 @@ export function TradeTicket({
           type="button"
           className={`ticket-tab${tab === 'sell' ? ' is-active' : ''}`}
           aria-pressed={tab === 'sell'}
-          onClick={() => setTab('sell')}
+          onClick={() => switchTab('sell')}
         >
           Sell
         </button>
         {/* The order type rides the same rule (owner report 2026-09-09: it
           had a row of its own, which at 293px wrapped under the sides and
-          read as a third mode beside a close button). It is a Buy control,
-          so it is not drawn while selling. */}
-        {tab === 'buy' && canLimit && (
+          read as a third mode beside a close button). The Sell tab carries it
+          once there is a position to sell (docs/limit-orders.md). */}
+        {((tab === 'buy' && canLimit) || (tab === 'sell' && canSellLimit)) && (
           <div className="ticket-mode" role="group" aria-label="Order type">
             <button
               type="button"
-              className={`ticket-mode-opt${!isLimit ? ' is-active' : ''}`}
-              aria-pressed={!isLimit}
+              className={`ticket-mode-opt${!limitOn ? ' is-active' : ''}`}
+              aria-pressed={!limitOn}
               onClick={() => {
                 setMode('quick');
                 setError('');
@@ -589,8 +698,8 @@ export function TradeTicket({
             </button>
             <button
               type="button"
-              className={`ticket-mode-opt${isLimit ? ' is-active' : ''}`}
-              aria-pressed={isLimit}
+              className={`ticket-mode-opt${limitOn ? ' is-active' : ''}`}
+              aria-pressed={limitOn}
               onClick={enterLimit}
             >
               Limit
@@ -653,6 +762,13 @@ export function TradeTicket({
             const sharesToSell = Math.min(p.shares, Math.max(0, sellShares));
             const sellWorth = previewSell(probability, liquidity, p.direction, sharesToSell);
             const sellPct = p.shares > 0 ? (sharesToSell / p.shares) * 100 : 0;
+            // The least a resting sale brings: every share of a fill sells at
+            // the limit or better, and a share is worth its place in the range.
+            const atLimitWorth =
+              sellLimitReady && limitNum !== null && span !== null && rangeMin !== undefined
+                ? sharesToSell *
+                  (p.direction === 'higher' ? (limitNum - rangeMin) / span : 1 - (limitNum - rangeMin) / span)
+                : null;
             return (
               <div key={p.direction} className={`ticket-pos-row${selling ? ' is-selling' : ''}`}>
                 {/* The position in the fact rows the buy side already uses
@@ -663,20 +779,24 @@ export function TradeTicket({
                     {p.direction === 'higher' ? '▲' : '▼'} {p.direction}
                   </span>
                   <span className="ticket-pos-detail">{fmtShares(p.shares)} shares</span>
-                  <button
-                    className="ticket-sell"
-                    disabled={busy !== null}
-                    onClick={() => {
-                      if (selling) {
-                        setSellDir(null);
-                        return;
-                      }
-                      setSellDir(p.direction);
-                      setSellShares(p.shares); // default to the whole thing
-                    }}
-                  >
-                    {selling ? 'Cancel' : 'Sell'}
-                  </button>
+                  {/* A resting sale keeps its panel open: the pill that opens and
+                    closes a quick sale would only read as cancelling the order. */}
+                  {!isSellLimit && (
+                    <button
+                      className="ticket-sell"
+                      disabled={busy !== null}
+                      onClick={() => {
+                        if (selling) {
+                          setSellDir(null);
+                          return;
+                        }
+                        setSellDir(p.direction);
+                        setSellShares(p.shares); // default to the whole thing
+                      }}
+                    >
+                      {selling ? 'Cancel' : 'Sell'}
+                    </button>
+                  )}
                 </div>
                 <div className="ticket-facts ticket-facts--pos">
                   <div className="ticket-fact">
@@ -704,8 +824,34 @@ export function TradeTicket({
                 {/* Pick how much to sell: a shares slider (owner ask
                     2026-08-11, replacing sell-all-only), the proceeds
                     preview, and one confirm. */}
-                {selling && (
+                {(selling || isSellLimit) && (
                   <div className="ticket-sell-panel">
+                    {isSellLimit && (
+                      <>
+                        <div className="compose">
+                          <label className="compose-fld">
+                            <span className="compose-u compose-u--pre">{unit || '#'}</span>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={limitDisplay}
+                              style={{ width: `${Math.max(1, limitDisplay.length)}ch` }}
+                              onChange={e => setLimit(e.target.value.replace(/[^0-9.]/g, ''))}
+                              aria-label={`Limit price in ${unit || 'metric units'}`}
+                            />
+                          </label>
+                        </div>
+                        <p className="ticket-label">
+                          {p.direction === 'higher' ? 'sell at this or higher' : 'sell at this or lower'}
+                        </p>
+                        {sellLimitError && <p className="ticket-err">{sellLimitError}</p>}
+                        {sellFillNow && limitNum !== null && (
+                          <p className="ticket-note" role="status">
+                            {`The market is already ${p.direction === 'higher' ? 'over' : 'under'} ${unit}${fmtValue(limitNum)}: ${fmtShares(sellFillNow.shares)} of ${fmtShares(sellFillNow.of)} shares sell now`}
+                          </p>
+                        )}
+                      </>
+                    )}
                     <input
                       type="range"
                       /* A size, not a direction: a full-width red track at
@@ -733,40 +879,65 @@ export function TradeTicket({
                           {fmtShares(sharesToSell)} of {fmtShares(p.shares)}
                         </span>
                       </div>
-                      <div className="ticket-fact">
-                        <span className="ticket-fact-k">You get</span>
-                        <span className="ticket-fact-v">{fmt(sellWorth)} cr</span>
-                      </div>
-                      <div className="ticket-fact">
-                        <span className="ticket-fact-k">Profit / loss</span>
-                        <span className="ticket-fact-v">
-                          {(() => {
-                            const paidForThese = p.shares > 0 ? (p.totalCost * sharesToSell) / p.shares : 0;
-                            const pl = sellWorth - paidForThese;
-                            return (
-                              <span className={`ticket-pos-delta ${pl >= 0 ? 'is-up' : 'is-down'}`}>
-                                {pl >= 0 ? '+' : '-'}
-                                {fmt(Math.abs(pl))} cr
-                              </span>
-                            );
-                          })()}
-                        </span>
-                      </div>
+                      {isSellLimit ? (
+                        atLimitWorth !== null && (
+                          <div className="ticket-fact">
+                            <span className="ticket-fact-k">You get</span>
+                            <span className="ticket-fact-v">{fmt(atLimitWorth)} cr or more</span>
+                          </div>
+                        )
+                      ) : (
+                        <>
+                          <div className="ticket-fact">
+                            <span className="ticket-fact-k">You get</span>
+                            <span className="ticket-fact-v">{fmt(sellWorth)} cr</span>
+                          </div>
+                          <div className="ticket-fact">
+                            <span className="ticket-fact-k">Profit / loss</span>
+                            <span className="ticket-fact-v">
+                              {(() => {
+                                const paidForThese = p.shares > 0 ? (p.totalCost * sharesToSell) / p.shares : 0;
+                                const pl = sellWorth - paidForThese;
+                                return (
+                                  <span className={`ticket-pos-delta ${pl >= 0 ? 'is-up' : 'is-down'}`}>
+                                    {pl >= 0 ? '+' : '-'}
+                                    {fmt(Math.abs(pl))} cr
+                                  </span>
+                                );
+                              })()}
+                            </span>
+                          </div>
+                        </>
+                      )}
                     </div>
-                    <button
-                      /* Selling is not a direction, so the confirm wears no
+                    {isSellLimit ? (
+                      <button
+                        className="ticket-go ticket-go--ink"
+                        disabled={busy !== null || sharesToSell <= 0 || !sellLimitReady}
+                        onClick={() => void placeSellLimit(p, sharesToSell)}
+                      >
+                        {busy === 'place-sell'
+                          ? 'Placing order…'
+                          : sellLimitReady && limitNum !== null
+                            ? `Sell ${fmtShares(sharesToSell)} at ${unit}${fmtValue(limitNum)}`
+                            : 'Set a price to sell'}
+                      </button>
+                    ) : (
+                      <button
+                        /* Selling is not a direction, so the confirm wears no
                         direction's colour (owner report 2026-09-09: green
                         for closing a Lower position). */
-                      className="ticket-go ticket-go--ink"
-                      disabled={busy !== null || sharesToSell <= 0}
-                      onClick={() => void sell(p, sharesToSell)}
-                    >
-                      {busy === `sell-${p.direction}`
-                        ? 'Selling…'
-                        : sharesToSell >= p.shares
-                          ? `Sell all for ${fmt(sellWorth)} cr`
-                          : `Sell ${fmtShares(sharesToSell)} for ${fmt(sellWorth)} cr`}
-                    </button>
+                        className="ticket-go ticket-go--ink"
+                        disabled={busy !== null || sharesToSell <= 0}
+                        onClick={() => void sell(p, sharesToSell)}
+                      >
+                        {busy === `sell-${p.direction}`
+                          ? 'Selling…'
+                          : sharesToSell >= p.shares
+                            ? `Sell all for ${fmt(sellWorth)} cr`
+                            : `Sell ${fmtShares(sharesToSell)} for ${fmt(sellWorth)} cr`}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -786,10 +957,9 @@ export function TradeTicket({
                   {o.direction === 'higher' ? '▲' : '▼'} {o.direction}
                 </span>
                 <span className="ticket-pos-detail">
-                  {o.direction === 'higher' ? 'under' : 'over'} {unit}
-                  {fmtValue(o.limitValue)}
-                  {' · '}
-                  {fmt(o.remainingCredits)} cr waiting
+                  {o.side === 'sell'
+                    ? `sell at ${unit}${fmtValue(o.limitValue)} · ${fmtShares(o.remainingShares ?? o.shares ?? 0)} sh`
+                    : `buy ${o.direction === 'higher' ? 'under' : 'over'} ${unit}${fmtValue(o.limitValue)} · ${fmt(o.remainingCredits)} cr`}
                 </span>
                 <button className="ticket-sell" disabled={busy !== null} onClick={() => void cancelOrder(o.id)}>
                   {busy === `cancel-${o.id}` ? 'Cancelling…' : 'Cancel'}
@@ -903,6 +1073,11 @@ export function TradeTicket({
                 {dir === 'higher' ? 'buy when the market falls under it' : 'buy when the market rises over it'}
               </p>
               {limitError && <p className="ticket-err">{limitError}</p>}
+              {buyFillNow && limitNum !== null && (
+                <p className="ticket-note" role="status">
+                  {`The market is already ${dir === 'higher' ? 'under' : 'over'} ${unit}${fmtValue(limitNum)}: ${fmt(buyFillNow.cost)} cr fills now`}
+                </p>
+              )}
             </>
           )}
 
@@ -982,23 +1157,6 @@ export function TradeTicket({
                   </div>
                 </>
               )}
-              {isLimit && !limitError && (
-                <div className="ticket-fact">
-                  <span className="ticket-fact-k">Until filled</span>
-                  <span className="ticket-fact-v">{amountNum} cr waits, cancel anytime</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* A resting order says one thing the picture cannot: that the
-              credits sit there until it fills. */}
-          {hasPayoff && isLimit && !limitError && (
-            <div className="ticket-facts">
-              <div className="ticket-fact">
-                <span className="ticket-fact-k">Until filled</span>
-                <span className="ticket-fact-v">{amountNum} cr waits, cancel anytime</span>
-              </div>
             </div>
           )}
 

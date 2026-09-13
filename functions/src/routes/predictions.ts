@@ -532,7 +532,13 @@ predictionsRouter.post(
         // The caller's own fill numbers are unchanged; this reports that other
         // people's resting orders executed behind them and where the price
         // actually came to rest.
-        tradeResponse.limitFills = fills.map(f => ({ direction: f.direction, limitValue: f.limitValue, cost: f.cost }));
+        tradeResponse.limitFills = fills.map(f => ({
+          side: f.side,
+          direction: f.direction,
+          limitValue: f.limitValue,
+          cost: f.cost,
+          ...(f.side === 'sell' ? { proceeds: f.proceeds, shares: f.shares } : {}),
+        }));
         tradeResponse.settledConsensus = settled;
       }
       eventPayload = {
@@ -597,9 +603,15 @@ predictionsRouter.post(
     }
 
     const { marketId, direction, limitValue } = req.body ?? {};
+    const side = req.body?.side ?? 'buy';
     const budgetCredits = req.body?.budgetCredits ?? req.body?.budget ?? req.body?.amount;
+    const shares = req.body?.shares;
     if (typeof marketId !== 'string' || !marketId) {
       res.status(400).json({ error: 'marketId is required' });
+      return;
+    }
+    if (side !== 'buy' && side !== 'sell') {
+      res.status(400).json({ error: 'side must be "buy" or "sell"; leave it out for a buy' });
       return;
     }
     if (direction !== 'higher' && direction !== 'lower') {
@@ -610,10 +622,15 @@ predictionsRouter.post(
       res.status(400).json({ error: "limitValue must be a number, in the metric's own units" });
       return;
     }
-    if (typeof budgetCredits !== 'number' || !(budgetCredits > 0)) {
+    if (side === 'buy' && (typeof budgetCredits !== 'number' || !(budgetCredits > 0))) {
       res.status(400).json({ error: 'budgetCredits must be a positive number of credits' });
       return;
     }
+    if (side === 'sell' && (typeof shares !== 'number' || !Number.isFinite(shares) || !(shares > 0))) {
+      res.status(400).json({ error: 'shares must be a positive number of the shares you hold to sell' });
+      return;
+    }
+    const isSell = side === 'sell';
 
     let expiresAt: Date | null = null;
     if (req.body?.expiresAt !== undefined && req.body?.expiresAt !== null) {
@@ -645,6 +662,8 @@ predictionsRouter.post(
 
     const orderId = randomUUID();
     let created!: Record<string, unknown>;
+    let immediate: { metricName: string; direction: string; cost: number; consensus: number | null } | null = null;
+    let othersFilled: Awaited<ReturnType<typeof fillLimitOrdersInTx>> = [];
 
     await db.transaction(async tx => {
       const [market] = await tx
@@ -672,73 +691,173 @@ predictionsRouter.post(
         market.rangeMax,
       );
       if (current === undefined) throw new AppError('Market has no price yet', 400);
-      // An order placed already-crossed is a market order wearing a disguise.
-      // Filling it instantly would surprise the trader, so say what it is.
-      if (direction === 'higher' && limitValue >= current) {
-        throw new AppError(
-          `The market is already at ${current}, at or below your limit of ${limitValue}, so this would fill immediately. Place a trade instead, or set a lower limit.`,
-          400,
-          { consensus: current },
-        );
-      }
-      if (direction === 'lower' && limitValue <= current) {
-        throw new AppError(
-          `The market is already at ${current}, at or above your limit of ${limitValue}, so this would fill immediately. Place a trade instead, or set a higher limit.`,
-          400,
-          { consensus: current },
-        );
-      }
+      // An order the market has already passed fills at once, up to its limit
+      // and never past it, and the rest rests (docs/limit-orders.md, "An order
+      // placed past the market fills at once"). A buy of higher and a sell of
+      // lower wait for the call to come down to them; the other two wait for
+      // it to come up. A limit within a cent of the call has nothing to trade
+      // into, so it simply rests.
+      const waitsBelow = isSell !== (direction === 'higher');
+      const crossedNow =
+        Math.abs(limitValue - current) >= 0.01 && (waitsBelow ? limitValue > current : limitValue < current);
 
       const [agentRow] = await tx.select().from(agents).where(eq(agents.id, agentId)).for('update');
       if (!agentRow) throw new AppError('Agent not found', 404);
-      if (!sufficientBalance(agentRow.balance as number, budgetCredits)) {
-        throw new AppError(
-          `Insufficient balance: this participant holds ${fromUnits(agentRow.balance as number)} credits and this order reserves ${budgetCredits}. ${fundingHint(agentRow)}`,
-          400,
-          {
-            balance: fromUnits(agentRow.balance as number),
-            cost: budgetCredits,
-          },
-          'insufficient_balance',
-        );
+
+      if (isSell) {
+        // A sell reserves nothing, so the rule that it never sells more than
+        // is held is enforced twice: here against the position less what
+        // this participant's other open sells on that side still wait to
+        // sell, and again at every fill against what is held then
+        // (docs/limit-orders.md).
+        const [pos] = await tx
+          .select({ shares: positions.shares })
+          .from(positions)
+          .where(and(eq(positions.id, `${agentId}_${marketId}_${direction}`), eq(positions.workspaceId, workspaceId)))
+          .for('update');
+        const held = (pos?.shares as number | undefined) ?? 0;
+        const waiting = await tx
+          .select({ shares: limitOrders.shares, filledShares: limitOrders.filledShares })
+          .from(limitOrders)
+          .where(
+            and(
+              eq(limitOrders.workspaceId, workspaceId),
+              eq(limitOrders.marketId, marketId),
+              eq(limitOrders.agentId, agentId),
+              eq(limitOrders.side, 'sell'),
+              eq(limitOrders.direction, direction),
+              eq(limitOrders.status, 'open'),
+            ),
+          )
+          .for('update');
+        const committed = waiting.reduce((sum, o) => sum + Math.max(0, (o.shares ?? 0) - (o.filledShares ?? 0)), 0);
+        const available = Math.max(0, fromUnits(toUnits(held - committed)));
+        if (shares > available + 1e-9) {
+          throw new AppError(
+            `This participant can put at most ${available} ${direction} shares up for sale here: the position holds ${fromUnits(toUnits(held))} and open sell orders already wait to sell ${fromUnits(toUnits(committed))}.`,
+            400,
+            { available },
+            'insufficient_shares',
+          );
+        }
+      } else {
+        if (!sufficientBalance(agentRow.balance as number, budgetCredits)) {
+          throw new AppError(
+            `Insufficient balance: this participant holds ${fromUnits(agentRow.balance as number)} credits and this order reserves ${budgetCredits}. ${fundingHint(agentRow)}`,
+            400,
+            {
+              balance: fromUnits(agentRow.balance as number),
+              cost: budgetCredits,
+            },
+            'insufficient_balance',
+          );
+        }
       }
 
-      await applyCredits(tx, {
-        agentId,
-        workspaceId,
-        deltaUnits: -toUnits(budgetCredits),
-        reason: 'limit_order_hold',
-        refType: 'market',
-        refId: marketId,
-      });
+      // What fills now goes through the one trade path (a buy toward its limit
+      // with its budget, a sell of its shares bounded by its limit), then the
+      // fill pass for resting orders that move crossed. Both run before this
+      // order exists, so the pass never meets it.
+      let filledCredits = 0;
+      let filledShares = 0;
+      let filledNow: Record<string, unknown> | null = null;
+      if (crossedNow) {
+        const dirIndex: 0 | 1 = direction === 'higher' ? 1 : 0;
+        const outcome = await executeTradeInTx(tx, {
+          workspaceId,
+          agentId,
+          marketId,
+          tradeId: randomUUID(),
+          mode: isSell
+            ? { type: 'sell', direction: dirIndex, dirLabel: direction, sellShares: shares }
+            : { type: 'targetValue', targetValue: limitValue, maxBudget: budgetCredits, direction: dirIndex },
+          ...(isSell ? { limit: limitValue } : {}),
+        });
+        filledShares = outcome.shares;
+        filledCredits = isSell ? outcome.proceeds : outcome.cost;
+        filledNow = isSell
+          ? { proceeds: outcome.proceeds, shares: outcome.shares, consensus: outcome.consensus }
+          : { cost: outcome.cost, shares: outcome.shares, consensus: outcome.consensus };
+        othersFilled = await fillLimitOrdersInTx(tx, workspaceId, marketId);
+        immediate = {
+          metricName: outcome.metricName,
+          direction: outcome.direction,
+          cost: isSell ? -outcome.proceeds : outcome.cost,
+          consensus: othersFilled.length > 0 ? othersFilled[othersFilled.length - 1].consensus : outcome.consensus,
+        };
+      }
+
+      const budget = isSell ? 0 : budgetCredits;
+      const remainingBudget = isSell ? 0 : Math.max(0, budgetCredits - filledCredits);
+      const remainingShares = isSell ? Math.max(0, shares - filledShares) : 0;
+      // A buy reserves only what is left to rest; a sell reserves nothing.
+      const done = isSell ? remainingShares <= 1e-6 : remainingBudget <= 0.01;
+      if (!isSell && !done) {
+        await applyCredits(tx, {
+          agentId,
+          workspaceId,
+          deltaUnits: -toUnits(remainingBudget),
+          reason: 'limit_order_hold',
+          refType: 'market',
+          refId: marketId,
+        });
+      }
+
       await tx.insert(limitOrders).values({
         id: orderId,
         workspaceId,
         marketId,
         agentId,
+        side,
         direction,
         limitValue,
-        budgetCredits,
-        filledCredits: 0,
-        status: 'open',
+        budgetCredits: budget,
+        filledCredits,
+        shares: isSell ? shares : null,
+        filledShares: isSell ? filledShares : null,
+        status: done ? 'filled' : 'open',
         expiresAt,
       });
 
       created = {
         id: orderId,
         marketId,
+        side,
         direction,
         limitValue,
-        budgetCredits,
-        filledCredits: 0,
-        remainingCredits: budgetCredits,
-        status: 'open',
+        budgetCredits: budget,
+        filledCredits,
+        remainingCredits: isSell || done ? 0 : remainingBudget,
+        shares: isSell ? shares : null,
+        filledShares: isSell ? filledShares : null,
+        remainingShares: isSell ? remainingShares : null,
+        status: done ? 'filled' : 'open',
         expiresAt: expiresAt ? expiresAt.toISOString() : null,
         consensusAtPlacement: current,
+        filledNow,
+        ...(othersFilled.length > 0 && immediate ? { settledConsensus: immediate.consensus } : {}),
       };
     });
 
+    // An order that filled at placement is a trade like any other: the board
+    // reads it at once and the floor hears about it.
+    if (immediate) clearBoardCache();
     res.status(201).json(created);
+    if (immediate) {
+      const trade = immediate as { metricName: string; direction: string; cost: number; consensus: number | null };
+      emitEvent(
+        'trade:executed',
+        {
+          marketId,
+          metricName: trade.metricName,
+          agentId,
+          direction: trade.direction,
+          cost: trade.cost,
+          newConsensus: trade.consensus,
+        },
+        workspaceId,
+      ).catch(e => console.error('emitEvent failed:', e));
+    }
   }),
 );
 
@@ -788,19 +907,26 @@ predictionsRouter.get(
       .where(and(...conditions))
       .orderBy(desc(limitOrders.createdAt));
     res.json(
-      rows.map(o => ({
-        id: o.id,
-        marketId: o.marketId,
-        agentId: o.agentId,
-        direction: o.direction,
-        limitValue: o.limitValue,
-        budgetCredits: o.budgetCredits,
-        filledCredits: o.filledCredits,
-        remainingCredits: Math.max(0, o.budgetCredits - o.filledCredits),
-        status: o.status,
-        expiresAt: o.expiresAt ? o.expiresAt.toISOString() : null,
-        createdAt: o.createdAt.toISOString(),
-      })),
+      rows.map(o => {
+        const isSellRow = o.side === 'sell';
+        return {
+          id: o.id,
+          marketId: o.marketId,
+          agentId: o.agentId,
+          side: isSellRow ? 'sell' : 'buy',
+          direction: o.direction,
+          limitValue: o.limitValue,
+          budgetCredits: o.budgetCredits,
+          filledCredits: o.filledCredits,
+          remainingCredits: isSellRow ? 0 : Math.max(0, o.budgetCredits - o.filledCredits),
+          shares: isSellRow ? (o.shares ?? 0) : null,
+          filledShares: isSellRow ? (o.filledShares ?? 0) : null,
+          remainingShares: isSellRow ? Math.max(0, (o.shares ?? 0) - (o.filledShares ?? 0)) : null,
+          status: o.status,
+          expiresAt: o.expiresAt ? o.expiresAt.toISOString() : null,
+          createdAt: o.createdAt.toISOString(),
+        };
+      }),
     );
   }),
 );

@@ -22,9 +22,34 @@ order fills while the consensus is at or **below** its limit; a `lower` order
 fills while it is at or **above**. The example above says: buy higher while the
 market is priced at $38,000 or less.
 
-If the price is already on your side when you place it, that is a market order,
-and the API says so with a 400 rather than filling something you did not ask
-for. Place a trade instead.
+If the price is already on your side when you place it, the order fills at once,
+up to your limit and never past it, and whatever is left rests. The response's
+`filledNow` says what filled (`cost` or `proceeds`, `shares`, `consensus`); an
+order with nothing left comes back `filled`.
+
+## Selling at your price
+
+A sell order is the same instruction for shares you already hold: sell this
+many of my position, but only while the price is where I want it.
+
+```
+POST /api/predictions/limit-orders
+{ "marketId": "...", "side": "sell", "direction": "higher",
+  "limitValue": 80000, "shares": 166.4 }
+```
+
+`direction` names the position you are selling. A `higher` sell fills while the
+consensus is at or **above** its limit, a `lower` sell while it is at or
+**below**: each waits for the price its position wants. Leave `side` out and
+the order is a buy, exactly as before.
+
+A sell never sells more than you hold. Placing one refuses `shares` beyond your
+position minus what your other open sells on that side are still waiting to
+sell (400 `insufficient_shares`, with `available`). Nothing is set aside: the
+shares stay in your position and settle like any others until a fill sells
+them. If you sell some by hand meanwhile, the order can sell only what is left,
+and once the position is gone the order closes as `cancelled`. A sell only
+sells, so it can never turn you into a holder of the other side.
 
 ## The budget is taken up front
 

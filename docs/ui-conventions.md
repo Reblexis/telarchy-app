@@ -1552,9 +1552,12 @@ than a size.
 
 Limit mode swaps the composer's right half from the landing value to the
 price itself, in the same underlined register, and the confirm becomes the
-whole instruction ("Buy Higher with 25 cr under $65,000"), with breakeven
+instruction in one line ("Buy Higher under $65,000"; the stake is on screen already), with breakeven
 exactly at the limit; limit orders are a mode of the same ticket, never a
-second panel. Spec: docs/limit-orders.md.
+second panel. The Sell tab has the same mode: the position's shares slider,
+the price, and an ink confirm ("Sell 166.4 at $80,000"). Neither tab offers
+Limit on a book whose trading closes within 10 minutes. Spec:
+docs/limit-orders.md.
 
 **The payoff line is one rule with two rows of type, and nothing else**
 (owner, 2026-09-01: "i want the visualization line to only show on top the
@@ -1634,9 +1637,7 @@ the slider saying what the pair means ("buy when the market falls under
 it"); limit mode has no second price row of its own. Its rule prices the
 FILL rather than a walk it never takes: the whole stake gone at the far end
 of the range, a credit a share at the near one, and the colour change
-exactly at the limit, which is the whole appeal of naming your own price. A
-limit the market has already passed fills at once rather than resting, so
-the ticket says so and draws nothing.
+exactly at the limit, which is the whole appeal of naming your own price. A limit the market has already passed fills at once up to the limit and rests the rest. That fill prices between the call and the limit, so the rule prices nothing: the ticket says in one line what fills now and draws the ghost of that fill.
 
 One degradation. A market with no range has no landing value, no break-even
 and no payout to state, so the ticket falls back to a stake and a confirm

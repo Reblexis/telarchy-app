@@ -511,7 +511,7 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
     'order',
     sql`SELECT 'order:' || o.id AS id, o.created_at AS at, 'order' AS kind, o.workspace_id, o.agent_id AS actor_id,
       jsonb_build_object('event', 'placed', 'marketId', o.market_id, 'proposalId', m.proposal_id, 'metric', m.metric_name, 'date', m.target_date,
-        'direction', o.direction, 'level', o.limit_value, 'budgetCredits', o.budget_credits) AS payload
+        'side', o.side, 'direction', o.direction, 'level', o.limit_value, 'budgetCredits', o.budget_credits, 'shares', o.shares) AS payload
       FROM limit_orders o LEFT JOIN markets m ON m.id = o.market_id AND m.workspace_id = o.workspace_id
       WHERE ${common(sql`o.created_at`, sql`'order:' || o.id`, sql`o.workspace_id`, sql`o.agent_id`)}
       ORDER BY o.created_at DESC, id DESC LIMIT ${take}`,
@@ -520,7 +520,8 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
     'order',
     sql`SELECT 'order:' || o.id || ':' || o.status AS id, o.updated_at AS at, 'order' AS kind, o.workspace_id, o.agent_id AS actor_id,
       jsonb_build_object('event', o.status, 'marketId', o.market_id, 'proposalId', m.proposal_id, 'metric', m.metric_name, 'date', m.target_date,
-        'direction', o.direction, 'level', o.limit_value, 'budgetCredits', o.budget_credits, 'filledCredits', o.filled_credits) AS payload
+        'side', o.side, 'direction', o.direction, 'level', o.limit_value, 'budgetCredits', o.budget_credits, 'filledCredits', o.filled_credits,
+        'shares', o.shares, 'filledShares', o.filled_shares) AS payload
       FROM limit_orders o LEFT JOIN markets m ON m.id = o.market_id AND m.workspace_id = o.workspace_id
       WHERE o.status <> 'open' AND ${common(sql`o.updated_at`, sql`'order:' || o.id || ':' || o.status`, sql`o.workspace_id`, sql`o.agent_id`)}
       ORDER BY o.updated_at DESC, id DESC LIMIT ${take}`,
@@ -828,20 +829,30 @@ function renderRow(
       break;
     }
     case 'order': {
-      const terms = `${num(Number(p.budgetCredits))} cr on ${p.direction} at ${num(Number(p.level))} on ${book}`;
-      if (p.event === 'placed') text = `placed a limit order: up to ${terms}`;
+      const sell = p.side === 'sell';
+      const terms = sell
+        ? `${num(Number(p.shares))} ${p.direction} shares at ${num(Number(p.level))} on ${book}`
+        : `${num(Number(p.budgetCredits))} cr on ${p.direction} at ${num(Number(p.level))} on ${book}`;
+      if (p.event === 'placed')
+        text = sell ? `placed a limit order to sell ${terms}` : `placed a limit order: up to ${terms}`;
       else if (p.event === 'filled')
-        text = `a limit order filled: ${num(Number(p.filledCredits ?? p.budgetCredits))} cr on ${p.direction} at ${num(Number(p.level))} on ${book}`;
-      else text = `a limit order was ${p.event}: up to ${terms}`;
+        text = sell
+          ? `a limit order sold ${num(Number(p.filledShares ?? p.shares))} ${p.direction} shares at ${num(Number(p.level))} on ${book}`
+          : `a limit order filled: ${num(Number(p.filledCredits ?? p.budgetCredits))} cr on ${p.direction} at ${num(Number(p.level))} on ${book}`;
+      else
+        text = sell ? `a limit order to sell ${terms} was ${p.event}` : `a limit order was ${p.event}: up to ${terms}`;
       detail = {
         status: p.event,
         marketId: p.marketId,
         metric: p.metric ?? null,
         date: p.date ?? null,
+        side: sell ? 'sell' : 'buy',
         direction: p.direction,
         level: p.level,
         budgetCredits: p.budgetCredits,
         filledCredits: p.filledCredits ?? null,
+        shares: p.shares ?? null,
+        filledShares: p.filledShares ?? null,
       };
       href = bookAddress();
       break;

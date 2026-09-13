@@ -487,21 +487,21 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/predictions/limit-orders',
       auth: 'agent',
       description:
-        'Place a resting limit order: buy `direction` with up to `budgetCredits`, but only while the market\'s consensus is at or beyond `limitValue`. Body: { marketId, direction: "higher"|"lower", limitValue, budgetCredits, expiresAt? }. `limitValue` is in the metric\'s own units (dollars), NOT probability. A "higher" order fills while consensus is at or below its limit; a "lower" order fills while consensus is at or above it. The budget is DEBITED at placement (reserved money, not an intention) and the unfilled remainder is refunded on cancel, expiry, or market resolution/voiding. Returns 400 if the limit is already crossed, since that is a market order: use POST /api/predictions/trade instead. Fills execute inside the transaction of whatever trade crosses the limit and never move the price past the limit itself; there is no matching engine and no polling to do.',
+        'Place a resting limit order: buy `direction` with up to `budgetCredits`, but only while the market\'s consensus is at or beyond `limitValue`. Body: { marketId, direction: "higher"|"lower", limitValue, budgetCredits, expiresAt? }. `limitValue` is in the metric\'s own units (dollars), NOT probability. A "higher" order fills while consensus is at or below its limit; a "lower" order fills while consensus is at or above it. The budget is DEBITED at placement (reserved money, not an intention) and the unfilled remainder is refunded on cancel, expiry, or market resolution/voiding. A limit the market has already reached fills AT ONCE, up to the limit and never past it, and the remainder rests: the response then carries filledNow { cost or proceeds, shares, consensus }, and status "filled" when nothing is left. Fills execute inside the transaction of whatever trade crosses the limit and never move the price past the limit itself; there is no matching engine and no polling to do. SELL side: body { marketId, side: "sell", direction, limitValue, shares, expiresAt? } sells up to `shares` of the `direction` position you hold while consensus is at or beyond `limitValue` in that position\'s favour (a "higher" sell at or above, a "lower" sell at or below). A sell reserves nothing and never sells more than you hold: 400 insufficient_shares (with `available`) when `shares` exceeds your position minus your other open sells on that side, and each fill sells at most what you hold then; an order whose position is gone closes as cancelled. Without `side` an order is a buy, exactly as before. Every response carries `side`; a sell also carries `shares`, `filledShares`, `remainingShares`.',
     },
     {
       method: 'GET',
       path: '/api/predictions/limit-orders',
       auth: 'agent/admin',
       description:
-        'List own limit orders. Query: ?marketId=X&status=open|filled|cancelled|expired|all (default open); admins may pass ?agentId=X. Each row carries remainingCredits (budget minus filled).',
+        'List own limit orders. Query: ?marketId=X&status=open|filled|cancelled|expired|all (default open); admins may pass ?agentId=X. Each row carries `side` ("buy"|"sell") and remainingCredits (budget minus filled; 0 on a sell); a sell also carries shares, filledShares and remainingShares, which are null on a buy.',
     },
     {
       method: 'DELETE',
       path: '/api/predictions/limit-orders/:id',
       auth: 'agent',
       description:
-        'Cancel a resting limit order, refunding the unfilled remainder to your balance. Owner or admin only. Returns { id, status, refundedCredits }.',
+        'Cancel a resting limit order, refunding the unfilled remainder to your balance (always 0 for a sell, which reserved nothing and leaves your position as it is). Owner or admin only. Returns { id, status, refundedCredits }.',
     },
     {
       method: 'GET',
