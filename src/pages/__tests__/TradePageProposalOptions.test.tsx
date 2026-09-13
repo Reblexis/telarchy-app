@@ -320,6 +320,54 @@ describe('THE WORLDS ARE THE OPTIONS', () => {
   });
 });
 
+describe('PAST SIX OPTIONS THE CELLS FOLD', () => {
+  // Reported on the beta chess floor, 2026-09-13: 24 option cells squeezed into one row read as "5 5 5 5".
+  const labels = (c: HTMLElement) => cellsOf(c).map(el => words(el.querySelector('.pubws-stat-what')));
+  function manyOptions() {
+    withFloor(ws => {
+      const opts = Array.from({ length: 24 }, (_, i) =>
+        h.option(`o${String(i).padStart(2, '0')}`, `Move ${i}`, 10 + i * 0.5, { delta: i === 23 ? 0.5 : -(23 - i) * 0.5 }),
+      );
+      ws.proposals[0].options = opts.map(o => ({ id: o.id as string, label: o.label as string }));
+      ws.proposals[0].markets[0].options = opts as never;
+      ws.proposals[0].markets[0].delta = 0.5;
+    });
+  }
+
+  test('the six highest priced, highest first, then "Show all 24"; pressing it opens every option in the proposer\'s order', async () => {
+    manyOptions();
+    const { container } = renderFloor();
+    await opened(container);
+    expect(labels(container)).toEqual([
+      expect.stringMatching(/last read/i),
+      'Move 23 · leads', 'Move 22', 'Move 21', 'Move 20', 'Move 19', 'Move 18',
+    ]);
+    const all = screen.getByRole('button', { name: 'Show all 24' });
+    fireEvent.click(all);
+    await waitFor(() => expect(cellsOf(container)).toHaveLength(25));
+    expect(labels(container).slice(1, 4)).toEqual(['Move 0', 'Move 1', 'Move 2']);
+    fireEvent.click(screen.getByRole('button', { name: 'Show fewer' }));
+    await waitFor(() => expect(cellsOf(container)).toHaveLength(7));
+  });
+
+  test('the selected option is always among the six', async () => {
+    manyOptions();
+    const { container } = renderFloor('/snake/p/129?option=o03');
+    await opened(container);
+    await waitFor(() => expect(labels(container)).toContain('Move 3'));
+    expect(cellsOf(container)).toHaveLength(7);
+    const three = cellsOf(container).find(el => words(el.querySelector('.pubws-stat-what')) === 'Move 3') as HTMLElement;
+    expect(three.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  test('three options keep every cell and no "Show all"', async () => {
+    const { container } = renderFloor();
+    await opened(container);
+    expect(cellsOf(container)).toHaveLength(4);
+    expect(screen.queryByRole('button', { name: /Show all/ })).toBeNull();
+  });
+});
+
 describe('THE HERO IS THE LEAD', () => {
   test("the big number is the leader's consensus minus the best other option, captioned with the leader over the next best", async () => {
     const { container } = renderFloor();

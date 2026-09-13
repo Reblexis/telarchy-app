@@ -440,6 +440,11 @@ export function TradePage() {
   // proposal with options. Null is the default world: approved, or the
   // leader (else the first priced option) until the reader presses a cell.
   const [worldPick, setWorldPick] = useState<string | null>(null);
+  /* Past six options the world cells fold to the six highest priced
+     (docs/ui-conventions.md, "A proposal with options shows one world per
+     option"); a new proposal opens folded again. */
+  const [showAllOptions, setShowAllOptions] = useState(false);
+  useEffect(() => setShowAllOptions(false), [selectedJobId]);
   /* The world an option chip on the board asked for (docs/ui-conventions.md,
      "An option row names its options instead of Higher and Lower"). Switching
      proposals resets the pick below; this is what it resets to instead of
@@ -1087,6 +1092,24 @@ export function TradePage() {
     worldPick !== null &&
     (jobOptioned ? jobOptionList.some(o => o.id === worldPick) : worldPick === 'approved' || worldPick === 'declined');
   const branch: string = pickValid ? (worldPick as string) : defaultWorld;
+  /* The world cells fold past six options (docs/ui-conventions.md, "A
+     proposal with options shows one world per option"): the six highest
+     priced, highest first, the selected world always among them; "Show all"
+     opens every option in the proposer's order. */
+  const MAX_WORLD_CELLS = 6;
+  const visibleOptionList = (() => {
+    if (jobOptionList.length <= MAX_WORLD_CELLS || showAllOptions) return jobOptionList;
+    const priceOf = (id: string) => {
+      const q = optionQuote(id);
+      return q && isPricedOption(q) && q.consensus !== null ? q.consensus : -Infinity;
+    };
+    const top = [...jobOptionList].sort((x, y) => priceOf(y.id) - priceOf(x.id)).slice(0, MAX_WORLD_CELLS);
+    if (!top.some(o => o.id === branch)) {
+      const sel = jobOptionList.find(o => o.id === branch);
+      if (sel) top[MAX_WORLD_CELLS - 1] = sel;
+    }
+    return top;
+  })();
   /** The world said beside a verb: "if approved", or the option's label. */
   const worldLabel = jobOptioned ? (jobOptionList.find(o => o.id === branch)?.label ?? branch) : null;
   const worldWord = worldLabel ?? `if ${branch}`;
@@ -2283,7 +2306,9 @@ export function TradePage() {
                         className={`pubws-worlds${jobOptioned ? ' pubws-worlds--options' : ''}`}
                         style={
                           jobOptioned
-                            ? ({ '--world-count': jobOptionList.length + 1 } as React.CSSProperties)
+                            ? ({
+                                '--world-count': Math.min(visibleOptionList.length + 1, MAX_WORLD_CELLS + 1),
+                              } as React.CSSProperties)
                             : undefined
                         }
                         role="group"
@@ -2301,7 +2326,7 @@ export function TradePage() {
                           </span>
                         </div>
                         {jobOptioned
-                          ? jobOptionList.map(o => {
+                          ? visibleOptionList.map(o => {
                               /* One cell per option, in the proposer's order,
                                  captioned with its label over its price
                                  (docs/ui-conventions.md, "A proposal with
@@ -2346,6 +2371,15 @@ export function TradePage() {
                               );
                             })
                           : null}
+                        {jobOptioned && jobOptionList.length > MAX_WORLD_CELLS && (
+                          <button
+                            type="button"
+                            className="pubws-world-more"
+                            onClick={() => setShowAllOptions(v => !v)}
+                          >
+                            {showAllOptions ? 'Show fewer' : `Show all ${jobOptionList.length}`}
+                          </button>
+                        )}
                         {!jobOptioned && (
                           <>
                             <button
