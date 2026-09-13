@@ -979,7 +979,7 @@ counting:
   its price; the leader's cell wears the green the approved cell wears
   today ("· leads" after its label), the others are plain, and the selected
   cell is underlined in the same green its chart line wears. Every priced cell is a button
-  (`aria-pressed`) that puts that option on the chart and the ticket; an
+  (`aria-pressed`) that puts that option on the chart and the ticket; a press sticks: nothing the page does while it settles (resolving the address to the proposal, loading its books) undoes a pick, however early it was made; an
   unpriced one says "no liquidity" and cannot be pressed, as any pair does.
   Up to six options fit one row on the desktop floor; on a phone the row
   wraps to two cells per line, the last-read cell first. There is no

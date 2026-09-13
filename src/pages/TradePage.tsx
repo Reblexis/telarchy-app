@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import remarkBreaks from 'remark-breaks';
@@ -698,7 +698,12 @@ export function TradePage() {
   // re-runs on every poll, so five seconds after the owner opened the
   // decline branch the page yanked them back to approved and the chart
   // remounted (owner report 2026-08-13).
-  useEffect(() => {
+  // A LAYOUT effect: it runs inside the render that shows the new proposal,
+  // before the page is drawn, so an option pressed the moment the cells
+  // appear is never undone by this reset landing a tick later
+  // (docs/ui-conventions.md, "A proposal with options shows one world per
+  // option": a press sticks).
+  useLayoutEffect(() => {
     setRemoveArmed(false);
     setDeclineReason(null);
     setDecideErr('');
