@@ -245,6 +245,37 @@ describe('the live log on the floor', () => {
     expect(CSS).not.toMatch(/pubws-rail--right[^{]*\.pubws-live-strip/);
   });
 
+  test('THE LEFT BLOCK AND THE OPENED LINE ARE THE SAME COMPACT BLOCK, each with the fold in its head', async () => {
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-rail--left .pubws-live')).toBeTruthy());
+    const left = container.querySelector('.pubws-rail--left .pubws-live') as HTMLElement;
+    expect(left.querySelector('.pubws-live-head button.pubws-live-fold')?.getAttribute('aria-label')).toBe(
+      'Fold the live log',
+    );
+    fireEvent.click(container.querySelector('.pubws-live-strip-line') as HTMLButtonElement);
+    const opened = container.querySelector('.pubws-center .pubws-live-strip .pubws-live') as HTMLElement;
+    expect(opened.querySelector('.pubws-live-head button.pubws-live-fold')?.getAttribute('aria-label')).toBe(
+      'Fold the live log',
+    );
+  });
+
+  test('THE SHOW MORE ROW IS A 36PX HAIRLINE ROW AND THE FOLD IS A BARE ICON BUTTON 44PX TALL', () => {
+    const rule = (sel: string) => {
+      const m = CSS.match(new RegExp(`\\n${sel.replace(/[.-]/g, '\\$&')} \\{([^}]*)\\}`));
+      expect(m, `no rule for ${sel}`).toBeTruthy();
+      return (m as RegExpMatchArray)[1];
+    };
+    const moreRow = rule('.pubws-live-more');
+    expect(moreRow).toMatch(/min-height:\s*36px/);
+    expect(moreRow).toMatch(/width:\s*100%/);
+    expect(moreRow).toMatch(/border-bottom:\s*1px solid var\(--border-color\)/);
+    expect(moreRow).toMatch(/color:\s*var\(--accent\)/);
+    expect(moreRow).toMatch(/JetBrains Mono/);
+    const fold = rule('.pubws-live-fold');
+    expect(fold).toMatch(/border:\s*0/);
+    expect(fold).toMatch(/min-height:\s*44px/);
+  });
+
   test('a live feed step reads the log again at once', async () => {
     renderFloor();
     await waitFor(() => expect(screen.getByTestId('live-view')).toBeTruthy());
