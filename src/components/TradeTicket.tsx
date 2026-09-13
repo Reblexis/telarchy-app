@@ -132,7 +132,6 @@ function fmtCompact(v: number): string {
   return fmtStake(v);
 }
 
-
 /** The ticket's stake precision: a millionth of a credit (docs/ui-conventions.md). */
 const STAKE_DECIMALS = 6;
 const STAKE_UNIT = 10 ** STAKE_DECIMALS;
