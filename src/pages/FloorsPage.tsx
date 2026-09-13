@@ -474,6 +474,10 @@ function FeaturedFloor({ r }: { r: Listing }) {
   );
 }
 
+/** How often a visible home page re-reads its payload: the server memoizes it
+ *  for the same 15 seconds (docs/ui-conventions.md, "The marketplace"). */
+export const HOME_REFRESH_MS = 15_000;
+
 export function FloorsPage() {
   const { user, loading: authLoading } = useAuth();
   // A full document load already carries the payload (the server inlines
@@ -483,25 +487,39 @@ export function FloorsPage() {
   const [listings, setListings] = useState<Listing[] | null>(() => (inline ? inline.listings.map(listingOf) : null));
   const [season, setSeason] = useState<PrizeSeason | null>(() => (inline ? pickCurrentSeason(inline.seasons) : null));
 
+  // The page stays live (docs/ui-conventions.md, "The marketplace"): a
+  // visible tab re-reads the home payload every 15 seconds, the server's own
+  // memo, and once more when a hidden tab comes back into view. A failed read
+  // keeps what is on screen.
   useEffect(() => {
     dropInline(INLINE_HOME);
-    if (inline) return;
     let cancelled = false;
-    api
-      .getHome()
-      .then(home => {
-        if (cancelled) return;
-        setListings(cur => {
-          const fresh = home.listings.map(listingOf);
-          // Own not-yet-public floors may already be in the grid; keep them.
-          const own = (cur ?? []).filter(r => r.mineVisibility && !fresh.some(f => f.workspaceId === r.workspaceId));
-          return [...own, ...fresh];
-        });
-        setSeason(pickCurrentSeason(home.seasons));
-      })
-      .catch(e => console.error('home fetch failed:', e));
+    const load = () =>
+      api
+        .getHome()
+        .then(home => {
+          if (cancelled) return;
+          setListings(cur => {
+            const fresh = home.listings.map(listingOf);
+            // Own not-yet-public floors may already be in the grid; keep them.
+            const own = (cur ?? []).filter(r => r.mineVisibility && !fresh.some(f => f.workspaceId === r.workspaceId));
+            return [...own, ...fresh];
+          });
+          setSeason(pickCurrentSeason(home.seasons));
+        })
+        .catch(e => console.error('home fetch failed:', e));
+    if (!inline) void load();
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== 'hidden') void load();
+    }, HOME_REFRESH_MS);
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void load();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [inline]);
 
