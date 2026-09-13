@@ -57,3 +57,28 @@ do 1k as goodwill". Paid through the operator credit route as
 `c3d14a1b-205a-477e-944d-2c5fa4098d2d` at 12:39:26 UTC, reason "goodwill: a
 limit order could not take a price the market had passed (2026-09-13)",
 balance 251,861.39 to 252,861.39.
+
+## 2026-09-13: The whole loss refunded to vi0, as a one-off
+
+Correction to the entry above, from the ledger: the split was wrong. The
+whole loss is one book, market `7a7cbc50` (forward, settled at length 36):
+9,740 cr of Lower in twelve trades between 09:59:20 and 09:59:49 UTC plus 923
+cr of Higher, 2,240 redeemed, net -8,448.48. The right book (`21732c70`) was
+voided and netted 0.00; there was no 692 round-trip loss. Every other book
+vi0 touched between 09:55 and 10:05 netted 0 or +990.64.
+
+Viktor asked whether refunding all of it would hurt: "its a poor ux.. and we
+want users to be happy is there any harm in refunding the whole thing". The
+credits cannot be cashed out, and the only harm named was precedent (vi0 said
+the bet was an attempt to steer the snake, and the thread is public).
+**Decided (Viktor, 2026-09-13):** "yes lets do it with a one off refund".
+Paid 7,448.48 as `admin_adjustment` on the Snake workspace, ledger row
+`ce166f41-f0c9-435c-bd2f-ecb9feb676c2` at 20:22:00 UTC, so 1,000 + 7,448.48
+covers the full 8,448.48. It stays an `admin_adjustment`, not a
+`fault_refund`: Snake counts toward Season 0 (docs/seasons.md, "Scoring
+set"), and the season board counts only `fault_refund` rows, so the loss
+stays in vi0's season score and no prize share moves between entrants.
+
+The 17:07 UTC declined move (vi0's own opposite limit orders filling against
+each other, then a deadlock on the operator's approve) cost vi0 nothing: 1,102.13
+traded, 1,093.10 redeemed, 9.03 refunded when the book was voided.
