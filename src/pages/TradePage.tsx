@@ -25,6 +25,7 @@ import {
   optionLabelOf,
   PersonGlyph,
   poolOf,
+  proposingOffered,
   splitAsk,
 } from '../components/JobsBoard';
 import { Linkified } from '../components/Linkified';
@@ -3175,6 +3176,7 @@ export function TradePage() {
                    proposals board", 2026-09-09). The same call the bar on
                    the proposal's own page makes. */
                 canManage={canManage}
+                canPropose={proposingOffered(ws.externalProposalsDisabled, canManage)}
                 onRule={
                   canManage ? (id, action, reason, option) => decide(action, false, id, reason, option) : undefined
                 }

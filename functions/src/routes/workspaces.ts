@@ -398,6 +398,7 @@ workspacesRouter.put(
     const hasDecisionDaysKey = Object.prototype.hasOwnProperty.call(req.body, 'decisionMinutes');
     const hasMutedKey = Object.prototype.hasOwnProperty.call(req.body, 'notificationsMuted');
     const hasLogHiddenKey = Object.prototype.hasOwnProperty.call(req.body, 'logHidden');
+    const hasExternalProposalsKey = Object.prototype.hasOwnProperty.call(req.body, 'externalProposalsDisabled');
     const touchesLifecycleFields =
       hasAutoFundKey ||
       hasCreditsKey ||
@@ -406,7 +407,8 @@ workspacesRouter.put(
       hasSpamPenaltyKey ||
       hasMaxPendingKey ||
       hasDecisionDaysKey ||
-      hasMutedKey;
+      hasMutedKey ||
+      hasExternalProposalsKey;
 
     // Lifecycle-shaped fields (visibility, auto-fund, liquidity defaults) are
     // gated by the granular `manage_workspace` capability, which the Admin group
@@ -607,6 +609,17 @@ workspacesRouter.put(
         return;
       }
       update.notificationsMuted = muted;
+    }
+
+    // Closed to outside proposals (docs/guides/proposals.md, "Closing the
+    // floor to outside proposals"): a boolean and nothing else, like the mute.
+    if (hasExternalProposalsKey) {
+      const closed = req.body.externalProposalsDisabled;
+      if (typeof closed !== 'boolean') {
+        res.status(400).json({ error: 'externalProposalsDisabled must be a boolean' });
+        return;
+      }
+      update.externalProposalsDisabled = closed;
     }
 
     // Hidden from the public actions log by default (docs/data-room.md, "An

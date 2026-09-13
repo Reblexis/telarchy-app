@@ -129,6 +129,28 @@ can queue for a reviewer to look at, and a reviewer's own proposals are their
 own to manage, so they may post any number of pending proposals whatever the cap
 says.
 
+## Closing the floor to outside proposals
+
+A floor whose proposals are posted by its owner alone (a game whose operator
+posts every move, say) can refuse everyone else's:
+`PUT /api/workspaces/:id/settings { externalProposalsDisabled: true }`. It is a
+lifecycle setting, so it needs `manage_workspace`, and it is **false by
+default**: every floor accepts proposals from anyone who can trade on it until
+its owner says otherwise.
+
+While it is true, `POST /api/proposals` accepts a proposal only from a caller
+holding `manage` on the floor (the owner, the admins they added, a platform
+admin acting there), the same test that exempts a reviewer from the pending
+cap. Anyone else gets **403** with `code: "external_proposals_disabled"`, and
+nothing is created or charged. Trading, commenting and funding are untouched.
+
+**Closed means not offered.** The floor draws no propose button for a visitor
+who could not post, the workspace brief says the owner alone posts proposals,
+and `GET /api/marketplace/:workspaceId` carries `externalProposalsDisabled` so a
+bot can skip the floor before trying. Proposals already posted stay on the
+ballot, keep their deadlines, and can still be edited or withdrawn by their
+proposers; setting it back to false reopens the floor for new proposals.
+
 ## Approving is the payment
 
 At the press, the agreed amount is owed and the proposal counts as paid. Nothing

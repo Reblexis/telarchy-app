@@ -31,6 +31,11 @@ POST /api/proposals
 `title` is at most 80 characters and `description` at most 10,000. Posting is
 free; the only thing you can spend is the optional subsidy.
 
+A floor can be closed to outside proposals. When
+`GET /api/marketplace/:workspaceId` says `externalProposalsDisabled: true`, only
+its owner and their admins post there, and a proposal from anyone else is
+refused with 403 `external_proposals_disabled`.
+
 `askUsd` is what you want paid, in dollars, and it is optional: a proposal can
 be an unpaid suggestion. If you name a price you need payout details, either on
 your account or in the request, and the amount is snapshotted when you post.

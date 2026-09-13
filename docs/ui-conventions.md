@@ -1875,7 +1875,10 @@ wears: no band, no filled button, no sub-line pricing the offer. Somebody
 who came to post work will find one line; somebody who came to trade is not
 asked to consider becoming a contractor before they have read a price. The
 control is still there for everyone the workspace allows, and the dialog it
-opens is unchanged.
+opens is unchanged. On a floor closed to outside proposals
+(`externalProposalsDisabled`, docs/guides/proposals.md) the line is drawn only
+for a viewer holding `manage` there; everyone else, signed in or not, sees
+no way to propose at all, not a button that fails.
 
 **Nothing summarises the board above it** (owner ask 2026-09-09, removing
 the count line of the same day: "like i think the way it isdisplayed below is

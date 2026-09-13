@@ -1307,6 +1307,10 @@ async function buildFloorPayload(ws: PublicWs) {
     // segment (docs/ui-conventions.md, "The live view is a segment of the
     // chart slot").
     liveFeed: (ws.liveFeed as { kind: string; url: string } | null) ?? null,
+    // Closed to outside proposals: only a manager may post one, and the floor
+    // offers the propose line to nobody else (docs/guides/proposals.md,
+    // "Closing the floor to outside proposals").
+    externalProposalsDisabled: ws.externalProposalsDisabled ?? false,
     // The moment the floor's year chart marks, when the owner named one.
     telarchyStartedOn: ws.telarchyStartedOn ?? null,
     visibility: ws.visibility,

@@ -66,6 +66,9 @@ export interface WorkspaceContext {
   charter: string | null;
   about: string | null;
   runningSince: string | null;
+  /** Only the owner and their admins post proposals here (docs/guides/
+   *  proposals.md, "Closing the floor to outside proposals"). */
+  externalProposalsDisabled: boolean;
   metrics: Array<{
     name: string;
     description: string;
@@ -369,6 +372,7 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
     // The owner's own start date, or failing that the day this workspace's
     // numbers first got read, which is when it started running them here.
     runningSince: ws.telarchyStartedOn ? new Date(ws.telarchyStartedOn).toISOString().slice(0, 10) : firstReadingDay,
+    externalProposalsDisabled: ws.externalProposalsDisabled ?? false,
     metrics: metricRows.map(m => ({
       name: m.name,
       description: m.description,
@@ -441,7 +445,9 @@ function renderFloorHead(ctx: WorkspaceContext, out: string[]): void {
   if (ctx.runningSince) out.push(`Running its numbers through Telarchy since ${ctx.runningSince}.`);
   out.push('');
   out.push(
-    'This is a Telarchy floor: the owner publishes the numbers they are judged on, anyone may post a proposal (a job with a price), and a market prices what approving each proposal would do to those numbers. Traders earn by being right.',
+    ctx.externalProposalsDisabled
+      ? 'This is a Telarchy floor: the owner publishes the numbers they are judged on, only the owner posts proposals here, and a market prices what approving each proposal would do to those numbers. Traders earn by being right.'
+      : 'This is a Telarchy floor: the owner publishes the numbers they are judged on, anyone may post a proposal (a job with a price), and a market prices what approving each proposal would do to those numbers. Traders earn by being right.',
   );
 
   if (ctx.about) {
