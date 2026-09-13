@@ -1,15 +1,17 @@
-import { and, count, eq, gt, inArray, sql } from 'drizzle-orm';
+import { and, count, eq, gt, gte, inArray, isNotNull, lte, ne, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import {
   agents,
   earnClaims,
   liquidityPurchases,
+  marketForecasts,
   markets,
   proposals,
   recordLinks,
   trades,
   workspaces,
 } from '../db/schema';
+import { consensus } from '../lib/amm';
 import { loadSeasonMarked } from '../lib/board';
 import { ttlCache } from '../lib/ttl-cache';
 import { allRecordProviders } from './recordProviders';
@@ -296,6 +298,107 @@ export async function activeForecasters7d(now = new Date()): Promise<number> {
   return (await paidRecordLinkAgents(qualifying)).size;
 }
 
+/** The participant whose mature forecasts are the benchmark
+ *  (docs/metrics.md, "The reference forecaster"). */
+export const REFERENCE_PARTICIPANT = 'reference-astra';
+
+/** The floor metric this number is recorded on; its own markets are never scored. */
+export const SKILL_METRIC_NAME = 'Skill vs reference';
+
+/** Credits of liquidity a market needs at resolution to be scored. */
+export const SKILL_MIN_LIQUIDITY = 1000;
+
+export interface SkillVsReference {
+  /** Share of scored markets the floor won, a tie counting half; null while none is scored. */
+  winRate: number | null;
+  /** Markets scored in the window. */
+  markets: number;
+  /** Mean |closing call - actual| as a fraction of each market's range; null while none is scored. */
+  marketError: number | null;
+  /** Mean |reference estimate - actual| on the same scale; null while none is scored. */
+  referenceError: number | null;
+}
+
+/**
+ * "Skill vs reference, trailing 30 days" (docs/metrics.md): over the markets
+ * that resolved in the window with a number, had 1,000+ credits of liquidity
+ * and carry a mature forecast the reference filed before the resolution, the
+ * share where the market's closing call landed closer to the actual than the
+ * reference's latest such estimate, a tie counting half.
+ *
+ * The closing call is read off the settled book, because settlement changes
+ * neither its shares nor its liquidity. Nothing scored is null rather than 0:
+ * a zero would say the floor lost every market. Every rule is pinned in
+ * __tests__/skill-vs-reference.test.ts.
+ */
+export async function skillVsReference30d(now = new Date()): Promise<SkillVsReference> {
+  const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const rows = await db
+    .select({
+      marketId: markets.id,
+      shares: markets.shares,
+      liquidity: markets.liquidity,
+      rangeMin: markets.rangeMin,
+      rangeMax: markets.rangeMax,
+      actual: markets.actualValue,
+      estimate: marketForecasts.value,
+      filedAt: marketForecasts.createdAt,
+    })
+    .from(markets)
+    .innerJoin(
+      marketForecasts,
+      and(
+        eq(marketForecasts.marketId, markets.id),
+        eq(marketForecasts.workspaceId, markets.workspaceId),
+        eq(marketForecasts.stage, 'mature'),
+      ),
+    )
+    .innerJoin(agents, and(eq(agents.id, marketForecasts.agentId), eq(agents.nickname, REFERENCE_PARTICIPANT)))
+    .where(
+      and(
+        eq(markets.resolved, true),
+        eq(markets.voided, false),
+        isNotNull(markets.actualValue),
+        gte(markets.liquidity, SKILL_MIN_LIQUIDITY),
+        gt(markets.resolvedAt, since),
+        lte(markets.resolvedAt, now),
+        ne(markets.metricName, SKILL_METRIC_NAME),
+        sql`${marketForecasts.createdAt} <= ${markets.resolvedAt}`,
+      ),
+    );
+
+  const latest = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) {
+    const held = latest.get(row.marketId);
+    if (!held || new Date(row.filedAt).getTime() > new Date(held.filedAt).getTime()) latest.set(row.marketId, row);
+  }
+
+  let wins = 0;
+  let marketError = 0;
+  let referenceError = 0;
+  let scored = 0;
+  for (const row of latest.values()) {
+    const range = row.rangeMax - row.rangeMin;
+    const call = consensus(row.shares as [number, number], row.liquidity, row.rangeMin, row.rangeMax);
+    if (!(range > 0) || call === undefined) continue;
+    const actual = Number(row.actual);
+    const byMarket = Math.abs(call - actual);
+    const byReference = Math.abs(Number(row.estimate) - actual);
+    if (Math.abs(byMarket - byReference) <= 1e-9 * range) wins += 0.5;
+    else if (byMarket < byReference) wins += 1;
+    marketError += byMarket / range;
+    referenceError += byReference / range;
+    scored += 1;
+  }
+  if (scored === 0) return { winRate: null, markets: 0, marketError: null, referenceError: null };
+  return {
+    winRate: wins / scored,
+    markets: scored,
+    marketError: marketError / scored,
+    referenceError: referenceError / scored,
+  };
+}
+
 /**
  * Credits a verified participant has to trade in the trailing week to count
  * as an active trader. Signup credits are free, so a one-credit gesture must
@@ -386,6 +489,9 @@ export interface PlatformStats {
    *  any provider) with 100+ credits of net exposure in the trailing 7 days,
    *  their bots counted as them, house excluded. */
   activeForecasters: number;
+  /** docs/metrics.md, "Skill vs reference, trailing 30 days": the floor's
+   *  closing calls against the reference forecaster's mature estimates. */
+  skillVsReference: SkillVsReference;
   manifoldImportCount: number;
   /**
    * Money Telarchy itself was paid in the trailing 30 days, USD
@@ -439,6 +545,7 @@ async function computePlatformStats(): Promise<PlatformStats> {
   const outsideOwnersDeciding = await outsideOwnersDeciding7d();
   const profitableForecasters = await profitableForecasters30d();
   const activeForecasters = await activeForecasters7d();
+  const skillVsReference = await skillVsReference30d();
 
   let marketsActive = 0;
   let tradesThisWeek = 0;
@@ -497,6 +604,7 @@ async function computePlatformStats(): Promise<PlatformStats> {
     tradesThisWeek,
     weeklyActiveVerifiedTraders,
     activeForecasters,
+    skillVsReference,
     outsideOwnersDeciding,
     profitableForecasters,
     manifoldImportCount,

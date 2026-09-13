@@ -19,6 +19,12 @@ const stats = {
   outsideOwnersDeciding: 1,
   profitableForecasters: 2,
   activeForecasters: 0,
+  skillVsReference: { winRate: null, markets: 0, marketError: null, referenceError: null } as {
+    winRate: number | null;
+    markets: number;
+    marketError: number | null;
+    referenceError: number | null;
+  },
   manifoldImportCount: 0,
   revenue30dUsd: 0,
 };
@@ -184,4 +190,32 @@ test('active forecasters is recorded every run on the metric of that name and fo
     .from(metrics)
     .where(and(eq(metrics.id, ACTIVE), eq(metrics.workspaceId, WS)));
   expect(m.value).toBe(3);
+});
+
+describe('skill vs reference', () => {
+  const SKILL = 'metric-skill-vs-reference';
+  beforeEach(async () => {
+    await db
+      .insert(metrics)
+      .values({ id: SKILL, workspaceId: WS, name: 'Skill vs reference', value: 0, formula: '0', marketRangeMax: 1 });
+  });
+
+  test('the win rate is recorded every run on the metric of that name', async () => {
+    stats.skillVsReference = { winRate: 0.4, markets: 5, marketError: 0.01, referenceError: 0.008 };
+    const result = await syncSelfMetrics();
+    expect(result.readings.find(r => r.metricId === SKILL)).toMatchObject({ value: 0.4, source: 'skillVsReference' });
+    expect(await logsFor(SKILL)).toHaveLength(1);
+    const [m] = await db
+      .select({ value: metrics.value })
+      .from(metrics)
+      .where(and(eq(metrics.id, SKILL), eq(metrics.workspaceId, WS)));
+    expect(m.value).toBe(0.4);
+  });
+
+  test('with no market scored nothing is recorded: no reading is not a reading of zero', async () => {
+    stats.skillVsReference = { winRate: null, markets: 0, marketError: null, referenceError: null };
+    const result = await syncSelfMetrics();
+    expect(result.readings.find(r => r.metricId === SKILL)).toBeUndefined();
+    expect(await logsFor(SKILL)).toHaveLength(0);
+  });
 });

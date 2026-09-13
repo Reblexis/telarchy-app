@@ -66,6 +66,10 @@ const FORECASTER_METRIC_NAMES = ['Profitable forecasters'];
 /** docs/metrics.md, "Active forecasters". */
 const ACTIVE_METRIC_NAMES = ['Active forecasters'];
 
+/** docs/metrics.md, "Skill vs reference, trailing 30 days". Recorded only
+ *  while a market is scored: no reading is not a reading of zero. */
+const SKILL_METRIC_NAMES = ['Skill vs reference'];
+
 export interface SelfSyncReading {
   metricId: string;
   metricName: string;
@@ -77,7 +81,8 @@ export interface SelfSyncReading {
     | 'revenue30dUsd'
     | 'outsideOwnersDeciding'
     | 'profitableForecasters'
-    | 'activeForecasters';
+    | 'activeForecasters'
+    | 'skillVsReference';
 }
 
 export interface SelfSyncResult {
@@ -187,6 +192,13 @@ export async function syncSelfMetrics(): Promise<SelfSyncResult> {
       value: stats.activeForecasters,
       source: 'activeForecasters' as const,
     })),
+    ...(stats.skillVsReference.winRate === null
+      ? []
+      : matchMetrics(allMetrics, SKILL_METRIC_NAMES).map(metric => ({
+          metric,
+          value: stats.skillVsReference.winRate as number,
+          source: 'skillVsReference' as const,
+        }))),
   ];
 
   const readings: SelfSyncReading[] = [];
