@@ -5,12 +5,12 @@ import { SnakeLive } from '../components/live/SnakeLive';
 import { Bars, Drop, Page, People, short } from '../components/MarketFacts';
 import { CreateWorkspaceDialog } from '../components/OwnerDialogs';
 import { useAuth } from '../hooks/useAuth';
-import type { HomeListing, HomePayload, PrizeSeason, PublicWorkspace } from '../lib/api';
+import type { HomeListing, HomePayload, PrizeSeason, PublicProposal, PublicWorkspace } from '../lib/api';
 import { api } from '../lib/api';
 import { floorHref } from '../lib/floor-hash';
 import { buildHorizonViews, priceSeriesOf, primaryHorizonOf } from '../lib/floor-horizons';
 import { dropInline, readInline } from '../lib/inline-data';
-import { pairPool } from '../lib/proposal-options';
+import { optionLead, pairPool } from '../lib/proposal-options';
 import { pickCurrentSeason } from '../lib/season-clock';
 import { useSeasonClock } from '../lib/useSeasonClock';
 import { TopBar } from './TradePage';
@@ -75,6 +75,40 @@ interface Listing {
   question?: string | null;
   /** The floor draws a live board (today the snake). */
   live?: boolean;
+  /** The floor's most traded open proposal, for the featured card's deciding
+   *  now block; null when it has none. */
+  proposal?: PublicProposal | null;
+}
+
+/** Credits traded on every book of a proposal: each option's volume, or both
+ *  branches of each pair. */
+function proposalVolume(p: PublicProposal): number {
+  return (p.markets ?? []).reduce(
+    (sum, m) =>
+      sum +
+      (m.options
+        ? m.options.reduce((s, o) => s + (o.volume ?? 0), 0)
+        : (m.approvedVolume ?? 0) + (m.declinedVolume ?? 0)),
+    0,
+  );
+}
+
+/** The featured card's deciding now proposal (docs/ui-conventions.md, "The
+ *  marketplace"): the most traded open one, pending with trading not closed,
+ *  ties to the newest; null when the floor has none. */
+export function pickOpenProposal(proposals: PublicProposal[] | null | undefined): PublicProposal | null {
+  let best: PublicProposal | null = null;
+  for (const p of proposals ?? []) {
+    if ((p.status ?? 'pending') !== 'pending' || p.closedAt) continue;
+    if (best === null) {
+      best = p;
+      continue;
+    }
+    const v = proposalVolume(p);
+    const bv = proposalVolume(best);
+    if (v > bv || (v === bv && Date.parse(p.createdAt ?? '') > Date.parse(best.createdAt ?? ''))) best = p;
+  }
+  return best;
 }
 
 /** The floor the home page features: the most credits traded per hour over
@@ -378,9 +412,13 @@ function GhostCell() {
  *  direction 2026-08-16). */
 function fromFloor(
   ws: PublicWorkspace,
-): Pick<Listing, 'hero' | 'participants' | 'tradesThisWeek' | 'liquidity' | 'heroMarketId' | 'question' | 'live'> {
+): Pick<
+  Listing,
+  'hero' | 'participants' | 'tradesThisWeek' | 'liquidity' | 'heroMarketId' | 'question' | 'live' | 'proposal'
+> {
   const m = primaryHorizonOf(buildHorizonViews(ws));
   return {
+    proposal: pickOpenProposal((ws as { proposals?: PublicProposal[] }).proposals),
     heroMarketId: m?.marketId ?? null,
     question: m?.title ?? null,
     live: !!(ws as { liveFeed?: unknown }).liveFeed,
@@ -413,6 +451,88 @@ function listingOf(w: HomeListing): Listing {
     volumePerHour: typeof w.volumePerHour === 'number' ? w.volumePerHour : null,
     ...(w.floor ? fromFloor(w.floor) : {}),
   };
+}
+
+/** A signed impact as the proposal rows print it: "+3.0", "-3.0", "+$1,839". */
+function fmtImpact(d: number, unit: string): string {
+  return `${d > 0 ? '+' : d < 0 ? '-' : ''}${fmtHero(Math.abs(d), unit)}`;
+}
+
+/** Time to a decision: "0:24" under an hour, "3h 12m" under a day, then "2d 6h". */
+function fmtLeft(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  if (s < 3600) return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  if (s < 86_400) return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+  return `${Math.floor(s / 86_400)}d ${Math.floor((s % 86_400) / 3600)}h`;
+}
+
+/** The featured card's deciding now block (docs/ui-conventions.md, "The
+ *  marketplace"): the proposal, its countdown, one row per world. */
+function DecidingNow({ p, slug }: { p: PublicProposal; slug: string }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, []);
+  const m = p.markets?.[0];
+  if (!m) return null;
+  const unit = /\bUSD\b/.test(m.metricName) ? '$' : '';
+  const metricLabel = m.metricName.replace(/\s*\(.*\)\s*$/, '');
+  const href = floorHref(slug, { proposalId: p.id });
+  const decideBy = p.decideBy ? Date.parse(p.decideBy) : Number.NaN;
+  type Row = { key: string; label: string; price: number | null; impact: number | null; leads: boolean };
+  let rows: Row[];
+  if (m.options && m.options.length > 0) {
+    const leaderId = optionLead(m.options)?.leader?.id ?? null;
+    const order = p.options?.length ? p.options.map(o => o.id) : m.options.map(o => o.id);
+    rows = order
+      .map(id => m.options?.find(o => o.id === id))
+      .filter((o): o is NonNullable<typeof o> => !!o)
+      .map(o => ({ key: o.id, label: o.label, price: o.consensus, impact: o.delta, leads: o.id === leaderId }));
+  } else {
+    const d = m.delta ?? 0;
+    rows = [
+      { key: 'approved', label: 'If approved', price: m.approvedConsensus, impact: null, leads: d > 0 },
+      { key: 'declined', label: 'If declined', price: m.declinedConsensus, impact: null, leads: d < 0 },
+    ];
+  }
+  return (
+    <div className="mkt-deciding" role="group" aria-label="Deciding now">
+      <p className="mkt-deciding-head">
+        <span className="mkt-deciding-label">Deciding now</span>
+        {Number.isFinite(decideBy) && (
+          <span className="mkt-deciding-clock">{`decides in ${fmtLeft(decideBy - now)}`}</span>
+        )}
+      </p>
+      <p className="mkt-deciding-title">
+        <span className="mkt-deciding-number">{`#${p.number}`}</span> <span>{p.title}</span>
+      </p>
+      <div className="mkt-deciding-rows">
+        {rows.map(r => (
+          <Link key={r.key} className={`mkt-deciding-row${r.leads ? ' is-leader' : ''}`} to={href}>
+            <span className="mkt-deciding-name">
+              {r.label}
+              {r.leads && <span className="mkt-deciding-leads">leads</span>}
+            </span>
+            <span className="mkt-deciding-price">{r.price === null ? 'open' : fmtHero(r.price, unit)}</span>
+            {r.impact !== null && (
+              <span className={`mkt-deciding-impact${r.impact > 0 ? ' is-up' : r.impact < 0 ? ' is-down' : ''}`}>
+                {fmtImpact(r.impact, unit)}
+              </span>
+            )}
+          </Link>
+        ))}
+      </div>
+      {!m.options && m.delta !== null && (
+        <p className="mkt-deciding-pair">
+          <span className={`mkt-deciding-impact${m.delta > 0 ? ' is-up' : m.delta < 0 ? ' is-down' : ''}`}>
+            {fmtImpact(m.delta, unit)}
+          </span>
+        </p>
+      )}
+      <p className="mkt-deciding-mech">{`Each option is priced by what traders forecast it does to ${metricLabel}.`}</p>
+    </div>
+  );
 }
 
 /** The featured card (docs/ui-conventions.md, "The marketplace"): the busiest
@@ -466,6 +586,7 @@ function FeaturedFloor({ r }: { r: Listing }) {
             Lower ↓
           </Link>
         </div>
+        {r.proposal && r.slug && <DecidingNow p={r.proposal} slug={r.slug} />}
         <span className="mkt-cell-facts">
           <ActivityFacts r={r} />
         </span>
