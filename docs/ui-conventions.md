@@ -2571,7 +2571,7 @@ record in `notes/decisions/ui-conventions.md`).
 
 The setting is `liveFeed` on `PUT /api/workspaces/:id/settings`, plain
 `manage`: `{ kind, url }` or null to clear, where `kind` names the feed's
-shape from a short allow-list (today only `snake`) and `url` is the https
+shape from a short allow-list (`snake` and `chess`) and `url` is the https
 origin the feed is served from, at most 500 characters. Anything else
 (http, an unknown kind, a bare string, a missing field) is 400 and leaves
 the stored value alone. It is served on the public floor payload as
@@ -2691,6 +2691,19 @@ leads), no plain line under the title, no trade, no commentary, and no
 button or link other than the three arrows on the grid and the replay
 row's. No impact number is printed in the segment: the arrows' shading
 is the only reading of the impacts.
+
+**The chess feed** (`kind: "chess"`) is the shape the telarchy-chess
+service publishes (its `docs/chess.md`, "The feed"): `/state` carries
+`phase` (`our-move`, `their-move`, `settling`, `seeking`), `player`,
+`game: { number, id, url, color, opponent, fen, moves, turn, clocks,
+status, result }`, `open: { move, proposal: {id,number,url}, deadline,
+tradeable, options: [{ id (UCI), san, price, lead, marketId, reason? }] }`
+with one option per legal move, and `recentDecisions[]`; `/games` lists
+the games and `/history?game=` is one game's plies. How the floor draws the
+board and the moves is open until a design is picked
+(`notes/design/chess-moves` in the telarchy umbrella); until then a chess
+floor's LIVE segment renders the row and nothing under it, as any kind this
+build cannot draw does.
 
 **The feed drives the floor** (2026-09-11, Viktor: "make sure the whole
 page is properly dynamic and reactive to the fast updating snake"). A
