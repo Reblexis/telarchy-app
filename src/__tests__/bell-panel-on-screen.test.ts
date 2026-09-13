@@ -46,7 +46,7 @@ function rule(cls: string): string {
 }
 
 describe('notifications show up whole on a phone, not clipped', () => {
-  test('on a phone the bell stops being the panel\'s anchor, so the bar is', () => {
+  test("on a phone the bell stops being the panel's anchor, so the bar is", () => {
     expect(phoneRules('notif')).toMatch(/position:\s*static/);
   });
 
