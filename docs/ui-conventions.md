@@ -2684,18 +2684,69 @@ button or link other than the three arrows on the grid and the replay
 row's. No impact number is printed in the segment: the arrows' shading
 is the only reading of the impacts.
 
-**The chess feed** (`kind: "chess"`) is the shape the telarchy-chess
-service publishes (its `docs/chess.md`, "The feed"): `/state` carries
-`phase` (`our-move`, `their-move`, `settling`, `seeking`), `player`,
-`game: { number, id, url, color, opponent, fen, moves, turn, clocks,
-status, result }`, `open: { move, proposal: {id,number,url}, deadline,
-tradeable, options: [{ id (UCI), san, price, lead, marketId, reason? }] }`
-with one option per legal move, and `recentDecisions[]`; `/games` lists
-the games and `/history?game=` is one game's plies. How the floor draws the
-board and the moves is open until a design is picked
-(`notes/design/chess-moves` in the telarchy umbrella); until then a chess
-floor's LIVE segment renders the row and nothing under it, as any kind this
-build cannot draw does.
+**The chess feed** (`kind: "chess"`, `ChessLive`) is the shape the
+telarchy-chess service publishes (its `docs/chess.md`, "The feed"):
+`/state` carries `phase` (`our-move`, `their-move`, `settling`,
+`seeking`), `game: { number, id, url, color, opponent: {name, title,
+rating}, fen, moves (UCI), turn, clocks, status, result }`, `open: { move,
+proposal: {id,number,url}, deadline, tradeable, options: [{ id (UCI), san,
+price, lead, marketId, reason? }] }` with one option per legal move, and
+`recentDecisions[]` (newest first, `{ game, move, chosen, san, price,
+kind }`); `/games` is `{ games: [{ number, id, color, opponent, result,
+plies }] }` and `/history?game=` is `{ game, plies: [{ ply, by: "us" |
+"them", uci, san, fen, kind?, price? }] }`. It is drawn as the snake is,
+in the same slot and the same three layers, with a move list where the
+snake has none (design A of `notes/design/chess-moves` in the telarchy
+umbrella, Viktor 2026-09-13: "ok do A make sure that it can also be
+selected by doing the move on the chessboard just like with snake
+clicking the arrow"):
+
+1. **The board** (`.chess-board`, an svg of 64 squares in the floor's
+   ground tones) seen from TelarchyBot's side: white at the bottom when
+   `game.color` is white, black at the bottom otherwise. The pieces are
+   the position in `game.fen`; the two squares of the last move
+   (`game.moves`' last) are tinted. **Arrows for the three highest
+   prices** of an open move (`.chess-arrow`), shaded as the snake's
+   chevrons are (the leader at 0.9, the lowest of the three at 0.3, all at
+   0.55 on a tie or fewer than two priced), each a link to
+   `/{slug}/p/{open.proposal.number}?option={uci}` that opens that
+   option's world in place. **A move made on the board opens its option**:
+   pressing a piece that has legal moves (the `from` square of some
+   option) selects it and marks each square it can move to with a dot;
+   pressing one of those squares opens that move's world exactly as its
+   arrow does (a promotion opens the queen's); pressing anywhere else
+   clears the selection. Pieces that cannot move, and every piece while no
+   move is open, do nothing. A new position draws at once; nothing is ever
+   painted outside the board.
+2. **The next move** (`.chess-next`), the snake's line in the snake's
+   type: "Next move: O-O in 0:31" (the leader's SAN, counting down to
+   `open.deadline`; "Next move in 0:31" while no option leads), "Next move: O-O, deciding" once that count runs out,
+   "Their move" while the opponent thinks (with ", played O-O at 56.4"
+   when the last decision belongs to this game), "Settling the game"
+   while `phase` is `settling`, "Waiting for the next game" between games,
+   "Loading" before the first read and "Feed unavailable" after a failed
+   one.
+3. **The moves, highest price first** (`.chess-moves`), only while a move
+   is open: a caption "N moves, highest price first", the twelve highest
+   as rows (rank, piece and SAN, a bar the length of the price within the
+   list's range, the price to one decimal), the leader's row in the
+   approved green with "· leads", then "The other M" in a compact grid of
+   SAN and price. An unpriced option sorts last and reads "open". Every
+   row and cell is a link opening that option's world, as its arrow does.
+   Beside the board when the slot is wide enough for both, under it
+   otherwise.
+
+The replay row is the snake's (picker, scrubber, play, speed, LIVE): the
+picker lists the games newest first as "Game 3 · vs OppBot · lost", the
+scrubber runs over the plies (0 is the start position), play steps one
+ply a second (ten at 10x), and the line reads "Move 6: O-O, chosen at
+56.4" for TelarchyBot's ply ("chosen at random" when its `kind` is not
+`market` or no price was recorded) and "Move 6: they played Nf6" for the
+opponent's. In replay the board draws the ply's `fen`, its move tinted,
+and our chosen move as one solid arrow; there is no move list. Every read
+reports the open move's option prices by proposal id for the floor's own
+cells, and a new open proposal (or none) reloads the floor, as the snake's
+step does.
 
 **The feed drives the floor** (2026-09-11, Viktor: "make sure the whole
 page is properly dynamic and reactive to the fast updating snake"). A

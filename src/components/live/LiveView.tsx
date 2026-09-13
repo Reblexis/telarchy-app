@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { SnakeAction, SnakeState } from '../../lib/api';
 import type { FeedQuotes } from '../../lib/feed-overlay';
+import { ChessLive } from './ChessLive';
 import { SnakeLive } from './SnakeLive';
 
 /**
@@ -29,7 +30,7 @@ export function LiveView({
   corner?: ReactNode;
   center?: ReactNode;
   /** A chevron was clicked: the page selects that proposal (docs/ui-conventions.md, "The feed drives the floor"). */
-  onPickProposal?: (number: number, option?: SnakeAction) => void;
+  onPickProposal?: (number: number, option?: string) => void;
   /** The feed's step changed or its decision landed: the page reloads at once. */
   onStep?: (s: { step: number; decided: boolean }) => void;
   /** Every feed read: the open step's quotes by proposal id, for the floor's prices. */
@@ -44,6 +45,8 @@ export function LiveView({
       </div>
       {kind === 'snake' ? (
         <SnakeLive slug={slug} onPickProposal={onPickProposal} onStep={onStep} onQuotes={onQuotes} onState={onState} />
+      ) : kind === 'chess' ? (
+        <ChessLive slug={slug} onPickProposal={onPickProposal} onStep={onStep} onQuotes={onQuotes} />
       ) : null}
     </div>
   );
