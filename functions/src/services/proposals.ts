@@ -1,3 +1,4 @@
+import { retryTransient } from '../lib/transient-retry';
 import { randomUUID } from 'crypto';
 import { and, asc, eq, inArray, isNotNull, isNull, lt, sql } from 'drizzle-orm';
 import { db } from '../db/client';
@@ -613,9 +614,13 @@ export async function closeProposalTrading(proposalId: string, workspaceId: stri
     .from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)));
   for (const m of live) {
-    await db.transaction(async tx => {
-      await releaseLimitOrdersForMarket(tx, m.id, 'cancelled');
-    });
+    // Retried on a deadlock like the voids (docs/guides/proposals.md, "A
+    // decision never fails because the database was busy").
+    await retryTransient(() =>
+      db.transaction(async tx => {
+        await releaseLimitOrdersForMarket(tx, m.id, 'cancelled');
+      }),
+    );
   }
   // Every decision passes through here after its status is written: the
   // proposal's books have left the floor's open books, so its prices read
@@ -878,7 +883,8 @@ export async function approveProposal(
     return { rewardPaid: 0 };
   }
 
-  await db.transaction(async tx => {
+  await retryTransient(() =>
+    db.transaction(async tx => {
     const [owner] = await tx.select().from(agents).where(eq(agents.id, ownerAgentId)).for('update');
     if (!owner) throw new AppError('Workspace owner participant not found', 409);
     if (!sufficientBalance(owner.balance as number, reward)) {
@@ -914,7 +920,8 @@ export async function approveProposal(
         resolvedBy: resolvedBy ?? ownerAgentId,
       })
       .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
-  });
+    }),
+  );
   await closeProposalTrading(proposalId, workspaceId);
   return { rewardPaid: reward };
 }

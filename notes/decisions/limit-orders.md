@@ -114,3 +114,12 @@ closing book take the market row lock first).
 
 **Not changed, for Viktor:** the snake operator declines at once when the
 approve fails; one immediate retry of a 500 would have saved the move.
+
+**Decided (Viktor, 2026-09-13):** "yes lets do teh real fix so it doesnt have
+a chance to happen again regarding the bug" and "and ten publish straigt up".
+Added the layer that keeps a decision standing through lock cycles the lock
+order does not cover: voidMarket, the release of a closing book and the
+approve's payment transaction are retried on 40P01 and 40001, up to three
+attempts (`lib/transient-retry.ts`; docs/guides/proposals.md, "A decision
+never fails because the database was busy"). The snake operator's own
+behaviour is unchanged: a retry there would have come after the deadline.
