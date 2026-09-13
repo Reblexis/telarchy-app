@@ -490,7 +490,7 @@ without pressing anything, which is the whole of what a visitor came to
 find out:
 
 ```
-  ACTIVE TRADERS   REVENUE   OUTSIDE OWNERS DECIDING   PROFITABLE FORECASTERS
+  ACTIVE FORECASTERS   REVENUE   OUTSIDE OWNERS DECIDING
   ------------
   THIS WEEK   THIS MONTH
   14.3        17.9
@@ -1083,8 +1083,8 @@ note is the plain "resolves ..." again. The flag travels on
 from the points array (a resetting metric ships an empty array inside a
 fresh period, which is not "unmeasured").
 
-The metrics that use the flag ("Implied valuation (USD)" on both public
-floors) are defined in docs/metrics.md.
+The metrics that use the flag ("Implied valuation (USD)" on the LookPilot
+floor) are defined in that floor's own docs.
 
 ### The price and the chart
 
