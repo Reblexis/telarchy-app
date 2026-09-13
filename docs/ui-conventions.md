@@ -1899,17 +1899,25 @@ twenty would not, and the decided fold under it is unchanged.
 the title and, right-aligned, the impact: if-done minus if-not-done,
 green/red, "open" while unpriced, under a single column label ("impact if
 done", or "impact by <date>" when the horizon on screen has a date) rather
-than a label per row. The second line is the facts as an ICON ROW
+than a label per row. **The title owns the first line**: nothing but the
+impact shares it, so the title takes every pixel the impact does not and
+wraps to a second line of its own before it is clamped; the impact (an
+option proposal's leader label and its lead) never wraps and never sits over
+the title. The second line is the facts as an ICON ROW
 (`.pubws-prow-meta`), the same vocabulary the market's own facts use: the
 proposer, the USD ask, the countdown to the decision, and the pool behind
-the pair.
+the pair, and on its right **every control the row carries**: the manager's
+two rulings, the option chips, the Higher / Lower pair. When the controls
+and the facts do not fit side by side, the controls wrap under the facts,
+right-aligned; they never take width from the title.
 Icons, not words, because four labelled facts under every row is a
 paragraph per proposal; each icon carries its words as a hover title. The
 rows are ranked by pool as before. **Nothing is stacked on the right edge**:
-the impact and the two verbs sit on one horizontal line with the title, and
-a fact that cannot fit there goes to the icon row instead. The right edge
+a fact that cannot fit goes to the icon row instead. The right edge
 growing a fourth item is what made this row unreadable in a 340px rail
-(Viktor, 2026-09-09: "4 things below each otherh seem like too much").
+(Viktor, 2026-09-09: "4 things below each otherh seem like too much"), and
+controls on the title's line are what left a manager's snake row a
+two-character title under five buttons.
 
 **Every row can be traded from where it is read** (2026-09-09): a compact
 Higher / Lower pair (`.pubws-dir--mini`) at the end of the row, which selects

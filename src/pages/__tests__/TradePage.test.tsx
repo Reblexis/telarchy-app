@@ -1575,7 +1575,8 @@ describe('a posted proposal is selected the moment it lands', () => {
     const row = await screen.findByTitle('Replace the slogan');
     await waitFor(() => expect(row.getAttribute('aria-pressed')).toBe('true'));
     expect(row.textContent).toMatch(/#2/);
-    expect(row.textContent).toMatch(/yours/);
+    // "yours" is among the facts, on the row's second line.
+    expect((row.closest('.pubws-prow') as HTMLElement).textContent).toMatch(/yours/);
     // And the one that was selected before (none) stays unselected.
     expect(screen.getByTitle('rewrite the store page').getAttribute('aria-pressed')).toBe('false');
   });
