@@ -2158,6 +2158,13 @@ badge per row turns twelve rows into a field of noise). Opening a row
 reads THAT row: the count drops by one, its hairline goes, and the rest
 stay as they were. "Mark all read" stays for the sweep.
 
+**The panel is always wholly on screen.** From 641px up it drops from
+the bell, right edges aligned. On a phone (640px and below) the bell
+sits mid-bar with other controls to its right, so a panel hung from it
+runs off the left edge; there the panel belongs to the viewport instead:
+fixed just under the sticky bar, 1rem from each side, and no taller than
+the screen below the bar, scrolling inside itself.
+
 **A row lands on the thing it names.** `/<slug>#proposal=<id>&comment=<id>`
 selects the proposal, opens its thread, scrolls the named comment into
 view and runs `.is-flashed` on it: one wash of the accent that fades out

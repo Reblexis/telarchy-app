@@ -106,8 +106,15 @@ export function NotificationsBell() {
     };
   }, [open]);
 
+  // Where the bell's bottom edge is on screen. On a phone the panel is fixed
+  // to the viewport (docs/ui-conventions.md, "The bell"), so it cannot take
+  // its top from the bell's box and reads it here instead; 11px is the same
+  // 0.7rem drop the wide panel keeps under the bell.
+  const [panelTop, setPanelTop] = useState<number | null>(null);
+
   const toggle = () => {
     const next = !open;
+    if (next && rootRef.current) setPanelTop(Math.round(rootRef.current.getBoundingClientRect().bottom + 11));
     setOpen(next);
     if (next) load();
   };
@@ -169,7 +176,12 @@ export function NotificationsBell() {
       </button>
 
       {open && (
-        <div className="notif-panel" role="dialog" aria-label="What's new">
+        <div
+          className="notif-panel"
+          role="dialog"
+          aria-label="What's new"
+          style={panelTop === null ? undefined : ({ '--notif-top': `${panelTop}px` } as React.CSSProperties)}
+        >
           <div className="notif-panel-head">
             <span className="notif-panel-title">What&rsquo;s new</span>
             {unread > 0 && (

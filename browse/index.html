@@ -6911,6 +6911,12 @@ carry an amber hairline down the left edge as the only unread marker (a
 badge per row turns twelve rows into a field of noise). Opening a row
 reads THAT row: the count drops by one, its hairline goes, and the rest
 stay as they were. &quot;Mark all read&quot; stays for the sweep.</p>
+<p><strong>The panel is always wholly on screen.</strong> From 641px up it drops from
+the bell, right edges aligned. On a phone (640px and below) the bell
+sits mid-bar with other controls to its right, so a panel hung from it
+runs off the left edge; there the panel belongs to the viewport instead:
+fixed just under the sticky bar, 1rem from each side, and no taller than
+the screen below the bar, scrolling inside itself.</p>
 <p><strong>A row lands on the thing it names.</strong> <code>/&lt;slug&gt;#proposal=&lt;id&gt;&amp;comment=&lt;id&gt;</code>
 selects the proposal, opens its thread, scrolls the named comment into
 view and runs <code>.is-flashed</code> on it: one wash of the accent that fades out

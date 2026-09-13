@@ -113,6 +113,35 @@ describe('the notifications bell', () => {
 });
 
 /**
+ * Notifications showed up clipped on mobile (2026-09-13): on a phone the
+ * panel is fixed to the viewport, so it has to learn where the bell's bottom
+ * edge is on screen rather than inherit it from the bell's box.
+ */
+describe('the panel on a phone', () => {
+  test('opens just below the bell, wherever the bell is on screen', async () => {
+    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      top: 180,
+      bottom: 220,
+      left: 127,
+      right: 172,
+      width: 45,
+      height: 40,
+      x: 127,
+      y: 180,
+      toJSON: () => ({}),
+    } as DOMRect);
+    try {
+      bell();
+      fireEvent.click(await screen.findByRole('button', { name: /what's new/i }));
+      const panel = await screen.findByRole('dialog', { name: /what's new/i });
+      expect(panel.style.getPropertyValue('--notif-top')).toBe('231px');
+    } finally {
+      rect.mockRestore();
+    }
+  });
+});
+
+/**
  * Owner ask 2026-08-19: "one less per click on the new stuff". Opening a row
  * reads that row only, and reading it twice is not two decrements.
  */

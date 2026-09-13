@@ -1818,6 +1818,22 @@ code, pre, kbd, samp {
 @keyframes notif-drop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .notif-panel { animation: none; } }
 
+/* On a phone the bell sits mid-bar with controls to its right, so a panel
+   hung from it ran off the left edge (docs/ui-conventions.md, "The bell").
+   Here the panel belongs to the viewport: 1rem from each side, opening just
+   under the bell (--notif-top, measured on open) and never taller than the
+   screen below it. */
+@media (max-width: 640px) {
+  .notif-panel {
+    position: fixed;
+    top: var(--notif-top, 4.25rem);
+    left: 1rem;
+    right: 1rem;
+    width: auto;
+    max-height: calc(100dvh - var(--notif-top, 4.25rem) - 1rem);
+  }
+}
+
 .notif-panel-head {
   position: sticky;
   top: 0;
