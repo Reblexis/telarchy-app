@@ -147,9 +147,10 @@ export function apiAuthPolicy(req: Request, res: Response, next: NextFunction): 
     return;
   }
 
-  if (isOptionalAuthPath(path)) {
-    void optionalAuthMiddleware(req, res, next);
-  } else {
-    void authMiddleware(req, res, next);
-  }
+  // Both checks read the database, and an acquire can time out. The rejection
+  // goes to the error handler as that request's 500; started with `void` it
+  // was nobody's, and Node ended the process with every request it held
+  // (docs/infra/deploy.md, "And it shares the database's connection budget").
+  const check = isOptionalAuthPath(path) ? optionalAuthMiddleware : authMiddleware;
+  check(req, res, next).catch(next);
 }

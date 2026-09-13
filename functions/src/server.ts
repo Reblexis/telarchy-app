@@ -42,6 +42,10 @@ for (const candidate of [path.resolve(process.cwd(), '.env'), path.resolve(proce
 }
 
 import express from 'express';
+import { installProcessGuards } from './lib/process-guards';
+
+// Before anything can reject: an unhandled rejection is logged, not an exit.
+installProcessGuards();
 
 // Overlay machine-local overrides from .env.local (ignored by git).
 // Matches the Next.js / Vite convention: .env is shared defaults, .env.local

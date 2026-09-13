@@ -280,7 +280,11 @@ left no room for branch previews). The standing contract:
   instance serving the public site never opens it). Five per instance either
   way. Both give up on an acquire after 5 seconds instead of queuing forever
   (`functions/src/db/client.ts`); a starved request fails fast as a 500, it
-  does not hang for a minute.
+  does not hang for a minute. The 500 is that request's alone: an error while
+  reading credentials goes to the API's error handler like any other, and a
+  rejected promise nobody awaited is logged, never allowed to end the process.
+  An instance that exits drops every request it holds and pushes its traffic
+  onto the others, which then starve and exit too.
 - Every instance also holds **1** dedicated connection to production for the
   price channel (`LISTEN_CONNECTIONS`, below: "Prices, one channel across
   instances"), open for the life of the instance. Six per instance at most.
