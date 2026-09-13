@@ -123,3 +123,10 @@ approve's payment transaction are retried on 40P01 and 40001, up to three
 attempts (`lib/transient-retry.ts`; docs/guides/proposals.md, "A decision
 never fails because the database was busy"). The snake operator's own
 behaviour is unchanged: a retry there would have come after the deadline.
+## 2026-09-13: Limit on every book, the snake included
+
+The ticket hid Limit on any book closing within 10 minutes, which hid it on
+every snake proposal. **Decided (Viktor, 2026-09-13):** "no its not supposed
+to be this way there isnt supposed to be anything like that". The rule is gone
+from docs/limit-orders.md and docs/ui-conventions.md; both tabs offer Limit
+on every book.

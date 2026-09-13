@@ -94,9 +94,6 @@ interface Props {
   onCancelLimit?: (id: string) => Promise<void>;
   /** Rest a sell of `shares` of the held `direction` position at `limitValue`. */
   onPlaceSellLimit?: (direction: 'higher' | 'lower', limitValue: number, shares: number) => Promise<void>;
-  /** When trading on this book closes (a proposal's decision deadline). Within
-      CLOSES_SOON_MS of it neither tab offers Limit (docs/limit-orders.md). */
-  closesAt?: string | null;
   /** Open with a side already chosen (the floor's Lower/Higher buttons
       preselect it when they spawn the ticket in a dialog). */
   initialDir?: 'higher' | 'lower';
@@ -135,8 +132,6 @@ function fmtCompact(v: number): string {
   return fmtStake(v);
 }
 
-/** A book closing sooner than this offers no Limit: the close would release the order first. */
-const CLOSES_SOON_MS = 10 * 60 * 1000;
 
 /** The ticket's stake precision: a millionth of a credit (docs/ui-conventions.md). */
 const STAKE_DECIMALS = 6;
@@ -188,7 +183,6 @@ export function TradeTicket({
   onPlaceLimit,
   onCancelLimit,
   onPlaceSellLimit,
-  closesAt,
   initialDir,
   manageMode = false,
   subject,
@@ -255,13 +249,12 @@ export function TradeTicket({
     limitNum !== null && Number.isFinite(limitNum) && !limit.endsWith('.')
       ? limitNum.toLocaleString('en-US', { maximumFractionDigits: 2 })
       : limit;
-  const closesSoon = !!closesAt && new Date(closesAt).getTime() - Date.now() < CLOSES_SOON_MS;
   const hasRange = consensus !== null && rangeMin !== undefined && rangeMax !== undefined;
-  const canLimit = !!onPlaceLimit && hasRange && !closesSoon;
+  const canLimit = !!onPlaceLimit && hasRange;
   const isLimit = mode === 'limit' && canLimit;
   // The Sell tab's limit sells the one position held (the server keeps a
   // trader to a single net side), so it exists only while there is one.
-  const canSellLimit = !!onPlaceSellLimit && hasRange && !closesSoon && held !== null;
+  const canSellLimit = !!onPlaceSellLimit && hasRange && held !== null;
   const isSellLimit = tab === 'sell' && mode === 'limit' && canSellLimit;
   const limitOn = tab === 'sell' ? isSellLimit : isLimit;
   const span = rangeMin !== undefined && rangeMax !== undefined ? rangeMax - rangeMin : null;

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -264,5 +264,30 @@ describe('the deadline reads at every scale', () => {
     renderFloor();
     await selectContract();
     expect((await screen.findByLabelText('Decision deadline')).textContent).toMatch(/decides \d/);
+  });
+});
+
+/**
+ * Limit orders on every book, however soon it closes (docs/limit-orders.md).
+ * Viktor 2026-09-13, of a snake proposal ticket with no Limit: "no its not
+ * supposed to be this way there isnt supposed to be anything like that".
+ */
+describe('limit orders on every book', () => {
+  test('a proposal deciding within a minute still offers Limit on the Buy tab', async () => {
+    await withProposal({ decideBy: new Date(Date.now() + 50_000).toISOString() });
+    renderFloor();
+    await selectContract();
+    fireEvent.click(await screen.findByRole('button', { name: /Bet Higher/ }));
+    expect(await screen.findByRole('group', { name: 'Order type' })).toBeTruthy();
+  });
+
+  test('a proposal deciding within a minute still offers Limit on the Sell tab', async () => {
+    await withProposal({ decideBy: new Date(Date.now() + 50_000).toISOString() });
+    renderFloor();
+    await selectContract();
+    fireEvent.click(await screen.findByRole('button', { name: /Bet Higher/ }));
+    const ticket = (await screen.findByRole('group', { name: 'Order type' })).closest('[aria-label="Place a trade"]') as HTMLElement;
+    fireEvent.click(within(ticket).getByRole('button', { name: 'Sell' }));
+    expect(await within(ticket).findByRole('group', { name: 'Order type' })).toBeTruthy();
   });
 });

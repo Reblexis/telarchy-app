@@ -2723,8 +2723,8 @@ nothing.</p>
 step. This is enforced structurally rather than by discipline: there is one
 <code>executeTradeInTx</code> in <code>services/trading.ts</code>, and both the trade route and the
 fill pass call it.</p>
-<p>Two properties the implementation must keep, because losing either turns a
-limit order into something else:</p>
+<p>Three properties the implementation must keep, because losing any of them
+turns a limit order into something else:</p>
 <ul>
 <li><strong>A stranger's order can never fail your trade.</strong> Each fill runs in its own
 savepoint inside the triggering trade's transaction. An order that cannot
@@ -2769,9 +2769,8 @@ needed; the existing cap and the charter's coordination rule still govern.</p>
 </ul>
 <p>A buy placed without <code>side</code> behaves and answers exactly as before sells
 existed; the new fields are additions.</p>
-<p>The API accepts an order on any open book, including one whose trading
-closes within minutes. The ticket does not offer one there (below), because
-the close releases it before anyone is likely to reach its price.</p>
+<p>Every open book takes limit orders, in the API and in the ticket alike,
+however soon its trading closes.</p>
 <p>A trade's own <code>limit</code> (docs/guides/agent-api.md, &quot;Guard the price&quot;) is not a
 limit order. It fills now, up to its bound, and hands back what it did not
 spend; nothing rests and nothing is reserved. The fill pass above is the same
@@ -2786,10 +2785,8 @@ is optional and hidden until wanted:</p>
 <li>A <code>Quick</code> / <code>Limit</code> toggle in the ticket's header, Manifold-style, on
 both tabs: on Buy once a side is picked, on Sell once there is a position
 to sell. Default is <code>Quick</code>, so the common case gains nothing to read.</li>
-<li><strong>No <code>Limit</code> on a book whose trading closes within 10 minutes</strong>, on either
-tab: a proposal that decides that soon (every book on a one-minute floor
-such as the snake) releases a resting order at the close, so offering one
-offers nothing.</li>
+<li><strong><code>Limit</code> is offered on every book</strong>, a one-minute snake proposal
+included; nothing about a book's close hides it.</li>
 <li>Choosing <code>Limit</code> reveals one mono input in metric space, prefilled
 with the current call, and the confirm restates the instruction:
 <strong>&quot;Buy Higher under $65,000&quot;</strong>. The stake is already on screen in the
@@ -6489,9 +6486,8 @@ price itself, in the same underlined register, and the confirm becomes the
 instruction in one line (&quot;Buy Higher under $65,000&quot;; the stake is on screen already), with breakeven
 exactly at the limit; limit orders are a mode of the same ticket, never a
 second panel. The Sell tab has the same mode: the position's shares slider,
-the price, and an ink confirm (&quot;Sell 166.4 at $80,000&quot;). Neither tab offers
-Limit on a book whose trading closes within 10 minutes. Spec:
-docs/limit-orders.md.</p>
+the price, and an ink confirm (&quot;Sell 166.4 at $80,000&quot;). Both tabs offer
+Limit on every book, however soon it closes. Spec: docs/limit-orders.md.</p>
 <p><strong>The payoff line is one rule with two rows of type, and nothing else</strong>
 (owner, 2026-09-01: &quot;i want the visualization line to only show on top the
 credit gains/losses and on bottom the different values it settles at thats
