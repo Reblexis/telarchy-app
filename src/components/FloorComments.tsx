@@ -154,6 +154,14 @@ export function FloorComments({
   const listRef = useRef<HTMLUListElement | null>(null);
   const activityRef = useRef<HTMLUListElement | null>(null);
   const [comments, setComments] = useState<Comment[] | null>(null);
+  /* Which subject the loaded comments and activity belong to. A pointed-at
+     line is searched for only in the list of the subject now on screen: a
+     log row followed from the plain floor to a proposal changes the subject
+     and the focus in one render, and the previous market's list, still in
+     state for that render, must not answer "not here" for the proposal's
+     (docs/ui-conventions.md, "A trade has an address"). */
+  const [commentsFor, setCommentsFor] = useState<string | null>(null);
+  const [activityFor, setActivityFor] = useState<string | null>(null);
   const [activity, setActivity] = useState<{ positions: Holder[]; trades: TradeItem[]; pool: PoolItem[] } | null>(null);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -174,12 +182,17 @@ export function FloorComments({
   useEffect(() => {
     if (!threadKey) return;
     setComments(null);
+    const key = threadKey;
     api
       .getFloorComments(idOrSlug, subject)
-      .then(setComments)
+      .then(list => {
+        setComments(list);
+        setCommentsFor(key);
+      })
       .catch(e => {
         console.error('comments fetch failed:', e);
         setComments([]);
+        setCommentsFor(key);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idOrSlug, threadKey]);
@@ -198,6 +211,7 @@ export function FloorComments({
     // subject landing late would otherwise paint the wrong market's rows.
     const token = ++activityReqRef.current;
     const wanted = activityMarkets;
+    const key = marketKey;
     Promise.all(
       wanted.map(m =>
         api
@@ -214,6 +228,7 @@ export function FloorComments({
       ),
     ).then(parts => {
       if (token !== activityReqRef.current) return;
+      setActivityFor(key);
       setActivity({
         positions: parts.flatMap(p => p.positions),
         trades: parts
@@ -234,9 +249,10 @@ export function FloorComments({
   }, [focusCommentId]);
 
   // ...and once the thread has rendered, the line is scrolled to and flashed.
-  // Runs after comments load, because the row does not exist before that.
+  // Runs once THIS subject's comments have loaded and the thread is open,
+  // because the row does not exist before that.
   useEffect(() => {
-    if (!focusCommentId || comments === null) return;
+    if (!focusCommentId || comments === null || commentsFor !== threadKey || tab !== 'comments') return;
     const el = listRef.current?.querySelector(`[data-comment-id="${CSS.escape(focusCommentId)}"]`);
     if (el) {
       const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -248,7 +264,7 @@ export function FloorComments({
     // leave the panel waiting for a row that will never arrive.
     onFocusHandled?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusCommentId, comments]);
+  }, [focusCommentId, comments, commentsFor, threadKey, tab]);
 
   // A pointed-at trade opens Activity the same way, and flashes its row once
   // the list has rendered. Handled either way: the list holds the newest
@@ -258,7 +274,7 @@ export function FloorComments({
     if (focusTradeId) setTab('activity');
   }, [focusTradeId]);
   useEffect(() => {
-    if (!focusTradeId || activity === null) return;
+    if (!focusTradeId || activity === null || activityFor !== marketKey || tab !== 'activity') return;
     const el = activityRef.current?.querySelector(`[data-trade-id="${CSS.escape(focusTradeId)}"]`);
     if (el) {
       const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -268,7 +284,7 @@ export function FloorComments({
     }
     onFocusHandled?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusTradeId, activity]);
+  }, [focusTradeId, activity, activityFor, marketKey, tab]);
 
   const post = async () => {
     const content = draft.trim();

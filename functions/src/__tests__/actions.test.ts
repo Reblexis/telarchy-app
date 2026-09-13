@@ -901,6 +901,266 @@ describe('the kinds added when the log was found short (2026-09-10)', () => {
   });
 });
 
+/**
+ * A row links to the exact thing it describes (docs/data-room.md, "A row";
+ * docs/ui-conventions.md, "A trade has an address"). The floor only steps
+ * `#market=` to a BASELINE book, so anything on a proposal's book (a branch,
+ * or one book per option) has to name the proposal or it opens nothing.
+ */
+describe('a row points at the thing itself', () => {
+  async function seedProposalBooks() {
+    await seedEverything();
+    await db.insert(proposals).values([
+      {
+        id: 'p-opt',
+        workspaceId: PUB,
+        proposedBy: 'a2',
+        title: 'Which way?',
+        status: 'pending',
+        askUsd: 0,
+        number: 7,
+        options: [
+          { id: 'left', label: 'Turn left' },
+          { id: 'right', label: 'Turn right' },
+        ],
+        createdAt: T('2026-08-31T09:00:00Z'),
+      },
+      {
+        id: 'p-nonum',
+        workspaceId: PUB,
+        proposedBy: 'a2',
+        title: 'Numberless job',
+        status: 'pending',
+        askUsd: 5,
+        createdAt: T('2026-08-31T09:30:00Z'),
+      },
+    ]);
+    const optionBook = {
+      workspaceId: PUB,
+      metricId: 'm1',
+      metricName: 'Active traders',
+      targetDate: '2026-09',
+      rangeMin: 0,
+      rangeMax: 50,
+      shares: [0, 0] as [number, number],
+      liquidity: 100,
+      pool: initialPool(100),
+      active: true,
+      resolved: false,
+      voided: false,
+      createdAt: T('2026-08-31T09:00:00Z'),
+    };
+    await db.insert(markets).values([
+      { ...optionBook, id: 'mkt-opt-left', proposalId: 'p-opt', branch: 'left' },
+      { ...optionBook, id: 'mkt-opt-right', proposalId: 'p-opt', branch: 'right' },
+    ]);
+    const trade = (id: string, marketId: string, minute: number) => ({
+      id,
+      workspaceId: PUB,
+      agentId: 'a1',
+      marketId,
+      direction: 'higher',
+      shares: 3,
+      cost: 12,
+      kind: 'trade',
+      createdAt: T(`2026-09-01T10:${String(minute).padStart(2, '0')}:00Z`),
+    });
+    await db
+      .insert(trades)
+      .values([
+        trade('t-pair', 'mkt-pair', 1),
+        trade('t-opt', 'mkt-opt-left', 2),
+        trade('t-opt-r', 'mkt-opt-right', 3),
+      ]);
+    const order = (id: string, marketId: string, status: string, minute: number) => ({
+      id,
+      workspaceId: PUB,
+      marketId,
+      agentId: 'a1',
+      direction: 'higher',
+      limitValue: 6,
+      budgetCredits: 40,
+      status,
+      createdAt: T(`2026-09-01T11:${String(minute).padStart(2, '0')}:00Z`),
+      updatedAt: T(`2026-09-01T11:${String(minute + 5).padStart(2, '0')}:00Z`),
+    });
+    await db
+      .insert(limitOrders)
+      .values([order('lo-pair', 'mkt-pair', 'cancelled', 1), order('lo-opt', 'mkt-opt-right', 'filled', 2)]);
+    await db.insert(liquidityEvents).values([
+      {
+        id: 'lq-opt',
+        workspaceId: PUB,
+        marketId: 'mkt-opt-left',
+        amount: 80,
+        totalLiquidity: 180,
+        type: 'injection',
+        agentId: 'a1',
+        createdAt: T('2026-09-01T12:00:00Z'),
+      },
+      {
+        id: 'lq-pair',
+        workspaceId: PUB,
+        marketId: 'mkt-pair',
+        amount: 20,
+        totalLiquidity: 120,
+        type: 'injection',
+        agentId: 'a1',
+        createdAt: T('2026-09-01T12:01:00Z'),
+      },
+    ]);
+    await db.insert(marketMessages).values([
+      {
+        id: 'mm-pair',
+        workspaceId: PUB,
+        marketId: 'mkt-pair',
+        from: 'a1',
+        content: 'Branch talk.',
+        createdAt: T('2026-09-01T13:00:00Z'),
+      },
+    ]);
+    await db.insert(proposalMessages).values([
+      {
+        id: 'pm-nonum',
+        workspaceId: PUB,
+        proposalId: 'p-nonum',
+        from: 'a3',
+        content: 'Which number is this?',
+        createdAt: T('2026-09-01T13:01:00Z'),
+      },
+    ]);
+    await db
+      .insert(plans)
+      .values([
+        { id: 'pl-snake', workspaceId: 'ws-snake', title: 'Grow longer', createdAt: T('2026-09-01T14:00:00Z') },
+      ]);
+  }
+  const hrefOf = (rows: Array<{ id: string; href: string }>, id: string) => {
+    const row = rows.find(r => r.id === id);
+    if (!row) throw new Error(`no row ${id} among ${rows.map(r => r.id).join(', ')}`);
+    return row.href;
+  };
+
+  it("A TRADE ON A PROPOSAL'S BOOK LINKS TO THAT TRADE ON ITS PROPOSAL", async () => {
+    await seedProposalBooks();
+    const { rows } = await rowsOf('?kinds=trade');
+    expect(hrefOf(rows, 'trade:t-pair')).toBe('/telarchy#proposal=p1&trade=t-pair');
+  });
+
+  it('A TRADE ON AN OPTION BOOK LINKS TO ITS PROPOSAL', async () => {
+    await seedProposalBooks();
+    const { rows } = await rowsOf('?kinds=trade');
+    expect(hrefOf(rows, 'trade:t-opt')).toBe('/telarchy#proposal=p-opt&trade=t-opt');
+    expect(hrefOf(rows, 'trade:t-opt-r')).toBe('/telarchy#proposal=p-opt&trade=t-opt-r');
+  });
+
+  it('A BASELINE TRADE KEEPS ITS MARKET ADDRESS', async () => {
+    await seedProposalBooks();
+    const { rows } = await rowsOf('?kinds=trade');
+    expect(hrefOf(rows, 'trade:t-buy')).toBe('/telarchy#market=mkt1&trade=t-buy');
+    expect(hrefOf(rows, 'trade:t-sell')).toBe('/telarchy#market=mkt1&trade=t-sell');
+  });
+
+  it("AN ORDER ON A PROPOSAL'S BOOK LINKS TO ITS PROPOSAL, placed and every later status alike", async () => {
+    await seedProposalBooks();
+    const { rows } = await rowsOf('?kinds=order');
+    expect(hrefOf(rows, 'order:lo-pair')).toBe('/telarchy#proposal=p1');
+    expect(hrefOf(rows, 'order:lo-pair:cancelled')).toBe('/telarchy#proposal=p1');
+    expect(hrefOf(rows, 'order:lo-opt')).toBe('/telarchy#proposal=p-opt');
+    expect(hrefOf(rows, 'order:lo-opt:filled')).toBe('/telarchy#proposal=p-opt');
+    // No order anchor exists on the floor, so no trade= is invented for one.
+    for (const r of rows) expect(r.href).not.toContain('trade=');
+    // A baseline order keeps its book.
+    expect(hrefOf(rows, 'order:lo-open')).toBe('/telarchy#market=mkt1');
+    expect(hrefOf(rows, 'order:lo-filled:filled')).toBe('/telarchy#market=mkt1');
+  });
+
+  it("FUNDING A PROPOSAL'S BOOK LINKS TO ITS PROPOSAL", async () => {
+    await seedProposalBooks();
+    const { rows } = await rowsOf('?kinds=liquidity');
+    expect(hrefOf(rows, 'liquidity:lq-opt')).toBe('/telarchy#proposal=p-opt');
+    expect(hrefOf(rows, 'liquidity:lq-pair')).toBe('/telarchy#proposal=p1');
+    expect(hrefOf(rows, 'liquidity:lq-add')).toBe('/telarchy#market=mkt1');
+    expect(hrefOf(rows, 'liquidity:subsidy:p1:a3:2026-08-26T10:00')).toBe('/telarchy/p/1');
+  });
+
+  it("A COMMENT ON A PROPOSAL'S BOOK LINKS TO ITS PROPOSAL, because the floor draws only the proposal's thread", async () => {
+    await seedProposalBooks();
+    const { rows } = await rowsOf('?kinds=comment');
+    expect(hrefOf(rows, 'comment:mm-pair')).toBe('/telarchy#proposal=p1');
+    expect(hrefOf(rows, 'comment:mm1')).toBe('/telarchy#market=mkt1&comment=mm1');
+    expect(hrefOf(rows, 'comment:pm1')).toBe('/telarchy/p/1#comment=pm1');
+  });
+
+  it('A PROPOSAL WITH NO NUMBER LINKS BY ITS ID, never to /p/null', async () => {
+    await seedProposalBooks();
+    const { rows } = await rowsOf('?kinds=proposal,comment&limit=200');
+    expect(hrefOf(rows, 'proposal:p-nonum')).toBe('/telarchy#proposal=p-nonum');
+    expect(hrefOf(rows, 'comment:pm-nonum')).toBe('/telarchy#proposal=p-nonum&comment=pm-nonum');
+    for (const r of rows) expect(r.href).not.toContain('null');
+  });
+
+  it("A PLAN ON THE PLATFORM'S FLOOR LINKS TO WHAT IS PLANNED; a plan elsewhere keeps its floor", async () => {
+    await seedProposalBooks();
+    const saved = process.env.DATA_ROOM_WORKSPACE_SLUG;
+    try {
+      delete process.env.DATA_ROOM_WORKSPACE_SLUG;
+      let { rows } = await rowsOf('?kinds=plan&floors=all');
+      expect(hrefOf(rows, 'plan:pl1')).toBe('/data-room/planned');
+      expect(hrefOf(rows, 'plan:pl1:edit')).toBe('/data-room/planned');
+      expect(hrefOf(rows, 'plan:pl1:done')).toBe('/data-room/planned');
+      expect(hrefOf(rows, 'plan:pl-snake')).toBe('/snake');
+      process.env.DATA_ROOM_WORKSPACE_SLUG = 'snake';
+      ({ rows } = await rowsOf('?kinds=plan&floors=all'));
+      expect(hrefOf(rows, 'plan:pl-snake')).toBe('/data-room/planned');
+      expect(hrefOf(rows, 'plan:pl1')).toBe('/telarchy');
+    } finally {
+      if (saved === undefined) delete process.env.DATA_ROOM_WORKSPACE_SLUG;
+      else process.env.DATA_ROOM_WORKSPACE_SLUG = saved;
+    }
+  });
+
+  it('EVERY KIND LINKS TO THE MOST SPECIFIC ADDRESS THE SITE HAS', async () => {
+    await seedProposalBooks();
+    const { rows } = await rowsOf('?limit=200');
+    const want: Record<string, string> = {
+      'trade:t-buy': '/telarchy#market=mkt1&trade=t-buy',
+      'trade:t-opt': '/telarchy#proposal=p-opt&trade=t-opt',
+      'order:lo-open': '/telarchy#market=mkt1',
+      'order:lo-opt': '/telarchy#proposal=p-opt',
+      'liquidity:lq-add': '/telarchy#market=mkt1',
+      'liquidity:lq-opt': '/telarchy#proposal=p-opt',
+      'liquidity:subsidy:p1:a3:2026-08-26T10:00': '/telarchy/p/1',
+      'proposal:p1': '/telarchy/p/1',
+      'proposal:pr1': '/telarchy/p/1',
+      'proposal:p-nonum': '/telarchy#proposal=p-nonum',
+      'decision:p2': '/telarchy/p/2',
+      'decision:p4': '/telarchy/p/4',
+      'delivery:p2': '/telarchy/p/2',
+      'comment:pm1': '/telarchy/p/1#comment=pm1',
+      'comment:mm1': '/telarchy#market=mkt1&comment=mm1',
+      'comment:mm-pair': '/telarchy#proposal=p1',
+      'announcement:an1': '/telarchy/announcements',
+      'announcement:an1:edit': '/telarchy/announcements',
+      'plan:pl1': '/data-room/planned',
+      // No page narrower than the floor exists for these.
+      'reading:up1': '/telarchy',
+      'metric:m1': '/telarchy',
+      'metric:md1': '/telarchy',
+      'purchase:buy-1': '/telarchy',
+      'workspace:ws-telarchy': '/telarchy',
+      'market:mkt1:open': '/telarchy#market=mkt1',
+      'market:mkt-done:settled': '/telarchy#market=mkt-done',
+      'grant:claim-1': '/participants/vire',
+      'transfer:tr-1': '/participants/a3',
+      'season:season-0:a1': '/season',
+      'join:a1': '/participants/vire',
+      'link:a1:manifold': '/participants/vire',
+    };
+    for (const [id, href] of Object.entries(want)) expect([id, hrefOf(rows, id)]).toEqual([id, href]);
+  });
+});
+
 describe('a row outlives the thing it points at', () => {
   it('a trade, an order, a comment and a liquidity row on a book since removed are still rows', async () => {
     await seedEverything();

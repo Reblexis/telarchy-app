@@ -111,8 +111,27 @@ seeds one and reads it back. All four or none.
 - `detail` is the structured version of the sentence, per kind (the shares,
   the cost, the call before and after; the status and reason; the old and new
   value), so an agent filters on numbers rather than parsing prose.
-- `href` is the address of the thing on this site: the book with the trade
-  selected, the proposal, the participant, the floor.
+- `href` is the address of the thing on this site, the most specific one the
+  site has. A trade on a baseline book is `/<slug>#market=<marketId>&trade=<tradeId>`;
+  a trade on a proposal's book (a branch, or an option's book) is
+  `/<slug>#proposal=<proposalId>&trade=<tradeId>`, because the floor shows a
+  proposal's books together (docs/ui-conventions.md, "A trade has an
+  address"). An order or a liquidity injection points at its book the same
+  way without the trade: `#market=<marketId>` on a baseline book,
+  `#proposal=<proposalId>` on a proposal's. A proposal, its edit, its
+  decision, its delivery and its funding are `/<slug>/p/<number>` (a
+  proposal with no number is `/<slug>#proposal=<proposalId>`); a comment on a
+  proposal adds `#comment=<id>`; a comment on a baseline book is
+  `/<slug>#market=<marketId>&comment=<id>`, and one on a proposal's book is
+  `/<slug>#proposal=<proposalId>`, because the floor draws only the
+  proposal's own thread. A settled or opened book is `#market=<marketId>`. A
+  plan item on the platform's own floor (this doc, "What is planned") is
+  `/data-room/planned`. An announcement is `/<slug>/announcements`; a grant,
+  a join and a link are the participant's profile, a transfer the
+  recipient's; a season entry is `/season`. A row the site has no narrower
+  page for is the floor itself: a reading, a metric, a purchase, a floor
+  opening, a plan item on any other floor, and a funding row whose proposal
+  was since removed.
 
 Numbers in `text` are rounded for reading; `detail` carries them unrounded.
 

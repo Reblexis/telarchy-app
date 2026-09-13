@@ -308,7 +308,7 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
   add(
     'trade',
     sql`SELECT 'trade:' || t.id AS id, t.created_at AS at, 'trade' AS kind, t.workspace_id, t.agent_id AS actor_id,
-      jsonb_build_object('marketId', t.market_id, 'metric', m.metric_name, 'date', m.target_date,
+      jsonb_build_object('marketId', t.market_id, 'proposalId', m.proposal_id, 'metric', m.metric_name, 'date', m.target_date,
         'direction', t.direction, 'shares', t.shares, 'cost', t.cost,
         'callBefore', t.consensus_before, 'callAfter', t.consensus_after) AS payload
       FROM trades t LEFT JOIN markets m ON m.id = t.market_id AND m.workspace_id = t.workspace_id
@@ -319,7 +319,7 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
   add(
     'proposal',
     sql`SELECT 'proposal:' || p.id AS id, p.created_at AS at, 'proposal' AS kind, p.workspace_id, p.proposed_by AS actor_id,
-      jsonb_build_object('event', 'posted', 'number', p.number, 'title', p.title, 'askUsd', p.ask_usd,
+      jsonb_build_object('event', 'posted', 'proposalId', p.id, 'number', p.number, 'title', p.title, 'askUsd', p.ask_usd,
         'options', (SELECT jsonb_agg(o->>'label') FROM jsonb_array_elements(p.options) o)) AS payload
       FROM proposals p
       WHERE p.status <> 'removed' AND ${common(sql`p.created_at`, sql`'proposal:' || p.id`, sql`p.workspace_id`, sql`p.proposed_by`)}
@@ -328,7 +328,7 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
   add(
     'proposal',
     sql`SELECT 'proposal:' || r.id AS id, r.created_at AS at, 'proposal' AS kind, r.workspace_id, r.changed_by AS actor_id,
-      jsonb_build_object('event', 'edited', 'number', p.number, 'title', p.title, 'field', r.field) AS payload
+      jsonb_build_object('event', 'edited', 'proposalId', p.id, 'number', p.number, 'title', p.title, 'field', r.field) AS payload
       FROM proposal_revisions r JOIN proposals p ON p.id = r.proposal_id AND p.workspace_id = r.workspace_id
       WHERE p.status <> 'removed' AND ${common(sql`r.created_at`, sql`'proposal:' || r.id`, sql`r.workspace_id`, sql`r.changed_by`)}
       ORDER BY r.created_at DESC, id DESC LIMIT ${take}`,
@@ -338,7 +338,7 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
     'decision',
     sql`SELECT 'decision:' || p.id AS id, d.at, 'decision' AS kind, p.workspace_id,
       CASE WHEN p.status = 'withdrawn' THEN p.proposed_by WHEN p.status = 'lapsed' THEN NULL ELSE p.resolved_by END AS actor_id,
-      jsonb_build_object('number', p.number, 'title', p.title, 'askUsd', p.ask_usd, 'status', p.status, 'reason', p.decline_reason,
+      jsonb_build_object('proposalId', p.id, 'number', p.number, 'title', p.title, 'askUsd', p.ask_usd, 'status', p.status, 'reason', p.decline_reason,
         'option', CASE WHEN p.decided_option IS NULL THEN NULL ELSE jsonb_build_object('id', p.decided_option,
           'label', COALESCE((SELECT o->>'label' FROM jsonb_array_elements(p.options) o WHERE o->>'id' = p.decided_option LIMIT 1), p.decided_option)) END) AS payload
       FROM proposals p
@@ -354,7 +354,7 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
   add(
     'delivery',
     sql`SELECT 'delivery:' || p.id AS id, p.delivered_at AS at, 'delivery' AS kind, p.workspace_id, p.proposed_by AS actor_id,
-      jsonb_build_object('number', p.number, 'title', p.title, 'note', p.delivery_note) AS payload
+      jsonb_build_object('proposalId', p.id, 'number', p.number, 'title', p.title, 'note', p.delivery_note) AS payload
       FROM proposals p
       WHERE p.status <> 'removed' AND p.delivered_at IS NOT NULL
         AND ${common(sql`p.delivered_at`, sql`'delivery:' || p.id`, sql`p.workspace_id`, sql`p.proposed_by`)}
@@ -364,7 +364,7 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
   add(
     'comment',
     sql`SELECT 'comment:' || c.id AS id, c.created_at AS at, 'comment' AS kind, c.workspace_id, c."from" AS actor_id,
-      jsonb_build_object('on', 'proposal', 'id', c.id, 'number', p.number, 'title', p.title, 'content', c.content) AS payload
+      jsonb_build_object('on', 'proposal', 'id', c.id, 'proposalId', p.id, 'number', p.number, 'title', p.title, 'content', c.content) AS payload
       FROM proposal_messages c JOIN proposals p ON p.id = c.proposal_id AND p.workspace_id = c.workspace_id
       WHERE p.status <> 'removed' AND ${common(sql`c.created_at`, sql`'comment:' || c.id`, sql`c.workspace_id`, sql`c."from"`)}
       ORDER BY c.created_at DESC, id DESC LIMIT ${take}`,
@@ -372,7 +372,7 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
   add(
     'comment',
     sql`SELECT 'comment:' || c.id AS id, c.created_at AS at, 'comment' AS kind, c.workspace_id, c."from" AS actor_id,
-      jsonb_build_object('on', 'market', 'id', c.id, 'marketId', c.market_id, 'metric', m.metric_name, 'date', m.target_date, 'content', c.content) AS payload
+      jsonb_build_object('on', 'market', 'id', c.id, 'marketId', c.market_id, 'proposalId', m.proposal_id, 'metric', m.metric_name, 'date', m.target_date, 'content', c.content) AS payload
       FROM market_messages c LEFT JOIN markets m ON m.id = c.market_id AND m.workspace_id = c.workspace_id
       WHERE ${common(sql`c.created_at`, sql`'comment:' || c.id`, sql`c.workspace_id`, sql`c."from"`)}
       ORDER BY c.created_at DESC, id DESC LIMIT ${take}`,
@@ -470,7 +470,7 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
   add(
     'liquidity',
     sql`SELECT 'liquidity:' || l.id AS id, l.created_at AS at, 'liquidity' AS kind, l.workspace_id, l.agent_id AS actor_id,
-      jsonb_build_object('marketId', l.market_id, 'metric', m.metric_name, 'date', m.target_date, 'amount', l.amount) AS payload
+      jsonb_build_object('marketId', l.market_id, 'proposalId', m.proposal_id, 'metric', m.metric_name, 'date', m.target_date, 'amount', l.amount) AS payload
       FROM liquidity_events l LEFT JOIN markets m ON m.id = l.market_id AND m.workspace_id = l.workspace_id
       WHERE l.type = 'injection' AND l.agent_id IS NOT NULL
         AND ${common(sql`l.created_at`, sql`'liquidity:' || l.id`, sql`l.workspace_id`, sql`l.agent_id`)}
@@ -493,7 +493,7 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
   add(
     'order',
     sql`SELECT 'order:' || o.id AS id, o.created_at AS at, 'order' AS kind, o.workspace_id, o.agent_id AS actor_id,
-      jsonb_build_object('event', 'placed', 'marketId', o.market_id, 'metric', m.metric_name, 'date', m.target_date,
+      jsonb_build_object('event', 'placed', 'marketId', o.market_id, 'proposalId', m.proposal_id, 'metric', m.metric_name, 'date', m.target_date,
         'direction', o.direction, 'level', o.limit_value, 'budgetCredits', o.budget_credits) AS payload
       FROM limit_orders o LEFT JOIN markets m ON m.id = o.market_id AND m.workspace_id = o.workspace_id
       WHERE ${common(sql`o.created_at`, sql`'order:' || o.id`, sql`o.workspace_id`, sql`o.agent_id`)}
@@ -502,7 +502,7 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
   add(
     'order',
     sql`SELECT 'order:' || o.id || ':' || o.status AS id, o.updated_at AS at, 'order' AS kind, o.workspace_id, o.agent_id AS actor_id,
-      jsonb_build_object('event', o.status, 'marketId', o.market_id, 'metric', m.metric_name, 'date', m.target_date,
+      jsonb_build_object('event', o.status, 'marketId', o.market_id, 'proposalId', m.proposal_id, 'metric', m.metric_name, 'date', m.target_date,
         'direction', o.direction, 'level', o.limit_value, 'budgetCredits', o.budget_credits, 'filledCredits', o.filled_credits) AS payload
       FROM limit_orders o LEFT JOIN markets m ON m.id = o.market_id AND m.workspace_id = o.workspace_id
       WHERE o.status <> 'open' AND ${common(sql`o.updated_at`, sql`'order:' || o.id || ':' || o.status`, sql`o.workspace_id`, sql`o.agent_id`)}
@@ -632,6 +632,16 @@ function renderRow(
   let text = '';
   let detail: Record<string, unknown> = {};
   let href = slug ? `/${slug}` : '/';
+  /* The addresses a row can point at (docs/data-room.md, "A row"). The floor
+     steps #market= only to a BASELINE book, so a book that belongs to a
+     proposal (a branch, or an option's book) is addressed by its proposal,
+     which the floor opens with all of its books together
+     (docs/ui-conventions.md, "A trade has an address"). */
+  const bookAddress = (): string =>
+    p.proposalId ? `/${slug}#proposal=${p.proposalId}` : `/${slug}#market=${p.marketId}`;
+  /** A proposal's own page, or its hash when it carries no number. */
+  const proposalAddress = (): string =>
+    p.number != null ? `/${slug}/p/${p.number}` : `/${slug}#proposal=${p.proposalId}`;
 
   switch (r.kind) {
     case 'trade': {
@@ -654,7 +664,7 @@ function renderRow(
         metric: p.metric,
         date: p.date,
       };
-      href = `/${slug}#market=${p.marketId}&trade=${r.id.slice('trade:'.length)}`;
+      href = `${bookAddress()}&trade=${r.id.slice('trade:'.length)}`;
       break;
     }
     case 'proposal': {
@@ -674,7 +684,7 @@ function renderRow(
         // The option labels on a proposal with options (docs/data-room.md).
         options: Array.isArray(p.options) ? p.options : null,
       };
-      href = `/${slug}/p/${p.number}`;
+      href = proposalAddress();
       break;
     }
     case 'decision': {
@@ -706,13 +716,13 @@ function renderRow(
         // The chosen option on a proposal with options (docs/data-room.md).
         option: p.option ?? null,
       };
-      href = `/${slug}/p/${p.number}`;
+      href = proposalAddress();
       break;
     }
     case 'delivery': {
       text = `reported "${p.title}" delivered${p.note ? `: ${excerpt(p.note)}` : ''}`;
       detail = { number: p.number, title: p.title, note: p.note ?? null };
-      href = `/${slug}/p/${p.number}`;
+      href = proposalAddress();
       break;
     }
     case 'comment': {
@@ -726,10 +736,16 @@ function renderRow(
         metric: p.metric ?? null,
         date: p.date ?? null,
       };
+      // A comment on a proposal's BOOK opens the proposal: the floor draws
+      // only the proposal's own thread there, so no line would answer to it.
       href =
         p.on === 'proposal'
-          ? `/${slug}/p/${p.number}#comment=${p.id}`
-          : `/${slug}#market=${p.marketId}&comment=${p.id}`;
+          ? p.number != null
+            ? `/${slug}/p/${p.number}#comment=${p.id}`
+            : `/${slug}#proposal=${p.proposalId}&comment=${p.id}`
+          : p.proposalId
+            ? bookAddress()
+            : `/${slug}#market=${p.marketId}&comment=${p.id}`;
       break;
     }
     case 'announcement': {
@@ -746,7 +762,9 @@ function renderRow(
       else if (p.event === 'edited') text = `edited a plan: ${p.title}`;
       else text = `planned: ${p.title}${due}`;
       detail = { event: p.event, title: p.title, start: p.start ?? null, due: p.due ?? null };
-      href = `/${slug}`;
+      // The platform's own floor has a calendar page; any other floor's plan
+      // has no page narrower than the floor (docs/data-room.md, "What is planned").
+      href = slug && slug === (process.env.DATA_ROOM_WORKSPACE_SLUG || 'telarchy') ? '/data-room/planned' : `/${slug}`;
       break;
     }
     case 'reading': {
@@ -778,7 +796,7 @@ function renderRow(
           title: p.title ?? null,
           proposalId: p.proposalId ?? null,
         };
-        href = p.number != null ? `/${slug}/p/${p.number}` : `/${slug}`;
+        href = p.title != null && p.proposalId ? proposalAddress() : `/${slug}`;
       } else {
         text = `put ${num(Number(p.amount))} cr of liquidity behind ${book}`;
         detail = {
@@ -788,7 +806,7 @@ function renderRow(
           date: p.date ?? null,
           amount: p.amount,
         };
-        href = `/${slug}#market=${p.marketId}`;
+        href = bookAddress();
       }
       break;
     }
@@ -808,7 +826,7 @@ function renderRow(
         budgetCredits: p.budgetCredits,
         filledCredits: p.filledCredits ?? null,
       };
-      href = `/${slug}#market=${p.marketId}`;
+      href = bookAddress();
       break;
     }
     case 'purchase': {

@@ -344,6 +344,15 @@ no longer in the Activity list (the list holds the newest 50) lands the
 reader on the right market with the tab open and nothing flashed; that is
 still the right floor, and better than a dead link.
 
+The public actions log points at a trade by the same address
+(docs/data-room.md, "A row"), and at an order or a funding row on a
+proposal's book by `#proposal=<proposalId>` alone. On a proposal the
+Activity list holds the trades of every book the proposal shows for the
+selected date (both branches, or one book per option), so a trade on any of
+them is found and flashed. The search waits until the Activity tab is open
+and the list for the subject now on screen has loaded; the list of the
+market the reader was on a moment before never answers for it.
+
 For the two pages to say the same thing about one trade, an Activity row
 on the floor also names the price per share: "bought 21,192 at 0.297 cr".
 
@@ -2190,7 +2199,10 @@ live dot and "Live" on the left, "All activity" linking to `/<slug>/log` on
 the right. Under it the newest rows first, at most 30. A row is the time in
 the viewer's zone (mono, `HH:MM`), the actor in bold when there is one, and
 the sentence in the secondary ink, the whole row linking to the row's
-`href`. A row that arrived since the block first drew is tinted in the accent
+`href`. Following a row while already on that floor lands on the thing
+exactly as the pasted address does: the floor reads the router's hash, so a
+link to the same path with a new hash opens the proposal, the tab and the
+flash. A row that arrived since the block first drew is tinted in the accent
 until the pointer moves over the block.
 
 **A fast workspace is grouped by proposal.** When the floor's

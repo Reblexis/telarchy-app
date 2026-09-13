@@ -2254,8 +2254,27 @@ fields, and the page draws them as links.</li>
 <li><code>detail</code> is the structured version of the sentence, per kind (the shares,
 the cost, the call before and after; the status and reason; the old and new
 value), so an agent filters on numbers rather than parsing prose.</li>
-<li><code>href</code> is the address of the thing on this site: the book with the trade
-selected, the proposal, the participant, the floor.</li>
+<li><code>href</code> is the address of the thing on this site, the most specific one the
+site has. A trade on a baseline book is <code>/&lt;slug&gt;#market=&lt;marketId&gt;&amp;trade=&lt;tradeId&gt;</code>;
+a trade on a proposal's book (a branch, or an option's book) is
+<code>/&lt;slug&gt;#proposal=&lt;proposalId&gt;&amp;trade=&lt;tradeId&gt;</code>, because the floor shows a
+proposal's books together (docs/ui-conventions.md, &quot;A trade has an
+address&quot;). An order or a liquidity injection points at its book the same
+way without the trade: <code>#market=&lt;marketId&gt;</code> on a baseline book,
+<code>#proposal=&lt;proposalId&gt;</code> on a proposal's. A proposal, its edit, its
+decision, its delivery and its funding are <code>/&lt;slug&gt;/p/&lt;number&gt;</code> (a
+proposal with no number is <code>/&lt;slug&gt;#proposal=&lt;proposalId&gt;</code>); a comment on a
+proposal adds <code>#comment=&lt;id&gt;</code>; a comment on a baseline book is
+<code>/&lt;slug&gt;#market=&lt;marketId&gt;&amp;comment=&lt;id&gt;</code>, and one on a proposal's book is
+<code>/&lt;slug&gt;#proposal=&lt;proposalId&gt;</code>, because the floor draws only the
+proposal's own thread. A settled or opened book is <code>#market=&lt;marketId&gt;</code>. A
+plan item on the platform's own floor (this doc, &quot;What is planned&quot;) is
+<code>/data-room/planned</code>. An announcement is <code>/&lt;slug&gt;/announcements</code>; a grant,
+a join and a link are the participant's profile, a transfer the
+recipient's; a season entry is <code>/season</code>. A row the site has no narrower
+page for is the floor itself: a reading, a metric, a purchase, a floor
+opening, a plan item on any other floor, and a funding row whose proposal
+was since removed.</li>
 </ul>
 <p>Numbers in <code>text</code> are rounded for reading; <code>detail</code> carries them unrounded.</p>
 <h2 id="docs-data-room-md--h4">Filtering</h2>
@@ -3269,8 +3288,12 @@ read-then-write race.</li>
 <code>payout</code>, <code>void_refund</code>, <code>lp_leftover</code>, <code>liquidity</code>, <code>proposal_stake</code>,
 <code>proposal_reward</code>, <code>proposal_penalty</code>, <code>contract_payment</code>, <code>signup_grant</code>,
 <code>limit_order_hold</code>, <code>limit_order_release</code>, <code>transfer_in</code>, <code>transfer_out</code>,
-<code>admin_adjustment</code>, <code>opening_balance</code>), and <code>refType</code>/<code>refId</code> point at the
-market, proposal or transfer that caused it.</li>
+<code>admin_adjustment</code>, <code>opening_balance</code>, <code>fault_refund</code>), and
+<code>refType</code>/<code>refId</code> point at the market, proposal or transfer that caused it.
+A <code>fault_refund</code> is issued by the platform operator to repay what a
+platform fault cost a holder on one market, and always names that market;
+it is the only issued credit the board counts as trading profit
+(<code>docs/ui-conventions.md</code>, &quot;Top traders&quot;).</li>
 <li><strong>Balance after is stored on the row</strong>, not derived at read time, so a
 divergence is visible where it started rather than only in the total.</li>
 <li><strong>A new participant is created at zero</strong> and granted through the ledger, so
@@ -5213,6 +5236,14 @@ the arrival flash once. The hash is consumed on arrival. A trade that is
 no longer in the Activity list (the list holds the newest 50) lands the
 reader on the right market with the tab open and nothing flashed; that is
 still the right floor, and better than a dead link.</p>
+<p>The public actions log points at a trade by the same address
+(docs/data-room.md, &quot;A row&quot;), and at an order or a funding row on a
+proposal's book by <code>#proposal=&lt;proposalId&gt;</code> alone. On a proposal the
+Activity list holds the trades of every book the proposal shows for the
+selected date (both branches, or one book per option), so a trade on any of
+them is found and flashed. The search waits until the Activity tab is open
+and the list for the subject now on screen has loaded; the list of the
+market the reader was on a moment before never answers for it.</p>
 <p>For the two pages to say the same thing about one trade, an Activity row
 on the floor also names the price per share: &quot;bought 21,192 at 0.297 cr&quot;.</p>
 <h3 id="docs-ui-conventions-md--h15">What the platform records at trade time</h3>
@@ -6935,7 +6966,10 @@ live dot and &quot;Live&quot; on the left, &quot;All activity&quot; linking to <
 the right. Under it the newest rows first, at most 30. A row is the time in
 the viewer's zone (mono, <code>HH:MM</code>), the actor in bold when there is one, and
 the sentence in the secondary ink, the whole row linking to the row's
-<code>href</code>. A row that arrived since the block first drew is tinted in the accent
+<code>href</code>. Following a row while already on that floor lands on the thing
+exactly as the pasted address does: the floor reads the router's hash, so a
+link to the same path with a new hash opens the proposal, the tab and the
+flash. A row that arrived since the block first drew is tinted in the accent
 until the pointer moves over the block.</p>
 <p><strong>A fast workspace is grouped by proposal.</strong> When the floor's
 <code>decisionMinutes</code> is 5 or less, rows are grouped into one block per
@@ -7082,7 +7116,12 @@ total, &quot;settled&quot; (final: resolutions and refunds) and &quot;open&quot;
 mark), so a reader can tell realised money from paper (<code>docs/seasons.md</code>,
 &quot;The score&quot;). The floor footer's compact rows print the total only. The
 number is measured off the trades, not off the balance, so credits the
-platform handed an account never enter it. <strong>No account is excluded.</strong>
+platform handed an account never enter it. The one exception is a
+<strong>fault refund</strong> (ledger reason <code>fault_refund</code>, <code>ref_type</code> <code>market</code>): the
+platform repaying what its own fault cost a holder on one market counts as
+money back on that market, settled, so the board shows the result the
+holder would have had without the fault. An apology or any other grant
+stays out. <strong>No account is excluded.</strong>
 Anyone who has ever traded in a public workspace is on the board. <strong>A
 cancelled market is valued at its refund, not skipped</strong>: a void pays
 back the net cash you still had in it, floored at zero (see
