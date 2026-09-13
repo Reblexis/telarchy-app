@@ -11,7 +11,7 @@
 
 /** The feed shapes the floor can draw. A new kind is a new component under
  *  src/components/live and a new entry here, nothing else. */
-export const LIVE_FEED_KINDS: ReadonlySet<string> = new Set(['snake']);
+export const LIVE_FEED_KINDS: ReadonlySet<string> = new Set(['snake', 'chess']);
 
 export interface LiveFeed {
   kind: string;

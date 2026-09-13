@@ -7403,7 +7403,7 @@ replace the snake.telarchy.com.. i dont like it being there separately&quot;;
 record in <code>notes/decisions/ui-conventions.md</code>).</p>
 <p>The setting is <code>liveFeed</code> on <code>PUT /api/workspaces/:id/settings</code>, plain
 <code>manage</code>: <code>{ kind, url }</code> or null to clear, where <code>kind</code> names the feed's
-shape from a short allow-list (today only <code>snake</code>) and <code>url</code> is the https
+shape from a short allow-list (<code>snake</code> and <code>chess</code>) and <code>url</code> is the https
 origin the feed is served from, at most 500 characters. Anything else
 (http, an unknown kind, a bare string, a missing field) is 400 and leaves
 the stored value alone. It is served on the public floor payload as
@@ -7513,6 +7513,16 @@ button or link other than the three arrows on the grid and the replay
 row's. No impact number is printed in the segment: the arrows' shading
 is the only reading of the impacts.</li>
 </ol>
+<p><strong>The chess feed</strong> (<code>kind: &quot;chess&quot;</code>) is the shape the telarchy-chess
+service publishes (its <code>docs/chess.md</code>, &quot;The feed&quot;): <code>/state</code> carries
+<code>phase</code> (<code>our-move</code>, <code>their-move</code>, <code>settling</code>, <code>seeking</code>), <code>player</code>,
+<code>game: { number, id, url, color, opponent, fen, moves, turn, clocks, status, result }</code>, <code>open: { move, proposal: {id,number,url}, deadline, tradeable, options: [{ id (UCI), san, price, lead, marketId, reason? }] }</code>
+with one option per legal move, and <code>recentDecisions[]</code>; <code>/games</code> lists
+the games and <code>/history?game=</code> is one game's plies. How the floor draws the
+board and the moves is open until a design is picked
+(<code>notes/design/chess-moves</code> in the telarchy umbrella); until then a chess
+floor's LIVE segment renders the row and nothing under it, as any kind this
+build cannot draw does.</p>
 <p><strong>The feed drives the floor</strong> (2026-09-11, Viktor: &quot;make sure the whole
 page is properly dynamic and reactive to the fast updating snake&quot;). A
 floor with a feed reads it every 2 seconds, and that read, not the
