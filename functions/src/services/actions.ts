@@ -285,7 +285,7 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
     : sql`(NULL)`;
 
   /** The filters every branch applies, over the branch's own aliases. */
-  const common = (at: SQL, id: SQL, ws: SQL | null, actor: SQL | null): SQL => {
+  const common = (at: SQL, id: SQL, ws: SQL | null, actor: SQL | null, withCursor = true): SQL => {
     const parts: SQL[] = [];
     if (ws) parts.push(sql`${ws} IN ${publicIds}`);
     if (workspaceId) parts.push(ws ? sql`${ws} = ${workspaceId}` : sql`FALSE`);
@@ -295,7 +295,7 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
     // be serialised in whatever zone the driver fancies.
     if (query.after) parts.push(sql`${at} > ${utc(query.after)}::timestamp`);
     if (query.before) parts.push(sql`${at} < ${utc(query.before)}::timestamp`);
-    if (cursor) parts.push(sql`(${at}, ${id}) < (${utc(cursor.at)}::timestamp, ${cursor.id})`);
+    if (cursor && withCursor) parts.push(sql`(${at}, ${id}) < (${utc(cursor.at)}::timestamp, ${cursor.id})`);
     return parts.length ? sql.join(parts, sql` AND `) : sql`TRUE`;
   };
   const take = limit + 1;
@@ -477,16 +477,33 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
       ORDER BY l.created_at DESC, id DESC LIMIT ${take}`,
   );
 
+  // Subsidy rows are grouped per proposal, funder and minute, and a group
+  // needs its rows before the LIMIT. Grouping a floor's whole history cost the
+  // Snake 13.5 seconds a read on 2026-09-13 and starved the API. So the rows
+  // are first bounded to the newest minutes a page can show: `take` groups
+  // need at most `take` minutes, plus the minute a cursor sits in. Whole
+  // minutes are kept, so every group shown is complete. The cursor applies
+  // to the finished group, never to its rows, or a page boundary inside a
+  // group would show the group's remainder again as a second, smaller row.
+  const subsidyRows = (alias: string) =>
+    sql.raw(`${alias}.type = 'proposal-subsidy' AND ${alias}.agent_id IS NOT NULL`);
+  const subsidyCutoff = sql`COALESCE((SELECT date_trunc('minute', l2.created_at)
+      FROM liquidity_events l2
+      WHERE ${subsidyRows('l2')} AND ${common(sql`l2.created_at`, sql`''`, sql`l2.workspace_id`, sql`l2.agent_id`, false)}
+        ${cursor ? sql`AND l2.created_at <= ${utc(cursor.at)}::timestamp` : sql``}
+      GROUP BY 1 ORDER BY 1 DESC LIMIT 1 OFFSET ${take}), '-infinity'::timestamp)`;
   add(
     'liquidity',
-    sql`SELECT 'liquidity:subsidy:' || COALESCE(m.proposal_id, 'none') || ':' || l.agent_id || ':' || to_char(date_trunc('minute', l.created_at), 'YYYY-MM-DD"T"HH24:MI') AS id,
+    sql`SELECT * FROM (SELECT 'liquidity:subsidy:' || COALESCE(m.proposal_id, 'none') || ':' || l.agent_id || ':' || to_char(date_trunc('minute', l.created_at), 'YYYY-MM-DD"T"HH24:MI') AS id,
       MAX(l.created_at) AS at, 'liquidity' AS kind, l.workspace_id, l.agent_id AS actor_id,
       jsonb_build_object('event', 'subsidy', 'amount', SUM(l.amount), 'number', MAX(p.number), 'title', MAX(p.title), 'proposalId', m.proposal_id) AS payload
       FROM liquidity_events l
       LEFT JOIN markets m ON m.id = l.market_id AND m.workspace_id = l.workspace_id
       LEFT JOIN proposals p ON p.id = m.proposal_id AND p.workspace_id = l.workspace_id
-      WHERE l.type = 'proposal-subsidy' AND l.agent_id IS NOT NULL AND ${common(sql`l.created_at`, sql`'liquidity:subsidy:' || COALESCE(m.proposal_id, 'none') || ':' || l.agent_id || ':' || to_char(date_trunc('minute', l.created_at), 'YYYY-MM-DD"T"HH24:MI')`, sql`l.workspace_id`, sql`l.agent_id`)}
-      GROUP BY m.proposal_id, l.agent_id, l.workspace_id, date_trunc('minute', l.created_at)
+      WHERE ${subsidyRows('l')} AND l.created_at >= ${subsidyCutoff}
+        AND ${common(sql`l.created_at`, sql`''`, sql`l.workspace_id`, sql`l.agent_id`, false)}
+      GROUP BY m.proposal_id, l.agent_id, l.workspace_id, date_trunc('minute', l.created_at)) s
+      WHERE ${cursor ? sql`(s.at, s.id) < (${utc(cursor.at)}::timestamp, ${cursor.id})` : sql`TRUE`}
       ORDER BY at DESC, id DESC LIMIT ${take}`,
   );
 
