@@ -2703,11 +2703,13 @@ price, lead, marketId, reason? }] }` with one option per legal move, and
 kind }`); `/games` is `{ games: [{ number, id, color, opponent, result,
 plies }] }` and `/history?game=` is `{ game, plies: [{ ply, by: "us" |
 "them", uci, san, fen, kind?, price? }] }`. It is drawn as the snake is,
-in the same slot and the same three layers, with a move list where the
-snake has none (design A of `notes/design/chess-moves` in the telarchy
-umbrella, Viktor 2026-09-13: "ok do A make sure that it can also be
-selected by doing the move on the chessboard just like with snake
-clicking the arrow"):
+in the same slot and the same layers, the moves drawn on the board and
+nothing around it (Viktor 2026-09-13: "ok do A make sure that it can also
+be selected by doing the move on the chessboard just like with snake
+clicking the arrow", then "just visualize them on the board in the live
+visualization and no buttons around the board as that is making it just
+messy.. inputing the moves will be done on the board itself by clicking or
+going trough the proposal the official way"):
 
 1. **The board** (`.chess-board`, an svg of 64 squares in the floor's
    ground tones) seen from TelarchyBot's side: white at the bottom when
@@ -2738,15 +2740,12 @@ clicking the arrow"):
    while `phase` is `settling`, "Waiting for the next game" between games,
    "Loading" before the first read and "Feed unavailable" after a failed
    one.
-3. **The moves, highest price first** (`.chess-moves`), only while a move
-   is open: a caption "N moves, highest price first", the twelve highest
-   as rows (rank, piece and SAN, a bar the length of the price within the
-   list's range, the price to one decimal), the leader's row in the
-   approved green with "· leads", then "The other M" in a compact grid of
-   SAN and price. An unpriced option sorts last and reads "open". Every
-   row and cell is a link opening that option's world, as its arrow does.
-   Beside the board when the slot is wide enough for both, under it
-   otherwise.
+3. **Nothing around the board.** No list of moves and no button or link
+   beside or under the board: a move is made on the board or on its
+   proposal. **The prices are on the board**: while a piece is picked up,
+   each square it can reach carries that move's price (the leader's in the
+   approved green, an unpriced one "open"), so a reader sees what the market
+   thinks of every move of the piece before pressing one.
 
 The replay row is the snake's (picker, scrubber, play, speed, LIVE): the
 picker lists the games newest first as "Game 3 · vs OppBot · lost", the
@@ -2761,7 +2760,7 @@ cells, and a new open proposal (or none) reloads the floor, as the snake's
 step does.
 
 **A price on the live view is the book's own, read once a second.** The
-snake's arrows and the chess arrows, move list and next-move line take
+snake's arrows and the chess arrows, target prices and next-move line take
 every option's price from the floor's one-second prices poll (`GET
 /api/marketplace/:id/prices`, "The floor's live poll"), matched by the
 option's `marketId` in the feed; the feed's own `price` stands only for a
