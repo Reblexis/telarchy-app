@@ -189,7 +189,14 @@ describe('A ROW NEVER RUNS PAST ITS COLUMN (docs/ui-conventions.md, "An option r
     const { container } = renderBoard({ proposals: [many()], onTrade: () => {}, onOpenOption: () => {} });
     const c = chips(container);
     expect(c).toHaveLength(6);
-    expect(c.map(words)).toEqual(['Move 23 21.5', 'Move 22 21.0', 'Move 21 20.5', 'Move 20 20.0', 'Move 19 19.5', 'Move 18 19.0']);
+    expect(c.map(words)).toEqual([
+      'Move 23 21.5',
+      'Move 22 21.0',
+      'Move 21 20.5',
+      'Move 20 20.0',
+      'Move 19 19.5',
+      'Move 18 19.0',
+    ]);
     expect(c[0].classList.contains('is-leader')).toBe(true);
     const more = container.querySelector('.pubws-optchip-more') as HTMLElement;
     expect(words(more)).toBe('+18 more');
