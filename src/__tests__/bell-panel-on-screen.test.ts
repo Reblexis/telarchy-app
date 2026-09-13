@@ -10,14 +10,17 @@ import { describe, expect, test } from 'vitest';
  * On a 390px phone the bell sits mid-bar with other controls to its right.
  * A panel hung from its right edge and sized to the viewport ran 185px off
  * the left of the screen, so notifications showed up clipped on mobile
- * (owner report 2026-09-13). jsdom has no layout, so this reads the
- * stylesheet: on a phone the panel must belong to the viewport, not the bell.
+ * (owner report 2026-09-13). A first fix pinned it to the viewport at a top
+ * measured on open, and on the preview the page moved after the measurement
+ * so the panel covered the bar. So on a phone the panel hangs from the bar
+ * (the sticky, positioned ancestor) and needs no measuring. jsdom has no
+ * layout, so this reads the stylesheet.
  */
 
 const CSS = readFileSync(join(dirname(dirname(fileURLToPath(import.meta.url))), 'style.css'), 'utf8');
 
-/** Every `.notif-panel { ... }` body inside a `@media (max-width: 640px)` block. */
-function phonePanelRules(): string {
+/** Every `.<cls> { ... }` body inside a `@media (max-width: 640px)` block. */
+function phoneRules(cls: string): string {
   const out: string[] = [];
   const re = /@media \(max-width: 640px\)\s*\{/g;
   let m: RegExpExecArray | null;
@@ -30,7 +33,7 @@ function phonePanelRules(): string {
       i++;
     }
     const block = CSS.slice(re.lastIndex, i - 1);
-    for (const r of block.matchAll(/(^|[\s,}])\.notif-panel\s*\{([^}]*)\}/g)) out.push(r[2]);
+    for (const r of block.matchAll(new RegExp(`(^|[\\s,}])\\.${cls}\\s*\\{([^}]*)\\}`, 'g'))) out.push(r[2]);
   }
   return out.join('\n');
 }
@@ -43,19 +46,30 @@ function rule(cls: string): string {
 }
 
 describe('notifications show up whole on a phone, not clipped', () => {
-  test('on a phone the panel is fixed to the viewport, not hung from the bell', () => {
-    expect(phonePanelRules()).toMatch(/position:\s*fixed/);
+  test('on a phone the bell stops being the panel\'s anchor, so the bar is', () => {
+    expect(phoneRules('notif')).toMatch(/position:\s*static/);
+  });
+
+  test('the bar is a positioned box on a phone, so the panel can hang from it', () => {
+    expect(phoneRules('pubws-topbar')).toMatch(/position:\s*sticky/);
+  });
+
+  test('on a phone the panel opens directly under the bar and never covers it', () => {
+    const body = phoneRules('notif-panel');
+    expect(body).toMatch(/position:\s*absolute/);
+    expect(body).toMatch(/top:\s*100%/);
+    expect(body).not.toMatch(/position:\s*fixed/);
   });
 
   test('on a phone the panel keeps 1rem from both screen edges', () => {
-    const body = phonePanelRules();
+    const body = phoneRules('notif-panel');
     expect(body).toMatch(/left:\s*1rem/);
     expect(body).toMatch(/right:\s*1rem/);
     expect(body).toMatch(/width:\s*auto/);
   });
 
-  test('on a phone the panel is no taller than the screen below the bar', () => {
-    expect(phonePanelRules()).toMatch(/max-height:[^;]*(dvh|vh)/);
+  test('on a phone the panel leaves the screen below it', () => {
+    expect(phoneRules('notif-panel')).toMatch(/max-height:[^;]*(dvh|vh)/);
   });
 
   test('on a wide screen the panel still drops from the bell', () => {

@@ -1820,17 +1820,18 @@ code, pre, kbd, samp {
 
 /* On a phone the bell sits mid-bar with controls to its right, so a panel
    hung from it ran off the left edge (docs/ui-conventions.md, "The bell").
-   Here the panel belongs to the viewport: 1rem from each side, opening just
-   under the bell (--notif-top, measured on open) and never taller than the
-   screen below it. */
+   Here the bell stops being a positioned box, so the panel hangs from the
+   sticky full-width bar instead: directly under it, 1rem from each side of
+   the screen, moving with the bar, with no position to measure. */
 @media (max-width: 640px) {
+  .notif { position: static; }
   .notif-panel {
-    position: fixed;
-    top: var(--notif-top, 4.25rem);
+    position: absolute;
+    top: 100%;
     left: 1rem;
     right: 1rem;
     width: auto;
-    max-height: calc(100dvh - var(--notif-top, 4.25rem) - 1rem);
+    max-height: calc(100dvh - 6rem);
   }
 }
 

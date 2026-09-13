@@ -2161,9 +2161,10 @@ stay as they were. "Mark all read" stays for the sweep.
 **The panel is always wholly on screen.** From 641px up it drops from
 the bell, right edges aligned. On a phone (640px and below) the bell
 sits mid-bar with other controls to its right, so a panel hung from it
-runs off the left edge; there the panel belongs to the viewport instead:
-fixed just under the sticky bar, 1rem from each side, and no taller than
-the screen below the bar, scrolling inside itself.
+runs off the left edge; there the panel hangs from the bar instead:
+directly under it, 1rem from each side of the screen, moving with the
+sticky bar, and short enough to leave the screen below it, scrolling
+inside itself. It never covers the bar.
 
 **A row lands on the thing it names.** `/<slug>#proposal=<id>&comment=<id>`
 selects the proposal, opens its thread, scrolls the named comment into
