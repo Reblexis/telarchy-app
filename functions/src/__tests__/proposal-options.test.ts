@@ -364,11 +364,10 @@ describe('every legal move of a chess position is one proposal', () => {
     const res = await post({ title: 'Game 1, move 30', options: many(218), liquiditySubsidy: 1 });
     expect(res.status).toBe(201);
     const body = await detail(res.body.id);
-    const row = (body.markets as Array<{ options: Array<{ id: string; marketId: string }> | null }>).find(
-      m => Array.isArray(m.options),
-    )!;
-    expect(row.options).toHaveLength(218);
-    for (const o of row.options) expect(typeof o.marketId).toBe('string');
+    const rows = body.markets as Array<{ options: Array<{ id: string; marketId: string }> | null }>;
+    const options = rows.map(m => m.options).find((o): o is Array<{ id: string; marketId: string }> => Array.isArray(o))!;
+    expect(options).toHaveLength(218);
+    for (const o of options) expect(typeof o.marketId).toBe('string');
   }, 60_000);
 });
 
