@@ -7569,11 +7569,22 @@ painted outside the board.</li>
 <li><strong>The next move</strong> (<code>.chess-next</code>), the snake's line in the snake's
 type: &quot;Next move: O-O in 0:31&quot; (the leader's SAN, counting down to
 <code>open.deadline</code>; &quot;Next move in 0:31&quot; while no option leads), &quot;Next move: O-O, deciding&quot; once that count runs out,
-&quot;Their move&quot; while the opponent thinks (with &quot;, played O-O at 56.4&quot;
-when the last decision belongs to this game), &quot;Settling the game&quot;
+&quot;Waiting for OppBot (2171) to reply to O-O · 28:20&quot; while the opponent
+thinks (Viktor 2026-09-13: &quot;make it more clear when waiting for opponent
+move now it just says their move&quot;): the opponent by name and rating (no
+rating when Lichess has none), the move of TelarchyBot's they are
+answering when the last decision belongs to this game (otherwise &quot;to
+move&quot;), and their clock in the accent, counting down by the second from
+the feed's last read, &quot;Settling the game&quot;
 while <code>phase</code> is <code>settling</code>, &quot;Waiting for the next game&quot; between games,
 &quot;Loading&quot; before the first read and &quot;Feed unavailable&quot; after a failed
-one.</li>
+one.
+Under it, <strong>the player's record</strong> (<code>.chess-stats</code>, Viktor 2026-09-13:
+&quot;show some stats somewhere? like rating (elo), games played, games won,
+games lost&quot;): one muted mono line, &quot;Rating 1720 · Played 12 · Won 3 ·
+Lost 8 · Drawn 1&quot;, read from the feed's <code>player</code> (Lichess's classical
+rating with &quot;?&quot; after it while provisional, and Lichess's own game counts
+for the account). The line is absent while <code>player</code> is null.</li>
 <li><strong>The proposal on screen is marked on the board</strong> (Viktor 2026-09-13:
 &quot;when im in a proposal page make sure that the move corresponding to the
 proposal is highlighted&quot;). When the page has the open move's proposal

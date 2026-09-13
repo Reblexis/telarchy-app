@@ -2743,11 +2743,22 @@ going trough the proposal the official way"):
 2. **The next move** (`.chess-next`), the snake's line in the snake's
    type: "Next move: O-O in 0:31" (the leader's SAN, counting down to
    `open.deadline`; "Next move in 0:31" while no option leads), "Next move: O-O, deciding" once that count runs out,
-   "Their move" while the opponent thinks (with ", played O-O at 56.4"
-   when the last decision belongs to this game), "Settling the game"
+   "Waiting for OppBot (2171) to reply to O-O · 28:20" while the opponent
+   thinks (Viktor 2026-09-13: "make it more clear when waiting for opponent
+   move now it just says their move"): the opponent by name and rating (no
+   rating when Lichess has none), the move of TelarchyBot's they are
+   answering when the last decision belongs to this game (otherwise "to
+   move"), and their clock in the accent, counting down by the second from
+   the feed's last read, "Settling the game"
    while `phase` is `settling`, "Waiting for the next game" between games,
    "Loading" before the first read and "Feed unavailable" after a failed
    one.
+   Under it, **the player's record** (`.chess-stats`, Viktor 2026-09-13:
+   "show some stats somewhere? like rating (elo), games played, games won,
+   games lost"): one muted mono line, "Rating 1720 · Played 12 · Won 3 ·
+   Lost 8 · Drawn 1", read from the feed's `player` (Lichess's classical
+   rating with "?" after it while provisional, and Lichess's own game counts
+   for the account). The line is absent while `player` is null.
 3. **The proposal on screen is marked on the board** (Viktor 2026-09-13:
    "when im in a proposal page make sure that the move corresponding to the
    proposal is highlighted"). When the page has the open move's proposal

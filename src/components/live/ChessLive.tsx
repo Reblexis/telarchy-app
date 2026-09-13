@@ -47,8 +47,18 @@ export interface ChessState {
     opponent: { name: string; title?: string | null; rating?: number | null };
     fen: string | null;
     moves: string[];
+    /** Milliseconds on each clock at the feed's read. */
+    clocks?: { white: number; black: number };
     status?: string;
     result: number | null;
+  } | null;
+  /** The account as Lichess last reported it (docs/ui-conventions.md, "The chess feed", the player's record). */
+  player?: {
+    username: string;
+    url?: string;
+    rating: number;
+    provisional: boolean;
+    games?: { played: number; won: number; lost: number; drawn: number };
   } | null;
   open: {
     move: number;
@@ -389,6 +399,8 @@ export function ChessLive({
 }) {
   const [state, setState] = useState<ChessState | null>(null);
   const [failed, setFailed] = useState(false);
+  /* When the last feed read landed: a running clock counts down from it. */
+  const [fetchedAt, setFetchedAt] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [selectionState, setSelectionState] = useState<{ id: string | null; square: string | null }>({ id: null, square: null });
   /* The move a list row is hovered or focused on (docs/ui-conventions.md, "The chess feed", item 4). */
@@ -407,6 +419,7 @@ export function ChessLive({
         const s = (await api.getLiveState(slug)) as unknown as ChessState;
         if (stopped) return;
         setState(s);
+        setFetchedAt(Date.now());
         setFailed(false);
         const key = s.open?.proposal?.id ?? 'none';
         if (stepKeyRef.current !== null && key !== stepKeyRef.current) {
@@ -656,10 +669,19 @@ export function ChessLive({
     const head = leader ? `Next move: ${leader.san}` : 'Next move';
     line = seconds < 1 ? { text: `${head}, deciding`, cls: 'is-decided' } : { text: `${head} in `, clock: clock(seconds), cls: 'is-open' };
   } else if (state.phase === 'their-move' && game) {
+    /* Waiting for the opponent (docs/ui-conventions.md, "The chess feed", item
+       2): who, the move of ours they are answering, and their clock ticking. */
     const d = state.recentDecisions?.[0];
-    const played =
-      d && d.game === game.number ? `, played ${d.san}${typeof d.price === 'number' ? ` at ${d.price.toFixed(1)}` : ''}` : '';
-    line = { text: `Their move${played}`, cls: 'is-default' };
+    const opp = game.opponent;
+    const who = `${opp?.name ?? 'the opponent'}${typeof opp?.rating === 'number' ? ` (${opp.rating})` : ''}`;
+    const what = d && d.game === game.number ? `to reply to ${d.san}` : 'to move';
+    const theirs: Color = game.color === 'white' ? 'black' : 'white';
+    const ms = game.clocks?.[theirs];
+    const left = typeof ms === 'number' && Number.isFinite(ms) ? ms / 1000 - (fetchedAt ? (now - fetchedAt) / 1000 : 0) : null;
+    line =
+      left === null
+        ? { text: `Waiting for ${who} ${what}`, cls: 'is-default' }
+        : { text: `Waiting for ${who} ${what} · `, clock: clock(Math.max(0, left)), cls: 'is-default' };
   } else if (state.phase === 'settling') {
     line = { text: 'Settling the game', cls: 'is-idle' };
   } else {
@@ -693,6 +715,22 @@ export function ChessLive({
             {line.text}
             {line.clock !== undefined && <span className="chess-clock">{line.clock}</span>}
           </p>
+          {state?.player && (
+            /* The player's record (docs/ui-conventions.md, "The chess feed"). */
+            <p className="chess-stats">
+              {[
+                `Rating ${state.player.rating}${state.player.provisional ? '?' : ''}`,
+                ...(state.player.games
+                  ? [
+                      `Played ${state.player.games.played}`,
+                      `Won ${state.player.games.won}`,
+                      `Lost ${state.player.games.lost}`,
+                      `Drawn ${state.player.games.drawn}`,
+                    ]
+                  : []),
+              ].join(' · ')}
+            </p>
+          )}
         </div>
         {open && openOptions.length > 0 && (
           /* The moves, one slim column beside the board (docs/ui-conventions.md, "The chess feed", item 4). */

@@ -12602,6 +12602,8 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .chess-arrow-link:hover .chess-arrow, .chess-arrow-link:focus-visible .chess-arrow { stroke-opacity: 1 !important; }
 .chess-next { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 1.05rem; font-weight: 600; line-height: 1.3; color: var(--text-primary); text-align: left; }
 .chess-clock { color: var(--accent); }
+/* The player's record, one muted mono line under the next move. */
+.chess-stats { margin: -0.35rem 0 0; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.02em; color: var(--text-secondary); font-variant-numeric: tabular-nums; text-align: left; }
 .chess-next.is-decided, .chess-next.is-default, .chess-next.is-replay { color: var(--text-secondary); }
 .chess-next.is-idle { color: var(--text-tertiary); font-weight: 500; }
 .chess-target-mark { pointer-events: none; }
