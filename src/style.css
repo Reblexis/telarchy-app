@@ -11499,6 +11499,7 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .pubws-prow-impact {
   flex: none;
   display: inline-flex;
+  flex-direction: row;
   align-items: baseline;
   gap: 0.4rem;
   white-space: nowrap;

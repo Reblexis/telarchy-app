@@ -255,6 +255,11 @@ describe('THE CONTROLS NEVER TAKE WIDTH FROM THE TITLE (the stylesheet)', () => 
     expect(title).toMatch(/min-width:\s*0/);
     expect(rule('.pubws-prow-impact')).toMatch(/flex:\s*none/);
     expect(rule('.pubws-prow-impact')).toMatch(/white-space:\s*nowrap/);
+    // The leader's label and its lead read as one phrase on one baseline,
+    // "Continue forward +1.6", never the label stacked over the number (the
+    // older .pubws-ballot-impact rule is a column; production showed it
+    // stacked on the snake row, 2026-09-13).
+    expect(rule('.pubws-prow-impact')).toMatch(/flex-direction:\s*row/);
   });
 
   test('on the second line the controls wrap under the facts, right-aligned', () => {
