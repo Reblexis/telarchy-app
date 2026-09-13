@@ -70,10 +70,37 @@ function isOneProposal(state: SnakeState | null): boolean {
  * other option), on the older per-action pairs approved minus declined. Null
  * while unreadable.
  */
-function impactOf(state: SnakeState, action: SnakeAction): number | null {
+function impactOf(
+  state: SnakeState,
+  action: SnakeAction,
+  books?: ReadonlyMap<string, { consensus: number | null }> | null,
+): number | null {
   const q = state.open?.quotes?.[action]?.m60;
   if (!q) return null;
-  if (isOneProposal(state)) return typeof q.lead === 'number' && Number.isFinite(q.lead) ? q.lead : null;
+  if (isOneProposal(state)) {
+    /* A price on the live view is the book's own, read once a second
+       (docs/ui-conventions.md): once the floor's poll has any of the step's
+       books, every lead is recomputed from those prices. */
+    const marketOf = (a: SnakeAction) => state.open?.quotes?.[a]?.m60?.marketId;
+    const fresh = !!books && ACTIONS.some(a => {
+      const id = marketOf(a);
+      return !!id && books.has(id);
+    });
+    if (!fresh) return typeof q.lead === 'number' && Number.isFinite(q.lead) ? q.lead : null;
+    const priceOf = (a: SnakeAction): number | null => {
+      const x = state.open?.quotes?.[a]?.m60;
+      if (!x) return null;
+      const b = x.marketId ? books?.get(x.marketId) : undefined;
+      const v = b && typeof b.consensus === 'number' ? b.consensus : x.price;
+      return typeof v === 'number' && Number.isFinite(v) ? v : null;
+    };
+    const mine = priceOf(action);
+    if (mine === null) return null;
+    const others = ACTIONS.filter(a => a !== action)
+      .map(priceOf)
+      .filter((v): v is number => v !== null);
+    return others.length === 0 ? null : mine - Math.max(...others);
+  }
   if (typeof q.approved !== 'number' || typeof q.declined !== 'number') return null;
   return q.approved - q.declined;
 }
@@ -380,9 +407,12 @@ export function SnakeLive({
   onStep,
   onQuotes,
   onState,
+  books,
   replay: showReplay = true,
 }: {
   slug: string;
+  /** The floor's open books by market id, polled once a second: the arrows shade by these prices. */
+  books?: ReadonlyMap<string, { consensus: number | null }> | null;
   /** The replay row under the board. The home page's featured card draws the
    *  live board alone (docs/ui-conventions.md, "The marketplace"). */
   replay?: boolean;
@@ -640,7 +670,7 @@ export function SnakeLive({
     if (open && !next?.decided) {
       const actions = ACTIONS.filter(a => isHeading(open.directions?.[a]));
       if (actions.length > 0) {
-        const numbers = actions.map(a => (state ? impactOf(state, a) : null));
+        const numbers = actions.map(a => (state ? impactOf(state, a, books) : null));
         const opacities = isOneProposal(state) ? leadOpacities(numbers) : arrowOpacities(numbers);
         return actions.map((a, i) => {
           const number = numberFor(state, a);
@@ -689,7 +719,7 @@ export function SnakeLive({
   const ranOut = !!next && (seconds < 1 || (openStep !== null && decidedStepRef.current === openStep));
 
   /* The 60-move impacts: carried on the drawing, shown only as the chevrons' shading. */
-  const impacts = state ? ACTIONS.map(a => impactOf(state, a)) : [];
+  const impacts = state ? ACTIONS.map(a => impactOf(state, a, books)) : [];
   const impactsAttr = impacts.length
     ? impacts.map(v => (v === null ? '' : String(Number(v.toFixed(1))))).join(',')
     : undefined;

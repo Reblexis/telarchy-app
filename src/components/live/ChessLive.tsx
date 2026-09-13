@@ -310,14 +310,28 @@ function resultWord(g: ChessGame): string {
   return 'playing';
 }
 
+/** An option's price from the floor's one-second prices poll when that poll has
+ *  its book, else the feed's (docs/ui-conventions.md, "A price on the live view
+ *  is the book's own, read once a second"). */
+function withBooks(options: ChessOption[], books: ReadonlyMap<string, { consensus: number | null }> | null | undefined): ChessOption[] {
+  if (!books || books.size === 0) return options;
+  return options.map(o => {
+    const b = o.marketId ? books.get(o.marketId) : undefined;
+    return b && typeof b.consensus === 'number' && Number.isFinite(b.consensus) ? { ...o, price: b.consensus } : o;
+  });
+}
+
 export function ChessLive({
   slug,
   onPickProposal,
   onStep,
   onQuotes,
+  books,
   replay: showReplay = true,
 }: {
   slug: string;
+  /** The floor's open books by market id, polled once a second. */
+  books?: ReadonlyMap<string, { consensus: number | null }> | null;
   replay?: boolean;
   /** An arrow, a move on the board, or a row of the list: open that option's world. */
   onPickProposal?: (number: number, option?: string) => void;
@@ -469,6 +483,7 @@ export function ChessLive({
 
   const game = state?.game ?? null;
   const open = !replay && state?.phase === 'our-move' ? (state?.open ?? null) : null;
+  const openOptions = open ? withBooks(open.options, books) : [];
   const color: Color = game?.color === 'black' ? 'black' : 'white';
 
   /* A new position clears the piece a reader had picked up. */
@@ -480,7 +495,7 @@ export function ChessLive({
 
   const liveArrows = (): Arrow[] => {
     if (!open) return [];
-    const top = ranked(open.options).filter(priced).slice(0, 3);
+    const top = ranked(openOptions).filter(priced).slice(0, 3);
     const ops = leadOpacities(top.map(o => o.price));
     return top.map((o, i) => ({
       option: o.id,
@@ -553,7 +568,7 @@ export function ChessLive({
   } else if (!state) {
     line = { text: failed ? 'Feed unavailable' : 'Loading', cls: 'is-idle' };
   } else if (open) {
-    const leader = leaderOf(open.options);
+    const leader = leaderOf(openOptions);
     const seconds = (Date.parse(open.deadline) - now) / 1000;
     const head = leader ? `Next move: ${leader.san}` : 'Next move';
     line = seconds < 1 ? { text: `${head}, deciding`, cls: 'is-decided' } : { text: `${head} in `, clock: clock(seconds), cls: 'is-open' };
@@ -569,8 +584,8 @@ export function ChessLive({
   }
 
   /* The moves, highest price first. */
-  const list = open ? ranked(open.options) : [];
-  const leader = open ? leaderOf(open.options) : null;
+  const list = open ? ranked(openOptions) : [];
+  const leader = open ? leaderOf(openOptions) : null;
   const pricedList = list.filter(priced);
   const lo = pricedList.length ? Math.min(...pricedList.map(o => o.price as number)) : 0;
   const hi = pricedList.length ? Math.max(...pricedList.map(o => o.price as number)) : 0;

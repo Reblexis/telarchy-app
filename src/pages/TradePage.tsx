@@ -2560,6 +2560,9 @@ export function TradePage() {
                           if (option) setWorldPick(option);
                         }}
                         onQuotes={q => setFeedQuotes(q)}
+                        /* The live prices are the books' own, once a second
+                           (docs/ui-conventions.md). */
+                        books={floorPrices.books}
                       />
                     ) : chartView === 'value' ? (
                       <NumberChart

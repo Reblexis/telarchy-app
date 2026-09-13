@@ -2760,6 +2760,17 @@ reports the open move's option prices by proposal id for the floor's own
 cells, and a new open proposal (or none) reloads the floor, as the snake's
 step does.
 
+**A price on the live view is the book's own, read once a second.** The
+snake's arrows and the chess arrows, move list and next-move line take
+every option's price from the floor's one-second prices poll (`GET
+/api/marketplace/:id/prices`, "The floor's live poll"), matched by the
+option's `marketId` in the feed; the feed's own `price` stands only for a
+book the poll has not answered yet. A lead is recomputed from those prices
+(the option's price minus the best other option's), so a bet placed on
+the ticket moves its arrow and its row within a second, never on the
+operator's slower read. The feed still decides what is open and where the
+pieces stand.
+
 **The feed drives the floor** (2026-09-11, Viktor: "make sure the whole
 page is properly dynamic and reactive to the fast updating snake"). A
 floor with a feed reads it every 2 seconds, and that read, not the

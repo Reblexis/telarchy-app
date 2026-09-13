@@ -278,6 +278,50 @@ describe('an arrow never takes the click meant for the board', () => {
   });
 });
 
+describe("a price on the live view is the book's own, read once a second", () => {
+  const book = (marketId: string, consensus: number) => ({ marketId, consensus, probability: null, pool: 0, tradeCount: 1 });
+
+  test('the floor prices replace the feed prices: the leader, its arrow, its row and the next-move line follow them', async () => {
+    const books = new Map([['m-c3d4', book('m-c3d4', 70)]]);
+    const { container } = renderLive({ books });
+    await waitFor(() => expect(container.querySelectorAll('.chess-move-row').length).toBe(12));
+    const rows = [...container.querySelectorAll('.chess-move-row')];
+    expect(rows[0].textContent).toContain('cxd4');
+    expect(rows[0].textContent).toContain('70.0');
+    expect(rows[0].textContent).toContain('leads');
+    const by = Object.fromEntries(arrows(container).map(a => [a.getAttribute('data-option'), a]));
+    expect(opacityOf(by.c3d4)).toBeCloseTo(0.9, 5);
+    expect(nextLine(container)).toMatch(/^Next move: cxd4 in /);
+  });
+
+  test('a new price moves the board at once, without waiting for the next feed read', async () => {
+    const onQuotes = vi.fn();
+    const { container, rerender } = render(
+      <MemoryRouter>
+        <ChessLive slug="chess" onQuotes={onQuotes} books={new Map()} />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(container.querySelectorAll('.chess-move-row').length).toBe(12));
+    const reads = vi.mocked(api.getLiveState).mock.calls.length;
+    rerender(
+      <MemoryRouter>
+        <ChessLive slug="chess" onQuotes={onQuotes} books={new Map([['m-e4e5', book('m-e4e5', 80)]])} />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(container.querySelector('.chess-move-row')?.textContent).toContain('e5'));
+    expect(vi.mocked(api.getLiveState).mock.calls.length).toBe(reads);
+  });
+
+  test('LiveView hands the floor prices to the chess view', async () => {
+    const { container } = render(
+      <MemoryRouter>
+        <LiveView kind="chess" slug="chess" books={new Map([['m-f3g5', book('m-f3g5', 90)]])} />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(container.querySelector('.chess-move-row')?.textContent).toContain('Ng5'));
+  });
+});
+
 describe('the moves, highest price first', () => {
   test('twelve rows by price, the leader marked, the rest in the compact grid, unpriced last as open', async () => {
     const { container } = renderLive();

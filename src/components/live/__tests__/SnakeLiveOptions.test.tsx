@@ -219,3 +219,23 @@ describe('the old feed shape still reads', () => {
     });
   });
 });
+
+describe("A PRICE ON THE LIVE VIEW IS THE BOOK'S OWN, READ ONCE A SECOND (docs/ui-conventions.md)", () => {
+  test("the floor prices replace the feed's quotes, and the arrows shade by the leads they give", async () => {
+    // Feed: left 8.9 leads. Floor prices: right has just been bought to 9.5.
+    const books = new Map([['m-r', { marketId: 'm-r', consensus: 9.5, probability: null, pool: 0, tradeCount: 3 }]]);
+    const { container } = renderLive({ books });
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    const a = byAction(container);
+    expect(opacityOf(a.right)).toBeCloseTo(0.9, 5);
+    expect(opacityOf(a.forward)).toBeCloseTo(0.3, 5);
+    expect(opacityOf(a.left)).toBeGreaterThan(0.3);
+    expect(opacityOf(a.left)).toBeLessThan(0.9);
+  });
+
+  test('without floor prices the feed quotes still shade the arrows', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    expect(opacityOf(byAction(container).left)).toBeCloseTo(0.9, 5);
+  });
+});
