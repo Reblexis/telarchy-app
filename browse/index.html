@@ -2127,7 +2127,7 @@ profile already carries.</p>
 <tr>
 <td><code>liquidity</code></td>
 <td>a participant put liquidity behind a book, or funded a proposal's books</td>
-<td><code>liquidity_events</code> of type <code>injection</code>, one row each; of type <code>proposal-subsidy</code>, one row per proposal, funder and minute with the amounts summed, because a subsidy lands on every branch book at once. The engine's own <code>initial</code> and <code>anchor</code> rows are not actions</td>
+<td><code>liquidity_events</code> of type <code>injection</code>, one row each; of type <code>proposal-subsidy</code>, one row per proposal, funder and minute with the amounts summed, because a subsidy lands on every branch book at once. The grouping reads only the newest minutes a page can show (whole minutes, one more than the page's rows) and a page boundary falls between groups, never inside one, so a read costs the size of a page, not of the floor's history. The engine's own <code>initial</code> and <code>anchor</code> rows are not actions</td>
 </tr>
 <tr>
 <td><code>proposal</code></td>
@@ -3269,8 +3269,12 @@ read-then-write race.</li>
 <code>payout</code>, <code>void_refund</code>, <code>lp_leftover</code>, <code>liquidity</code>, <code>proposal_stake</code>,
 <code>proposal_reward</code>, <code>proposal_penalty</code>, <code>contract_payment</code>, <code>signup_grant</code>,
 <code>limit_order_hold</code>, <code>limit_order_release</code>, <code>transfer_in</code>, <code>transfer_out</code>,
-<code>admin_adjustment</code>, <code>opening_balance</code>), and <code>refType</code>/<code>refId</code> point at the
-market, proposal or transfer that caused it.</li>
+<code>admin_adjustment</code>, <code>opening_balance</code>, <code>fault_refund</code>), and
+<code>refType</code>/<code>refId</code> point at the market, proposal or transfer that caused it.
+A <code>fault_refund</code> is issued by the platform operator to repay what a
+platform fault cost a holder on one market, and always names that market;
+it is the only issued credit the board counts as trading profit
+(<code>docs/ui-conventions.md</code>, &quot;Top traders&quot;).</li>
 <li><strong>Balance after is stored on the row</strong>, not derived at read time, so a
 divergence is visible where it started rather than only in the total.</li>
 <li><strong>A new participant is created at zero</strong> and granted through the ledger, so
@@ -7082,7 +7086,12 @@ total, &quot;settled&quot; (final: resolutions and refunds) and &quot;open&quot;
 mark), so a reader can tell realised money from paper (<code>docs/seasons.md</code>,
 &quot;The score&quot;). The floor footer's compact rows print the total only. The
 number is measured off the trades, not off the balance, so credits the
-platform handed an account never enter it. <strong>No account is excluded.</strong>
+platform handed an account never enter it. The one exception is a
+<strong>fault refund</strong> (ledger reason <code>fault_refund</code>, <code>ref_type</code> <code>market</code>): the
+platform repaying what its own fault cost a holder on one market counts as
+money back on that market, settled, so the board shows the result the
+holder would have had without the fault. An apology or any other grant
+stays out. <strong>No account is excluded.</strong>
 Anyone who has ever traded in a public workspace is on the board. <strong>A
 cancelled market is valued at its refund, not skipped</strong>: a void pays
 back the net cash you still had in it, floored at zero (see
