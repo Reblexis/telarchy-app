@@ -7524,16 +7524,63 @@ button or link other than the three arrows on the grid and the replay
 row's. No impact number is printed in the segment: the arrows' shading
 is the only reading of the impacts.</li>
 </ol>
-<p><strong>The chess feed</strong> (<code>kind: &quot;chess&quot;</code>) is the shape the telarchy-chess
-service publishes (its <code>docs/chess.md</code>, &quot;The feed&quot;): <code>/state</code> carries
-<code>phase</code> (<code>our-move</code>, <code>their-move</code>, <code>settling</code>, <code>seeking</code>), <code>player</code>,
-<code>game: { number, id, url, color, opponent, fen, moves, turn, clocks, status, result }</code>, <code>open: { move, proposal: {id,number,url}, deadline, tradeable, options: [{ id (UCI), san, price, lead, marketId, reason? }] }</code>
-with one option per legal move, and <code>recentDecisions[]</code>; <code>/games</code> lists
-the games and <code>/history?game=</code> is one game's plies. How the floor draws the
-board and the moves is open until a design is picked
-(<code>notes/design/chess-moves</code> in the telarchy umbrella); until then a chess
-floor's LIVE segment renders the row and nothing under it, as any kind this
-build cannot draw does.</p>
+<p><strong>The chess feed</strong> (<code>kind: &quot;chess&quot;</code>, <code>ChessLive</code>) is the shape the
+telarchy-chess service publishes (its <code>docs/chess.md</code>, &quot;The feed&quot;):
+<code>/state</code> carries <code>phase</code> (<code>our-move</code>, <code>their-move</code>, <code>settling</code>,
+<code>seeking</code>), <code>game: { number, id, url, color, opponent: {name, title, rating}, fen, moves (UCI), turn, clocks, status, result }</code>, <code>open: { move, proposal: {id,number,url}, deadline, tradeable, options: [{ id (UCI), san, price, lead, marketId, reason? }] }</code> with one option per legal move, and
+<code>recentDecisions[]</code> (newest first, <code>{ game, move, chosen, san, price, kind }</code>); <code>/games</code> is <code>{ games: [{ number, id, color, opponent, result, plies }] }</code> and <code>/history?game=</code> is <code>{ game, plies: [{ ply, by: &quot;us&quot; | &quot;them&quot;, uci, san, fen, kind?, price? }] }</code>. It is drawn as the snake is,
+in the same slot and the same three layers, with a move list where the
+snake has none (design A of <code>notes/design/chess-moves</code> in the telarchy
+umbrella, Viktor 2026-09-13: &quot;ok do A make sure that it can also be
+selected by doing the move on the chessboard just like with snake
+clicking the arrow&quot;):</p>
+<ol>
+<li><strong>The board</strong> (<code>.chess-board</code>, an svg of 64 squares in the floor's
+ground tones) seen from TelarchyBot's side: white at the bottom when
+<code>game.color</code> is white, black at the bottom otherwise. The pieces are
+the position in <code>game.fen</code>; the two squares of the last move
+(<code>game.moves</code>' last) are tinted. <strong>Arrows for the three highest
+prices</strong> of an open move (<code>.chess-arrow</code>), shaded as the snake's
+chevrons are (the leader at 0.9, the lowest of the three at 0.3, all at
+0.55 on a tie or fewer than two priced), each a link to
+<code>/{slug}/p/{open.proposal.number}?option={uci}</code> that opens that
+option's world in place. <strong>A move made on the board opens its option</strong>:
+pressing a piece that has legal moves (the <code>from</code> square of some
+option) selects it and marks each square it can move to with a dot;
+pressing one of those squares opens that move's world exactly as its
+arrow does (a promotion opens the queen's); pressing anywhere else
+clears the selection. Pieces that cannot move, and every piece while no
+move is open, do nothing. A new position draws at once; nothing is ever
+painted outside the board.</li>
+<li><strong>The next move</strong> (<code>.chess-next</code>), the snake's line in the snake's
+type: &quot;Next move: O-O in 0:31&quot; (the leader's SAN, counting down to
+<code>open.deadline</code>; &quot;Next move in 0:31&quot; while no option leads), &quot;Next move: O-O, deciding&quot; once that count runs out,
+&quot;Their move&quot; while the opponent thinks (with &quot;, played O-O at 56.4&quot;
+when the last decision belongs to this game), &quot;Settling the game&quot;
+while <code>phase</code> is <code>settling</code>, &quot;Waiting for the next game&quot; between games,
+&quot;Loading&quot; before the first read and &quot;Feed unavailable&quot; after a failed
+one.</li>
+<li><strong>The moves, highest price first</strong> (<code>.chess-moves</code>), only while a move
+is open: a caption &quot;N moves, highest price first&quot;, the twelve highest
+as rows (rank, piece and SAN, a bar the length of the price within the
+list's range, the price to one decimal), the leader's row in the
+approved green with &quot;· leads&quot;, then &quot;The other M&quot; in a compact grid of
+SAN and price. An unpriced option sorts last and reads &quot;open&quot;. Every
+row and cell is a link opening that option's world, as its arrow does.
+Beside the board when the slot is wide enough for both, under it
+otherwise.</li>
+</ol>
+<p>The replay row is the snake's (picker, scrubber, play, speed, LIVE): the
+picker lists the games newest first as &quot;Game 3 · vs OppBot · lost&quot;, the
+scrubber runs over the plies (0 is the start position), play steps one
+ply a second (ten at 10x), and the line reads &quot;Move 6: O-O, chosen at
+56.4&quot; for TelarchyBot's ply (&quot;chosen at random&quot; when its <code>kind</code> is not
+<code>market</code> or no price was recorded) and &quot;Move 6: they played Nf6&quot; for the
+opponent's. In replay the board draws the ply's <code>fen</code>, its move tinted,
+and our chosen move as one solid arrow; there is no move list. Every read
+reports the open move's option prices by proposal id for the floor's own
+cells, and a new open proposal (or none) reloads the floor, as the snake's
+step does.</p>
 <p><strong>The feed drives the floor</strong> (2026-09-11, Viktor: &quot;make sure the whole
 page is properly dynamic and reactive to the fast updating snake&quot;). A
 floor with a feed reads it every 2 seconds, and that read, not the
