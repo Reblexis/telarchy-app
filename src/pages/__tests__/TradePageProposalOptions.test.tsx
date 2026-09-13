@@ -602,3 +602,36 @@ describe('POSTING ONE WITH OPTIONS', () => {
     expect(vi.mocked(api.createProposal).mock.calls[0][0]).not.toHaveProperty('options');
   });
 });
+
+describe('A PICK IS NEVER UNDONE BY THE PAGE SETTLING', () => {
+  test('an option pressed the moment the options appear stays pressed', async () => {
+    // Press "Continue" at the earliest instant its cell exists: inside the
+    // DOM mutation that drew it, before any effect of that render has run.
+    // A reset that runs after the page is drawn would undo this press, which
+    // is the race a reader hits by clicking an option as the proposal opens.
+    let pressed = false;
+    const observer = new MutationObserver(() => {
+      if (pressed) return;
+      const cell = document.querySelector(
+        '.pubws-world-cell--option[aria-label="Continue"]',
+      ) as HTMLButtonElement | null;
+      if (cell && !cell.disabled) {
+        pressed = true;
+        fireEvent.click(cell);
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+    try {
+      const { container } = renderFloor();
+      await opened(container);
+      await waitFor(() => expect(pressed).toBe(true));
+      // Let every effect of the render that drew the options run.
+      await new Promise(resolve => setTimeout(resolve, 600));
+      expect(words(screen.getByRole('button', { name: /Bet Higher/ }))).toMatch(/Continue/);
+      const continueCell = cellsOf(container).find(c => c.getAttribute('aria-label') === 'Continue');
+      expect(continueCell?.getAttribute('aria-pressed')).toBe('true');
+    } finally {
+      observer.disconnect();
+    }
+  });
+});
