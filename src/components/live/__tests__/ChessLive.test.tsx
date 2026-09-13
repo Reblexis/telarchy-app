@@ -220,7 +220,12 @@ describe('the board', () => {
   test('a1 is a dark square and h1 a light one, as on every chessboard', async () => {
     const { container } = renderLive();
     await waitFor(() => expect(container.querySelectorAll('.chess-square').length).toBe(64));
-    const shade = (n: string) => (sq(container, n).classList.contains('is-dark') ? 'dark' : sq(container, n).classList.contains('is-light') ? 'light' : 'none');
+    const shade = (n: string) =>
+      sq(container, n).classList.contains('is-dark')
+        ? 'dark'
+        : sq(container, n).classList.contains('is-light')
+          ? 'light'
+          : 'none';
     expect(shade('a1')).toBe('dark');
     expect(shade('h1')).toBe('light');
     expect(shade('a8')).toBe('light');
