@@ -147,7 +147,7 @@ describe('the board', () => {
       return s as never;
     });
     const black = renderLive();
-    await waitFor(() => expect(nextLine(black.container)).toMatch(/^Their move/));
+    await waitFor(() => expect(nextLine(black.container)).toMatch(/^Waiting for /));
     expect(y(black.container, 'a1')).toBeLessThan(y(black.container, 'a8'));
     expect(Number(sq(black.container, 'h1').getAttribute('x'))).toBeLessThan(Number(sq(black.container, 'a1').getAttribute('x')));
   });
@@ -216,7 +216,7 @@ describe('a move made on the board opens its option', () => {
     unmount();
     vi.mocked(api.getLiveState).mockImplementation(async () => h.state({ phase: 'their-move', open: null }) as never);
     const idle = renderLive({ onPickProposal });
-    await waitFor(() => expect(nextLine(idle.container)).toMatch(/^Their move/));
+    await waitFor(() => expect(nextLine(idle.container)).toMatch(/^Waiting for /));
     fireEvent.click(sq(idle.container, 'e1'));
     expect(dots(idle.container)).toEqual([]);
     expect(onPickProposal).not.toHaveBeenCalled();
@@ -390,7 +390,7 @@ describe('the moves, one slim column beside the board', () => {
   test('no list while no move is open', async () => {
     vi.mocked(api.getLiveState).mockImplementation(async () => h.state({ phase: 'their-move', open: null }) as never);
     const { container } = renderLive();
-    await waitFor(() => expect(nextLine(container)).toMatch(/^Their move/));
+    await waitFor(() => expect(nextLine(container)).toMatch(/^Waiting for /));
     expect(container.querySelector('.chess-movelist')).toBeNull();
   });
 
@@ -461,7 +461,7 @@ describe('the next move and the floor', () => {
     await waitFor(() => expect(nextLine(container)).toMatch(/^Next move: O-O in 0:(2|3)\d$/));
   });
 
-  test('their move, with our last move of this game', async () => {
+  test("waiting for the opponent names them, the move they are answering, and their clock", async () => {
     vi.mocked(api.getLiveState).mockImplementation(
       async () =>
         h.state({
@@ -471,7 +471,78 @@ describe('the next move and the floor', () => {
         }) as never,
     );
     const { container } = renderLive();
-    await waitFor(() => expect(nextLine(container)).toBe('Their move, played O-O at 56.4'));
+    // TelarchyBot plays white here, so the opponent's clock is black's: 1,700,000 ms is 28:20.
+    await waitFor(() => expect(nextLine(container)).toMatch(/^Waiting for OppBot \(2171\) to reply to O-O · 28:(20|19)$/));
+    expect(container.querySelector('.chess-next .chess-clock')?.textContent).toMatch(/^28:(20|19)$/);
+  });
+
+  test("their clock counts down between feed reads", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.mocked(api.getLiveState).mockImplementation(async () => h.state({ phase: 'their-move', open: null }) as never);
+    const { container } = renderLive();
+    await waitFor(() => expect(container.querySelector('.chess-next .chess-clock')?.textContent).toMatch(/^28:(20|19)$/));
+    // Hold the feed where it is so only the page's own clock moves.
+    vi.mocked(api.getLiveState).mockImplementation(() => new Promise(() => {}) as never);
+    await vi.advanceTimersByTimeAsync(5_000);
+    await waitFor(() => expect(container.querySelector('.chess-next .chess-clock')?.textContent).toMatch(/^28:1[45]$/));
+  });
+
+  test('before TelarchyBot has moved in this game the line says the opponent is to move', async () => {
+    vi.mocked(api.getLiveState).mockImplementation(
+      async () =>
+        h.state({
+          phase: 'their-move',
+          open: null,
+          recentDecisions: [{ game: 2, move: 30, chosen: 'h7h6', san: 'h6', price: 12, kind: 'market' }],
+        }) as never,
+    );
+    const { container } = renderLive();
+    await waitFor(() => expect(nextLine(container)).toMatch(/^Waiting for OppBot \(2171\) to move · 28:(20|19)$/));
+  });
+
+  test('an opponent with no rating is named without one', async () => {
+    vi.mocked(api.getLiveState).mockImplementation(async () => {
+      const s = h.state({ phase: 'their-move', open: null });
+      (s.game as Record<string, unknown>).opponent = { name: 'Anon', title: null, rating: null };
+      return s as never;
+    });
+    const { container } = renderLive();
+    await waitFor(() => expect(nextLine(container)).toMatch(/^Waiting for Anon to move · /));
+  });
+
+  test("the player's record: rating, played, won, lost and drawn, from the feed's player", async () => {
+    vi.mocked(api.getLiveState).mockImplementation(
+      async () =>
+        h.state({
+          player: {
+            username: 'TelarchyBot',
+            url: 'https://lichess.org/@/TelarchyBot',
+            rating: 1720,
+            provisional: false,
+            games: { played: 12, won: 3, lost: 8, drawn: 1 },
+          },
+        }) as never,
+    );
+    const { container } = renderLive();
+    await waitFor(() => expect(container.querySelector('.chess-stats')).toBeTruthy());
+    const text = (container.querySelector('.chess-stats')?.textContent ?? '').replace(/\s+/g, ' ').trim();
+    expect(text).toBe('Rating 1720 · Played 12 · Won 3 · Lost 8 · Drawn 1');
+  });
+
+  test('a provisional rating carries a question mark', async () => {
+    vi.mocked(api.getLiveState).mockImplementation(
+      async () =>
+        h.state({ player: { username: 'TelarchyBot', rating: 2300, provisional: true, games: { played: 1, won: 0, lost: 1, drawn: 0 } } }) as never,
+    );
+    const { container } = renderLive();
+    await waitFor(() => expect(container.querySelector('.chess-stats')?.textContent).toContain('Rating 2300?'));
+  });
+
+  test("no record while the feed's player is null", async () => {
+    vi.mocked(api.getLiveState).mockImplementation(async () => h.state({ player: null }) as never);
+    const { container } = renderLive();
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    expect(container.querySelector('.chess-stats')).toBeNull();
   });
 
   test('settling, waiting, loading and a failed feed each say so', async () => {
