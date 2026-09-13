@@ -803,7 +803,12 @@ export const creditLedger = pgTable(
     refId: text('ref_id'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
-  t => [primaryKey({ columns: [t.id, t.workspaceId] })],
+  t => [
+    primaryKey({ columns: [t.id, t.workspaceId] }),
+    // The board reads fault refunds on every load (lib/board.ts); they are
+    // rare, so a partial index keeps that read off the whole ledger. Migration 0126.
+    index('credit_ledger_fault_refund_idx').on(t.refId).where(sql`${t.reason} = 'fault_refund'`),
+  ],
 );
 
 /**

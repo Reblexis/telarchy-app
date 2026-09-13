@@ -1,6 +1,6 @@
 import { and, eq, gt, inArray, isNotNull, lte, or, type SQL, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { liquidityEvents, markets, positions, trades } from '../db/schema';
+import { creditLedger, liquidityEvents, markets, positions, trades } from '../db/schema';
 import { resolutionInstant, settlesOn } from './date-utils';
 import {
   type CalibrationStats,
@@ -13,6 +13,7 @@ import {
   type ProfitMarket,
   voidedStakeKey,
 } from './leaderboard';
+import { fromUnits } from './validation';
 
 /**
  * The board: everyone's trading profit marked to market, over ONE named set of
@@ -212,6 +213,35 @@ export async function loadBoard(workspaceIds: string[]): Promise<Board> {
   const netCashById = new Map(costAggs.map(c => [c.agentId, Number(c.netCash)]));
   const settledCashById = new Map(settledCostAggs.map(c => [c.agentId, Number(c.netCash)]));
   const breakdownById = computeProfitBreakdown(profitMarkets, netCashById, settledCashById, positionRows, voidedStake);
+  // A fault refund is the one issued credit that counts (docs/ui-conventions.md,
+  // "Top traders"): the platform repaying what its own fault cost a holder on
+  // one market is settled money back on that market. It counts on a board
+  // only when its market is in this workspace set. Rare rows, read through
+  // the partial index on reason = 'fault_refund'.
+  const faultRefunds = await db
+    .select({
+      agentId: creditLedger.agentId,
+      units: sql<number>`coalesce(sum(${creditLedger.deltaUnits}), 0)::float`,
+    })
+    .from(creditLedger)
+    .innerJoin(markets, and(eq(markets.id, creditLedger.refId), eq(markets.workspaceId, creditLedger.workspaceId)))
+    .where(
+      and(
+        eq(creditLedger.reason, 'fault_refund'),
+        eq(creditLedger.refType, 'market'),
+        inArray(markets.workspaceId, workspaceIds),
+      ),
+    )
+    .groupBy(creditLedger.agentId);
+  for (const r of faultRefunds) {
+    const credits = fromUnits(Number(r.units));
+    const b = breakdownById.get(r.agentId) ?? { settled: 0, open: 0, total: 0 };
+    breakdownById.set(r.agentId, {
+      settled: Math.round((b.settled + credits) * 100) / 100,
+      open: b.open,
+      total: Math.round((b.total + credits) * 100) / 100,
+    });
+  }
   const profitById = new Map(Array.from(breakdownById, ([id, b]) => [id, b.total]));
 
   // Calibration is about markets that produced an answer, so voided ones
@@ -235,6 +265,7 @@ export async function loadBoard(workspaceIds: string[]): Promise<Board> {
   const agentIdsSeen = new Set<string>();
   for (const t of tradeAggs) agentIdsSeen.add(t.agentId);
   for (const p of positionRows) agentIdsSeen.add(p.agentId);
+  for (const r of faultRefunds) agentIdsSeen.add(r.agentId);
 
   return {
     profitById,

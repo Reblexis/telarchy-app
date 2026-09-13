@@ -2348,7 +2348,12 @@ reload; `/leaderboard` ranks the same way in its own tables.
   mark), so a reader can tell realised money from paper (`docs/seasons.md`,
   "The score"). The floor footer's compact rows print the total only. The
   number is measured off the trades, not off the balance, so credits the
-  platform handed an account never enter it. **No account is excluded.**
+  platform handed an account never enter it. The one exception is a
+  **fault refund** (ledger reason `fault_refund`, `ref_type` `market`): the
+  platform repaying what its own fault cost a holder on one market counts as
+  money back on that market, settled, so the board shows the result the
+  holder would have had without the fault. An apology or any other grant
+  stays out. **No account is excluded.**
   Anyone who has ever traded in a public workspace is on the board. **A
   cancelled market is valued at its refund, not skipped**: a void pays
   back the net cash you still had in it, floored at zero (see
