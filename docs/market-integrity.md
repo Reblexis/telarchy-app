@@ -306,8 +306,12 @@ all move money too, and every one of them goes through the ledger.
   `payout`, `void_refund`, `lp_leftover`, `liquidity`, `proposal_stake`,
   `proposal_reward`, `proposal_penalty`, `contract_payment`, `signup_grant`,
   `limit_order_hold`, `limit_order_release`, `transfer_in`, `transfer_out`,
-  `admin_adjustment`, `opening_balance`), and `refType`/`refId` point at the
-  market, proposal or transfer that caused it.
+  `admin_adjustment`, `opening_balance`, `fault_refund`), and
+  `refType`/`refId` point at the market, proposal or transfer that caused it.
+  A `fault_refund` is issued by the platform operator to repay what a
+  platform fault cost a holder on one market, and always names that market;
+  it is the only issued credit the board counts as trading profit
+  (`docs/ui-conventions.md`, "Top traders").
 - **Balance after is stored on the row**, not derived at read time, so a
   divergence is visible where it started rather than only in the total.
 - **A new participant is created at zero** and granted through the ledger, so

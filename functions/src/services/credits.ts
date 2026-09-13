@@ -51,7 +51,8 @@ export type CreditReason =
   | 'transfer_in'
   | 'transfer_out'
   | 'admin_adjustment' // an operator setting a balance by hand
-  | 'opening_balance'; // migration 0060: the balance that predates the ledger
+  | 'opening_balance' // migration 0060: the balance that predates the ledger
+  | 'fault_refund'; // the operator repaying what a platform fault cost a holder on one market (ref: that market)
 
 /** What caused the movement, so a row can be traced back to its cause. */
 export type CreditRefType = 'market' | 'proposal' | 'transfer' | 'season' | null;
