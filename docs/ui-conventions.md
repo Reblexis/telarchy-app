@@ -2950,6 +2950,26 @@ than pinning to the front. Cards whose liquidity has not landed yet, or
 that tie, keep their arrival order, so the grid does not jump as payloads
 come in except to move a card up to its place.
 
+**The most traded floor is featured above the board.** Between the season
+strip and the board, the public floor with the most credits traded per hour
+over the last 24 hours (every trade's absolute cost in that window, summed
+and divided by 24: `volumePerHour` on each home listing) is drawn as one
+full-width card (`.mkt-featured`), and it is not repeated in the board.
+Ties go to the deeper liquidity, then to arrival order. A floor with no
+trade in 24 hours is never featured, nor is the caller's own not-yet-public
+floor; when nothing qualifies there is no card and the board is as above.
+The card carries, in this order: a mono small-caps kicker in the accent,
+"MOST TRADED NOW", with the rate beside it in the facts row's short form
+("15k cr an hour"); the name in the display face; the hero market's
+question in the owner's own words, when there is one; the caption and the
+live number as a cell has them; two buttons in the market page's higher
+and lower colours, "Higher ↑" and "Lower ↓", each the hero market's
+address on its page; and the facts row. Beside them, on the left, the
+floor's live board when the floor has a live feed (the same snake board as
+its page, without the replay row), else the hero market's spark. At phone
+width the card stacks, the board or spark first. The card never says "bet":
+the home page's words are forecast words.
+
 The last cell of the board is always the listing cell, and it is the only
 interactive one: it spans two columns where the row has room, and it is
 where the company-facing sentence lives on the home page (owner pick

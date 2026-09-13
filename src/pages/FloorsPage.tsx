@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Ghost, LoadingStatus } from '../components/Ghosts';
+import { SnakeLive } from '../components/live/SnakeLive';
 import { Bars, Drop, Page, People, short } from '../components/MarketFacts';
 import { CreateWorkspaceDialog } from '../components/OwnerDialogs';
 import { useAuth } from '../hooks/useAuth';
 import type { HomeListing, HomePayload, PrizeSeason, PublicWorkspace } from '../lib/api';
 import { api } from '../lib/api';
+import { floorHref } from '../lib/floor-hash';
 import { buildHorizonViews, priceSeriesOf, primaryHorizonOf } from '../lib/floor-horizons';
 import { dropInline, readInline } from '../lib/inline-data';
 import { pairPool } from '../lib/proposal-options';
@@ -63,6 +65,37 @@ interface Listing {
   /** Set for the caller's own floors: 'unlisted' | 'private' badges the card
    *  "Yours · not public yet"; a public own floor is a card like any other. */
   mineVisibility?: string;
+  /** Credits traded per hour over the last 24 hours, from the home payload;
+   *  null when the payload does not carry it. The featured card goes to the
+   *  highest (docs/ui-conventions.md, "The marketplace"). */
+  volumePerHour?: number | null;
+  /** The hero market's id and its question in the owner's words, for the
+   *  featured card's buttons and heading. */
+  heroMarketId?: string | null;
+  question?: string | null;
+  /** The floor draws a live board (today the snake). */
+  live?: boolean;
+}
+
+/** The floor the home page features: the most credits traded per hour over
+ *  the last 24 hours, ties to the deeper liquidity, then arrival order. A
+ *  floor with no trade in that window, or the caller's own not-yet-public
+ *  floor, is never featured; null when nothing qualifies. */
+export function pickFeatured(listings: Listing[]): Listing | null {
+  let best: Listing | null = null;
+  for (const r of listings) {
+    if (r.mineVisibility) continue;
+    const v = r.volumePerHour ?? 0;
+    if (!(v > 0)) continue;
+    if (
+      best === null ||
+      v > (best.volumePerHour ?? 0) ||
+      (v === (best.volumePerHour ?? 0) && (r.liquidity ?? -1) > (best.liquidity ?? -1))
+    ) {
+      best = r;
+    }
+  }
+  return best;
 }
 
 /** Credits in the pools of every open book on the floor, summed: the
@@ -343,9 +376,14 @@ function GhostCell() {
  *  itself does, so a cell and the page it links to never name different
  *  numbers. The furthest-resolving market is the cell's number (owner
  *  direction 2026-08-16). */
-function fromFloor(ws: PublicWorkspace): Pick<Listing, 'hero' | 'participants' | 'tradesThisWeek' | 'liquidity'> {
+function fromFloor(
+  ws: PublicWorkspace,
+): Pick<Listing, 'hero' | 'participants' | 'tradesThisWeek' | 'liquidity' | 'heroMarketId' | 'question' | 'live'> {
   const m = primaryHorizonOf(buildHorizonViews(ws));
   return {
+    heroMarketId: m?.marketId ?? null,
+    question: m?.title ?? null,
+    live: !!(ws as { liveFeed?: unknown }).liveFeed,
     participants: ws.participantCount ?? null,
     tradesThisWeek: ws.tradesThisWeek ?? null,
     liquidity: poolLiquidityOf(ws),
@@ -372,8 +410,68 @@ function listingOf(w: HomeListing): Listing {
     participants: null,
     tradesThisWeek: null,
     liquidity: null,
+    volumePerHour: typeof w.volumePerHour === 'number' ? w.volumePerHour : null,
     ...(w.floor ? fromFloor(w.floor) : {}),
   };
+}
+
+/** The featured card (docs/ui-conventions.md, "The marketplace"): the busiest
+ *  floor, full width, between the season strip and the board. */
+function FeaturedFloor({ r }: { r: Listing }) {
+  const path = `/${r.slug || `marketplace/${r.workspaceId}`}`;
+  const marketHref = r.slug && r.heroMarketId ? floorHref(r.slug, { marketId: r.heroMarketId }) : path;
+  return (
+    <section className="mkt-featured pubws-rise" aria-label={`Most traded now: ${r.name}`}>
+      <div className="mkt-featured-visual">
+        {r.live && r.slug ? (
+          <SnakeLive slug={r.slug} replay={false} />
+        ) : r.hero?.consensus != null ? (
+          <MarketSpark history={r.hero.history} consensus={r.hero.consensus} />
+        ) : (
+          <Ghost w="100%" h={120} r={6} className="mkt-spark-ghost" />
+        )}
+      </div>
+      <div className="mkt-featured-body">
+        <p className="mkt-featured-kicker">
+          <span className="mkt-featured-dot" aria-hidden="true" />
+          <span className="mkt-featured-label">Most traded now</span>
+          <span className="mkt-featured-rate">{`${short(Math.round(r.volumePerHour ?? 0))} cr an hour`}</span>
+        </p>
+        <Link className="mkt-featured-name" to={path}>
+          {r.name}
+        </Link>
+        {r.question && <p className="mkt-featured-question">{r.question}</p>}
+        {r.hero && (
+          <span className="mkt-cell-caption">
+            <span className="mkt-cell-metric">{r.hero.metricName.replace(/\s*\(.*\)\s*$/, '')}</span>
+            {r.hero.settles && (
+              <>
+                {' · '}
+                <span className="mkt-cell-settles" title={`settles ${r.hero.settles}`}>
+                  settles {shortDay(r.hero.settles)}
+                </span>
+              </>
+            )}
+          </span>
+        )}
+        {r.hero?.consensus != null && (
+          <span className="mkt-cell-price mkt-featured-price">{fmtHero(r.hero.consensus, r.hero.unit)}</span>
+        )}
+        {!r.question && r.description && <span className="mkt-cell-desc">{r.description}</span>}
+        <div className="mkt-featured-actions">
+          <Link className="pubws-bet-btn pubws-bet-btn--higher mkt-featured-btn" to={marketHref}>
+            Higher ↑
+          </Link>
+          <Link className="pubws-bet-btn pubws-bet-btn--lower mkt-featured-btn" to={marketHref}>
+            Lower ↓
+          </Link>
+        </div>
+        <span className="mkt-cell-facts">
+          <ActivityFacts r={r} />
+        </span>
+      </div>
+    </section>
+  );
 }
 
 export function FloorsPage() {
@@ -465,6 +563,7 @@ export function FloorsPage() {
   }, [user]);
 
   const busy = listings === null;
+  const featured = listings ? pickFeatured(listings) : null;
 
   return (
     <div className="pubws">
@@ -486,6 +585,8 @@ export function FloorsPage() {
 
         {busy ? <SeasonGhost /> : <SeasonDoor season={season} />}
 
+        {featured && <FeaturedFloor r={featured} />}
+
         {/* While the payload is on its way the board is drawn as ghosts in
             the real geometry (docs/ui-conventions.md, "While a page loads").
             Never a dot, never a spinner, never a blank. */}
@@ -499,48 +600,51 @@ export function FloorsPage() {
             </>
           ) : (
             <>
-              {[...listings].sort(byLiquidity).map((r, i) => (
-                <Link
-                  key={r.workspaceId}
-                  className="mkt-cell pubws-rise"
-                  style={{ animationDelay: `${i * 60}ms` }}
-                  to={`/${r.slug || `marketplace/${r.workspaceId}`}`}
-                >
-                  <span className="mkt-cell-head">
-                    <span className="mkt-cell-name">{r.name}</span>
-                    {r.mineVisibility && <span className="mkt-cell-mine">Yours · not public yet</span>}
-                  </span>
-                  {r.hero && (
-                    <span className="mkt-cell-caption">
-                      <span className="mkt-cell-metric">{r.hero.metricName.replace(/\s*\(.*\)\s*$/, '')}</span>
-                      {r.hero.settles && (
-                        <>
-                          {' · '}
-                          <span className="mkt-cell-settles" title={`settles ${r.hero.settles}`}>
-                            settles {shortDay(r.hero.settles)}
-                          </span>
-                        </>
+              {[...listings]
+                .filter(r => r !== featured)
+                .sort(byLiquidity)
+                .map((r, i) => (
+                  <Link
+                    key={r.workspaceId}
+                    className="mkt-cell pubws-rise"
+                    style={{ animationDelay: `${i * 60}ms` }}
+                    to={`/${r.slug || `marketplace/${r.workspaceId}`}`}
+                  >
+                    <span className="mkt-cell-head">
+                      <span className="mkt-cell-name">{r.name}</span>
+                      {r.mineVisibility && <span className="mkt-cell-mine">Yours · not public yet</span>}
+                    </span>
+                    {r.hero && (
+                      <span className="mkt-cell-caption">
+                        <span className="mkt-cell-metric">{r.hero.metricName.replace(/\s*\(.*\)\s*$/, '')}</span>
+                        {r.hero.settles && (
+                          <>
+                            {' · '}
+                            <span className="mkt-cell-settles" title={`settles ${r.hero.settles}`}>
+                              settles {shortDay(r.hero.settles)}
+                            </span>
+                          </>
+                        )}
+                      </span>
+                    )}
+                    {r.hero?.consensus != null && (
+                      <span className="mkt-cell-price">{fmtHero(r.hero.consensus, r.hero.unit)}</span>
+                    )}
+                    {r.description && <span className="mkt-cell-desc">{r.description}</span>}
+                    {/* The chart slot keeps its height either way, so nothing
+                      jumps when a late number arrives. */}
+                    <span className="mkt-cell-chart">
+                      {r.hero?.consensus != null ? (
+                        <MarketSpark history={r.hero.history} consensus={r.hero.consensus} />
+                      ) : (
+                        <Ghost w="100%" h={44} r={6} className="mkt-spark-ghost" />
                       )}
                     </span>
-                  )}
-                  {r.hero?.consensus != null && (
-                    <span className="mkt-cell-price">{fmtHero(r.hero.consensus, r.hero.unit)}</span>
-                  )}
-                  {r.description && <span className="mkt-cell-desc">{r.description}</span>}
-                  {/* The chart slot keeps its height either way, so nothing
-                      jumps when a late number arrives. */}
-                  <span className="mkt-cell-chart">
-                    {r.hero?.consensus != null ? (
-                      <MarketSpark history={r.hero.history} consensus={r.hero.consensus} />
-                    ) : (
-                      <Ghost w="100%" h={44} r={6} className="mkt-spark-ghost" />
-                    )}
-                  </span>
-                  <span className="mkt-cell-facts">
-                    <ActivityFacts r={r} />
-                  </span>
-                </Link>
-              ))}
+                    <span className="mkt-cell-facts">
+                      <ActivityFacts r={r} />
+                    </span>
+                  </Link>
+                ))}
 
               {/* The last cell of the board, never a footnote: a marketplace
                   is somewhere you can also list. */}

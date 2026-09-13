@@ -380,8 +380,12 @@ export function SnakeLive({
   onStep,
   onQuotes,
   onState,
+  replay: showReplay = true,
 }: {
   slug: string;
+  /** The replay row under the board. The home page's featured card draws the
+   *  live board alone (docs/ui-conventions.md, "The marketplace"). */
+  replay?: boolean;
   /** A chevron was clicked: select that proposal on the floor (docs/ui-conventions.md, "The feed drives the floor"). */
   onPickProposal?: (number: number, option?: SnakeAction) => void;
   /** The feed's open step changed or its decision landed, reported as soon as the poll reads it, never for the first read. */
@@ -746,67 +750,69 @@ export function SnakeLive({
           {line.clock !== undefined && <span className="snake-clock">{line.clock}</span>}
         </p>
       </div>
-      <div className="snake-replay" role="group" aria-label="Replay">
-        <select
-          className="snake-games"
-          aria-label="Game"
-          value={replay?.game ?? ''}
-          onChange={e => {
-            const n = Number(e.target.value);
-            if (Number.isFinite(n) && e.target.value !== '') {
-              setPlaying(false);
-              goTo(n, 0);
-            }
-          }}
-        >
-          {replay === null && <option value="">Replay a game</option>}
-          {games.map(g => (
-            <option key={g.number} value={g.number}>
-              {`Game ${g.number} · ${g.size}x${g.size} · best ${g.bestLength}`}
-            </option>
-          ))}
-        </select>
-        <input
-          className="snake-scrub"
-          type="range"
-          aria-label="Entry"
-          min={0}
-          max={scrubMax}
-          value={scrubValue}
-          disabled={scrubTotal === null}
-          style={{ '--slider-pct': `${scrubMax ? (scrubValue / scrubMax) * 100 : 0}%` } as React.CSSProperties}
-          onChange={e => {
-            if (scrubGame === undefined) return;
-            setPlaying(false);
-            goTo(scrubGame, Number(e.target.value));
-          }}
-        />
-        <button
-          type="button"
-          className="mchart-range snake-btn"
-          disabled={scrubTotal === null}
-          onClick={() => {
-            if (!replay) {
+      {showReplay && (
+        <div className="snake-replay" role="group" aria-label="Replay">
+          <select
+            className="snake-games"
+            aria-label="Game"
+            value={replay?.game ?? ''}
+            onChange={e => {
+              const n = Number(e.target.value);
+              if (Number.isFinite(n) && e.target.value !== '') {
+                setPlaying(false);
+                goTo(n, 0);
+              }
+            }}
+          >
+            {replay === null && <option value="">Replay a game</option>}
+            {games.map(g => (
+              <option key={g.number} value={g.number}>
+                {`Game ${g.number} · ${g.size}x${g.size} · best ${g.bestLength}`}
+              </option>
+            ))}
+          </select>
+          <input
+            className="snake-scrub"
+            type="range"
+            aria-label="Entry"
+            min={0}
+            max={scrubMax}
+            value={scrubValue}
+            disabled={scrubTotal === null}
+            style={{ '--slider-pct': `${scrubMax ? (scrubValue / scrubMax) * 100 : 0}%` } as React.CSSProperties}
+            onChange={e => {
               if (scrubGame === undefined) return;
-              goTo(scrubGame, 0);
-            }
-            setPlaying(p => !p);
-          }}
-        >
-          {playing ? 'Pause' : 'Play'}
-        </button>
-        <button type="button" className="mchart-range snake-btn" onClick={() => setSpeed(s => (s === 1 ? 10 : 1))}>
-          {`${speed}x`}
-        </button>
-        <button
-          type="button"
-          className={`mchart-range snake-btn snake-live-btn${replay === null ? ' is-active' : ''}`}
-          aria-pressed={replay === null}
-          onClick={goLive}
-        >
-          Live
-        </button>
-      </div>
+              setPlaying(false);
+              goTo(scrubGame, Number(e.target.value));
+            }}
+          />
+          <button
+            type="button"
+            className="mchart-range snake-btn"
+            disabled={scrubTotal === null}
+            onClick={() => {
+              if (!replay) {
+                if (scrubGame === undefined) return;
+                goTo(scrubGame, 0);
+              }
+              setPlaying(p => !p);
+            }}
+          >
+            {playing ? 'Pause' : 'Play'}
+          </button>
+          <button type="button" className="mchart-range snake-btn" onClick={() => setSpeed(s => (s === 1 ? 10 : 1))}>
+            {`${speed}x`}
+          </button>
+          <button
+            type="button"
+            className={`mchart-range snake-btn snake-live-btn${replay === null ? ' is-active' : ''}`}
+            aria-pressed={replay === null}
+            onClick={goLive}
+          >
+            Live
+          </button>
+        </div>
+      )}
     </div>
   );
 }
