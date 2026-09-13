@@ -34,11 +34,11 @@ jest.mock('../middleware/auth', () => {
 import { and, eq } from 'drizzle-orm';
 import express from 'express';
 import request from 'supertest';
-import { agents, limitOrders, markets, metrics, positions } from '../db/schema';
-import { consensus, initialPool } from '../lib/amm';
+import { agents, limitOrders, markets, metrics, positions, trades } from '../db/schema';
+import { betTowardsValue, consensus, directionSellProceeds, initialPool, sharesToBound } from '../lib/amm';
 import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
-import { fromUnits, toUnits } from '../lib/validation';
+import { CREDIT_PRECISION, fromUnits, toUnits } from '../lib/validation';
 // The router no longer carries auth itself (app.ts applies the policy first),
 // so the test mounts the mocked middleware where the policy would run.
 import { authMiddleware } from '../middleware/auth';
@@ -785,134 +785,234 @@ describe('selling at a price: cancelling, closing, listing', () => {
 });
 
 /**
- * Your own orders never trade against each other (docs/limit-orders.md). A
- * higher buy and a lower sell pull the price up; a lower buy and a higher
- * sell pull it down. Two of one participant's orders pulling opposite ways,
- * with the up-pull's limit above the down-pull's, are both crossed at every
- * price between, and each fill crosses the other again. On the snake on
- * 2026-09-13 one such pair filled 885 times in 55 seconds.
+ * Opposing orders are matched, not traded back and forth (docs/limit-orders.md).
+ * Viktor 2026-09-13: "it should just not go back and forth and instead get
+ * computed properly where it ends up not blocked". The reference below is the
+ * old fill loop run to the very end with no step bound, on the same AMM
+ * functions: the pass must end exactly where it ends, in a handful of rows.
  */
-describe('your own orders never trade against each other', () => {
-  test('an order that would trade against your own resting order is refused, and nothing is reserved or traded', async () => {
+interface SimOrder {
+  id: string;
+  agentId: string;
+  side: 'buy' | 'sell';
+  direction: 'higher' | 'lower';
+  limit: number;
+  left: number;
+}
+
+function backAndForth(orders: SimOrder[], held: Record<string, number>) {
+  const b = 200;
+  const lo = 0;
+  const hi = 100;
+  const eps = (hi - lo) * 1e-6;
+  const book: [number, number] = [0, 0];
+  const blocked = new Set<string>();
+  const filled = new Map<string, number>(orders.map(o => [o.id, 0]));
+  const at = (agent: string, dir: string) => `${agent}:${dir}`;
+  const waitsBelow = (o: SimOrder) => (o.side === 'sell') !== (o.direction === 'higher');
+  const spent = (o: SimOrder) => (o.side === 'sell' ? o.left <= 1e-6 : o.left <= 0.01);
+  let fills = 0;
+  for (let step = 0; step < 1_000_000; step++) {
+    const c = consensus(book, b, lo, hi)!;
+    let next: SimOrder | null = null;
+    let best = 0;
+    for (const o of orders) {
+      if (blocked.has(o.id) || spent(o)) continue;
+      if (!(waitsBelow(o) ? c <= o.limit + eps : c >= o.limit - eps)) continue;
+      const depth = Math.abs(c - o.limit);
+      if (!next || depth > best) {
+        next = o;
+        best = depth;
+      }
+    }
+    if (!next) break;
+    const o: SimOrder = next;
+    const dir: 0 | 1 = o.direction === 'higher' ? 1 : 0;
+    const mine = at(o.agentId, o.direction);
+    if (o.side === 'buy') {
+      const r = betTowardsValue(book, b, lo, hi, o.limit, o.left);
+      if (!(r.amount > 0) || r.direction !== dir) {
+        blocked.add(o.id);
+        continue;
+      }
+      book[dir] += r.amount;
+      o.left -= r.cost;
+      filled.set(o.id, filled.get(o.id)! + r.cost);
+      held[mine] = (held[mine] ?? 0) + r.amount;
+      const other = at(o.agentId, o.direction === 'higher' ? 'lower' : 'higher');
+      const pairs = Math.min(held[mine], held[other] ?? 0);
+      if (pairs > 1e-9) {
+        held[mine] -= pairs;
+        held[other] -= pairs;
+        book[0] -= pairs;
+        book[1] -= pairs;
+      }
+      fills++;
+      if (o.left <= 0.01) blocked.add(o.id);
+    } else {
+      const room = sharesToBound(book, b, lo, hi, dir, true, o.limit);
+      if (!(room > 1e-6)) {
+        blocked.add(o.id);
+        continue;
+      }
+      const h = held[mine] ?? 0;
+      let amount = Math.floor(Math.min(o.left, h) * CREDIT_PRECISION) / CREDIT_PRECISION;
+      if (!(amount > 1e-6)) {
+        blocked.add(o.id);
+        continue;
+      }
+      if (amount > room) amount = Math.floor(room * CREDIT_PRECISION) / CREDIT_PRECISION;
+      if (!(amount > 0) || !(directionSellProceeds(book, dir, amount, b) > 0)) {
+        blocked.add(o.id);
+        continue;
+      }
+      book[dir] -= amount;
+      held[mine] = h - amount;
+      o.left -= amount;
+      filled.set(o.id, filled.get(o.id)! + amount);
+      fills++;
+      if (o.left <= 1e-6 || h - amount <= 1e-6) blocked.add(o.id);
+    }
+  }
+  return { consensus: consensus(book, b, lo, hi)!, filled, fills };
+}
+
+/** A resting order straight into the book, its budget reserved as placement would. */
+async function rest(o: SimOrder) {
+  await db.insert(limitOrders).values({
+    id: o.id,
+    workspaceId: WS,
+    marketId: MARKET,
+    agentId: o.agentId,
+    side: o.side,
+    direction: o.direction,
+    limitValue: o.limit,
+    budgetCredits: o.side === 'buy' ? o.left : 0,
+    filledCredits: 0,
+    shares: o.side === 'sell' ? o.left : null,
+    filledShares: o.side === 'sell' ? 0 : null,
+    status: 'open',
+  });
+  if (o.side === 'buy') {
+    const [a] = await db.select().from(agents).where(eq(agents.id, o.agentId));
+    await db
+      .update(agents)
+      .set({ balance: (a.balance as number) - toUnits(o.left) })
+      .where(eq(agents.id, o.agentId));
+  }
+}
+
+async function richSeed() {
+  await seed();
+  await db.insert(agents).values({ id: 'agent-third', apiKeyHash: 'h-third', balance: toUnits(20000) });
+  for (const id of [RESTER, MOVER]) {
+    await db
+      .update(agents)
+      .set({ balance: toUnits(20000) })
+      .where(eq(agents.id, id));
+  }
+}
+
+/** Rest the orders, sweep once, and hold the pass to the back-and-forth reference. */
+async function expectBackAndForthEnd(orders: SimOrder[], held: Record<string, number> = {}) {
+  const sim = backAndForth(
+    orders.map(o => ({ ...o })),
+    { ...held },
+  );
+  for (const o of orders) await rest(o);
+  await sweepLimitOrders();
+
+  expect(await priceOf()).toBeCloseTo(sim.consensus, 4);
+  const rows = await db.select().from(limitOrders);
+  for (const o of orders) {
+    const row = rows.find(r => r.id === o.id)!;
+    const got = o.side === 'sell' ? (row.filledShares ?? 0) : row.filledCredits;
+    expect(Math.abs(got - sim.filled.get(o.id)!)).toBeLessThan(1e-3);
+  }
+  const tradeRows = await db
+    .select()
+    .from(trades)
+    .where(and(eq(trades.marketId, MARKET), eq(trades.kind, 'trade')));
+  return { sim, tradeRows: tradeRows.length };
+}
+
+describe('opposing orders are matched, not traded back and forth', () => {
+  test('your own order pulling the other way is placed, not refused', async () => {
     await seed();
     const resting = await as(RESTER).place({ direction: 'higher', limitValue: 45, budgetCredits: 100 });
     expect(resting.status).toBe(201);
-    expect(resting.body.status).toBe('open');
-
-    // A lower buy over 40 is crossed at 50 and would fill down to 40, through the higher buy under 45.
     const res = await as(RESTER).place({ direction: 'lower', limitValue: 40, budgetCredits: 100 });
-    expect(res.status).toBe(409);
-    expect(res.body.code).toBe('crosses_own_order');
-    expect(res.body.orderId).toBe(resting.body.id);
-
-    expect(await balanceOf(RESTER)).toBeCloseTo(900, 5);
-    expect(await priceOf()).toBeCloseTo(50, 5);
-    expect(await db.select().from(limitOrders)).toHaveLength(1);
-    expect(await heldShares(RESTER, 'lower')).toBe(0);
-    expect(await heldShares(RESTER, 'higher')).toBe(0);
-  });
-
-  test('a higher buy above your own resting lower buy is refused', async () => {
-    await seed();
-    const resting = await as(RESTER).place({ direction: 'lower', limitValue: 55, budgetCredits: 100 });
-    expect(resting.body.status).toBe('open');
-    const res = await as(RESTER).place({ direction: 'higher', limitValue: 60, budgetCredits: 100 });
-    expect(res.status).toBe(409);
-    expect(res.body.code).toBe('crosses_own_order');
-    expect(await balanceOf(RESTER)).toBeCloseTo(900, 5);
-  });
-
-  test('a higher sell below your own resting higher buy is refused', async () => {
-    const held = await holding('higher');
-    const resting = await as(RESTER).place({ direction: 'higher', limitValue: 60, budgetCredits: 100 });
-    expect(resting.body.status).toBe('open');
-    const before = await priceOf();
-    const res = await as(RESTER).place({ side: 'sell', direction: 'higher', limitValue: 55, shares: held / 2 });
-    expect(res.status).toBe(409);
-    expect(res.body.code).toBe('crosses_own_order');
-    expect(await heldShares(RESTER, 'higher')).toBeCloseTo(held, 6);
-    expect(await priceOf()).toBeCloseTo(before, 6);
-  });
-
-  test('a lower sell above your own resting lower buy is refused', async () => {
-    const held = await holding('lower');
-    const resting = await as(RESTER).place({ direction: 'lower', limitValue: 40, budgetCredits: 100 });
-    expect(resting.body.status).toBe('open');
-    const res = await as(RESTER).place({ side: 'sell', direction: 'lower', limitValue: 45, shares: held / 2 });
-    expect(res.status).toBe(409);
-    expect(res.body.code).toBe('crosses_own_order');
-    expect(await heldShares(RESTER, 'lower')).toBeCloseTo(held, 6);
-  });
-
-  test('your orders pulling opposite ways with the limits apart both rest', async () => {
-    await seed();
-    expect((await as(RESTER).place({ direction: 'higher', limitValue: 45, budgetCredits: 100 })).status).toBe(201);
-    expect((await as(RESTER).place({ direction: 'lower', limitValue: 55, budgetCredits: 100 })).status).toBe(201);
-  });
-
-  test('equal limits do not conflict', async () => {
-    await seed();
-    expect((await as(RESTER).place({ direction: 'higher', limitValue: 45, budgetCredits: 100 })).status).toBe(201);
-    expect((await as(RESTER).place({ direction: 'lower', limitValue: 45, budgetCredits: 100 })).status).toBe(201);
-  });
-
-  test('your orders pulling the same way never conflict', async () => {
-    await seed();
-    expect((await as(RESTER).place({ direction: 'higher', limitValue: 45, budgetCredits: 100 })).status).toBe(201);
-    expect((await as(RESTER).place({ direction: 'higher', limitValue: 40, budgetCredits: 100 })).status).toBe(201);
-  });
-
-  test('a cancelled order no longer conflicts', async () => {
-    await seed();
-    const resting = await as(RESTER).place({ direction: 'higher', limitValue: 45, budgetCredits: 100 });
-    expect((await as(RESTER).cancel(resting.body.id)).status).toBe(200);
-    expect((await as(RESTER).place({ direction: 'lower', limitValue: 40, budgetCredits: 100 })).status).toBe(201);
-  });
-
-  test("another participant's crossing order is not refused", async () => {
-    await seed();
-    await as(RESTER).place({ direction: 'higher', limitValue: 45, budgetCredits: 100 });
-    expect((await as(MOVER).place({ direction: 'lower', limitValue: 40, budgetCredits: 100 })).status).toBe(201);
+    expect(res.status).toBe(201);
+    expect(res.body.code).toBeUndefined();
   });
 
   test('two opposing orders of one participant do not trade back and forth hundreds of times', async () => {
-    // A pair that rests from before the rule existed: the fill pass itself must not loop on it.
-    await seed();
-    await as(RESTER).place({ direction: 'higher', limitValue: 45, budgetCredits: 300 });
-    await db.insert(limitOrders).values({
-      id: 'order-pre-rule-lower',
-      workspaceId: WS,
-      marketId: MARKET,
-      agentId: RESTER,
-      side: 'buy',
-      direction: 'lower',
-      limitValue: 40,
-      budgetCredits: 300,
-      filledCredits: 0,
-      status: 'open',
-    });
-    await db
-      .update(agents)
-      .set({ balance: toUnits(400) })
-      .where(eq(agents.id, RESTER));
+    await richSeed();
+    expect((await as(RESTER).place({ direction: 'higher', limitValue: 45, budgetCredits: 3000 })).status).toBe(201);
+    expect((await as(RESTER).place({ direction: 'lower', limitValue: 40, budgetCredits: 3000 })).status).toBe(201);
+    await sweepLimitOrders();
 
-    const r = await sweepLimitOrders();
-    expect(r.fills).toBeLessThanOrEqual(2);
+    const tradeRows = await db
+      .select()
+      .from(trades)
+      .where(and(eq(trades.marketId, MARKET), eq(trades.kind, 'trade')));
+    expect(tradeRows.length).toBeLessThanOrEqual(20);
+    // One of the two has run out: the pair is finished, not parked for the next sweep.
+    const statuses = (await db.select().from(limitOrders)).map(o => o.status);
+    expect(statuses).toContain('filled');
   });
-});
 
-describe('the fill pass fills each order once per pass', () => {
-  test("two participants' crossing orders each fill once per pass, not back and forth until a budget runs out", async () => {
-    await seed();
-    await as(RESTER).place({ direction: 'higher', limitValue: 45, budgetCredits: 500 });
-    // Fills at once down to 40, which fills RESTER back up to 45 and leaves MOVER's order crossed.
-    const placed = await as(MOVER).place({ direction: 'lower', limitValue: 40, budgetCredits: 500 });
-    expect(placed.status).toBe(201);
+  test("one participant's opposing buys end where trading back and forth would have, and net out", async () => {
+    await richSeed();
+    const { sim, tradeRows } = await expectBackAndForthEnd([
+      { id: 'o-up', agentId: RESTER, side: 'buy', direction: 'higher', limit: 56, left: 3000 },
+      { id: 'o-down', agentId: RESTER, side: 'buy', direction: 'lower', limit: 45, left: 3000 },
+    ]);
+    expect(sim.fills).toBeGreaterThan(100);
+    expect(tradeRows).toBeLessThanOrEqual(16);
+    expect(Math.min(await heldShares(RESTER, 'higher'), await heldShares(RESTER, 'lower'))).toBeLessThan(1e-6);
+  });
 
-    const r = await sweepLimitOrders();
-    expect(r.fills).toBe(2);
-    const orders = await db.select().from(limitOrders);
-    for (const o of orders) expect(o.status).toBe('open');
+  test("two participants' opposing buys end where trading back and forth would have", async () => {
+    await richSeed();
+    const { sim, tradeRows } = await expectBackAndForthEnd([
+      { id: 'o-up', agentId: RESTER, side: 'buy', direction: 'higher', limit: 56, left: 3000 },
+      { id: 'o-down', agentId: MOVER, side: 'buy', direction: 'lower', limit: 45, left: 2000 },
+    ]);
+    expect(sim.fills).toBeGreaterThan(60);
+    expect(tradeRows).toBeLessThanOrEqual(16);
+  });
+
+  test('a buy and a sell pulling against each other end where trading back and forth would have', async () => {
+    await richSeed();
+    await db.insert(positions).values({
+      id: `${RESTER}_${MARKET}_higher`,
+      workspaceId: WS,
+      agentId: RESTER,
+      marketId: MARKET,
+      direction: 'higher',
+      shares: 3000,
+      totalCost: 1500,
+    });
+    const { sim, tradeRows } = await expectBackAndForthEnd(
+      [
+        { id: 'o-up', agentId: RESTER, side: 'buy', direction: 'higher', limit: 56, left: 3000 },
+        { id: 'o-down', agentId: RESTER, side: 'sell', direction: 'higher', limit: 45, left: 2500 },
+      ],
+      { [`${RESTER}:higher`]: 3000 },
+    );
+    expect(sim.fills).toBeGreaterThan(40);
+    expect(tradeRows).toBeLessThanOrEqual(16);
+  });
+
+  test('a third order inside the band does not change where the pass ends', async () => {
+    await richSeed();
+    const { sim } = await expectBackAndForthEnd([
+      { id: 'o-up', agentId: RESTER, side: 'buy', direction: 'higher', limit: 56, left: 3000 },
+      { id: 'o-down', agentId: MOVER, side: 'buy', direction: 'lower', limit: 45, left: 3000 },
+      { id: 'o-inside', agentId: 'agent-third', side: 'buy', direction: 'higher', limit: 52, left: 40 },
+    ]);
+    expect(sim.fills).toBeGreaterThan(100);
   });
 });
 

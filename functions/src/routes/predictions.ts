@@ -704,47 +704,6 @@ predictionsRouter.post(
       const [agentRow] = await tx.select().from(agents).where(eq(agents.id, agentId)).for('update');
       if (!agentRow) throw new AppError('Agent not found', 404);
 
-      // Your own orders never trade against each other (docs/limit-orders.md).
-      // An order pulling the price the other way from one of this
-      // participant's resting orders conflicts when the up-pull's limit is
-      // above the down-pull's: both are crossed at every price between, and
-      // each fill crosses the other again. Checked under the participant's row
-      // lock, so two conflicting orders placed at once cannot both rest.
-      const ownOpen = await tx
-        .select({
-          id: limitOrders.id,
-          side: limitOrders.side,
-          direction: limitOrders.direction,
-          limitValue: limitOrders.limitValue,
-          expiresAt: limitOrders.expiresAt,
-        })
-        .from(limitOrders)
-        .where(
-          and(
-            eq(limitOrders.workspaceId, workspaceId),
-            eq(limitOrders.marketId, marketId),
-            eq(limitOrders.agentId, agentId),
-            eq(limitOrders.status, 'open'),
-          ),
-        );
-      const placedAt = new Date();
-      const conflict = ownOpen.find(o => {
-        if (o.expiresAt && o.expiresAt <= placedAt) return false;
-        const otherPullsUp = (o.side === 'sell') !== (o.direction === 'higher');
-        if (otherPullsUp === waitsBelow) return false;
-        const up = waitsBelow ? limitValue : o.limitValue;
-        const down = waitsBelow ? o.limitValue : limitValue;
-        return up > down;
-      });
-      if (conflict) {
-        throw new AppError(
-          `Your resting ${conflict.side} ${conflict.direction} order at ${conflict.limitValue} pulls the price the other way, and both orders would fill at every price between ${Math.min(limitValue, conflict.limitValue)} and ${Math.max(limitValue, conflict.limitValue)}, trading against each other. Cancel it first to replace it.`,
-          409,
-          { orderId: conflict.id },
-          'crosses_own_order',
-        );
-      }
-
       if (isSell) {
         // A sell reserves nothing, so the rule that it never sells more than
         // is held is enforced twice: here against the position less what

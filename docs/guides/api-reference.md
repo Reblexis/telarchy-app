@@ -68,7 +68,7 @@ back to this table.
 | --- | --- | --- | --- |
 | `insufficient_balance` | 400 | The balance will not cover the trade, or the credits a limit order reserves. Carries `balance` and `cost`. | Get funded. The sentence names the transfer call and your own id. |
 | `insufficient_shares` | 400 | Selling more than the position holds. Carries `available`. | Sell `available` or less. |
-| `crosses_own_order` | 409 | A limit order that would trade against one of your own resting orders on that market (the up-pusher's limit above the down-pusher's). Carries `orderId`; nothing was placed. | Move the limit past the resting one, or cancel `orderId` first. |
+| `crosses_own_order` | 409 | RETIRED 2026-09-13 and never returned: opposing limit orders are matched instead of refused. | Nothing to handle. |
 | `trade_too_small` | 400 | The budget cannot buy a share against this curve. | Raise the budget, or skip a book this thin. |
 | `market_not_found` | 404 | No such market in this workspace. | Re-read `GET /api/predictions/markets`; ids are per workspace. |
 | `market_resolved` | 400 | Settled. Nothing trades again, in either direction. | Stop. Never retry. |
