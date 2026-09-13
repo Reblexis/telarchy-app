@@ -305,6 +305,33 @@ class Telarchy:
             },
         )
 
+    def sell_limit_order(
+        self,
+        market_id: str,
+        *,
+        direction: Direction,
+        limit_value: float,
+        shares: float,
+        expires_at: str | None = None,
+    ) -> dict[str, Any]:
+        """Sell shares you hold, but only once the price reaches yours.
+
+        ``direction`` names the position being sold. Nothing is set aside, and
+        the server never sells more than you hold when the order fills.
+        """
+        return self._request(
+            "POST",
+            "/predictions/limit-orders",
+            body={
+                "marketId": market_id,
+                "side": "sell",
+                "direction": direction,
+                "limitValue": limit_value,
+                "shares": shares,
+                **({"expiresAt": expires_at} if expires_at else {}),
+            },
+        )
+
     def limit_orders(self, *, status: str = "open") -> list[dict[str, Any]]:
         return self._request("GET", "/predictions/limit-orders", params={"status": status})
 

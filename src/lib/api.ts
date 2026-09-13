@@ -217,11 +217,17 @@ export interface LimitOrder {
   id: string;
   marketId: string;
   agentId: string;
+  /** Absent on a server that predates sells, which means a buy. */
+  side?: 'buy' | 'sell';
   direction: 'higher' | 'lower';
   limitValue: number;
   budgetCredits: number;
   filledCredits: number;
   remainingCredits: number;
+  /** Sell only; null on a buy. */
+  shares?: number | null;
+  filledShares?: number | null;
+  remainingShares?: number | null;
   status: 'open' | 'filled' | 'cancelled' | 'expired' | 'voided';
   expiresAt: string | null;
   createdAt: string;
@@ -1760,13 +1766,23 @@ export const api = {
   /** Resting orders. `limitValue` is in the metric's own units, not
       probability, because that is what the page shows. See docs/limit-orders.md. */
   placeLimitOrder: (
-    body: {
-      marketId: string;
-      direction: 'higher' | 'lower';
-      limitValue: number;
-      budgetCredits: number;
-      expiresAt?: string;
-    },
+    body:
+      | {
+          marketId: string;
+          side?: 'buy';
+          direction: 'higher' | 'lower';
+          limitValue: number;
+          budgetCredits: number;
+          expiresAt?: string;
+        }
+      | {
+          marketId: string;
+          side: 'sell';
+          direction: 'higher' | 'lower';
+          limitValue: number;
+          shares: number;
+          expiresAt?: string;
+        },
     workspaceId?: string,
   ) =>
     requestWithWorkspace(

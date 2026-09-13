@@ -64,7 +64,7 @@ describe('every buy carries a limit', () => {
     stake('Higher');
     fireEvent.click(screen.getByText('Limit'));
     fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '40000' } });
-    const confirm = screen.getByRole('button', { name: /Buy Higher with 25 cr under/ });
+    const confirm = screen.getByRole('button', { name: /Buy Higher under/ });
     await act(async () => {
       fireEvent.click(confirm);
     });

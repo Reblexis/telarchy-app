@@ -102,6 +102,35 @@ class Base(unittest.TestCase):
         return Telarchy(base_url=self.base, **kw)
 
 
+class TestLimitOrders(Base):
+    def test_a_sell_limit_order_names_its_side_and_shares_and_carries_no_budget(self):
+        REPLY["body"] = {"id": "o1", "side": "sell"}
+        self.client(key="k", workspace="w").sell_limit_order(
+            "m1", direction="higher", limit_value=80000, shares=40.5
+        )
+        self.assertEqual(RECORDED[0]["method"], "POST")
+        self.assertTrue(RECORDED[0]["path"].endswith("/predictions/limit-orders"))
+        self.assertEqual(
+            RECORDED[0]["body"],
+            {"marketId": "m1", "side": "sell", "direction": "higher", "limitValue": 80000, "shares": 40.5},
+        )
+
+    def test_a_sell_limit_order_passes_an_expiry_through(self):
+        self.client(key="k", workspace="w").sell_limit_order(
+            "m1", direction="lower", limit_value=20000, shares=3, expires_at="2026-12-31T00:00:00Z"
+        )
+        self.assertEqual(RECORDED[0]["body"]["expiresAt"], "2026-12-31T00:00:00Z")
+
+    def test_a_buy_limit_order_is_sent_exactly_as_before(self):
+        self.client(key="k", workspace="w").limit_order(
+            "m1", direction="higher", limit_value=65000, budget_credits=25
+        )
+        self.assertEqual(
+            RECORDED[0]["body"],
+            {"marketId": "m1", "direction": "higher", "limitValue": 65000, "budgetCredits": 25},
+        )
+
+
 class TestRequestShape(Base):
     def test_reading_needs_no_key(self):
         REPLY["body"] = [{"id": "m1"}]

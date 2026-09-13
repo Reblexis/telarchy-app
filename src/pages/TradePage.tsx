@@ -1430,6 +1430,14 @@ export function TradePage() {
     await api.placeLimitOrder({ marketId: activeMarketId, direction, limitValue, budgetCredits }, ws.workspaceId);
     refreshMoney();
   };
+  const placeSellLimit = async (direction: 'higher' | 'lower', limitValue: number, shares: number) => {
+    if (!activeMarketId || !ws) return;
+    await api.placeLimitOrder(
+      { marketId: activeMarketId, side: 'sell', direction, limitValue, shares },
+      ws.workspaceId,
+    );
+    refreshMoney();
+  };
   const cancelLimit = async (id: string) => {
     if (!ws) return;
     await api.cancelLimitOrder(id, ws.workspaceId);
@@ -1567,7 +1575,7 @@ export function TradePage() {
     </span>
   );
   const chartOrders = useMemo(
-    () => orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue })),
+    () => orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue, side: o.side })),
     [orders],
   );
   /* The call's own move since yesterday (docs/ui-conventions.md, "The stat
@@ -2793,6 +2801,10 @@ export function TradePage() {
                 orders={trading && betModal === 'manage' ? orders : []}
                 onPlaceLimit={trading ? placeLimit : async () => {}}
                 onCancelLimit={trading ? cancelLimit : undefined}
+                onPlaceSellLimit={trading ? placeSellLimit : undefined}
+                /* A pending proposal's book closes at its deadline; within ten
+                   minutes of it the ticket offers no Limit (docs/limit-orders.md). */
+                closesAt={selectedJob && !selectedJobDecided ? (selectedJob.decideBy ?? null) : null}
                 onRequireSignup={trading ? undefined : () => navigate(authPath('signup', location))}
                 initialDir={betModal === 'manage' || betModal === null ? undefined : betModal}
                 manageMode={betModal === 'manage'}

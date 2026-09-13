@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { betTowardsValue, consensus, pHigher, sharesForBudget } from '../../../functions/src/lib/amm';
-import { previewSell, previewSellPrice, previewTargetBet, previewTrade } from '../amm';
+import { betTowardsValue, consensus, pHigher, sharesForBudget, sharesToBound } from '../../../functions/src/lib/amm';
+import { previewSell, previewSellPrice, previewTargetBet, previewTrade, sharesSoldToPrice } from '../amm';
 
 /**
  * Preview / execution parity: the ticket's client-side previews against
@@ -246,5 +246,40 @@ describe('the sell ghost lands where the server would', () => {
     const book: Book = [40, 55];
     const p = pHigher(book, B);
     expect(previewSellPrice(p, B, 'higher', 0)).toBeCloseTo(p, 9);
+  });
+});
+
+/**
+ * A resting sell the market has already passed sells at once, bounded by its
+ * limit (docs/limit-orders.md, "An order placed past the market fills at
+ * once"). The ticket's warning names how many shares that is; the server
+ * bounds the sale with sharesToBound. The two must agree, or the warning
+ * names a sale the order does not make.
+ */
+describe('shares a sell needs to bring the call to its limit', () => {
+  const books: Book[] = [
+    [0, 0],
+    [40, 120],
+    [300, 50],
+  ];
+  for (const book of books) {
+    for (const direction of ['higher', 'lower'] as const) {
+      test(`matches the server bound on book ${book.join('/')} selling ${direction}`, () => {
+        const prob = pHigher(book, B);
+        const call = consensus(book, B, MIN, MAX)!;
+        // A limit the sale can reach, inside the range (the ticket and the API
+        // refuse one outside it): below the call for higher, above for lower.
+        const limit =
+          direction === 'higher' ? call - Math.min(80, (call - MIN) / 2) : call + Math.min(80, (MAX - call) / 2);
+        const server = sharesToBound(book, B, MIN, MAX, direction === 'higher' ? 1 : 0, true, limit);
+        const client = sharesSoldToPrice(prob, B, direction, (limit - MIN) / (MAX - MIN));
+        expect(client).toBeCloseTo(server, 6);
+      });
+    }
+  }
+
+  test('a limit the call has not reached needs no shares', () => {
+    expect(sharesSoldToPrice(0.4, B, 'higher', 0.5)).toBe(0);
+    expect(sharesSoldToPrice(0.6, B, 'lower', 0.5)).toBe(0);
   });
 });

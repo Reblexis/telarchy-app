@@ -596,30 +596,198 @@ async function redeemMatchedPairs(
 export interface FillOutcome {
   orderId: string;
   agentId: string;
+  side: 'buy' | 'sell';
   direction: 'higher' | 'lower';
   limitValue: number;
+  /** Buy: credits spent. Sell: 0. */
   cost: number;
+  /** Sell: credits received. Buy: 0. */
+  proceeds: number;
+  /** Shares bought or sold by this fill. */
   shares: number;
   consensus: number | null;
-  /** True when the order's whole budget is now spent. */
+  /** True when the order is done: its budget or shares spent, or nothing left to sell. */
   closed: boolean;
 }
 
+/** Below this many shares a sell order has nothing left to sell. */
+const SHARE_EPS = 1e-6;
+
+type OrderRow = typeof limitOrders.$inferSelect;
+
+/**
+ * A buy of higher and a sell of lower both wait for the call to come DOWN to
+ * their limit; a buy of lower and a sell of higher wait for it to come up.
+ */
+function waitsBelow(order: { side: string; direction: string }): boolean {
+  return (order.side === 'sell') !== (order.direction === 'higher');
+}
+
 /** Whether the market price has reached or passed an order's limit. */
-function isCrossed(direction: string, limitValue: number, current: number, eps: number): boolean {
-  return direction === 'higher' ? current <= limitValue + eps : current >= limitValue - eps;
+function isCrossed(
+  order: { side: string; direction: string; limitValue: number },
+  current: number,
+  eps: number,
+): boolean {
+  return waitsBelow(order) ? current <= order.limitValue + eps : current >= order.limitValue - eps;
+}
+
+/** What an order still has to do: credits on a buy, shares on a sell. */
+function leftIn(order: OrderRow): number {
+  return order.side === 'sell'
+    ? (order.shares ?? 0) - (order.filledShares ?? 0)
+    : order.budgetCredits - order.filledCredits;
+}
+
+function isSpent(order: OrderRow, left: number): boolean {
+  return order.side === 'sell' ? left <= SHARE_EPS : left <= 0.01;
+}
+
+interface FillStep {
+  cost: number;
+  proceeds: number;
+  shares: number;
+  consensus: number | null;
+  closed: boolean;
+  /** What the order still has to do after this step. */
+  left: number;
+}
+
+/** One buy fill: spend the reservation toward the limit, re-reserve what it did not use. */
+async function fillBuyInTx(
+  sp: Tx,
+  workspaceId: string,
+  marketId: string,
+  order: OrderRow,
+  budget: number,
+): Promise<FillStep> {
+  // Release the reservation so the shared trade path can debit it like
+  // any other spend, then re-reserve whatever the fill did not use.
+  await applyCredits(sp, {
+    agentId: order.agentId,
+    workspaceId,
+    deltaUnits: toUnits(budget),
+    reason: 'limit_order_release',
+    refType: 'market',
+    refId: marketId,
+  });
+
+  const outcome = await executeTradeInTx(sp, {
+    workspaceId,
+    agentId: order.agentId,
+    marketId,
+    mode: { type: 'targetValue', targetValue: order.limitValue, maxBudget: budget },
+  });
+
+  if (outcome.direction !== order.direction) {
+    // Buying toward the limit would move the price the wrong way for
+    // this order. Crossed implies the direction matches, so this is a
+    // bug in the crossing test rather than a state to absorb silently.
+    throw new AppError(`limit fill direction mismatch on order ${order.id}`, 500);
+  }
+
+  const unused = budget - outcome.cost;
+  if (unused > 0) {
+    await applyCredits(sp, {
+      agentId: order.agentId,
+      workspaceId,
+      deltaUnits: -toUnits(unused),
+      reason: 'limit_order_hold',
+      refType: 'market',
+      refId: marketId,
+    });
+  }
+
+  const left = budget - outcome.cost;
+  const closed = left <= 0.01;
+  await sp
+    .update(limitOrders)
+    .set({
+      filledCredits: sql`${limitOrders.filledCredits} + ${outcome.cost}`,
+      status: closed ? 'filled' : 'open',
+      updatedAt: new Date(),
+    })
+    .where(eq(limitOrders.id, order.id));
+
+  return { cost: outcome.cost, proceeds: 0, shares: outcome.shares, consensus: outcome.consensus, closed, left };
+}
+
+/**
+ * One sell fill: sell toward the limit through the trade's own price bound,
+ * never more than the order has left and never more than the position holds
+ * right now (docs/limit-orders.md, "A sell reserves nothing, and never sells
+ * more than is held"). A sell order with nothing left to sell closes as
+ * cancelled, whether the position went before the price arrived or with it.
+ */
+async function fillSellInTx(
+  sp: Tx,
+  workspaceId: string,
+  marketId: string,
+  order: OrderRow,
+  left: number,
+): Promise<FillStep> {
+  const [pos] = await sp
+    .select({ shares: positions.shares })
+    .from(positions)
+    .where(
+      and(eq(positions.id, `${order.agentId}_${marketId}_${order.direction}`), eq(positions.workspaceId, workspaceId)),
+    );
+  const held = (pos?.shares as number | undefined) ?? 0;
+  const toSell = Math.floor(Math.min(left, held) * CREDIT_PRECISION) / CREDIT_PRECISION;
+
+  if (!(toSell > SHARE_EPS)) {
+    await sp
+      .update(limitOrders)
+      .set({ status: 'cancelled', updatedAt: new Date() })
+      .where(eq(limitOrders.id, order.id));
+    return { cost: 0, proceeds: 0, shares: 0, consensus: null, closed: true, left };
+  }
+
+  const outcome = await executeTradeInTx(sp, {
+    workspaceId,
+    agentId: order.agentId,
+    marketId,
+    mode: {
+      type: 'sell',
+      direction: order.direction === 'higher' ? 1 : 0,
+      dirLabel: order.direction as 'higher' | 'lower',
+      sellShares: toSell,
+    },
+    limit: order.limitValue,
+  });
+
+  const leftAfter = left - outcome.shares;
+  const done = leftAfter <= SHARE_EPS;
+  const gone = !done && held - outcome.shares <= SHARE_EPS;
+  await sp
+    .update(limitOrders)
+    .set({
+      filledShares: sql`coalesce(${limitOrders.filledShares}, 0) + ${outcome.shares}`,
+      filledCredits: sql`${limitOrders.filledCredits} + ${outcome.proceeds}`,
+      status: done ? 'filled' : gone ? 'cancelled' : 'open',
+      updatedAt: new Date(),
+    })
+    .where(eq(limitOrders.id, order.id));
+
+  return {
+    cost: 0,
+    proceeds: outcome.proceeds,
+    shares: outcome.shares,
+    consensus: outcome.consensus,
+    closed: done || gone,
+    left: leftAfter,
+  };
 }
 
 /**
  * Run the fill pass for one market, inside the transaction of the trade that
  * just moved its price.
  *
- * Each fill buys toward the order's own limit and no further, which is what
+ * Each fill trades toward the order's own limit and no further, which is what
  * separates a limit order from a delayed market order: filling an order can
  * uncross it, and then the loop stops. An order that cannot fill right now
- * (no cap headroom left) is left resting rather than cancelled, and never
- * aborts the trade that triggered the pass: a stranger's order must not be
- * able to fail your trade.
+ * is left resting rather than cancelled, and never aborts the trade that
+ * triggered the pass: a stranger's order must not be able to fail your trade.
  */
 export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId: string): Promise<FillOutcome[]> {
   const [market] = await tx
@@ -638,7 +806,7 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
   if (open.length === 0) return [];
 
   const now = new Date();
-  const live: typeof open = [];
+  const live: OrderRow[] = [];
   for (const order of open) {
     if (order.expiresAt && order.expiresAt <= now) {
       await closeLimitOrderInTx(tx, order, 'expired');
@@ -650,30 +818,26 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
 
   const eps = Math.max((market.rangeMax - market.rangeMin) * 1e-6, 1e-9);
   const fills: FillOutcome[] = [];
-  // Money left in each order, tracked in memory so the loop sees its own fills.
-  const remaining = new Map(live.map(o => [o.id, o.budgetCredits - o.filledCredits]));
+  // What each order still has to do, tracked in memory so the loop sees its own fills.
+  const remaining = new Map(live.map(o => [o.id, leftIn(o)]));
   const blocked = new Set<string>();
 
   // One iteration per fill. The bound is a backstop against a pathological
   // rounding loop, not an expected limit; each pass either uncrosses an order
-  // or exhausts its budget.
+  // or exhausts it.
   for (let step = 0; step < 50; step++) {
     const [fresh] = await tx.select().from(markets).where(eq(markets.id, marketId));
-    const current = consensus(
-      (fresh!.shares as [number, number]) || [0, 0],
-      fresh!.liquidity,
-      fresh!.rangeMin,
-      fresh!.rangeMax,
-    );
+    const book = (fresh!.shares as [number, number]) || [0, 0];
+    const current = consensus(book, fresh!.liquidity, fresh!.rangeMin, fresh!.rangeMax);
     if (current === undefined) break;
 
     // The order the price passed furthest is the one it reached first.
-    let next: (typeof live)[number] | null = null;
+    let next: OrderRow | null = null;
     let bestDepth = 0;
     for (const order of live) {
       if (blocked.has(order.id)) continue;
-      if ((remaining.get(order.id) ?? 0) <= 0.01) continue;
-      if (!isCrossed(order.direction, order.limitValue, current, eps)) continue;
+      if (isSpent(order, remaining.get(order.id) ?? 0)) continue;
+      if (!isCrossed(order, current, eps)) continue;
       const depth = Math.abs(current - order.limitValue);
       if (!next || depth > bestDepth) {
         next = order;
@@ -681,10 +845,26 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
       }
     }
     if (!next) break;
+    const order: OrderRow = next;
+    const left = remaining.get(order.id) ?? 0;
 
-    const budget = remaining.get(next.id) ?? 0;
-    if (budget <= 0.01) {
-      blocked.add(next.id);
+    // A sell sitting on its own limit has no room to sell into. That is not a
+    // failure, so it is passed over quietly rather than logged as one.
+    if (
+      order.side === 'sell' &&
+      !(
+        sharesToBound(
+          book,
+          fresh!.liquidity,
+          fresh!.rangeMin,
+          fresh!.rangeMax,
+          order.direction === 'higher' ? 1 : 0,
+          true,
+          order.limitValue,
+        ) > SHARE_EPS
+      )
+    ) {
+      blocked.add(order.id);
       continue;
     }
 
@@ -692,82 +872,42 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
     // fill unwinds: the trade that triggered this pass, and every fill before
     // it, still stand. Someone else's resting order must never be able to
     // fail your trade.
-    let filled: { cost: number; shares: number; consensus: number | null; closed: boolean } | null = null;
+    let result: FillStep | null = null;
     try {
       await tx.transaction(async sp => {
-        // Release the reservation so the shared trade path can debit it like
-        // any other spend, then re-reserve whatever the fill did not use.
-        await applyCredits(sp, {
-          agentId: next!.agentId,
-          workspaceId,
-          deltaUnits: toUnits(budget),
-          reason: 'limit_order_release',
-          refType: 'market',
-          refId: marketId,
-        });
-
-        const outcome = await executeTradeInTx(sp, {
-          workspaceId,
-          agentId: next!.agentId,
-          marketId,
-          mode: { type: 'targetValue', targetValue: next!.limitValue, maxBudget: budget },
-        });
-
-        if (outcome.direction !== next!.direction) {
-          // Buying toward the limit would move the price the wrong way for
-          // this order. Crossed implies the direction matches, so this is a
-          // bug in the crossing test rather than a state to absorb silently.
-          throw new AppError(`limit fill direction mismatch on order ${next!.id}`, 500);
-        }
-
-        const unused = budget - outcome.cost;
-        if (unused > 0) {
-          await applyCredits(sp, {
-            agentId: next!.agentId,
-            workspaceId,
-            deltaUnits: -toUnits(unused),
-            reason: 'limit_order_hold',
-            refType: 'market',
-            refId: marketId,
-          });
-        }
-
-        const left = (remaining.get(next!.id) ?? 0) - outcome.cost;
-        const closed = left <= 0.01;
-        await sp
-          .update(limitOrders)
-          .set({
-            filledCredits: sql`${limitOrders.filledCredits} + ${outcome.cost}`,
-            status: closed ? 'filled' : 'open',
-            updatedAt: new Date(),
-          })
-          .where(eq(limitOrders.id, next!.id));
-
-        filled = { cost: outcome.cost, shares: outcome.shares, consensus: outcome.consensus, closed };
+        result =
+          order.side === 'sell'
+            ? await fillSellInTx(sp, workspaceId, marketId, order, left)
+            : await fillBuyInTx(sp, workspaceId, marketId, order, left);
       });
     } catch (e) {
       // Nothing to undo: the savepoint took the reservation release with it.
-      console.error('limit order fill skipped', { orderId: next.id, marketId, error: (e as Error).message });
-      blocked.add(next.id);
+      console.error('limit order fill skipped', { orderId: order.id, marketId, error: (e as Error).message });
+      blocked.add(order.id);
       continue;
     }
-    if (!filled) {
-      blocked.add(next.id);
+    const done = result as FillStep | null;
+    if (!done) {
+      blocked.add(order.id);
       continue;
     }
-    const done = filled as { cost: number; shares: number; consensus: number | null; closed: boolean };
 
-    remaining.set(next.id, (remaining.get(next.id) ?? 0) - done.cost);
-    fills.push({
-      orderId: next.id,
-      agentId: next.agentId,
-      direction: next.direction as 'higher' | 'lower',
-      limitValue: next.limitValue,
-      cost: done.cost,
-      shares: done.shares,
-      consensus: done.consensus,
-      closed: done.closed,
-    });
+    remaining.set(order.id, done.left);
+    if (done.closed) blocked.add(order.id);
+    if (done.shares > 0) {
+      fills.push({
+        orderId: order.id,
+        agentId: order.agentId,
+        side: order.side === 'sell' ? 'sell' : 'buy',
+        direction: order.direction as 'higher' | 'lower',
+        limitValue: order.limitValue,
+        cost: done.cost,
+        proceeds: done.proceeds,
+        shares: done.shares,
+        consensus: done.consensus,
+        closed: done.closed,
+      });
+    }
   }
 
   return fills;
@@ -776,7 +916,8 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
 /**
  * Close an order and refund its unfilled remainder. Used by cancel, expiry,
  * and by market resolution/voiding, where a resting order must not strand
- * credits in a market that can no longer trade.
+ * credits in a market that can no longer trade. A sell reserved nothing, so
+ * closing one refunds nothing.
  */
 export async function closeLimitOrderInTx(
   tx: Tx,
@@ -788,12 +929,13 @@ export async function closeLimitOrderInTx(
     agentId: string;
     workspaceId: string;
     marketId: string;
+    side?: string;
     budgetCredits: number;
     filledCredits: number;
   },
   status: 'cancelled' | 'expired' | 'voided',
 ): Promise<number> {
-  const refund = Math.max(0, order.budgetCredits - order.filledCredits);
+  const refund = order.side === 'sell' ? 0 : Math.max(0, order.budgetCredits - order.filledCredits);
   if (refund > 0) {
     await applyCredits(tx, {
       agentId: order.agentId,

@@ -27,24 +27,36 @@ A limit order is a standing instruction, not a matched trade:
 > Buy `direction` in market `M` with up to `budget` credits, but only while
 > the market's consensus is at or beyond `limitValue`.
 
+or, on the sell side:
+
+> Sell up to `shares` of the `direction` position held in market `M`, but
+> only while the market's consensus is at or beyond `limitValue` in that
+> position's favour.
+
 Fields (`limit_orders`):
 
 | field | meaning |
 |---|---|
 | `id`, `workspaceId`, `marketId`, `agentId` | scope and owner |
-| `direction` | `higher` \| `lower` |
+| `side` | `buy` \| `sell`; `buy` when omitted, so every order placed before sells existed is a buy |
+| `direction` | `higher` \| `lower`: the side bought, or the held position sold |
 | `limitValue` | metric-space value, not probability: the page speaks dollars, so the order does too |
-| `budgetCredits` | total credits committed, decremented as fills happen |
-| `filledCredits` | how much has executed |
+| `budgetCredits` | buy: total credits committed, decremented as fills happen. sell: 0 |
+| `filledCredits` | buy: credits spent so far. sell: proceeds received so far |
+| `shares` | sell: shares to sell. buy: null |
+| `filledShares` | sell: shares sold so far. buy: null |
 | `status` | `open` \| `filled` \| `cancelled` \| `expired` \| `voided` (the market was voided; remainder refunded) |
 | `expiresAt` | nullable; an order with no expiry rests until cancelled |
 | `createdAt`, `updatedAt` | |
 
-**Direction and limit read together**: a `higher` order with `limitValue`
+**Direction and limit read together**: a `higher` buy with `limitValue`
 $65k means "buy higher while consensus is at or below $65k" (the market is
-cheaper than I think it should be). A `lower` order with $80k means "buy
-lower while consensus is at or above $80k". The UI must state this in words,
-because sign errors here cost real credits.
+cheaper than I think it should be). A `lower` buy with $80k means "buy
+lower while consensus is at or above $80k". A `higher` sell with $80k means
+"sell my higher shares while consensus is at or above $80k", and a `lower`
+sell with $50k "sell my lower shares while consensus is at or below $50k":
+a sell waits for the price its position wants. The UI must state this in
+words, because sign errors here cost real credits.
 
 ## Funds are reserved, not merely promised
 
@@ -56,6 +68,19 @@ So `budgetCredits` is **debited at placement** into a reservation, exactly
 like the proposal listing stake. Cancelling or expiring refunds the
 unfilled remainder. Balance shown in the ticket is spendable balance, i.e.
 net of open reservations, or the number lies.
+
+**A sell reserves nothing, and never sells more than is held.** Its shares
+stay in the position, which keeps settlement, payouts and every board
+reading positions exactly as they are. Instead two checks hold the rule:
+
+- Placement refuses `shares` beyond the position minus the shares still
+  waiting in the same participant's other open sells on that side and market
+  (400 `insufficient_shares`, with `available`).
+- Each fill sells at most the shares held at that moment. Selling by hand
+  therefore shrinks what a sell order can sell, and an order whose position
+  is gone closes as `cancelled`.
+
+A sell only ever sells, so it can never flip a holder to the other side.
 
 ## Execution
 
@@ -69,11 +94,21 @@ for the next trade:
 2. Load every open order on that market whose limit the current price has
    reached or passed, ordered by how far they are from the current price,
    so the ones the price passed first fill first.
-3. For each, buy in its direction with the smaller of its remaining budget
-   and the amount that would move consensus back to its `limitValue`. An
-   order never moves the price past its own limit, which is what makes it a
-   limit order rather than a delayed market order.
+3. For each buy, buy in its direction with the smaller of its remaining
+   budget and the amount that would move consensus back to its `limitValue`.
+   For each sell, sell the smallest of its remaining shares, the shares held
+   now, and the amount that would move consensus back to its `limitValue`.
+   An order never moves the price past its own limit, which is what makes it
+   a limit order rather than a delayed market order.
 4. Stop when the price no longer crosses any order.
+
+**An order placed past the market fills at once.** A limit the market has
+already reached is not refused: placement runs the same trade a fill would (a
+buy toward its limit with its budget, a sell of its shares bounded by its
+limit), then the fill pass for other orders that move crossed, and rests what
+is left, all in one transaction. A buy reserves only the remainder. Refusing
+these orders left a trader a market order that could run past their price, or
+nothing.
 
 Fills are ordinary trades: same position rows, same
 `replayMarketTradePoints` history, so the chart shows them like any other
@@ -103,9 +138,16 @@ coordination rule still govern.
 
 ## API
 
-- `POST /api/predictions/limit-orders`: body `{ marketId, direction, limitValue, budgetCredits, expiresAt? }`. Debits the budget, returns the order. 400 if `limitValue` is already crossed (that is a market order; say so rather than filling instantly and surprising the trader).
-- `GET /api/predictions/limit-orders?marketId=&status=`: the caller's own orders; admins may pass `agentId`. `status` defaults to `open`; `status=all` returns every state.
-- `DELETE /api/predictions/limit-orders/:id`: cancel, refunding the unfilled remainder. Owner or admin only.
+- `POST /api/predictions/limit-orders`: a buy is `{ marketId, direction, limitValue, budgetCredits, expiresAt? }` (`side: "buy"` optional); it debits the budget and returns the order. A sell is `{ marketId, side: "sell", direction, limitValue, shares, expiresAt? }`; it moves nothing and returns the order. An order whose limit the market has already reached fills at once, up to its limit and never past it, and whatever is left rests (below, "An order placed past the market fills at once"). The response then carries `filledNow` (`cost` on a buy or `proceeds` on a sell, `shares`, `consensus`), and an order with nothing left comes back `filled`. 400 `insufficient_shares` for a sell beyond what is held.
+- `GET /api/predictions/limit-orders?marketId=&status=`: the caller's own orders; admins may pass `agentId`. `status` defaults to `open`; `status=all` returns every state. Every row carries `side`; a sell also carries `shares`, `filledShares` and `remainingShares`.
+- `DELETE /api/predictions/limit-orders/:id`: cancel, refunding the unfilled remainder (always 0 for a sell). Owner or admin only.
+
+A buy placed without `side` behaves and answers exactly as before sells
+existed; the new fields are additions.
+
+The API accepts an order on any open book, including one whose trading
+closes within minutes. The ticket does not offer one there (below), because
+the close releases it before anyone is likely to reach its price.
 
 A trade's own `limit` (docs/guides/agent-api.md, "Guard the price") is not a
 limit order. It fills now, up to its bound, and hands back what it did not
@@ -121,27 +163,42 @@ Inside the ticket, which stays one object (see `ui-conventions.md`). The
 ticket already asks two questions, side and amount; limit adds a third that
 is optional and hidden until wanted:
 
-- A `Quick` / `Limit` toggle in the ticket's header, Manifold-style,
-  revealed once a side is picked. Default is `Quick`, i.e. today's
-  behaviour, so the common case gains nothing to read.
+- A `Quick` / `Limit` toggle in the ticket's header, Manifold-style, on
+  both tabs: on Buy once a side is picked, on Sell once there is a position
+  to sell. Default is `Quick`, so the common case gains nothing to read.
+- **No `Limit` on a book whose trading closes within 10 minutes**, on either
+  tab: a proposal that decides that soon (every book on a one-minute floor
+  such as the snake) releases a resting order at the close, so offering one
+  offers nothing.
 - Choosing `Limit` reveals one mono input in metric space, prefilled
-  with the current call, and the confirm restates the whole instruction:
-  **"Buy Higher with 25 cr under $65,000"**. The confirm never says
-  "place order" alone; an instruction the trader cannot read back is an
-  instruction they did not give.
+  with the current call, and the confirm restates the instruction:
+  **"Buy Higher under $65,000"**. The stake is already on screen in the
+  composer, so the confirm names the side and the price and stays one line in
+  the 293px rail. It never says "place order" alone; an instruction the
+  trader cannot read back is an instruction they did not give.
 - Choosing `Limit` prefills a legal limit just inside the current call
   on the side that rests, so the field opens with an answer rather than an
-  error to clear. A limit on the wrong side of the call is refused in the
-  ticket, before it is sent, naming which side it belongs on.
-- A composed limit order casts no ghost on the chart, because it moves no
-  price today. The ghost is reserved for what a confirm would do immediately.
+  error to clear. A limit the market has already passed is not refused: one warning line under it says what fills now ("The market is already under $60,000: 12.4 cr fills now"; on a sell, "12 of 40 shares sell now"), and the confirm places it. A limit outside the market's range is refused in the ticket, before it is sent.
+- A composed limit order casts no ghost on the chart, because it moves no price today. The ghost is reserved for what a confirm would do immediately, so a limit the market has already passed casts the ghost of the fill it makes now.
+- **A sell limit** is the Sell tab in `Limit` mode: the held position's row
+  with its shares slider (all of it by default, never more), the price input,
+  one line saying what the pair means ("sell at this or higher" for a
+  higher position, "sell at this or lower" for a lower one; short enough to
+  stay one line in the ticket), what is being sold
+  and what it brings ("You get N cr or more", the shares at the limit price,
+  since every share of a fill sells at the limit or better), and an ink
+  confirm that restates the instruction: **"Sell 166.4 at $80,000"**. A limit the market has already passed warns and fills at once, as on Buy.
+- The ticket never states when an order is released. That it rests until it
+  fills, is cancelled, or its book closes is understood without saying.
 - Resting orders list under the ticket as one quiet line each, in the same
-  register as a held position: direction, limit, remaining budget, and a
-  cancel. Filled and cancelled orders do not linger; they are in the
-  activity rail.
+  register as a held position, naming the verb: "buy under $65,000 · 25 cr",
+  "buy over $80,000 · 25 cr", "sell at $80,000 · 166.4 sh", each with a
+  Cancel, the only thing a resting order can have done to it. Filled and
+  cancelled orders do not linger; they are in the activity rail.
 - The chart draws the viewer's own resting orders as faint horizontal rules
-  at their limits, in the direction's colour: seeing your order sitting in
-  the price makes the abstraction concrete, and it costs one line per order.
+  at their limits, in the direction's colour, labelled with the verb
+  ("▲ buy 65,000", "▲ sell 80,000"): seeing your order sitting in the price
+  makes the abstraction concrete, and it costs one line per order.
 
 ## What this deliberately does not do
 

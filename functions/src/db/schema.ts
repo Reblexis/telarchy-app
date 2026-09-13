@@ -880,12 +880,20 @@ export const limitOrders = pgTable('limit_orders', {
   workspaceId: text('workspace_id').notNull(),
   marketId: text('market_id').notNull(),
   agentId: text('agent_id').notNull(),
-  /** 'higher' | 'lower' */
+  /** 'buy' | 'sell'. A sell reserves nothing and may never sell more than
+   *  the position holds at the moment it fills (docs/limit-orders.md). */
+  side: text('side').notNull().default('buy'),
+  /** 'higher' | 'lower': the side bought, or the held position sold. */
   direction: text('direction').notNull(),
   /** Metric space (dollars), not probability: the page speaks dollars. */
   limitValue: doublePrecision('limit_value').notNull(),
+  /** Buy: credits reserved. Sell: 0. */
   budgetCredits: doublePrecision('budget_credits').notNull(),
+  /** Buy: credits spent. Sell: proceeds received. */
   filledCredits: doublePrecision('filled_credits').notNull().default(0),
+  /** Sell only: shares to sell, and shares sold so far. Null on a buy. */
+  shares: doublePrecision('shares'),
+  filledShares: doublePrecision('filled_shares'),
   /** 'open' | 'filled' | 'cancelled' | 'expired' */
   status: text('status').notNull().default('open'),
   expiresAt: timestamp('expires_at'),

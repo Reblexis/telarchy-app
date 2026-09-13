@@ -186,3 +186,24 @@ export function resolutionPayouts(actualValue: number, rangeMin: number, rangeMa
   const p = Math.max(0, Math.min(1, (actualValue - rangeMin) / (rangeMax - rangeMin)));
   return [Math.round((1 - p) * 10000) / 10000, Math.round(p * 10000) / 10000];
 }
+
+/**
+ * How many shares of `direction` a sale must sell to bring the market's
+ * probability to `targetProb`, the ticket's mirror of the server's
+ * sharesToBound for a sell (pinned by amm-parity.test.ts). A resting sell the
+ * market has already passed sells at once up to this many shares and no more
+ * (docs/limit-orders.md, "An order placed past the market fills at once").
+ * Zero when the sale would have to move the price the other way.
+ */
+export function sharesSoldToPrice(
+  prob: number,
+  liquidity: number,
+  direction: 'higher' | 'lower',
+  targetProb: number,
+): number {
+  if (liquidity <= 0) return 0;
+  const clamp = (x: number) => Math.min(1 - 1e-12, Math.max(1e-12, x));
+  const logit = (x: number) => Math.log(clamp(x) / (1 - clamp(x)));
+  const move = direction === 'higher' ? logit(prob) - logit(targetProb) : logit(targetProb) - logit(prob);
+  return Math.max(0, liquidity * move);
+}
