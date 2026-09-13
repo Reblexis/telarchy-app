@@ -7167,7 +7167,7 @@ textarea.jobform-line--desc {
 .mkt-board {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 1px;
   margin-top: 0;
   background: var(--border-color);
@@ -7296,8 +7296,18 @@ textarea.jobform-line--desc {
   justify-content: center;
   gap: 0.5rem;
 }
+/* The board never ends on an empty slot (docs/ui-conventions.md, "The
+   marketplace"): explicit columns per width, and the listing cell, always the
+   board's last child, fills whatever its row has left. */
 @media (min-width: 640px) {
-  .mkt-cell--new { grid-column: span 2; }
+  .mkt-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mkt-cell--new:nth-child(odd) { grid-column: 1 / -1; }
+}
+@media (min-width: 1000px) {
+  .mkt-board { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .mkt-cell--new:nth-child(3n+1) { grid-column: 1 / -1; }
+  .mkt-cell--new:nth-child(3n+2) { grid-column: span 2; }
+  .mkt-cell--new:nth-child(3n) { grid-column: span 1; }
 }
 .mkt-new-label {
   font-family: 'JetBrains Mono', monospace;

@@ -2924,7 +2924,7 @@ once rather than waiting for the next tick.
 `telarchy.com/marketplace` renders standalone in the same design language
 (`.pubws-topbar`, Fraunces, mono numerals, one accent). The listings are
 one hairline-ruled BOARD (`.mkt-board`), not a row of boxed cards: a grid of
-`repeat(auto-fill, minmax(19rem, 1fr))` cells separated by 1px
+three columns from 1000px, two from 640px and one below, cells separated by 1px
 `var(--border-color)` rules (a 1px gap over the border colour, closed by a
 rule underneath), each cell on the page background, so the page reads as a
 single instrument that grows with the list rather than as five panels. A
@@ -2982,7 +2982,8 @@ width the card stacks, the board or spark first. The card never says "bet":
 the home page's words are forecast words.
 
 The last cell of the board is always the listing cell, and it is the only
-interactive one: it spans two columns where the row has room, and it is
+interactive one: it fills the rest of the last row, the whole row when the
+floors above filled theirs, so the board never ends on an empty slot, and it is
 where the company-facing sentence lives on the home page (owner pick
 2026-09-04, cell B on the floor canvas): a mono small-caps label "YOUR OWN
 NUMBERS", then "See what a decision does to your numbers before you say
