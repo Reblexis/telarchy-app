@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 vi.mock('../../lib/api', () => ({
   api: {
@@ -955,5 +955,67 @@ describe('THE MOST TRADED FLOOR IS FEATURED ABOVE THE BOARD', () => {
     const pub = { ...base, workspaceId: 'pub', name: 'Pub', liquidity: 1, volumePerHour: 1 };
     expect(pickFeatured([mine, pub] as never)?.workspaceId).toBe('pub');
     expect(pickFeatured([mine] as never)).toBeNull();
+  });
+});
+
+/**
+ * THE HOME PAGE'S NUMBERS ARE NEVER OLDER THAN 15 SECONDS (docs/ui-conventions.md,
+ * "The marketplace"). Viktor 2026-09-13: the Snake card said 2.1 while the
+ * market was at 8.1; the server had the right number, the page had read once
+ * and never again.
+ */
+describe("THE HOME PAGE'S NUMBERS ARE NEVER OLDER THAN 15 SECONDS", () => {
+  const setVisibility = (state: 'visible' | 'hidden') => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+    document.dispatchEvent(new Event('visibilitychange'));
+  };
+  const moved = { ...payload, markets: [{ ...payload.markets[0], consensus: 81_000 }] };
+
+  afterEach(() => {
+    vi.useRealTimers();
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+  });
+
+  test('the Snake card said 2.1 while the market was at 8.1 (2026-09-13): a visible page re-reads the payload every 15 seconds and shows the new number', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPage();
+    await screen.findByText('$77,316');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(moved as never);
+    const before = vi.mocked(api.getHome).mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000);
+    });
+    await waitFor(() => expect(screen.getByText('$81,000')).toBeInTheDocument());
+    expect(vi.mocked(api.getHome).mock.calls.length).toBe(before + 1);
+  });
+
+  test('a hidden tab does not read, and reads at once when it comes back into view', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPage();
+    await screen.findByText('$77,316');
+    setVisibility('hidden');
+    const before = vi.mocked(api.getHome).mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(vi.mocked(api.getHome).mock.calls.length).toBe(before);
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(moved as never);
+    await act(async () => {
+      setVisibility('visible');
+    });
+    await waitFor(() => expect(screen.getByText('$81,000')).toBeInTheDocument());
+    expect(vi.mocked(api.getHome).mock.calls.length).toBe(before + 1);
+  });
+
+  test('a failed re-read keeps the numbers on screen', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPage();
+    await screen.findByText('$77,316');
+    vi.mocked(api.getHome).mockRejectedValueOnce(new Error('offline'));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000);
+    });
+    expect(screen.getByText('$77,316')).toBeInTheDocument();
+    expect(screen.getByText('LookPilot')).toBeInTheDocument();
   });
 });

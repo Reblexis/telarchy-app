@@ -3010,6 +3010,13 @@ payload. When the payload lands the cells rise in 60 ms steps, top to
 bottom (`.mkt-rise`), and each spark fades in once. Never a dot, never a
 spinner, never a blank.
 
+The page stays live after that: while the tab is visible it re-reads the
+home payload every 15 seconds (the server memoizes it for the same 15), and
+once more the moment a hidden tab comes back into view, so no card's number
+is older than that. A hidden tab does not read. A failed read keeps what is
+on screen. A re-read updates the numbers in place; the cells do not rise
+again.
+
 Above the board, the headline and the lead are the one place the whole
 mechanism is stated in plain words. The headline is "Forecast a decision's
 impact before it's made. Get paid when you're right." and the lead is
