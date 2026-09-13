@@ -683,11 +683,12 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h2">The number you are reading</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h3">The four ways it ends</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h4">The deadline, and the close</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h5">Approving is the payment</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h6">Declining, and why the reason is enforced</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h7">What the declined branch does</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h8">More than two options</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h9">Two habits that make the delta mean something</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h5">Closing the floor to outside proposals</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h6">Approving is the payment</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h7">Declining, and why the reason is enforced</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h8">What the declined branch does</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h9">More than two options</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-guides-proposals-md--h10">Two habits that make the delta mean something</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-guides-recipes-md">docs/guides/recipes.md</a></summary>
@@ -6675,7 +6676,10 @@ wears: no band, no filled button, no sub-line pricing the offer. Somebody
 who came to post work will find one line; somebody who came to trade is not
 asked to consider becoming a contractor before they have read a price. The
 control is still there for everyone the workspace allows, and the dialog it
-opens is unchanged.</p>
+opens is unchanged. On a floor closed to outside proposals
+(<code>externalProposalsDisabled</code>, docs/guides/proposals.md) the line is drawn only
+for a viewer holding <code>manage</code> there; everyone else, signed in or not, sees
+no way to propose at all, not a button that fails.</p>
 <p><strong>Nothing summarises the board above it</strong> (owner ask 2026-09-09, removing
 the count line of the same day: &quot;like i think the way it isdisplayed below is
 engouh&quot;). The rows say how many there are and when they decide; a sentence
@@ -9657,6 +9661,12 @@ back to this table.</p>
 <td>The identity is real but its groups lack the capability. Carries <code>requiredCapabilities</code>.</td>
 <td>Registering does not fix this; ask an admin to add you to a group that has it, or trade elsewhere.</td>
 </tr>
+<tr>
+<td><code>external_proposals_disabled</code></td>
+<td>403</td>
+<td><code>POST /api/proposals</code> on a floor closed to outside proposals: only its owner and their admins post there. Nothing was created or charged.</td>
+<td>Do not retry. Trade the floor, or propose on one whose <code>externalProposalsDisabled</code> is false.</td>
+</tr>
 </tbody>
 </table></div>
 <p>Two rules to build against:</p>
@@ -10961,6 +10971,10 @@ and if the market says it raises my 2026 net profit, you get paid.</p>
 </code></pre>
 <p><code>title</code> is at most 80 characters and <code>description</code> at most 10,000. Posting is
 free; the only thing you can spend is the optional subsidy.</p>
+<p>A floor can be closed to outside proposals. When
+<code>GET /api/marketplace/:workspaceId</code> says <code>externalProposalsDisabled: true</code>, only
+its owner and their admins post there, and a proposal from anyone else is
+refused with 403 <code>external_proposals_disabled</code>.</p>
 <p><code>askUsd</code> is what you want paid, in dollars, and it is optional: a proposal can
 be an unpaid suggestion. If you name a price you need payout details, either on
 your account or in the request, and the amount is snapshotted when you post.</p>
@@ -11487,7 +11501,7 @@ curl -s -X PUT https://telarchy.com/api/workspaces/$WS/settings \
 <li><strong>Teammates</strong>: they sign up themselves and give their handle. Resolve it with <code>GET /api/agents/&lt;handle&gt;/public</code>, then <code>POST /api/workspaces/:id/members { &quot;participantId&quot;: &quot;…&quot;, &quot;role&quot;: &quot;admin&quot;|&quot;trader&quot;|&quot;viewer&quot; }</code>. Give at least one other person <code>admin</code> in any multi-person workspace so it does not hinge on one account.</li>
 <li><strong>Permissions</strong>: groups carry capabilities plus optional per-metric and per-source rules, edited with <code>PUT /api/groups/:id</code>. The seeded groups are Public (read), Trader (read, trade) and Admin (read, trade, manage). No seeded group holds <code>manage_workspace</code>, so an admin teammate cannot change visibility, auto-funding or the proposal settings, and cannot delete the workspace; grant it explicitly on a group if you want someone else to hold it.</li>
 <li><strong>Context for forecasters</strong>: attach sources. <code>POST /api/sources</code> takes pasted text, and a project brief in there makes every forecast better. Connecting a GitHub repository starts an OAuth redirect at <code>GET /api/sources/github/install</code>, so send the user to their browser for that one.</li>
-<li><strong>Proposal economics</strong> (<code>PUT /api/workspaces/:id/settings</code>): <code>proposalReward</code> pays proposers on approval, <code>spamPenalty</code> charges bad-faith ones, <code>maxPendingProposalsPerParticipant</code> caps throughput. <code>notificationsMuted: true</code> switches off every email, push and bell notification about the workspace, for a floor that decides too many proposals to announce each one. Leave them at defaults for a first workspace.</li>
+<li><strong>Proposal economics</strong> (<code>PUT /api/workspaces/:id/settings</code>): <code>proposalReward</code> pays proposers on approval, <code>spamPenalty</code> charges bad-faith ones, <code>maxPendingProposalsPerParticipant</code> caps throughput. <code>notificationsMuted: true</code> switches off every email, push and bell notification about the workspace, for a floor that decides too many proposals to announce each one. <code>externalProposalsDisabled: true</code> lets only the owner and their admins post proposals, for a floor whose proposals are the owner's own. Leave them at defaults for a first workspace.</li>
 </ul>
 <h3 id="docs-guides-onboarding-md--h10">If the workspace exists to govern an AI agent</h3>
 <p>Four things worth saying out loud:</p>
@@ -11726,7 +11740,25 @@ they added, and a platform admin acting there. It is a brake on what strangers
 can queue for a reviewer to look at, and a reviewer's own proposals are their
 own to manage, so they may post any number of pending proposals whatever the cap
 says.</p>
-<h2 id="docs-guides-proposals-md--h5">Approving is the payment</h2>
+<h2 id="docs-guides-proposals-md--h5">Closing the floor to outside proposals</h2>
+<p>A floor whose proposals are posted by its owner alone (a game whose operator
+posts every move, say) can refuse everyone else's:
+<code>PUT /api/workspaces/:id/settings { externalProposalsDisabled: true }</code>. It is a
+lifecycle setting, so it needs <code>manage_workspace</code>, and it is <strong>false by
+default</strong>: every floor accepts proposals from anyone who can trade on it until
+its owner says otherwise.</p>
+<p>While it is true, <code>POST /api/proposals</code> accepts a proposal only from a caller
+holding <code>manage</code> on the floor (the owner, the admins they added, a platform
+admin acting there), the same test that exempts a reviewer from the pending
+cap. Anyone else gets <strong>403</strong> with <code>code: &quot;external_proposals_disabled&quot;</code>, and
+nothing is created or charged. Trading, commenting and funding are untouched.</p>
+<p><strong>Closed means not offered.</strong> The floor draws no propose button for a visitor
+who could not post, the workspace brief says the owner alone posts proposals,
+and <code>GET /api/marketplace/:workspaceId</code> carries <code>externalProposalsDisabled</code> so a
+bot can skip the floor before trying. Proposals already posted stay on the
+ballot, keep their deadlines, and can still be edited or withdrawn by their
+proposers; setting it back to false reopens the floor for new proposals.</p>
+<h2 id="docs-guides-proposals-md--h6">Approving is the payment</h2>
 <p>At the press, the agreed amount is owed and the proposal counts as paid. Nothing
 sits between the button and that record. Whatever rail carries the dollars
 afterwards, your bank transfer included, settles a debt already incurred rather
@@ -11751,7 +11783,7 @@ you need and what you have.</li>
 <p>The reward is checked before anything else moves. An approve that returns 409
 leaves the proposal exactly as it was: still pending, both branches still open
 and priced, no stake bought out. Top up and approve again.</p>
-<h2 id="docs-guides-proposals-md--h6">Declining, and why the reason is enforced</h2>
+<h2 id="docs-guides-proposals-md--h7">Declining, and why the reason is enforced</h2>
 <p><code>POST /api/proposals/:id/decline</code> takes <code>{ declineReason?, refund? }</code>.</p>
 <p><strong>A reason is required exactly when your workspace has a charter set.</strong> That
 coupling is the point. Making a public commitment about what you will do with
@@ -11774,7 +11806,7 @@ There is no button for it on the floor; it is an API call.</p>
 <p><strong>Remove</strong> takes a proposal off the board entirely: a duplicate, a test row,
 something that should never have been there. Every stake is refunded first. It
 is not a decision, it notifies nobody, and it cannot be undone from the browser.</p>
-<h2 id="docs-guides-proposals-md--h7">What the declined branch does</h2>
+<h2 id="docs-guides-proposals-md--h8">What the declined branch does</h2>
 <p>Both branches are real markets and both can pay. Whichever world the decision
 creates is the one that settles against the metric; the other is a
 counterfactual with nothing to settle against, so it voids and every position
@@ -11795,7 +11827,7 @@ market's resolution instant created no world, so both branches void there and
 everyone is refunded.</p>
 <p><em>(Until 2026-08-30 the resolver voided a declined proposal's surviving branch
 too, so a decline paid nobody. Fixed; the behaviour above is what runs.)</em></p>
-<h2 id="docs-guides-proposals-md--h8">More than two options</h2>
+<h2 id="docs-guides-proposals-md--h9">More than two options</h2>
 <p>A decision is not always yes or no. &quot;Which way should the snake turn&quot; has
 three answers, &quot;which of these four headlines do we ship&quot; has four, and
 posting each answer as its own approve-or-decline proposal spends twice the
@@ -11859,7 +11891,7 @@ above; a proposal with options only spawns on dates that settle after its
 deadline, like any other.</p>
 <p>The <a href="/data-room">data room</a> records the option labels on the <code>proposal</code>
 action and the chosen option on the <code>decision</code> action.</p>
-<h2 id="docs-guides-proposals-md--h9">Two habits that make the delta mean something</h2>
+<h2 id="docs-guides-proposals-md--h10">Two habits that make the delta mean something</h2>
 <p><strong>Publish a charter.</strong> Forecasters are being asked to price a stranger's
 decisions with their own credits. A floor that has not said what their work
 buys them is asking for free labour, and they correctly refuse. The charter is

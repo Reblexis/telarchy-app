@@ -67,6 +67,10 @@ export const ERROR_CODES = [
   'no_options',
   /** The named option is not one of the proposal's. Carries `options`. */
   'unknown_option',
+  /** The floor is closed to outside proposals: only a caller holding manage
+   *  posts one there (docs/guides/proposals.md, "Closing the floor to outside
+   *  proposals"). Nothing was created or charged; trading is unaffected. */
+  'external_proposals_disabled',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

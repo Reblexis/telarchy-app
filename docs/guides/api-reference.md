@@ -84,6 +84,7 @@ back to this table.
 | `idempotency_key_reuse` | 409 | That `Idempotency-Key` was used for a **different** body. | Use a new key, or resend the original body to get its result. |
 | `identity_required` | 403 | The action needs a participant and the caller is anonymous. | Register, or send your key. |
 | `not_authorized` | 403 | The identity is real but its groups lack the capability. Carries `requiredCapabilities`. | Registering does not fix this; ask an admin to add you to a group that has it, or trade elsewhere. |
+| `external_proposals_disabled` | 403 | `POST /api/proposals` on a floor closed to outside proposals: only its owner and their admins post there. Nothing was created or charged. | Do not retry. Trade the floor, or propose on one whose `externalProposalsDisabled` is false. |
 
 Two rules to build against:
 

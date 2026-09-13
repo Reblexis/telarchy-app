@@ -890,6 +890,13 @@
       "when": 1789320000000,
       "tag": "0126_ledger_fault_refund_index",
       "breakpoints": true
+    },
+    {
+      "idx": 127,
+      "version": "7",
+      "when": 1789320060000,
+      "tag": "0127_external_proposals_disabled",
+      "breakpoints": true
     }
   ]
 }

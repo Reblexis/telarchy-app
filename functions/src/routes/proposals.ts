@@ -3,6 +3,7 @@ import { and, asc, desc, eq, lt, ne, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
 import { agents, proposalMessages, proposals, workspaces } from '../db/schema';
+import { docUrlFor } from '../lib/error-codes';
 import { branchIsShown } from '../lib/market-pairs';
 import { notifyOwner } from '../lib/notify';
 import { publicOrigin } from '../lib/origin';
@@ -74,6 +75,25 @@ proposalsRouter.post(
   wrap(async (req, res) => {
     const { workspaceId } = req.auth!;
     const { title, description, liquiditySubsidy, askUsd, payoutHandle, decideBy, options: rawOptions } = req.body;
+    // A floor closed to outside proposals takes them only from whoever holds
+    // manage here (docs/guides/proposals.md, "Closing the floor to outside
+    // proposals"). Checked first, so an outsider learns the floor is closed
+    // rather than how to fix a proposal it would refuse anyway.
+    if (!req.auth!.capabilities.has('manage')) {
+      const [closed] = await db
+        .select({ disabled: workspaces.externalProposalsDisabled })
+        .from(workspaces)
+        .where(eq(workspaces.id, workspaceId));
+      if (closed?.disabled) {
+        res.status(403).json({
+          error:
+            'This floor is closed to outside proposals: only its owner and their admins post proposals here. Trading is open as usual.',
+          code: 'external_proposals_disabled',
+          doc_url: docUrlFor('external_proposals_disabled'),
+        });
+        return;
+      }
+    }
     if (!title || typeof title !== 'string') {
       res.status(400).json({ error: 'title is required' });
       return;

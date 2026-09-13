@@ -671,6 +671,10 @@ export interface PublicWorkspace {
    *  floor's LIVE segment; null = no segment (docs/ui-conventions.md, "The
    *  live view is a segment of the chart slot"). Supersedes liveViewUrl. */
   liveFeed?: LiveFeed | null;
+  /** Only the owner and their admins post proposals here; the floor offers
+   *  the propose line to nobody else (docs/guides/proposals.md, "Closing the
+   *  floor to outside proposals"). */
+  externalProposalsDisabled?: boolean;
   /** When the owner says this workspace started running on Telarchy (ISO), or
       null. The floor's year chart marks it with one dashed line. */
   telarchyStartedOn?: string | null;
@@ -2902,6 +2906,7 @@ export const api = {
       /** Mute every notification about the workspace, on every channel
        *  (docs/vision.md, "A workspace can mute everything it would send"). */
       notificationsMuted?: boolean;
+      externalProposalsDisabled?: boolean;
     },
   ) =>
     request(`/api/workspaces/${id}/settings`, {

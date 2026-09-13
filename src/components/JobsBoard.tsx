@@ -75,6 +75,10 @@ interface Props {
   /** The floor's own decision window in minutes, the preselected preset on
    *  the form (docs/guides/proposals.md, "The deadline, and the close"). */
   decisionMinutes?: number;
+  /** Whether this viewer is offered the propose line at all; false on a floor
+   *  closed to outside proposals for anyone without manage (see
+   *  `proposingOffered`). Absent means true. */
+  canPropose?: boolean;
   /** Whether a participant is signed in. When false, the propose button
       becomes a signup door rather than opening a form the submit would
       bounce anyway. */
@@ -271,6 +275,14 @@ export function poolOf(p: PublicProposal): number {
 /** The id rule for typed option labels lives in lib/proposal-options. */
 export { optionIdsOf } from '../lib/proposal-options';
 
+/** Whether the propose line is offered: on an open floor to everyone, on a
+ *  floor closed to outside proposals only to a viewer holding manage, the
+ *  same rule POST /api/proposals enforces (docs/guides/proposals.md,
+ *  "Closing the floor to outside proposals"). */
+export function proposingOffered(externalProposalsDisabled: boolean | undefined, canManage: boolean): boolean {
+  return !externalProposalsDisabled || canManage;
+}
+
 /** Whether a proposal carries options instead of the approve/decline pair. */
 export function hasOptions(p: PublicProposal): boolean {
   return (p.options?.length ?? 0) > 0 || p.markets.some(m => (m.options?.length ?? 0) > 0);
@@ -349,6 +361,7 @@ export function JobsBoard({
   onTrade,
   onOpenOption,
   canManage = false,
+  canPropose = true,
   onRule,
   onPropose,
   signedIn,
@@ -884,15 +897,19 @@ export function JobsBoard({
           fineprint, is gone; the page's closing board carries the
           invitation, and this is the quiet way in for anyone who came
           looking for it. Whoever the workspace allows can still post one. */}
-      <div className="pubws-propose">
-        <button
-          type="button"
-          className="pubws-propose-quiet"
-          onClick={() => (signedIn ? setFormOpen(true) : onRequireSignup())}
-        >
-          + Propose work on this number
-        </button>
-      </div>
+      {/* A floor closed to outside proposals draws no line for a viewer who
+          could not post (docs/ui-conventions.md, "The proposals board"). */}
+      {canPropose && (
+        <div className="pubws-propose">
+          <button
+            type="button"
+            className="pubws-propose-quiet"
+            onClick={() => (signedIn ? setFormOpen(true) : onRequireSignup())}
+          >
+            + Propose work on this number
+          </button>
+        </div>
+      )}
 
       {/* The form is the ticket's structure, not just its underlines
           (Codex redesign 2026-08-10): the ask is the hero numeric at the
