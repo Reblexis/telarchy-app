@@ -112,8 +112,9 @@ down-pull's), the fill pass fills each order at most once per pass, and "The
 market is locked before its orders" (the fill pass and the release of a
 closing book take the market row lock first).
 
-**Not changed, for Viktor:** the snake operator declines at once when the
-approve fails; one immediate retry of a 500 would have saved the move.
+**Not changed:** the snake operator declines at once when the approve fails.
+A retry there would not have saved this move: the approve's 500 came back at
+17:08:02, two seconds after the deadline.
 
 **Decided (Viktor, 2026-09-13):** "yes lets do teh real fix so it doesnt have
 a chance to happen again regarding the bug" and "and ten publish straigt up".
