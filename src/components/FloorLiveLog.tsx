@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ActionRow } from '../lib/api';
-import { type LiveGroup, type LiveStatus, liveEntries, shortTradeText } from '../lib/live-log';
+import { type LiveEntry, type LiveGroup, type LiveStatus, liveEntries, shortTradeText } from '../lib/live-log';
 import { clockOf } from '../lib/viewer-time';
 
 /**
  * The floor's Live column and its folded strip (docs/ui-conventions.md, "The
- * live log"; design direction A). Presentational: the rows come from
+ * live log"; design direction A, and its compact block with the fold). Presentational: the rows come from
  * useWorkspaceLog on the page, shared by both, so the floor reads once.
  */
 
@@ -21,8 +21,73 @@ type Props = {
   onSeen: () => void;
 };
 
-/** The block draws the newest this many rows it holds. */
+type BlockProps = Props & {
+  /** Open compact whatever the floor's remembered fold: the strip's block,
+   *  which the visitor has just asked to see. */
+  opensCompact?: boolean;
+};
+
+/** The block holds the newest this many rows; "Show more" opens up to them. */
 const SHOWN = 30;
+/** A slow floor, or a fast one with no proposal in the window, opens on this many. */
+const COMPACT = 5;
+
+/** How many lines an entry draws: a group's rows and its "opened with" line
+ *  (at least one, its head), a standing row one. */
+function linesOf(e: LiveEntry): number {
+  if (e.type === 'row') return 1;
+  return Math.max(1, e.rows.length + (e.openedWith !== null ? 1 : 0));
+}
+
+/** How many entries the compact block draws: through the newest proposal's
+ *  group on a fast floor, otherwise the newest five. */
+function compactCount(entries: LiveEntry[], fast: boolean): number {
+  if (fast) {
+    const newestGroup = entries.findIndex(e => e.type === 'group');
+    if (newestGroup >= 0) return newestGroup + 1;
+  }
+  return Math.min(entries.length, COMPACT);
+}
+
+/** The fold is remembered per visitor and per floor; a storage the browser
+ *  refuses means "not folded", never a broken block. */
+const foldKey = (slug: string) => `telarchy.liveLog.folded.${slug}`;
+
+function readFolded(slug: string): boolean {
+  try {
+    return localStorage.getItem(foldKey(slug)) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeFolded(slug: string, folded: boolean) {
+  try {
+    if (folded) localStorage.setItem(foldKey(slug), '1');
+    else localStorage.removeItem(foldKey(slug));
+  } catch {
+    // Blocked storage: the fold lasts for this visit only.
+  }
+}
+
+function Chevron({ up }: { up: boolean }) {
+  return (
+    <svg
+      className="pubws-live-chevron"
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d={up ? 'M18 15l-6-6-6 6' : 'M6 9l6 6 6-6'} />
+    </svg>
+  );
+}
 
 function statusText(s: LiveStatus): string {
   if (s.kind === 'open') return 'open';
@@ -72,8 +137,28 @@ function Group({ g, newIds }: { g: LiveGroup; newIds: Set<string> }) {
   );
 }
 
-export function LiveLogBlock({ slug, rows, fast, newIds, onSeen }: Props) {
+export function LiveLogBlock({ slug, rows, fast, newIds, onSeen, opensCompact = false }: BlockProps) {
+  const [folded, setFolded] = useState(() => !opensCompact && readFolded(slug));
+  const [more, setMore] = useState(false);
+  // Another floor in the same mount reads its own fold and opens compact.
+  useEffect(() => {
+    setFolded(!opensCompact && readFolded(slug));
+    setMore(false);
+  }, [slug, opensCompact]);
+
   const entries = liveEntries(rows.slice(0, SHOWN), fast);
+  const compact = compactCount(entries, fast);
+  const hidden = entries.slice(compact).reduce((n, e) => n + linesOf(e), 0);
+  const shown = more ? entries : entries.slice(0, compact);
+  const newest = rows[0];
+
+  const toggleFold = () => {
+    const next = !folded;
+    setFolded(next);
+    setMore(false);
+    writeFolded(slug, next);
+  };
+
   return (
     <section
       className="pubws-live"
@@ -88,34 +173,62 @@ export function LiveLogBlock({ slug, rows, fast, newIds, onSeen }: Props) {
           <span className="pubws-live-dot" aria-hidden="true" />
           <span>Live</span>
         </span>
-        <Link className="pubws-live-all" to={`/${slug}/log`}>
-          All activity
-          <span aria-hidden="true"> →</span>
-        </Link>
+        <span className="pubws-live-acts">
+          {folded && newest && (
+            <time className="pubws-live-time" dateTime={newest.at}>
+              {clockOf(newest.at)}
+            </time>
+          )}
+          <Link className="pubws-live-all" to={`/${slug}/log`}>
+            All activity
+            <span aria-hidden="true"> →</span>
+          </Link>
+          <button
+            type="button"
+            className="pubws-live-fold"
+            aria-expanded={!folded}
+            aria-label={folded ? 'Open the live log' : 'Fold the live log'}
+            onClick={toggleFold}
+          >
+            <Chevron up={!folded} />
+          </button>
+        </span>
       </div>
-      {rows.length === 0 ? (
+      {folded ? null : rows.length === 0 ? (
         <p className="pubws-live-empty">Nothing has happened here yet.</p>
       ) : (
-        <div className="pubws-live-list">
-          {entries.map(e =>
-            e.type === 'group' ? (
-              <Group key={`g${e.number}`} g={e} newIds={newIds} />
-            ) : (
-              <Link key={e.row.id} className={`pubws-live-row${newIds.has(e.row.id) ? ' is-new' : ''}`} to={e.row.href}>
-                <time className="pubws-live-time" dateTime={e.row.at}>
-                  {clockOf(e.row.at)}
-                </time>
-                <span className="pubws-live-body">
-                  <span className="pubws-live-kind">{e.row.kind}</span>
-                  <span className="pubws-live-text">
-                    <Who row={e.row} />
-                    {e.row.text}
+        <>
+          <div className="pubws-live-list">
+            {shown.map(e =>
+              e.type === 'group' ? (
+                <Group key={`g${e.number}`} g={e} newIds={newIds} />
+              ) : (
+                <Link
+                  key={e.row.id}
+                  className={`pubws-live-row${newIds.has(e.row.id) ? ' is-new' : ''}`}
+                  to={e.row.href}
+                >
+                  <time className="pubws-live-time" dateTime={e.row.at}>
+                    {clockOf(e.row.at)}
+                  </time>
+                  <span className="pubws-live-body">
+                    <span className="pubws-live-kind">{e.row.kind}</span>
+                    <span className="pubws-live-text">
+                      <Who row={e.row} />
+                      {e.row.text}
+                    </span>
                   </span>
-                </span>
-              </Link>
-            ),
+                </Link>
+              ),
+            )}
+          </div>
+          {hidden > 0 && (
+            <button type="button" className="pubws-live-more" aria-expanded={more} onClick={() => setMore(m => !m)}>
+              <span>{more ? 'Show fewer' : `Show ${hidden} more`}</span>
+              <Chevron up={more} />
+            </button>
           )}
-        </div>
+        </>
       )}
     </section>
   );
@@ -148,7 +261,7 @@ export function LiveLogStrip(props: Props) {
           {open ? '▴' : '▾'}
         </span>
       </button>
-      {open && <LiveLogBlock {...props} />}
+      {open && <LiveLogBlock {...props} opensCompact />}
     </div>
   );
 }

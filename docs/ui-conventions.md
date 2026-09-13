@@ -2208,14 +2208,36 @@ but not joined), the line takes their place in the centre column. The line
 starts with the Live label in the block head's anatomy (the live dot and
 "Live" in `.pubws-live-title`), so it never reads as a picker; then the
 newest row as one ellipsized line, its time, and a chevron. Pressing the
-line opens the block in place under the verbs, "All activity" and all, and
-pressing it again folds it. On a phone the order is the verbs, the line,
+line opens the same compact block in place under the verbs, "All activity",
+"Show N more" and the fold control and all, and pressing it again folds it.
+A block opened from the line always opens compact, whatever the floor's
+remembered fold, because pressing the line is the visitor asking to see it. On a phone the order is the verbs, the line,
 the ticket, then the proposals. A selected proposal shows neither: the page
 is about that proposal.
 
 **The block.** A head in the section-head anatomy (`.pubws-lb-head`): the
-live dot and "Live" on the left, "All activity" linking to `/<slug>/log` on
-the right. Under it the newest rows first, at most 30. A row is the time in
+live dot and "Live" on the left; on the right "All activity" linking to
+`/<slug>/log`, then the fold control, a bare chevron button
+(`.pubws-live-fold`, labelled "Fold the live log") with a 44px-tall hit
+area. The block holds the newest 30 rows and opens compact: on a fast
+workspace (below) it draws only the newest proposal's group, together with
+any row standing alone that is newer than that group, and when the window
+holds no proposal it draws the newest 5 entries; on a slow workspace it draws
+the newest 5 rows. Under the compact list a full-width hairline-bottomed row
+(`.pubws-live-more`, mono, accent, a down chevron at its right) reads "Show N
+more", where N counts the rows it would draw (a group's rows and its "opened
+with" line, at least one for a group, a standing row as one), and opens the rest of the 30 in place;
+open, it reads "Show fewer" with an up chevron and folds back to compact.
+When nothing is hidden the row is not drawn. Whether it is open is not
+remembered: every visit starts compact. Pressing the fold control folds the
+block to its head alone: "Live" on the left, and on the right the newest
+row's time in mono, "All activity" (a folded log still leads to the full
+log), and a down chevron labelled "Open the live log", which unfolds it to
+compact. The folded head's time follows the newest row as rows arrive. The
+fold is remembered per visitor and per floor in the browser's localStorage
+(`telarchy.liveLog.folded.<slug>`), read when the block mounts; a storage the
+browser refuses to read or write means the block is not folded, never a
+broken block. Under the head the newest rows first. A row is the time in
 the viewer's zone (mono, `HH:MM`), the actor in bold when there is one, and
 the sentence in the secondary ink, the whole row linking to the row's
 `href`. Following a row while already on that floor lands on the thing
