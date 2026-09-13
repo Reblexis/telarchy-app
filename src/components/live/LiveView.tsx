@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { SnakeAction, SnakeState } from '../../lib/api';
+import type { FloorPriceBook, SnakeState } from '../../lib/api';
 import type { FeedQuotes } from '../../lib/feed-overlay';
 import { ChessLive } from './ChessLive';
 import { SnakeLive } from './SnakeLive';
@@ -22,8 +22,11 @@ export function LiveView({
   onPickProposal,
   onStep,
   onQuotes,
+  books,
 }: {
   kind: string;
+  /** The floor's open books by market id, polled once a second, for the live prices. */
+  books?: ReadonlyMap<string, FloorPriceBook> | null;
   slug: string;
   /** Every polled state, reported up so the floor can name the attempt. */
   onState?: (state: SnakeState) => void;
@@ -44,9 +47,16 @@ export function LiveView({
         <span className="mchart-right" />
       </div>
       {kind === 'snake' ? (
-        <SnakeLive slug={slug} onPickProposal={onPickProposal} onStep={onStep} onQuotes={onQuotes} onState={onState} />
+        <SnakeLive
+          slug={slug}
+          onPickProposal={onPickProposal}
+          onStep={onStep}
+          onQuotes={onQuotes}
+          onState={onState}
+          books={books}
+        />
       ) : kind === 'chess' ? (
-        <ChessLive slug={slug} onPickProposal={onPickProposal} onStep={onStep} onQuotes={onQuotes} />
+        <ChessLive slug={slug} onPickProposal={onPickProposal} onStep={onStep} onQuotes={onQuotes} books={books} />
       ) : null}
     </div>
   );
