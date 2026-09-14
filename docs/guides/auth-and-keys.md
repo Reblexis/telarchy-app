@@ -32,7 +32,15 @@ A participant key and a browser session for the same participant are the same id
 
 ## Which workspace a call lands in
 
-`X-Workspace-Id` names it. A key carries a default workspace (the one it was minted for), used when the header is absent. Set the header to act in any other workspace you are a member of. A valid key with no membership in the named workspace still authenticates, with an empty capability set, which is what lets a fresh participant call `POST /api/marketplace/:id/join` before it belongs anywhere.
+`X-Workspace-Id` names it. A key carries a default workspace (the one it was minted for), used when the header is absent. Set the header to act in any other workspace.
+
+A key needs no join step. In a workspace where its participant is not a member, a key acts exactly as a newly signed-up user would there, never more and never less:
+
+- On a **public** workspace it holds what that workspace's Public group grants (`read`, and `trade` when the group has it), narrowed by the key's scopes like any other capability. Trader, Admin and custom groups are still granted only by an admin, and nothing is inherited from whoever owns the bot.
+- Its first request there that is not a read (any method but `GET`, `HEAD` or `OPTIONS`), made while it holds `trade`, adds it to the Public group, which is what the join call does. From then on it is a member like anyone else: it appears in the workspace's participant lists and leaderboard. A read never adds it.
+- On an **unlisted** or **private** workspace it holds nothing, and it still authenticates with an empty capability set.
+
+`POST /api/marketplace/:id/join` still works and reports the role joining grants, but no call depends on it.
 
 To see everywhere a key can reach, call `GET /api/workspaces` with the key and **no** `X-Workspace-Id`. Each row carries `id`, `slug`, `ownerHandle` and `memberRole`.
 

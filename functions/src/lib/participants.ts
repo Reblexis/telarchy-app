@@ -62,6 +62,30 @@ export function getGroupMemberIds(group: GroupLike): string[] {
   return ((group.memberIds as string[]) ?? []).filter(id => typeof id === 'string');
 }
 
+/**
+ * Add a participant to a workspace's Public group, in one statement.
+ *
+ * The append and the "not already there" check are the same UPDATE, so two
+ * joins arriving together cannot erase each other or list anyone twice, which
+ * a read of memberIds followed by a write of the whole array could. Returns
+ * true when this call added the participant, false when it was already in.
+ */
+export async function joinPublicGroup(workspaceId: string, participantId: string): Promise<boolean> {
+  const member = sql`jsonb_build_array(${participantId}::text)`;
+  const added = await db
+    .update(permissionGroups)
+    .set({ memberIds: sql`${permissionGroups.memberIds} || ${member}` })
+    .where(
+      and(
+        eq(permissionGroups.workspaceId, workspaceId),
+        eq(permissionGroups.type, 'public'),
+        sql`NOT (${permissionGroups.memberIds} @> ${member})`,
+      ),
+    )
+    .returning({ id: permissionGroups.id });
+  return added.length > 0;
+}
+
 export function isParticipantMember(group: GroupLike, participantId?: string): boolean {
   if (!participantId) return false;
   return getGroupMemberIds(group).includes(participantId);

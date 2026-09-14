@@ -27,7 +27,13 @@ import { type ContractorEntry, type ContractorJobPair, computeContractors, pairD
 import { periodEndInstant, periodStartInstant, resolutionInstant, settlesOn } from '../lib/date-utils';
 import { historyQuery, type LiveEndpoint, LiveFeedError, readLiveFeed } from '../lib/live-feed';
 import { branchIsShown } from '../lib/market-pairs';
-import { botIds, getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
+import {
+  botIds,
+  getGroupMemberIds,
+  getOwnerHandles,
+  getParticipantDisplayNames,
+  joinPublicGroup,
+} from '../lib/participants';
 import { isOptionBranch, optionDeltas } from '../lib/proposal-options';
 import { restrictedToMembers } from '../lib/public-read';
 import { listPublicSeasons, type PublicSeason } from '../lib/public-seasons';
@@ -2523,15 +2529,7 @@ marketplaceRouter.post(
       return;
     }
 
-    const publicMemberIds = getGroupMemberIds(publicGroup);
-    const alreadyMember = publicMemberIds.includes(participantId);
-
-    if (!alreadyMember) {
-      await db
-        .update(permissionGroups)
-        .set({ memberIds: [...publicMemberIds, participantId] })
-        .where(and(eq(permissionGroups.id, publicGroup.id), eq(permissionGroups.workspaceId, workspaceId)));
-    }
+    const alreadyMember = !(await joinPublicGroup(workspaceId, participantId));
 
     const publicCaps = (publicGroup.capabilities as string[] | null) ?? [];
     const role = publicCaps.includes('trade') ? 'trader' : 'viewer';

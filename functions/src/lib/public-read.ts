@@ -84,6 +84,37 @@ export function anonymousCapabilities(): Set<Capability> {
 }
 
 /**
+ * What a newly signed-up participant holds in a workspace it is not a member
+ * of: the Public group's capabilities on a public workspace, nothing (null)
+ * on a restricted one or one that does not exist.
+ *
+ * This is the whole of a non-member key's reach (docs/guides/auth-and-keys.md,
+ * "Which workspace a call lands in"). It is the group a self-join lands in,
+ * so holding it without the join changes nothing a join would not, and it is
+ * never more: nothing comes from Trader, Admin, custom groups or a bot's owner.
+ */
+export async function newUserAccess(
+  idOrSlug: string,
+): Promise<{ workspaceId: string; capabilities: Set<Capability> } | null> {
+  if (!idOrSlug) return null;
+  const [ws] = await db
+    .select({ id: workspaces.id, visibility: workspaces.visibility })
+    .from(workspaces)
+    .where(or(eq(workspaces.id, idOrSlug), sql`lower(${workspaces.slug}) = lower(${idOrSlug})`))
+    .limit(1);
+  if (!ws || restrictedToMembers(ws.visibility)) return null;
+  const [publicGroup] = await db
+    .select({ capabilities: permissionGroups.capabilities })
+    .from(permissionGroups)
+    .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
+  const capabilities = new Set<Capability>();
+  for (const cap of (publicGroup?.capabilities as string[] | null) ?? []) {
+    if (cap === 'read' || cap === 'trade' || cap === 'manage' || cap === 'manage_workspace') capabilities.add(cap);
+  }
+  return { workspaceId: ws.id, capabilities };
+}
+
+/**
  * The workspace id this id-or-slug names, whatever its visibility, or null.
  *
  * Unlike `resolvePublicReadWorkspace` this applies no visibility filter,
