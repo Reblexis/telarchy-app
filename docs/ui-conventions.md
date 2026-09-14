@@ -2732,6 +2732,11 @@ going trough the proposal the official way"):
    option's world in place. **A move made on the board opens its option**:
    pressing a piece that has legal moves (the `from` square of some
    option) selects it and marks each square it can move to with a dot;
+   **hovering such a piece shows the same before any press**: its square
+   is tinted and its target squares get their dots, so a piece that can be
+   pressed reads as pressable, and moving off clears both; while a piece is
+   picked up the pick is what shows, and a hovered piece that cannot move,
+   or any piece while no move is open, shows nothing;
    pressing one of those squares opens that move's world exactly as its
    arrow does (a promotion opens the queen's); pressing anywhere else
    clears the selection. Pieces that cannot move, and every piece while no
@@ -3162,16 +3167,25 @@ accent, "DECIDING NOW", with the countdown to the decision ticking beside it
 one line; one row per world, each the proposal's address on its page: for a
 proposal with options, one row per option in the proposal's order with its
 price and its impact, the leader outlined in the higher colour and marked
-"leads" (a tie marks no one); for an approve or decline proposal, "If
+"leads" (a tie marks no one); with more than six options (a chess move
+offers every legal move) the block carries the six highest priced, highest
+first, then one "+N more" row that opens the proposal, as a board row does;
+for an approve or decline proposal, "If
 approved" and "If declined" with their prices and the impact of approving
 under them. Then one sentence: "Each option is priced by what traders
 forecast it does to <metric>." On the Snake that block is always the
 current move. Beside them, on the left, the
-floor's live board when the floor's live feed is a snake game (the same
-snake board as its page, without the replay row), else the hero market's
-spark: a feed of any other kind, such as the chess floor's, is never drawn as
-a snake board, and a snake board handed a feed with no snake draws an empty
-grid rather than failing the page. At phone
+floor's live board when the floor has a live feed: the board its feed's
+`kind` names, the same one its page draws (the snake board for `snake`, the
+chess board for `chess`), without the replay row, and it looks as it does
+on the floor: the card gives a live board the width of the floor's live slot
+(45rem), so the chess moves column sits beside the board as it does there,
+and the board sits at the top of the card rather than floating in its
+middle. A kind this build cannot
+draw shows the hero market's spark instead, as a floor without a feed does;
+the card never draws one kind's board over another kind's feed, and a snake
+board handed a feed with no snake draws an empty grid rather than failing
+the page. At phone
 width the card stacks, the board or spark first. The card never says "bet":
 the home page's words are forecast words.
 

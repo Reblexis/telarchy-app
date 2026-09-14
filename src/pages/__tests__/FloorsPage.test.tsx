@@ -31,6 +31,11 @@ vi.mock('../../components/live/SnakeLive', () => ({
     <div data-testid="snake-live" data-slug={slug} data-replay={String(replay)} />
   ),
 }));
+vi.mock('../../components/live/ChessLive', () => ({
+  ChessLive: ({ slug, replay }: { slug: string; replay?: boolean }) => (
+    <div data-testid="chess-live" data-slug={slug} data-replay={String(replay)} />
+  ),
+}));
 
 // Labels and the card's hero come from lib/floor-horizons, the same model the
 // floor page uses, so this spec asserts the real strings: a card and the floor
@@ -919,23 +924,88 @@ describe('THE MOST TRADED FLOOR IS FEATURED ABOVE THE BOARD', () => {
     expect(live).toHaveAttribute('data-replay', 'false');
   });
 
-  test('THE HOME PAGE NEVER CRASHES WHEN THE MOST TRADED FLOOR IS CHESS: a live feed that is not a snake shows the spark', async () => {
-    // Viktor, 2026-09-14, the beta home page: "Uncaught TypeError: can't access
-    // property 0, n is undefined". The card drew the snake board for the chess feed.
+  test('the home page went blank when the Chess floor was featured (2026-09-14): a chess feed draws the chess board, never the snake board', async () => {
     const chessRow = { ...snakeRow, workspaceId: 'ws-chess', slug: 'chess', name: 'Chess' };
-    const chessFloor = { ...snakeFloor, liveFeed: { kind: 'chess', url: 'https://chess.telarchy.com' } };
     withRows(
       [
         { ...listing, volumePerHour: 1 },
         { ...chessRow, volumePerHour: 9_000 },
       ],
-      { chess: chessFloor },
+      { chess: { ...snakeFloor, liveFeed: { kind: 'chess', url: 'https://chess.example' } } },
     );
     renderPage();
     const card = await screen.findByRole('region', { name: /most traded now/i });
-    expect(within(card).getByText('Chess')).toBeInTheDocument();
-    await waitFor(() => expect(card.querySelector('.mkt-spark')).toBeTruthy());
+    const live = await within(card).findByTestId('chess-live');
+    expect(live).toHaveAttribute('data-slug', 'chess');
+    expect(live).toHaveAttribute('data-replay', 'false');
     expect(within(card).queryByTestId('snake-live')).toBeNull();
+  });
+
+  test('a snake feed draws the snake board and never the chess board', async () => {
+    withRows([
+      { ...listing, volumePerHour: 1 },
+      { ...snakeRow, volumePerHour: 15_369 },
+    ]);
+    renderPage();
+    const card = await screen.findByRole('region', { name: /most traded now/i });
+    await within(card).findByTestId('snake-live');
+    expect(within(card).queryByTestId('chess-live')).toBeNull();
+  });
+
+  test('a feed kind this build cannot draw shows no board over it, as a floor without a feed', async () => {
+    for (const liveFeed of [{ kind: 'go', url: 'https://go.example' }, { url: 'https://nokind.example' }]) {
+      withRows(
+        [
+          { ...listing, volumePerHour: 1 },
+          { ...snakeRow, volumePerHour: 15_369 },
+        ],
+        { snake: { ...snakeFloor, liveFeed } },
+      );
+      const view = renderPage();
+      const card = await screen.findByRole('region', { name: /most traded now/i });
+      await within(card).findByText('Snake');
+      await waitFor(() =>
+        expect(within(card).getByText('What length will I reach on this attempt?')).toBeInTheDocument(),
+      );
+      expect(within(card).queryByTestId('snake-live')).toBeNull();
+      expect(within(card).queryByTestId('chess-live')).toBeNull();
+      view.unmount();
+    }
+  });
+
+  test('the chess card looked cramped beside the floor (2026-09-14): a card drawing a live board takes the live layout, a spark card does not', async () => {
+    const chessRow = { ...snakeRow, workspaceId: 'ws-chess', slug: 'chess', name: 'Chess' };
+    withRows(
+      [
+        { ...listing, volumePerHour: 1 },
+        { ...chessRow, volumePerHour: 9_000 },
+      ],
+      { chess: { ...snakeFloor, liveFeed: { kind: 'chess', url: 'https://chess.example' } } },
+    );
+    const chess = renderPage();
+    const chessCard = await screen.findByRole('region', { name: /most traded now/i });
+    await within(chessCard).findByTestId('chess-live');
+    expect(chessCard).toHaveClass('mkt-featured--live');
+    chess.unmount();
+
+    withRows([
+      { ...listing, volumePerHour: 1 },
+      { ...snakeRow, volumePerHour: 15_369 },
+    ]);
+    const snake = renderPage();
+    const snakeCard = await screen.findByRole('region', { name: /most traded now/i });
+    await within(snakeCard).findByTestId('snake-live');
+    expect(snakeCard).toHaveClass('mkt-featured--live');
+    snake.unmount();
+
+    withRows([
+      { ...listing, volumePerHour: 40 },
+      { ...snakeRow, volumePerHour: 2 },
+    ]);
+    renderPage();
+    const sparkCard = await screen.findByRole('region', { name: /most traded now/i });
+    await within(sparkCard).findByText('LookPilot');
+    expect(sparkCard).not.toHaveClass('mkt-featured--live');
   });
 
   test('a featured floor without a live feed shows its market spark instead', async () => {
@@ -1235,6 +1305,49 @@ describe('THE FEATURED CARD SHOWS ITS MOST TRADED OPEN PROPOSAL', () => {
     expect(
       within(block).getByText(/Each option is priced by what traders forecast it does to Reached length\./),
     ).toBeInTheDocument();
+  });
+
+  test('a chess move with 26 options filled the card (2026-09-14): past six options the block shows the six highest priced and one "+N more" row to the proposal', async () => {
+    const prices = [41, 58.5, 47, 50, 63.2, 44, 52.1, 39];
+    const many = optionProposal({
+      id: 'p-chess-11',
+      number: 414,
+      title: 'Game 41, move 11',
+      options: prices.map((_, i) => ({ id: `m${i}`, label: `Move ${i}` })),
+    });
+    many.markets[0].options = prices.map((consensus, i) => ({
+      id: `m${i}`,
+      label: `Move ${i}`,
+      marketId: `mk${i}`,
+      consensus,
+      liquidity: 100,
+      pool: 100,
+      traders: 1,
+      volume: 10,
+      delta: 0,
+    }));
+    serve([{ ...listing, volumePerHour: 1 }, snakeRow], { snake: snakeFloorWith([many]) });
+    renderPage();
+    const block = await deciding();
+    const rows = within(block).getAllByRole('link');
+    expect(rows.map(r => r.textContent)).toEqual([
+      expect.stringMatching(/^Move 4.*63\.2/),
+      expect.stringMatching(/^Move 1.*58\.5/),
+      expect.stringMatching(/^Move 6.*52\.1/),
+      expect.stringMatching(/^Move 3.*50\.0/),
+      expect.stringMatching(/^Move 2.*47\.0/),
+      expect.stringMatching(/^Move 5.*44\.0/),
+      '+2 more',
+    ]);
+    for (const r of rows) expect(r).toHaveAttribute('href', '/snake#proposal=p-chess-11');
+  });
+
+  test('six options or fewer keep every row, in the proposal\'s order, with no "+N more"', async () => {
+    serve([{ ...listing, volumePerHour: 1 }, snakeRow], { snake: snakeFloorWith([optionProposal()]) });
+    renderPage();
+    const block = await deciding();
+    expect(within(block).getAllByRole('link')).toHaveLength(3);
+    expect(within(block).queryByText(/more$/)).toBeNull();
   });
 
   test('the countdown to the decision ticks beside the label', async () => {
