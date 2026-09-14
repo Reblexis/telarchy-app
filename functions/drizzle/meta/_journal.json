@@ -904,6 +904,13 @@
       "when": 1789320120000,
       "tag": "0128_limit_order_sell",
       "breakpoints": true
+    },
+    {
+      "idx": 129,
+      "version": "7",
+      "when": 1789371691094,
+      "tag": "0129_hot_query_indexes",
+      "breakpoints": true
     }
   ]
 }

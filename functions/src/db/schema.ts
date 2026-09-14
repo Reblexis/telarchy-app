@@ -729,6 +729,9 @@ export const trades = pgTable(
     index('trades_created_idx').on(t.createdAt),
     // Count-by-market without a workspace predicate (migration 0117).
     index('trades_market_idx').on(t.marketId),
+    // The bell's "books I traded" reads (agent) -> distinct market from the
+    // index alone; it answered one row per trade before (migration 0129).
+    index('trades_agent_market_idx').on(t.agentId, t.marketId),
   ],
 );
 
@@ -757,6 +760,8 @@ export const liquidityEvents = pgTable(
     index('liquidity_events_ws_market_created_idx').on(t.workspaceId, t.marketId, t.createdAt),
     // Funding lookups by market alone, across workspaces (migration 0117).
     index('liquidity_events_market_idx').on(t.marketId),
+    // The actions log's liquidity branch: one floor, newest first (migration 0129).
+    index('liquidity_events_ws_created_idx').on(t.workspaceId, t.createdAt),
   ],
 );
 
@@ -875,31 +880,40 @@ export const proposalRevisions = pgTable(
   t => [primaryKey({ columns: [t.id, t.workspaceId] })],
 );
 
-export const limitOrders = pgTable('limit_orders', {
-  id: text('id').primaryKey(),
-  workspaceId: text('workspace_id').notNull(),
-  marketId: text('market_id').notNull(),
-  agentId: text('agent_id').notNull(),
-  /** 'buy' | 'sell'. A sell reserves nothing and may never sell more than
-   *  the position holds at the moment it fills (docs/limit-orders.md). */
-  side: text('side').notNull().default('buy'),
-  /** 'higher' | 'lower': the side bought, or the held position sold. */
-  direction: text('direction').notNull(),
-  /** Metric space (dollars), not probability: the page speaks dollars. */
-  limitValue: doublePrecision('limit_value').notNull(),
-  /** Buy: credits reserved. Sell: 0. */
-  budgetCredits: doublePrecision('budget_credits').notNull(),
-  /** Buy: credits spent. Sell: proceeds received. */
-  filledCredits: doublePrecision('filled_credits').notNull().default(0),
-  /** Sell only: shares to sell, and shares sold so far. Null on a buy. */
-  shares: doublePrecision('shares'),
-  filledShares: doublePrecision('filled_shares'),
-  /** 'open' | 'filled' | 'cancelled' | 'expired' */
-  status: text('status').notNull().default('open'),
-  expiresAt: timestamp('expires_at'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
+export const limitOrders = pgTable(
+  'limit_orders',
+  {
+    id: text('id').primaryKey(),
+    workspaceId: text('workspace_id').notNull(),
+    marketId: text('market_id').notNull(),
+    agentId: text('agent_id').notNull(),
+    /** 'buy' | 'sell'. A sell reserves nothing and may never sell more than
+     *  the position holds at the moment it fills (docs/limit-orders.md). */
+    side: text('side').notNull().default('buy'),
+    /** 'higher' | 'lower': the side bought, or the held position sold. */
+    direction: text('direction').notNull(),
+    /** Metric space (dollars), not probability: the page speaks dollars. */
+    limitValue: doublePrecision('limit_value').notNull(),
+    /** Buy: credits reserved. Sell: 0. */
+    budgetCredits: doublePrecision('budget_credits').notNull(),
+    /** Buy: credits spent. Sell: proceeds received. */
+    filledCredits: doublePrecision('filled_credits').notNull().default(0),
+    /** Sell only: shares to sell, and shares sold so far. Null on a buy. */
+    shares: doublePrecision('shares'),
+    filledShares: doublePrecision('filled_shares'),
+    /** 'open' | 'filled' | 'cancelled' | 'expired' */
+    status: text('status').notNull().default('open'),
+    expiresAt: timestamp('expires_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  t => [
+    // The actions log's two order branches read one floor newest first, by
+    // placement and by last status change, and cut to a page (migration 0129).
+    index('limit_orders_ws_created_idx').on(t.workspaceId, t.createdAt),
+    index('limit_orders_ws_updated_idx').on(t.workspaceId, t.updatedAt),
+  ],
+);
 
 /** One priced pair of a decided proposal; a side is null when that branch
  *  held no liquidity at the decision. On a proposal with options

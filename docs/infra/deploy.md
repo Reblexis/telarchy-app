@@ -1138,8 +1138,20 @@ within weeks. The rule:
   Cloud Run's 300 s request timeout, whatever the day's due count.
 - **The bell inbox is windowed.** A participant's own proposals are read
   newest-first, `2 x limit` of them; their branch markets are bounded by
-  that window; the stale-reading nudge reads baseline books only, with
-  the workspace in every `metric_logs` predicate.
+  that window and name those proposals' workspaces; the newest proposals
+  of the participant's floors are read per floor, `2 x limit` from each,
+  and merged; the books they traded come back once each, not once per
+  trade; the stale-reading nudge reads baseline books only, with the
+  workspace in every `metric_logs` predicate.
+- **The floor payload reads what it shows.** Trader counts are grouped
+  over the trades of the books on the page (the open baselines and the
+  shown proposals' branches), never over the workspace's history, and each
+  open metric's log is read once per build; the hero's history is that
+  same read.
+- **The actions log joins a page, not a floor.** A branch that names a
+  book (trades, orders, liquidity, book comments) cuts itself to the page
+  before it joins `markets`, so a page decorates at most `limit + 1` rows
+  per branch whatever the floor holds.
 - **The workspace brief reads bounded history.** The metric log query is
   windowed to `BRIEF_HISTORY_DAYS`, the first reading day is a separate
   `min(timestamp)`, and the 25 proposals' markets come back in one query.
@@ -1152,13 +1164,17 @@ within weeks. The rule:
   (resolved_at) where resolved`; `proposals (workspace_id, status,
   created_at)`, `(workspace_id, created_at)`, `(workspace_id, decide_by)
   where pending`, `(status, resolved_at)`, `(proposed_by, created_at)`;
-  `liquidity_events (market_id)`; `trades (market_id)`. Additive, `IF NOT
+  `liquidity_events (market_id)`, `(workspace_id, created_at)`; `trades
+  (market_id)`, `(agent_id, market_id)`; `limit_orders (workspace_id,
+  created_at)`, `(workspace_id, updated_at)`. Additive, `IF NOT
   EXISTS`, and declared in `functions/src/db/schema.ts` so drizzle-kit
   keeps them. On the beta store the journal `when` has to be newer than
   the last applied migration or the store skips it.
 
-The record behind the rule, with the measured row counts and each read it
-found, is the telarchy umbrella's `notes/snake-load-audit-2026-09-10.md`.
+The records behind the rule, with the measured row counts and each read
+they found, are the telarchy umbrella's `notes/snake-load-audit-2026-09-10.md`
+and `notes/gcp-cost-2026-09-13.md` (the statements `pg_stat_statements`
+ranked on production).
 A new read of proposals or markets that has no `limit`, no proposal id and
 no baseline predicate is a divergence from this section, whatever the size
 of the workspaces it was tested against.

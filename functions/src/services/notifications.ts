@@ -21,6 +21,7 @@
  */
 
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { unionAll } from 'drizzle-orm/pg-core';
 import { db } from '../db/client';
 import {
   agents,
@@ -802,8 +803,10 @@ export async function listNotifications(
       .orderBy(desc(proposals.createdAt))
       .limit(limit * 2),
     // Markets this participant traded: the scope of "a market I traded
-    // settled" and half the scope of "a proposal I am involved in".
-    db.select({ marketId: trades.marketId }).from(trades).where(eq(trades.agentId, participantId)),
+    // settled" and half the scope of "a proposal I am involved in". Each book
+    // once, from trades (agent_id, market_id): one row per trade was 3,500
+    // rows a poll for a busy bot (docs/infra/deploy.md, "Reads are bounded").
+    db.selectDistinct({ marketId: trades.marketId }).from(trades).where(eq(trades.agentId, participantId)),
   ]);
   const myTradedMarketIds = [...new Set(myTradeRows.map(t => t.marketId))];
 
@@ -836,7 +839,14 @@ export async function listNotifications(
             metricName: markets.metricName,
           })
           .from(markets)
-          .where(inArray(markets.proposalId, myProposalIds));
+          // The floors lead markets (workspace_id, proposal_id); without them
+          // the index is walked end to end for every poll.
+          .where(
+            and(
+              inArray(markets.workspaceId, [...new Set(myProposals.map(p => p.workspaceId))]),
+              inArray(markets.proposalId, myProposalIds),
+            ),
+          );
   const branchOwner = new Map(myBranchMarkets.map(m => [m.id, m.proposalId!]));
 
   const watchedProposalIds = [...new Set([...myProposalIds, ...inProposalThreads])];
@@ -873,21 +883,7 @@ export async function listNotifications(
           .where(inArray(marketMessages.marketId, watchedMarketIds))
           .orderBy(desc(marketMessages.createdAt))
           .limit(limit * 2),
-    myWorkspaces.length === 0
-      ? []
-      : db
-          .select({
-            id: proposals.id,
-            title: proposals.title,
-            description: proposals.description,
-            proposedBy: proposals.proposedBy,
-            createdAt: proposals.createdAt,
-            workspaceId: proposals.workspaceId,
-          })
-          .from(proposals)
-          .where(inArray(proposals.workspaceId, myWorkspaces))
-          .orderBy(desc(proposals.createdAt))
-          .limit(limit * 2),
+    myWorkspaces.length === 0 ? [] : newestProposalsOn(myWorkspaces, limit * 2),
   ]);
 
   // Settled markets I traded, and decided proposals I am involved in
@@ -1341,4 +1337,33 @@ async function workspaceSlugs(ids: string[]): Promise<Map<string, string>> {
     .from(workspaces)
     .where(inArray(workspaces.id, unique));
   return new Map(rows.filter(r => r.slug).map(r => [r.id, r.slug as string]));
+}
+
+/**
+ * The newest `n` proposals across a participant's floors: one statement, a
+ * newest-first window per floor through proposals (workspace_id, created_at),
+ * merged here. `workspace_id IN (...) ORDER BY created_at` cannot walk that
+ * index for several floors at once, so Postgres read and sorted every
+ * proposal of every floor on each bell poll (docs/infra/deploy.md, "Reads are
+ * bounded in the size of a workspace"). The newest `n` of the union of each
+ * floor's newest `n` are the newest `n` overall.
+ */
+async function newestProposalsOn(workspaceIds: string[], n: number) {
+  const floor = (workspaceId: string) =>
+    db
+      .select({
+        id: proposals.id,
+        title: proposals.title,
+        description: proposals.description,
+        proposedBy: proposals.proposedBy,
+        createdAt: proposals.createdAt,
+        workspaceId: proposals.workspaceId,
+      })
+      .from(proposals)
+      .where(eq(proposals.workspaceId, workspaceId))
+      .orderBy(desc(proposals.createdAt))
+      .limit(n);
+  const [first, second, ...rest] = workspaceIds.map(floor);
+  const rows = second ? await unionAll(first, second, ...rest) : await first;
+  return rows.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, n);
 }

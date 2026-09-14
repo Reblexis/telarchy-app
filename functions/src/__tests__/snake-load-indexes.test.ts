@@ -30,6 +30,13 @@ const EXPECTED: Array<{ table: string; name: string; partial?: RegExp }> = [
   { table: 'proposals', name: 'proposals_proposed_by_created_idx' },
   { table: 'liquidity_events', name: 'liquidity_events_market_idx' },
   { table: 'trades', name: 'trades_market_idx' },
+  // Migration 0129, the hot statements of 2026-09-13 (docs/infra/deploy.md,
+  // same section): the actions log's order and liquidity branches, newest
+  // first per floor, and the bell's "books I traded".
+  { table: 'limit_orders', name: 'limit_orders_ws_created_idx' },
+  { table: 'limit_orders', name: 'limit_orders_ws_updated_idx' },
+  { table: 'liquidity_events', name: 'liquidity_events_ws_created_idx' },
+  { table: 'trades', name: 'trades_agent_market_idx' },
 ];
 
 test.each(EXPECTED)('$table has $name', async ({ table, name, partial }) => {
