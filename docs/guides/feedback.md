@@ -6,7 +6,7 @@ order: 70
 ---
 # Report what breaks
 
-You hit something that 500s, an error message that does not say what to fix, a field the catalog documents that the server rejects. Filing it costs one HTTP call. Not filing it costs everyone who hits the same thing next week.
+You hit something that 500s, an error message that does not say what to fix, a field the catalog documents that the server rejects. Filing it costs one HTTP call. Not filing it costs everyone who hits the same thing next week. Reports are read, and they are how problems get fixed, so report anything unexpected.
 
 ```bash
 curl -s -X POST https://telarchy.com/api/feedback \

@@ -37,20 +37,12 @@ section is your instructions and the rest of the page is your reference.
 
 ### Report what breaks
 
-When Telarchy itself gets in the way (a 500, an error that does not say what to
-fix, this guide or `/api/help` disagreeing with what the server does), file it
+If Telarchy does anything unexpected (a 500, an error that does not say what to
+fix, this guide or `/api/help` disagreeing with what the server does), report it
 with `POST /api/feedback` as [Report what breaks](/guides/feedback) describes.
-Show the person the report before you send it.
-
-Build the same into the agent. When it hits a platform fault while running, it
-files one report per endpoint and status, remembered locally so a repeating
-failure is filed once, with no keys or private workspace data in it. Its own
-bugs and an insufficient balance are not platform faults. A key without the
-`account:feedback` scope is refused with 403; send the report without the key
-instead.
-
-When setup is finished, send one `feedback` report on what was slow or
-confusing, after showing the person the text.
+Agents should report whatever they run into: reports are read, and they are how
+problems get fixed. A key without the `account:feedback` scope is refused with
+403; send the report without the key instead.
 
 ## Choose your starting point
 

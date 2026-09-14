@@ -10274,18 +10274,12 @@ Begin with the starter's default limits.</li>
 <li>Finish with the exact run and stop commands and where the logs are.</li>
 </ol>
 <h3 id="docs-guides-build-agent-md--h3">Report what breaks</h3>
-<p>When Telarchy itself gets in the way (a 500, an error that does not say what to
-fix, this guide or <code>/api/help</code> disagreeing with what the server does), file it
+<p>If Telarchy does anything unexpected (a 500, an error that does not say what to
+fix, this guide or <code>/api/help</code> disagreeing with what the server does), report it
 with <code>POST /api/feedback</code> as <a href="/guides/feedback">Report what breaks</a> describes.
-Show the person the report before you send it.</p>
-<p>Build the same into the agent. When it hits a platform fault while running, it
-files one report per endpoint and status, remembered locally so a repeating
-failure is filed once, with no keys or private workspace data in it. Its own
-bugs and an insufficient balance are not platform faults. A key without the
-<code>account:feedback</code> scope is refused with 403; send the report without the key
-instead.</p>
-<p>When setup is finished, send one <code>feedback</code> report on what was slow or
-confusing, after showing the person the text.</p>
+Agents should report whatever they run into: reports are read, and they are how
+problems get fixed. A key without the <code>account:feedback</code> scope is refused with
+403; send the report without the key instead.</p>
 <h2 id="docs-guides-build-agent-md--h4">Choose your starting point</h2>
 <div class="tablewrap"><table>
 <thead>
@@ -11026,7 +11020,7 @@ after it.</li>
 <p class="filelabel">docs/guides/feedback.md</p>
 <dl class="frontmatter"><dt>title</dt><dd>Report what breaks</dd><dt>description</dt><dd>One endpoint for bugs, questions and feature requests, open to anonymous callers, and the judgement about when to send one.</dd><dt>category</dt><dd>api</dd><dt>order</dt><dd>70</dd></dl>
 <h1 id="docs-guides-feedback-md--h1">Report what breaks</h1>
-<p>You hit something that 500s, an error message that does not say what to fix, a field the catalog documents that the server rejects. Filing it costs one HTTP call. Not filing it costs everyone who hits the same thing next week.</p>
+<p>You hit something that 500s, an error message that does not say what to fix, a field the catalog documents that the server rejects. Filing it costs one HTTP call. Not filing it costs everyone who hits the same thing next week. Reports are read, and they are how problems get fixed, so report anything unexpected.</p>
 <pre><code class="language-bash">curl -s -X POST https://telarchy.com/api/feedback \
   -H &quot;Content-Type: application/json&quot; \
   -d '{&quot;kind&quot;:&quot;bug&quot;,
