@@ -15,6 +15,11 @@ export interface TimePreference {
    *  date comes round. Keys naming no entry are dropped on save
    *  (docs/guides/time-preference.md, "What each date opens with"). */
   horizonCredits?: Record<string, HorizonCredits>;
+  /** The words the floor reads for each entry, on its tab and in its
+   *  question ("this attempt"), keyed like horizonCredits; at most 60
+   *  characters, blank is no title (docs/guides/time-preference.md, "A title
+   *  for a date"). */
+  horizonTitles?: Record<string, string>;
 }
 
 export interface HorizonCredits {

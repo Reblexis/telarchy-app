@@ -914,7 +914,13 @@ export function TradePage() {
   // for a day: "there should not be the date here? maybe upon hover but
   // thats it"). Said in the floor's own settle-instant words rather than a
   // raw UTC string, since a reader who reaches for it is reading it.
-  const settleNote = hero ? (
+  const settleNote = hero?.settlesByOwner ? (
+    // A date with no clock names who settles it, never a day or a countdown
+    // (docs/ui-conventions.md, "The stat row").
+    <span className="pubws-settle-in" title="settles when the owner settles it">
+      settled by the owner
+    </span>
+  ) : hero ? (
     <span className="pubws-settle-in" title={hero.resolvesOn ? `settles ${settleInstant(hero.resolvesOn)}` : undefined}>
       {forecastDayOf(hero.resolvesOn) ? `for ${forecastDayOf(hero.resolvesOn)} · ` : ''}
       {settleLeft === 'settling' ? 'settling' : `settles in ${settleLeft ?? '…'}`}
@@ -2394,7 +2400,7 @@ export function TradePage() {
                                 if approved
                                 {selectedJobClosed
                                   ? ' \u00b7 at the decision'
-                                  : hero?.resolvesOn
+                                  : hero?.resolvesOn && forecastDayOf(hero.resolvesOn)
                                     ? ` \u00b7 ${forecastDayOf(hero.resolvesOn)}`
                                     : null}
                               </span>
@@ -2416,7 +2422,7 @@ export function TradePage() {
                                 if declined
                                 {selectedJobClosed
                                   ? ' \u00b7 at the decision'
-                                  : hero?.resolvesOn
+                                  : hero?.resolvesOn && forecastDayOf(hero.resolvesOn)
                                     ? ` \u00b7 ${forecastDayOf(hero.resolvesOn)}`
                                     : null}
                               </span>
@@ -2561,7 +2567,8 @@ export function TradePage() {
                       <NumberChart
                         points={hero.metricHistory}
                         markers={datesOf(horizons, hero.metricId, keptCells).flatMap(d => {
-                          if (!d.resolvesOn) return [];
+                          // A date with no clock has no instant to stand at on a time axis.
+                          if (!d.resolvesOn || d.settlesByOwner) return [];
                           // The open proposal's pair on this date, by (metric, date).
                           const pr = selectedJob?.markets.find(
                             m =>

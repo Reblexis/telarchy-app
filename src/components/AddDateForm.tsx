@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api } from '../lib/api';
-import { type Every, entryFor, resolveEntry } from '../lib/horizon-entries';
+import { type Every, entryFor, OWNER_SETTLED, resolveEntry } from '../lib/horizon-entries';
 import type { HorizonCredits, TimePreference } from '../types';
 
 /**
@@ -23,6 +23,13 @@ import type { HorizonCredits, TimePreference } from '../types';
  * 2026-08-31).
  */
 
+/** How a date settles (docs/owner-on-the-floor.md, "Above how often sits
+ *  Settles"): on its own date, or when the owner settles the metric. */
+export const SETTLES_CHOICES: Array<{ id: 'date' | 'owner'; label: string }> = [
+  { id: 'date', label: 'On a date' },
+  { id: 'owner', label: 'When I settle it' },
+];
+
 /** Six on one row, the "every" carried by the heading so they fit the
  *  card's width (docs/owner-on-the-floor.md, dialog 2). */
 export const EVERY_CHOICES: Array<{ id: Every; label: string }> = [
@@ -35,7 +42,7 @@ export const EVERY_CHOICES: Array<{ id: Every; label: string }> = [
 ];
 
 /** The period a repeat starts with: the current one, or the next. */
-export const WHICH: Record<Exclude<Every, 'once'>, [string, string]> = {
+export const WHICH: Record<Exclude<Every, 'once' | 'settled'>, [string, string]> = {
   // Minute horizons (+Nmin) are set through the API, not this form: the
   // entry names how many minutes ahead, which the two-way picker cannot say.
   minute: ['this minute', 'next minute'],
@@ -47,7 +54,7 @@ export const WHICH: Record<Exclude<Every, 'once'>, [string, string]> = {
 };
 
 /** "the daily book", "each weekly proposal". */
-export const EVERY_ADJECTIVE: Record<Exclude<Every, 'once'>, string> = {
+export const EVERY_ADJECTIVE: Record<Exclude<Every, 'once' | 'settled'>, string> = {
   minute: 'minute',
   hour: 'hourly',
   day: 'daily',
@@ -83,19 +90,29 @@ export function firstBookCredits(standing: number, spendable: number): number {
 }
 
 /** The timePreference to send, whole: the curve as stored, the list of
- *  entries, and the numbers per entry. Every write of the dates goes
- *  through this so none of them can drop a field the others carry. */
+ *  entries, the numbers per entry and the titles per entry. Every write of
+ *  the dates goes through this so none of them can drop a field the others
+ *  carry: a caller with no titles of its own sends the stored ones, and only
+ *  titles of entries still listed, and not blank, are sent. */
 export function wholeTimePreference(
   stored: TimePreference | null | undefined,
   customHorizons: string[],
   horizonCredits: Record<string, HorizonCredits>,
+  horizonTitles?: Record<string, string>,
 ): TimePreference {
+  const listed = new Set(customHorizons);
+  const titles = Object.fromEntries(
+    Object.entries(horizonTitles ?? stored?.horizonTitles ?? {}).flatMap(([entry, title]) =>
+      listed.has(entry) && typeof title === 'string' && title.trim() ? [[entry, title.trim()]] : [],
+    ),
+  );
   return {
     enabled: stored?.enabled ?? false,
     halfLife: stored?.halfLife ?? 1,
     ...(stored?.density != null ? { density: stored.density } : {}),
     customHorizons,
     horizonCredits,
+    ...(Object.keys(titles).length > 0 ? { horizonTitles: titles } : {}),
   };
 }
 
@@ -126,6 +143,8 @@ export function AddDateForm({
   onCancel?: () => void;
   onDone: () => void;
 }) {
+  const [settles, setSettles] = useState<'date' | 'owner'>('date');
+  const [title, setTitle] = useState('');
   const [every, setEvery] = useState<Every>('week');
   const [ahead, setAhead] = useState(0);
   const [day, setDay] = useState('');
@@ -138,9 +157,16 @@ export function AddDateForm({
   const bookNum = parseCredits(book);
   const proposalNum = parseCredits(proposal);
   const live = stored !== undefined;
+  const byOwner = settles === 'owner';
+  // One per metric (docs/guides/time-preference.md): a second would be a duplicate.
+  const hasOwnerSettled = (stored?.customHorizons ?? []).includes(OWNER_SETTLED);
 
   const add = async () => {
-    if (every === 'once' && !/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+    if (byOwner && !title.trim()) {
+      setErr('Write the title: it is the only thing that says when.');
+      return;
+    }
+    if (!byOwner && every === 'once' && !/^\d{4}-\d{2}-\d{2}$/.test(day)) {
       setErr('Pick a date.');
       return;
     }
@@ -156,19 +182,21 @@ export function AddDateForm({
       setErr('Still reading this metric’s dates. One moment.');
       return;
     }
-    const entry = entryFor(every, ahead, day, hour);
+    const entry = byOwner ? OWNER_SETTLED : entryFor(every, ahead, day, hour);
     const existing = stored?.customHorizons ?? [];
     const list = existing.includes(entry) ? existing : [...existing, entry];
     const credits: Record<string, HorizonCredits> = {
       ...(stored?.horizonCredits ?? {}),
       [entry]: { book: bookNum, proposal: proposalNum },
     };
+    const titles: Record<string, string> = { ...(stored?.horizonTitles ?? {}) };
+    if (title.trim()) titles[entry] = title.trim();
     setBusy(true);
     setErr('');
     try {
       await api.patchMetric(workspaceId, metricId, {
         ...(settlementLagMinutes !== undefined ? { settlementLagMinutes } : {}),
-        timePreference: wholeTimePreference(stored, list, credits),
+        timePreference: wholeTimePreference(stored, list, credits, titles),
       });
       onDone();
     } catch (e) {
@@ -177,14 +205,18 @@ export function AddDateForm({
     }
   };
 
-  const startsWith = every === 'once' ? null : WHICH[every][ahead === 0 ? 0 : 1];
-  const otherStart = every === 'once' ? null : WHICH[every][ahead === 0 ? 1 : 0];
+  const repeat = every === 'once' || every === 'settled' ? null : every;
+  const startsWith = repeat ? WHICH[repeat][ahead === 0 ? 0 : 1] : null;
+  const otherStart = repeat ? WHICH[repeat][ahead === 0 ? 1 : 0] : null;
   const go =
-    every === 'once'
+    byOwner || !repeat
       ? `Open the book · ${bookNum === null ? '…' : fmtCr(bookNum)} cr`
-      : `Open the ${EVERY_ADJECTIVE[every]} book · ${bookNum === null ? '…' : fmtCr(bookNum)} cr`;
-  const goSub =
-    every === 'once' ? 'One market, on that date, and nothing after it.' : `A new one opens as each ${every} settles.`;
+      : `Open the ${EVERY_ADJECTIVE[repeat]} book · ${bookNum === null ? '…' : fmtCr(bookNum)} cr`;
+  const goSub = byOwner
+    ? 'It settles when you settle it, and the next one opens after.'
+    : !repeat
+      ? 'One market, on that date, and nothing after it.'
+      : `A new one opens as each ${every} settles.`;
 
   return (
     <>
@@ -198,55 +230,100 @@ export function AddDateForm({
       )}
 
       <div className="jobform-field">
-        <span className="ticket-label">How often</span>
-        <span className="pubws-seg odlg-seg dates-seg" role="group" aria-label="How often">
-          {EVERY_CHOICES.map(c => (
+        <span className="ticket-label">Settles</span>
+        <span className="pubws-seg odlg-seg dates-seg" role="group" aria-label="Settles">
+          {SETTLES_CHOICES.map(c => (
             <button
               key={c.id}
               type="button"
-              className={`pubws-seg-btn${every === c.id ? ' is-active' : ''}`}
-              aria-pressed={every === c.id}
+              className={`pubws-seg-btn${settles === c.id ? ' is-active' : ''}`}
+              aria-pressed={settles === c.id}
               disabled={busy}
-              onClick={() => setEvery(c.id)}
+              onClick={() => {
+                setSettles(c.id);
+                setErr('');
+              }}
             >
               {c.label}
             </button>
           ))}
         </span>
-        {every === 'once' ? (
-          <span className="odlg-dayrow">
-            <input
-              type="date"
-              className="jobform-line odlg-mono odlg-day"
-              value={day}
-              disabled={busy}
-              onChange={e => setDay(e.target.value)}
-              aria-label="Pick a date"
-            />
-            <span className="odlg-or">at</span>
-            <input
-              type="time"
-              step={3600}
-              className="jobform-line odlg-mono odlg-day"
-              value={hour}
-              disabled={busy || !day}
-              // Markets settle on the hour; minutes typed in a browser that
-              // ignores step are snapped rather than silently kept.
-              onChange={e => setHour(e.target.value ? `${e.target.value.slice(0, 2)}:00` : '')}
-              aria-label="Pick an hour, UTC"
-            />
-            <span className="odlg-or">UTC, optional</span>
-          </span>
-        ) : (
-          <span className="odlg-note-left dates-start">
-            Starts with {startsWith},{' '}
-            <span className="odlg-mono">{resolveEntry(entryFor(every, ahead, day, hour))}</span>.{' '}
-            <button type="button" className="dates-link" disabled={busy} onClick={() => setAhead(ahead === 0 ? 1 : 0)}>
-              Start with {otherStart} instead
-            </button>
-          </span>
-        )}
       </div>
+
+      {!byOwner && (
+        <div className="jobform-field">
+          <span className="ticket-label">How often</span>
+          <span className="pubws-seg odlg-seg dates-seg" role="group" aria-label="How often">
+            {EVERY_CHOICES.map(c => (
+              <button
+                key={c.id}
+                type="button"
+                className={`pubws-seg-btn${every === c.id ? ' is-active' : ''}`}
+                aria-pressed={every === c.id}
+                disabled={busy}
+                onClick={() => setEvery(c.id)}
+              >
+                {c.label}
+              </button>
+            ))}
+          </span>
+          {every === 'once' ? (
+            <span className="odlg-dayrow">
+              <input
+                type="date"
+                className="jobform-line odlg-mono odlg-day"
+                value={day}
+                disabled={busy}
+                onChange={e => setDay(e.target.value)}
+                aria-label="Pick a date"
+              />
+              <span className="odlg-or">at</span>
+              <input
+                type="time"
+                step={3600}
+                className="jobform-line odlg-mono odlg-day"
+                value={hour}
+                disabled={busy || !day}
+                // Markets settle on the hour; minutes typed in a browser that
+                // ignores step are snapped rather than silently kept.
+                onChange={e => setHour(e.target.value ? `${e.target.value.slice(0, 2)}:00` : '')}
+                aria-label="Pick an hour, UTC"
+              />
+              <span className="odlg-or">UTC, optional</span>
+            </span>
+          ) : (
+            <span className="odlg-note-left dates-start">
+              Starts with {startsWith},{' '}
+              <span className="odlg-mono">{resolveEntry(entryFor(every, ahead, day, hour))}</span>.{' '}
+              <button
+                type="button"
+                className="dates-link"
+                disabled={busy}
+                onClick={() => setAhead(ahead === 0 ? 1 : 0)}
+              >
+                Start with {otherStart} instead
+              </button>
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* The words the floor reads for this date (docs/owner-on-the-floor.md):
+          needed when the date has no clock, since nothing else says when. */}
+      <label className="jobform-field">
+        <span className="ticket-label">
+          {byOwner ? 'Title · needed, it is the only thing that says when' : 'Title · optional'}
+        </span>
+        <input
+          className="jobform-line"
+          value={title}
+          maxLength={60}
+          disabled={busy}
+          placeholder={byOwner ? 'this attempt' : 'the clock’s own name'}
+          onChange={e => setTitle(e.target.value)}
+          aria-label="Title of the date"
+        />
+      </label>
 
       <div className="dates-add-numbers">
         <label className="jobform-field">
@@ -279,15 +356,19 @@ export function AddDateForm({
         </label>
       </div>
       <p className="odlg-note-left">
-        {every === 'once' ? 'Once' : `Every ${every}`}, from your wallet as the market opens. Leave the proposal at 0
-        and whoever proposes pays for their own price.
+        {byOwner ? 'Each book' : every === 'once' ? 'Once' : `Every ${every}`}, from your wallet as the market opens.
+        Leave the proposal at 0 and whoever proposes pays for their own price.
       </p>
 
       {err && <p className="ticket-err">{err}</p>}
-      <button className="ticket-go" disabled={busy || !live} onClick={() => void add()}>
-        {busy ? 'Opening…' : go}
-        <span className="ticket-go-sub">{goSub}</span>
-      </button>
+      {byOwner && hasOwnerSettled ? (
+        <p className="odlg-note-left">This metric already has a date you settle.</p>
+      ) : (
+        <button className="ticket-go" disabled={busy || !live} onClick={() => void add()}>
+          {busy ? 'Opening…' : go}
+          <span className="ticket-go-sub">{goSub}</span>
+        </button>
+      )}
     </>
   );
 }
