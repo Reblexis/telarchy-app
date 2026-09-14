@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { and, asc, desc, eq, gt, gte, inArray, isNull, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, inArray, isNull, lte, ne, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
 import {
@@ -22,6 +22,7 @@ import {
 import { consensus, pHigher } from '../lib/amm';
 import { type AskTurn, askAboutWorkspace, askEnabled } from '../lib/ask';
 import { type BaselineOrderKey, compareSoonestFirst, primaryOf } from '../lib/baseline-order';
+import { coalesce } from '../lib/coalesce';
 import { type ContractorEntry, type ContractorJobPair, computeContractors, pairDelta } from '../lib/contractors';
 import { periodEndInstant, periodStartInstant, resolutionInstant, settlesOn } from '../lib/date-utils';
 import { historyQuery, type LiveEndpoint, LiveFeedError, readLiveFeed } from '../lib/live-feed';
@@ -1381,6 +1382,65 @@ marketplaceRouter.get(
 );
 
 /**
+ * A public floor and what its Public group may do, resolved ONCE for every
+ * per-book read of it that arrives at the same moment (docs/infra/deploy.md,
+ * "A burst of per-book reads costs a fixed number of statements"). A floor
+ * opening a proposal with options asks market-activity and history for each
+ * option book at once; resolved per request, that was two or three identical
+ * queries per book, queued on the store's connection.
+ */
+const publicFloorOf = coalesce<string, { ws: PublicWs; publicCaps: string[] }>({
+  groupOf: () => 'floor',
+  keyOf: idOrSlug => idOrSlug,
+  loadMany: async keys => {
+    const floors = new Map<string, PublicWs>();
+    for (const idOrSlug of keys) {
+      const ws = await resolvePublicWorkspace(idOrSlug);
+      if (ws) floors.set(idOrSlug, ws);
+    }
+    const readable = [
+      ...new Set([...floors.values()].filter(ws => !restrictedToMembers(ws.visibility)).map(ws => ws.id)),
+    ];
+    const capsOf = new Map<string, string[]>();
+    if (readable.length > 0) {
+      const groups = await db
+        .select({ workspaceId: permissionGroups.workspaceId, capabilities: permissionGroups.capabilities })
+        .from(permissionGroups)
+        .where(and(inArray(permissionGroups.workspaceId, readable), eq(permissionGroups.type, 'public')));
+      for (const g of groups) {
+        if (!capsOf.has(g.workspaceId)) capsOf.set(g.workspaceId, (g.capabilities as string[] | null) ?? []);
+      }
+    }
+    return new Map(
+      [...floors].map(([idOrSlug, ws]) => [idOrSlug, { ws, publicCaps: capsOf.get(ws.id) ?? [] }] as const),
+    );
+  },
+});
+
+/**
+ * Which of the asked-for books exist in a workspace, one query for a burst.
+ */
+const bookIdOf = coalesce<{ workspaceId: string; marketId: string }, string>({
+  groupOf: k => k.workspaceId,
+  keyOf: k => k.marketId,
+  loadMany: async keys => {
+    const rows = await db
+      .select({ id: markets.id })
+      .from(markets)
+      .where(
+        and(
+          eq(markets.workspaceId, keys[0].workspaceId),
+          inArray(
+            markets.id,
+            keys.map(k => k.marketId),
+          ),
+        ),
+      );
+    return new Map(rows.map(r => [r.id, r.id]));
+  },
+});
+
+/**
  * A single market's price history on a public workspace, replayed the same
  * way the hero market's is. Exists so the trading floor can make a
  * proposal's conditional market the main view (select a job, the chart and
@@ -1391,36 +1451,28 @@ marketplaceRouter.get(
 marketplaceRouter.get(
   '/:workspaceId/markets/:marketId/history',
   wrap(async (req, res) => {
-    const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
-    if (!ws) {
+    const floor = await publicFloorOf(req.params.workspaceId as string);
+    if (!floor) {
       res.status(404).json({ error: 'Workspace not found' });
       return;
     }
+    const { ws, publicCaps } = floor;
     if (restrictedToMembers(ws.visibility)) {
       res.status(403).json({ error: 'This workspace is private' });
       return;
     }
-
-    const [publicGroup] = await db
-      .select()
-      .from(permissionGroups)
-      .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
-    const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
     if (!publicCaps.includes('read')) {
       res.status(403).json({ error: 'Not public' });
       return;
     }
 
-    const [market] = await db
-      .select({ id: markets.id })
-      .from(markets)
-      .where(and(eq(markets.id, req.params.marketId as string), eq(markets.workspaceId, ws.id)));
-    if (!market) {
+    const marketId = await bookIdOf({ workspaceId: ws.id, marketId: req.params.marketId as string });
+    if (!marketId) {
       res.status(404).json({ error: 'Market not found' });
       return;
     }
 
-    const points = await marketPriceSeries(market.id, ws.id);
+    const points = await marketPriceSeries(marketId, ws.id);
     res.json({ history: points.slice(-500).map(pt => ({ at: pt.at, consensus: pt.consensus })) });
   }),
 );
@@ -1943,6 +1995,177 @@ marketplaceRouter.get(
   }),
 );
 
+/** Per book, at most this many of each list market-activity serves. */
+const ACTIVITY_LIST_MAX = 50;
+
+/** Rows grouped by book, in the order the query returned them. */
+function byBook<T extends { marketId: string }>(rows: T[]): Map<string, T[]> {
+  const out = new Map<string, T[]>();
+  for (const r of rows) {
+    const list = out.get(r.marketId);
+    if (list) list.push(r);
+    else out.set(r.marketId, [r]);
+  }
+  return out;
+}
+
+/**
+ * Everything market-activity reads for a book, for every book of one
+ * workspace asked for at the same moment: one query per table, each list cut
+ * to ACTIVITY_LIST_MAX PER BOOK by a window, never across the burst
+ * (docs/infra/deploy.md, "A burst of per-book reads costs a fixed number of
+ * statements"). A book not in the workspace is absent.
+ */
+const bookActivityOf = coalesce<
+  { workspaceId: string; marketId: string },
+  {
+    market: typeof markets.$inferSelect;
+    posRows: Array<{ agentId: string; direction: string; shares: number; totalCost: number }>;
+    tradeRows: Array<{
+      id: string;
+      agentId: string;
+      direction: string;
+      shares: number;
+      cost: number;
+      createdAt: Date;
+    }>;
+    poolRows: Array<{
+      id: string;
+      agentId: string | null;
+      amount: number;
+      poolContribution: number | null;
+      totalLiquidity: number;
+      type: string;
+      createdAt: Date;
+    }>;
+    names: Map<string, string>;
+    bots: Set<string>;
+  }
+>({
+  groupOf: k => k.workspaceId,
+  keyOf: k => k.marketId,
+  loadMany: async keys => {
+    const workspaceId = keys[0].workspaceId;
+    const books = await db
+      .select()
+      .from(markets)
+      .where(
+        and(
+          eq(markets.workspaceId, workspaceId),
+          inArray(
+            markets.id,
+            keys.map(k => k.marketId),
+          ),
+        ),
+      );
+    if (books.length === 0) return new Map();
+    const ids = books.map(b => b.id);
+
+    const rankedPositions = db
+      .select({
+        marketId: positions.marketId,
+        agentId: positions.agentId,
+        direction: positions.direction,
+        shares: positions.shares,
+        totalCost: positions.totalCost,
+        rank: sql<number>`row_number() over (partition by ${positions.marketId} order by ${positions.shares} desc)`.as(
+          'rank',
+        ),
+      })
+      .from(positions)
+      .where(and(eq(positions.workspaceId, workspaceId), inArray(positions.marketId, ids), gt(positions.shares, 0)))
+      .as('ranked_positions');
+    const posRows = await db
+      .select()
+      .from(rankedPositions)
+      .where(lte(rankedPositions.rank, ACTIVITY_LIST_MAX))
+      .orderBy(rankedPositions.marketId, rankedPositions.rank);
+
+    // Trades only. A redemption's ledger rows are not trades against this
+    // market: nothing was bought from anyone and the price did not move, so a
+    // tape that listed them would show sells the participant never placed
+    // (docs/ui-conventions.md, "A redemption is not a trade"). Rows of one
+    // instant stay newest-written first (`ctid`), the order the per-book
+    // backward index scan this replaced served them in.
+    const rankedTrades = db
+      .select({
+        marketId: trades.marketId,
+        id: trades.id,
+        agentId: trades.agentId,
+        direction: trades.direction,
+        shares: trades.shares,
+        cost: trades.cost,
+        createdAt: trades.createdAt,
+        rank: sql<number>`row_number() over (partition by ${trades.marketId} order by ${trades.createdAt} desc, "trades"."ctid" desc)`.as(
+          'rank',
+        ),
+      })
+      .from(trades)
+      .where(and(eq(trades.workspaceId, workspaceId), inArray(trades.marketId, ids), ne(trades.kind, 'redeem')))
+      .as('ranked_trades');
+    const tradeRows = await db
+      .select()
+      .from(rankedTrades)
+      .where(lte(rankedTrades.rank, ACTIVITY_LIST_MAX))
+      .orderBy(rankedTrades.marketId, rankedTrades.rank);
+
+    // The other half of every price in that list (owner ask 2026-08-31): a
+    // price that barely moved because the book got four times deeper is not
+    // the same event as a price nobody traded, and with only trades on screen
+    // a reader cannot tell those apart. The rows already existed; nothing here
+    // is new information, it is information that was not being shown.
+    const rankedPool = db
+      .select({
+        marketId: liquidityEvents.marketId,
+        id: liquidityEvents.id,
+        agentId: liquidityEvents.agentId,
+        amount: liquidityEvents.amount,
+        poolContribution: liquidityEvents.poolContribution,
+        totalLiquidity: liquidityEvents.totalLiquidity,
+        type: liquidityEvents.type,
+        createdAt: liquidityEvents.createdAt,
+        rank: sql<number>`row_number() over (partition by ${liquidityEvents.marketId} order by ${liquidityEvents.createdAt} desc, "liquidity_events"."ctid" desc)`.as(
+          'rank',
+        ),
+      })
+      .from(liquidityEvents)
+      .where(and(eq(liquidityEvents.workspaceId, workspaceId), inArray(liquidityEvents.marketId, ids)))
+      .as('ranked_pool');
+    const poolRows = await db
+      .select()
+      .from(rankedPool)
+      .where(lte(rankedPool.rank, ACTIVITY_LIST_MAX))
+      .orderBy(rankedPool.marketId, rankedPool.rank);
+
+    const everyone = [
+      ...new Set([
+        ...posRows.map(r => r.agentId),
+        ...tradeRows.map(r => r.agentId),
+        ...(poolRows.map(r => r.agentId).filter(Boolean) as string[]),
+      ]),
+    ];
+    const names = await getParticipantDisplayNames(everyone);
+    const bots = await botIds(everyone);
+
+    const pos = byBook(posRows);
+    const tr = byBook(tradeRows);
+    const pool = byBook(poolRows);
+    return new Map(
+      books.map(market => [
+        market.id,
+        {
+          market,
+          posRows: pos.get(market.id) ?? [],
+          tradeRows: tr.get(market.id) ?? [],
+          poolRows: pool.get(market.id) ?? [],
+          names,
+          bots,
+        },
+      ]),
+    );
+  },
+});
+
 /**
  * Who holds what, and the trade history, for a market on a public floor
  * (owner ask 2026-08-11: a way to view positions and trades for the
@@ -1954,21 +2177,16 @@ marketplaceRouter.get(
 marketplaceRouter.get(
   '/:workspaceId/market-activity',
   wrap(async (req, res) => {
-    const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
-    if (!ws) {
+    const floor = await publicFloorOf(req.params.workspaceId as string);
+    if (!floor) {
       res.status(404).json({ error: 'Workspace not found' });
       return;
     }
+    const { ws, publicCaps } = floor;
     if (restrictedToMembers(ws.visibility)) {
       res.status(403).json({ error: 'This workspace is private' });
       return;
     }
-
-    const [publicGroup] = await db
-      .select()
-      .from(permissionGroups)
-      .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
-    const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
     if (!publicCaps.includes('read')) {
       res.status(403).json({ error: 'Not public' });
       return;
@@ -1980,14 +2198,12 @@ marketplaceRouter.get(
       return;
     }
 
-    const [market] = await db
-      .select()
-      .from(markets)
-      .where(and(eq(markets.id, marketId), eq(markets.workspaceId, ws.id)));
-    if (!market) {
+    const book = await bookActivityOf({ workspaceId: ws.id, marketId });
+    if (!book) {
       res.status(404).json({ error: 'Market not found' });
       return;
     }
+    const { market, posRows, tradeRows, poolRows, names, bots } = book;
 
     const c = consensus(
       (market.shares as [number, number]) || [0, 0],
@@ -1998,66 +2214,7 @@ marketplaceRouter.get(
     const p =
       c === undefined ? null : Math.max(0, Math.min(1, (c - market.rangeMin) / (market.rangeMax - market.rangeMin)));
 
-    const posRows = await db
-      .select({
-        agentId: positions.agentId,
-        direction: positions.direction,
-        shares: positions.shares,
-        totalCost: positions.totalCost,
-      })
-      .from(positions)
-      .where(and(eq(positions.workspaceId, ws.id), eq(positions.marketId, marketId), gt(positions.shares, 0)))
-      .orderBy(desc(positions.shares))
-      .limit(50);
-
-    // Trades only. A redemption's ledger rows are not trades against this
-    // market: nothing was bought from anyone and the price did not move, so a
-    // tape that listed them would show sells the participant never placed
-    // (docs/ui-conventions.md, "A redemption is not a trade").
-    const tradeRows = await db
-      .select({
-        id: trades.id,
-        agentId: trades.agentId,
-        direction: trades.direction,
-        shares: trades.shares,
-        cost: trades.cost,
-        createdAt: trades.createdAt,
-      })
-      .from(trades)
-      .where(and(eq(trades.workspaceId, ws.id), eq(trades.marketId, marketId), ne(trades.kind, 'redeem')))
-      .orderBy(desc(trades.createdAt))
-      .limit(50);
-
-    // The other half of every price in that list (owner ask 2026-08-31): a
-    // price that barely moved because the book got four times deeper is not
-    // the same event as a price nobody traded, and with only trades on screen
-    // a reader cannot tell those apart. The rows already existed; nothing here
-    // is new information, it is information that was not being shown.
-    const poolRows = await db
-      .select({
-        id: liquidityEvents.id,
-        agentId: liquidityEvents.agentId,
-        amount: liquidityEvents.amount,
-        poolContribution: liquidityEvents.poolContribution,
-        totalLiquidity: liquidityEvents.totalLiquidity,
-        type: liquidityEvents.type,
-        createdAt: liquidityEvents.createdAt,
-      })
-      .from(liquidityEvents)
-      .where(and(eq(liquidityEvents.workspaceId, ws.id), eq(liquidityEvents.marketId, marketId)))
-      .orderBy(desc(liquidityEvents.createdAt))
-      .limit(50);
-
-    const ids = [
-      ...new Set([
-        ...posRows.map(r => r.agentId),
-        ...tradeRows.map(r => r.agentId),
-        ...(poolRows.map(r => r.agentId).filter(Boolean) as string[]),
-      ]),
-    ];
-    const names = await getParticipantDisplayNames(ids);
     const handle = (id: string) => names.get(id) ?? id;
-    const bots = await botIds(ids);
 
     res.json({
       consensus: c ?? null,

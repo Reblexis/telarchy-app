@@ -1,0 +1,5143 @@
+{
+  "activity": {
+    "opt-000": {
+      "consensus": 51.17,
+      "positions": [
+        {
+          "handle": "hana",
+          "id": "hana",
+          "bot": false,
+          "direction": "higher",
+          "shares": 5,
+          "cost": 3,
+          "worth": 2.56
+        },
+        {
+          "handle": "robo",
+          "id": "robo",
+          "bot": true,
+          "direction": "lower",
+          "shares": 3,
+          "cost": 2,
+          "worth": 1.46
+        }
+      ],
+      "trades": [
+        {
+          "id": "tr-opt-000-robo",
+          "handle": "robo",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 2,
+          "cost": 1.25,
+          "createdAt": "2026-09-13T15:00:00.000Z"
+        },
+        {
+          "id": "tr-opt-000-hana",
+          "handle": "hana",
+          "bot": false,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 5,
+          "cost": 3,
+          "createdAt": "2026-09-13T14:00:00.000Z"
+        }
+      ],
+      "pool": [
+        {
+          "id": "liq-opt-000-robo",
+          "handle": "robo",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 50,
+          "pool": 103.97,
+          "createdAt": "2026-09-13T13:00:00.000Z"
+        }
+      ]
+    },
+    "opt-001": {
+      "consensus": 50,
+      "positions": [],
+      "trades": [],
+      "pool": []
+    },
+    "opt-002": {
+      "consensus": 52.25,
+      "positions": [
+        {
+          "handle": "hana",
+          "id": "hana",
+          "bot": false,
+          "direction": "higher",
+          "shares": 7,
+          "cost": 3.5,
+          "worth": 3.66
+        },
+        {
+          "handle": "robo",
+          "id": "robo",
+          "bot": true,
+          "direction": "lower",
+          "shares": 3,
+          "cost": 2,
+          "worth": 1.43
+        }
+      ],
+      "trades": [
+        {
+          "id": "tr-opt-002-robo",
+          "handle": "robo",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 2,
+          "cost": 1.25,
+          "createdAt": "2026-09-13T15:00:02.000Z"
+        },
+        {
+          "id": "tr-opt-002-hana",
+          "handle": "hana",
+          "bot": false,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 7,
+          "cost": 3.5,
+          "createdAt": "2026-09-13T14:00:02.000Z"
+        }
+      ],
+      "pool": []
+    },
+    "opt-003": {
+      "consensus": 50,
+      "positions": [],
+      "trades": [],
+      "pool": [
+        {
+          "id": "liq-opt-003-robo",
+          "handle": "robo",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 53,
+          "pool": 103.97,
+          "createdAt": "2026-09-13T13:00:03.000Z"
+        }
+      ]
+    },
+    "opt-004": {
+      "consensus": 52.75,
+      "positions": [
+        {
+          "handle": "hana",
+          "id": "hana",
+          "bot": false,
+          "direction": "higher",
+          "shares": 9,
+          "cost": 4,
+          "worth": 4.75
+        },
+        {
+          "handle": "robo",
+          "id": "robo",
+          "bot": true,
+          "direction": "lower",
+          "shares": 3,
+          "cost": 2,
+          "worth": 1.42
+        }
+      ],
+      "trades": [
+        {
+          "id": "tr-opt-004-robo",
+          "handle": "robo",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 2,
+          "cost": 1.25,
+          "createdAt": "2026-09-13T15:00:04.000Z"
+        },
+        {
+          "id": "tr-opt-004-hana",
+          "handle": "hana",
+          "bot": false,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 9,
+          "cost": 4,
+          "createdAt": "2026-09-13T14:00:04.000Z"
+        }
+      ],
+      "pool": []
+    },
+    "opt-005": {
+      "consensus": 50,
+      "positions": [],
+      "trades": [],
+      "pool": []
+    },
+    "opt-006": {
+      "consensus": 52.17,
+      "positions": [
+        {
+          "handle": "hana",
+          "id": "hana",
+          "bot": false,
+          "direction": "higher",
+          "shares": 11,
+          "cost": 4.5,
+          "worth": 5.74
+        },
+        {
+          "handle": "robo",
+          "id": "robo",
+          "bot": true,
+          "direction": "lower",
+          "shares": 3,
+          "cost": 2,
+          "worth": 1.43
+        }
+      ],
+      "trades": [
+        {
+          "id": "tr-opt-006-robo",
+          "handle": "robo",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 2,
+          "cost": 1.25,
+          "createdAt": "2026-09-13T15:00:06.000Z"
+        },
+        {
+          "id": "tr-opt-006-hana",
+          "handle": "hana",
+          "bot": false,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 11,
+          "cost": 4.5,
+          "createdAt": "2026-09-13T14:00:06.000Z"
+        }
+      ],
+      "pool": [
+        {
+          "id": "liq-opt-006-robo",
+          "handle": "robo",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 56,
+          "pool": 103.97,
+          "createdAt": "2026-09-13T13:00:06.000Z"
+        }
+      ]
+    },
+    "opt-007": {
+      "consensus": 50,
+      "positions": [],
+      "trades": [],
+      "pool": []
+    },
+    "opt-008": {
+      "consensus": 53.74,
+      "positions": [
+        {
+          "handle": "hana",
+          "id": "hana",
+          "bot": false,
+          "direction": "higher",
+          "shares": 13,
+          "cost": 5,
+          "worth": 6.99
+        },
+        {
+          "handle": "robo",
+          "id": "robo",
+          "bot": true,
+          "direction": "lower",
+          "shares": 3,
+          "cost": 2,
+          "worth": 1.39
+        }
+      ],
+      "trades": [
+        {
+          "id": "tr-opt-008-robo",
+          "handle": "robo",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 2,
+          "cost": 1.25,
+          "createdAt": "2026-09-13T15:00:08.000Z"
+        },
+        {
+          "id": "tr-opt-008-hana",
+          "handle": "hana",
+          "bot": false,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 13,
+          "cost": 5,
+          "createdAt": "2026-09-13T14:00:08.000Z"
+        }
+      ],
+      "pool": []
+    },
+    "opt-009": {
+      "consensus": 50,
+      "positions": [],
+      "trades": [],
+      "pool": [
+        {
+          "id": "liq-opt-009-robo",
+          "handle": "robo",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 59,
+          "pool": 103.97,
+          "createdAt": "2026-09-13T13:00:09.000Z"
+        }
+      ]
+    },
+    "opt-010": {
+      "consensus": 54.24,
+      "positions": [
+        {
+          "handle": "hana",
+          "id": "hana",
+          "bot": false,
+          "direction": "higher",
+          "shares": 15,
+          "cost": 5.5,
+          "worth": 8.14
+        },
+        {
+          "handle": "robo",
+          "id": "robo",
+          "bot": true,
+          "direction": "lower",
+          "shares": 3,
+          "cost": 2,
+          "worth": 1.37
+        }
+      ],
+      "trades": [
+        {
+          "id": "tr-opt-010-robo",
+          "handle": "robo",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 2,
+          "cost": 1.25,
+          "createdAt": "2026-09-13T15:00:10.000Z"
+        },
+        {
+          "id": "tr-opt-010-hana",
+          "handle": "hana",
+          "bot": false,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 15,
+          "cost": 5.5,
+          "createdAt": "2026-09-13T14:00:10.000Z"
+        }
+      ],
+      "pool": []
+    },
+    "opt-011": {
+      "consensus": 50,
+      "positions": [],
+      "trades": [],
+      "pool": []
+    },
+    "opt-012": {
+      "consensus": 53.16,
+      "positions": [
+        {
+          "handle": "hana",
+          "id": "hana",
+          "bot": false,
+          "direction": "higher",
+          "shares": 17,
+          "cost": 6,
+          "worth": 9.04
+        },
+        {
+          "handle": "robo",
+          "id": "robo",
+          "bot": true,
+          "direction": "lower",
+          "shares": 3,
+          "cost": 2,
+          "worth": 1.41
+        }
+      ],
+      "trades": [
+        {
+          "id": "tr-opt-012-robo",
+          "handle": "robo",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 2,
+          "cost": 1.25,
+          "createdAt": "2026-09-13T15:00:12.000Z"
+        },
+        {
+          "id": "tr-opt-012-hana",
+          "handle": "hana",
+          "bot": false,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 17,
+          "cost": 6,
+          "createdAt": "2026-09-13T14:00:12.000Z"
+        }
+      ],
+      "pool": [
+        {
+          "id": "liq-opt-012-robo",
+          "handle": "robo",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 62,
+          "pool": 103.97,
+          "createdAt": "2026-09-13T13:00:12.000Z"
+        }
+      ]
+    },
+    "opt-013": {
+      "consensus": 50,
+      "positions": [],
+      "trades": [],
+      "pool": []
+    },
+    "opt-014": {
+      "consensus": 55.23,
+      "positions": [
+        {
+          "handle": "hana",
+          "id": "hana",
+          "bot": false,
+          "direction": "higher",
+          "shares": 19,
+          "cost": 6.5,
+          "worth": 10.49
+        },
+        {
+          "handle": "robo",
+          "id": "robo",
+          "bot": true,
+          "direction": "lower",
+          "shares": 3,
+          "cost": 2,
+          "worth": 1.34
+        }
+      ],
+      "trades": [
+        {
+          "id": "tr-opt-014-robo",
+          "handle": "robo",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 2,
+          "cost": 1.25,
+          "createdAt": "2026-09-13T15:00:14.000Z"
+        },
+        {
+          "id": "tr-opt-014-hana",
+          "handle": "hana",
+          "bot": false,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 19,
+          "cost": 6.5,
+          "createdAt": "2026-09-13T14:00:14.000Z"
+        }
+      ],
+      "pool": []
+    },
+    "opt-015": {
+      "consensus": 50,
+      "positions": [],
+      "trades": [],
+      "pool": [
+        {
+          "id": "liq-opt-015-robo",
+          "handle": "robo",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 65,
+          "pool": 103.97,
+          "createdAt": "2026-09-13T13:00:15.000Z"
+        }
+      ]
+    },
+    "opt-016": {
+      "consensus": 55.72,
+      "positions": [
+        {
+          "handle": "hana",
+          "id": "hana",
+          "bot": false,
+          "direction": "higher",
+          "shares": 21,
+          "cost": 7,
+          "worth": 11.7
+        },
+        {
+          "handle": "robo",
+          "id": "robo",
+          "bot": true,
+          "direction": "lower",
+          "shares": 3,
+          "cost": 2,
+          "worth": 1.33
+        }
+      ],
+      "trades": [
+        {
+          "id": "tr-opt-016-robo",
+          "handle": "robo",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 2,
+          "cost": 1.25,
+          "createdAt": "2026-09-13T15:00:16.000Z"
+        },
+        {
+          "id": "tr-opt-016-hana",
+          "handle": "hana",
+          "bot": false,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 21,
+          "cost": 7,
+          "createdAt": "2026-09-13T14:00:16.000Z"
+        }
+      ],
+      "pool": []
+    },
+    "opt-017": {
+      "consensus": 50,
+      "positions": [],
+      "trades": [],
+      "pool": []
+    },
+    "opt-018": {
+      "consensus": 54.16,
+      "positions": [
+        {
+          "handle": "hana",
+          "id": "hana",
+          "bot": false,
+          "direction": "higher",
+          "shares": 23,
+          "cost": 7.5,
+          "worth": 12.46
+        },
+        {
+          "handle": "robo",
+          "id": "robo",
+          "bot": true,
+          "direction": "lower",
+          "shares": 3,
+          "cost": 2,
+          "worth": 1.38
+        }
+      ],
+      "trades": [
+        {
+          "id": "tr-opt-018-robo",
+          "handle": "robo",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 2,
+          "cost": 1.25,
+          "createdAt": "2026-09-13T15:00:18.000Z"
+        },
+        {
+          "id": "tr-opt-018-hana",
+          "handle": "hana",
+          "bot": false,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 23,
+          "cost": 7.5,
+          "createdAt": "2026-09-13T14:00:18.000Z"
+        }
+      ],
+      "pool": [
+        {
+          "id": "liq-opt-018-robo",
+          "handle": "robo",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 68,
+          "pool": 103.97,
+          "createdAt": "2026-09-13T13:00:18.000Z"
+        }
+      ]
+    },
+    "opt-019": {
+      "consensus": 50,
+      "positions": [],
+      "trades": [],
+      "pool": []
+    },
+    "opt-020": {
+      "consensus": 56.71,
+      "positions": [
+        {
+          "handle": "hana",
+          "id": "hana",
+          "bot": false,
+          "direction": "higher",
+          "shares": 25,
+          "cost": 8,
+          "worth": 14.18
+        },
+        {
+          "handle": "robo",
+          "id": "robo",
+          "bot": true,
+          "direction": "lower",
+          "shares": 3,
+          "cost": 2,
+          "worth": 1.3
+        }
+      ],
+      "trades": [
+        {
+          "id": "tr-opt-020-robo",
+          "handle": "robo",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 2,
+          "cost": 1.25,
+          "createdAt": "2026-09-13T15:00:20.000Z"
+        },
+        {
+          "id": "tr-opt-020-hana",
+          "handle": "hana",
+          "bot": false,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 25,
+          "cost": 8,
+          "createdAt": "2026-09-13T14:00:20.000Z"
+        }
+      ],
+      "pool": []
+    },
+    "opt-021": {
+      "consensus": 50,
+      "positions": [],
+      "trades": [],
+      "pool": [
+        {
+          "id": "liq-opt-021-robo",
+          "handle": "robo",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 71,
+          "pool": 103.97,
+          "createdAt": "2026-09-13T13:00:21.000Z"
+        }
+      ]
+    },
+    "opt-022": {
+      "consensus": 57.2,
+      "positions": [
+        {
+          "handle": "hana",
+          "id": "hana",
+          "bot": false,
+          "direction": "higher",
+          "shares": 27,
+          "cost": 8.5,
+          "worth": 15.44
+        },
+        {
+          "handle": "robo",
+          "id": "robo",
+          "bot": true,
+          "direction": "lower",
+          "shares": 3,
+          "cost": 2,
+          "worth": 1.28
+        }
+      ],
+      "trades": [
+        {
+          "id": "tr-opt-022-robo",
+          "handle": "robo",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 2,
+          "cost": 1.25,
+          "createdAt": "2026-09-13T15:00:22.000Z"
+        },
+        {
+          "id": "tr-opt-022-hana",
+          "handle": "hana",
+          "bot": false,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 27,
+          "cost": 8.5,
+          "createdAt": "2026-09-13T14:00:22.000Z"
+        }
+      ],
+      "pool": []
+    },
+    "opt-023": {
+      "consensus": 50,
+      "positions": [],
+      "trades": [],
+      "pool": []
+    },
+    "opt-024": {
+      "consensus": 55.15,
+      "positions": [
+        {
+          "handle": "hana",
+          "id": "hana",
+          "bot": false,
+          "direction": "higher",
+          "shares": 29,
+          "cost": 9,
+          "worth": 15.99
+        },
+        {
+          "handle": "robo",
+          "id": "robo",
+          "bot": true,
+          "direction": "lower",
+          "shares": 3,
+          "cost": 2,
+          "worth": 1.35
+        }
+      ],
+      "trades": [
+        {
+          "id": "tr-opt-024-robo",
+          "handle": "robo",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 2,
+          "cost": 1.25,
+          "createdAt": "2026-09-13T15:00:24.000Z"
+        },
+        {
+          "id": "tr-opt-024-hana",
+          "handle": "hana",
+          "bot": false,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 29,
+          "cost": 9,
+          "createdAt": "2026-09-13T14:00:24.000Z"
+        }
+      ],
+      "pool": [
+        {
+          "id": "liq-opt-024-robo",
+          "handle": "robo",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 74,
+          "pool": 103.97,
+          "createdAt": "2026-09-13T13:00:24.000Z"
+        }
+      ]
+    },
+    "opt-025": {
+      "consensus": 50,
+      "positions": [],
+      "trades": [],
+      "pool": []
+    },
+    "opt-026": {
+      "consensus": 58.18,
+      "positions": [
+        {
+          "handle": "hana",
+          "id": "hana",
+          "bot": false,
+          "direction": "higher",
+          "shares": 31,
+          "cost": 9.5,
+          "worth": 18.04
+        },
+        {
+          "handle": "robo",
+          "id": "robo",
+          "bot": true,
+          "direction": "lower",
+          "shares": 3,
+          "cost": 2,
+          "worth": 1.25
+        }
+      ],
+      "trades": [
+        {
+          "id": "tr-opt-026-robo",
+          "handle": "robo",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 2,
+          "cost": 1.25,
+          "createdAt": "2026-09-13T15:00:26.000Z"
+        },
+        {
+          "id": "tr-opt-026-hana",
+          "handle": "hana",
+          "bot": false,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 31,
+          "cost": 9.5,
+          "createdAt": "2026-09-13T14:00:26.000Z"
+        }
+      ],
+      "pool": []
+    },
+    "opt-027": {
+      "consensus": 50,
+      "positions": [],
+      "trades": [],
+      "pool": [
+        {
+          "id": "liq-opt-027-robo",
+          "handle": "robo",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 77,
+          "pool": 103.97,
+          "createdAt": "2026-09-13T13:00:27.000Z"
+        }
+      ]
+    },
+    "opt-028": {
+      "consensus": 58.66,
+      "positions": [
+        {
+          "handle": "hana",
+          "id": "hana",
+          "bot": false,
+          "direction": "higher",
+          "shares": 33,
+          "cost": 10,
+          "worth": 19.36
+        },
+        {
+          "handle": "robo",
+          "id": "robo",
+          "bot": true,
+          "direction": "lower",
+          "shares": 3,
+          "cost": 2,
+          "worth": 1.24
+        }
+      ],
+      "trades": [
+        {
+          "id": "tr-opt-028-robo",
+          "handle": "robo",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 2,
+          "cost": 1.25,
+          "createdAt": "2026-09-13T15:00:28.000Z"
+        },
+        {
+          "id": "tr-opt-028-hana",
+          "handle": "hana",
+          "bot": false,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 33,
+          "cost": 10,
+          "createdAt": "2026-09-13T14:00:28.000Z"
+        }
+      ],
+      "pool": []
+    },
+    "opt-029": {
+      "consensus": 50,
+      "positions": [],
+      "trades": [],
+      "pool": []
+    },
+    "opt-030": {
+      "consensus": 56.14,
+      "positions": [
+        {
+          "handle": "hana",
+          "id": "hana",
+          "bot": false,
+          "direction": "higher",
+          "shares": 35,
+          "cost": 10.5,
+          "worth": 19.65
+        },
+        {
+          "handle": "robo",
+          "id": "robo",
+          "bot": true,
+          "direction": "lower",
+          "shares": 3,
+          "cost": 2,
+          "worth": 1.32
+        }
+      ],
+      "trades": [
+        {
+          "id": "tr-opt-030-robo",
+          "handle": "robo",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 2,
+          "cost": 1.25,
+          "createdAt": "2026-09-13T15:00:30.000Z"
+        },
+        {
+          "id": "tr-opt-030-hana",
+          "handle": "hana",
+          "bot": false,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 35,
+          "cost": 10.5,
+          "createdAt": "2026-09-13T14:00:30.000Z"
+        }
+      ],
+      "pool": [
+        {
+          "id": "liq-opt-030-robo",
+          "handle": "robo",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 80,
+          "pool": 103.97,
+          "createdAt": "2026-09-13T13:00:30.000Z"
+        }
+      ]
+    },
+    "opt-031": {
+      "consensus": 50,
+      "positions": [],
+      "trades": [],
+      "pool": []
+    },
+    "opt-032": {
+      "consensus": 59.63,
+      "positions": [
+        {
+          "handle": "hana",
+          "id": "hana",
+          "bot": false,
+          "direction": "higher",
+          "shares": 37,
+          "cost": 11,
+          "worth": 22.06
+        },
+        {
+          "handle": "robo",
+          "id": "robo",
+          "bot": true,
+          "direction": "lower",
+          "shares": 3,
+          "cost": 2,
+          "worth": 1.21
+        }
+      ],
+      "trades": [
+        {
+          "id": "tr-opt-032-robo",
+          "handle": "robo",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 2,
+          "cost": 1.25,
+          "createdAt": "2026-09-13T15:00:32.000Z"
+        },
+        {
+          "id": "tr-opt-032-hana",
+          "handle": "hana",
+          "bot": false,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 37,
+          "cost": 11,
+          "createdAt": "2026-09-13T14:00:32.000Z"
+        }
+      ],
+      "pool": []
+    },
+    "opt-033": {
+      "consensus": 50,
+      "positions": [],
+      "trades": [],
+      "pool": [
+        {
+          "id": "liq-opt-033-robo",
+          "handle": "robo",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 83,
+          "pool": 103.97,
+          "createdAt": "2026-09-13T13:00:33.000Z"
+        }
+      ]
+    },
+    "opt-034": {
+      "consensus": 60.11,
+      "positions": [
+        {
+          "handle": "hana",
+          "id": "hana",
+          "bot": false,
+          "direction": "higher",
+          "shares": 39,
+          "cost": 11.5,
+          "worth": 23.44
+        },
+        {
+          "handle": "robo",
+          "id": "robo",
+          "bot": true,
+          "direction": "lower",
+          "shares": 3,
+          "cost": 2,
+          "worth": 1.2
+        }
+      ],
+      "trades": [
+        {
+          "id": "tr-opt-034-robo",
+          "handle": "robo",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 2,
+          "cost": 1.25,
+          "createdAt": "2026-09-13T15:00:34.000Z"
+        },
+        {
+          "id": "tr-opt-034-hana",
+          "handle": "hana",
+          "bot": false,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 39,
+          "cost": 11.5,
+          "createdAt": "2026-09-13T14:00:34.000Z"
+        }
+      ],
+      "pool": []
+    },
+    "opt-035": {
+      "consensus": 50,
+      "positions": [],
+      "trades": [],
+      "pool": []
+    },
+    "opt-036": {
+      "consensus": 57.12,
+      "positions": [
+        {
+          "handle": "hana",
+          "id": "hana",
+          "bot": false,
+          "direction": "higher",
+          "shares": 41,
+          "cost": 12,
+          "worth": 23.42
+        },
+        {
+          "handle": "robo",
+          "id": "robo",
+          "bot": true,
+          "direction": "lower",
+          "shares": 3,
+          "cost": 2,
+          "worth": 1.29
+        }
+      ],
+      "trades": [
+        {
+          "id": "tr-opt-036-robo",
+          "handle": "robo",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 2,
+          "cost": 1.25,
+          "createdAt": "2026-09-13T15:00:36.000Z"
+        },
+        {
+          "id": "tr-opt-036-hana",
+          "handle": "hana",
+          "bot": false,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 41,
+          "cost": 12,
+          "createdAt": "2026-09-13T14:00:36.000Z"
+        }
+      ],
+      "pool": [
+        {
+          "id": "liq-opt-036-robo",
+          "handle": "robo",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 86,
+          "pool": 103.97,
+          "createdAt": "2026-09-13T13:00:36.000Z"
+        }
+      ]
+    },
+    "opt-037": {
+      "consensus": 50,
+      "positions": [],
+      "trades": [],
+      "pool": []
+    },
+    "opt-038": {
+      "consensus": 61.06,
+      "positions": [
+        {
+          "handle": "hana",
+          "id": "hana",
+          "bot": false,
+          "direction": "higher",
+          "shares": 43,
+          "cost": 12.5,
+          "worth": 26.26
+        },
+        {
+          "handle": "robo",
+          "id": "robo",
+          "bot": true,
+          "direction": "lower",
+          "shares": 3,
+          "cost": 2,
+          "worth": 1.17
+        }
+      ],
+      "trades": [
+        {
+          "id": "tr-opt-038-robo",
+          "handle": "robo",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 2,
+          "cost": 1.25,
+          "createdAt": "2026-09-13T15:00:38.000Z"
+        },
+        {
+          "id": "tr-opt-038-hana",
+          "handle": "hana",
+          "bot": false,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 43,
+          "cost": 12.5,
+          "createdAt": "2026-09-13T14:00:38.000Z"
+        }
+      ],
+      "pool": []
+    },
+    "opt-039": {
+      "consensus": 50,
+      "positions": [],
+      "trades": [],
+      "pool": [
+        {
+          "id": "liq-opt-039-robo",
+          "handle": "robo",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 89,
+          "pool": 103.97,
+          "createdAt": "2026-09-13T13:00:39.000Z"
+        }
+      ]
+    },
+    "opt-big": {
+      "consensus": 65.34,
+      "positions": [
+        {
+          "handle": "holder-59",
+          "id": "holder-59",
+          "bot": true,
+          "direction": "lower",
+          "shares": 89.5,
+          "cost": 60,
+          "worth": 31.02
+        },
+        {
+          "handle": "holder58",
+          "id": "holder-58",
+          "bot": true,
+          "direction": "higher",
+          "shares": 88,
+          "cost": 59,
+          "worth": 57.5
+        },
+        {
+          "handle": "holder-57",
+          "id": "holder-57",
+          "bot": true,
+          "direction": "lower",
+          "shares": 86.5,
+          "cost": 58,
+          "worth": 29.98
+        },
+        {
+          "handle": "holder56",
+          "id": "holder-56",
+          "bot": true,
+          "direction": "higher",
+          "shares": 85,
+          "cost": 57,
+          "worth": 55.54
+        },
+        {
+          "handle": "holder-55",
+          "id": "holder-55",
+          "bot": true,
+          "direction": "lower",
+          "shares": 83.5,
+          "cost": 56,
+          "worth": 28.94
+        },
+        {
+          "handle": "holder54",
+          "id": "holder-54",
+          "bot": true,
+          "direction": "higher",
+          "shares": 82,
+          "cost": 55,
+          "worth": 53.58
+        },
+        {
+          "handle": "holder-53",
+          "id": "holder-53",
+          "bot": true,
+          "direction": "lower",
+          "shares": 80.5,
+          "cost": 54,
+          "worth": 27.9
+        },
+        {
+          "handle": "holder52",
+          "id": "holder-52",
+          "bot": true,
+          "direction": "higher",
+          "shares": 79,
+          "cost": 53,
+          "worth": 51.62
+        },
+        {
+          "handle": "holder-51",
+          "id": "holder-51",
+          "bot": true,
+          "direction": "lower",
+          "shares": 77.5,
+          "cost": 52,
+          "worth": 26.86
+        },
+        {
+          "handle": "holder50",
+          "id": "holder-50",
+          "bot": true,
+          "direction": "higher",
+          "shares": 76,
+          "cost": 51,
+          "worth": 49.66
+        },
+        {
+          "handle": "holder-49",
+          "id": "holder-49",
+          "bot": true,
+          "direction": "lower",
+          "shares": 74.5,
+          "cost": 50,
+          "worth": 25.82
+        },
+        {
+          "handle": "holder48",
+          "id": "holder-48",
+          "bot": true,
+          "direction": "higher",
+          "shares": 73,
+          "cost": 49,
+          "worth": 47.7
+        },
+        {
+          "handle": "holder-47",
+          "id": "holder-47",
+          "bot": true,
+          "direction": "lower",
+          "shares": 71.5,
+          "cost": 48,
+          "worth": 24.78
+        },
+        {
+          "handle": "holder46",
+          "id": "holder-46",
+          "bot": true,
+          "direction": "higher",
+          "shares": 70,
+          "cost": 47,
+          "worth": 45.74
+        },
+        {
+          "handle": "holder-45",
+          "id": "holder-45",
+          "bot": true,
+          "direction": "lower",
+          "shares": 68.5,
+          "cost": 46,
+          "worth": 23.74
+        },
+        {
+          "handle": "holder44",
+          "id": "holder-44",
+          "bot": true,
+          "direction": "higher",
+          "shares": 67,
+          "cost": 45,
+          "worth": 43.78
+        },
+        {
+          "handle": "holder-43",
+          "id": "holder-43",
+          "bot": true,
+          "direction": "lower",
+          "shares": 65.5,
+          "cost": 44,
+          "worth": 22.7
+        },
+        {
+          "handle": "holder42",
+          "id": "holder-42",
+          "bot": true,
+          "direction": "higher",
+          "shares": 64,
+          "cost": 43,
+          "worth": 41.82
+        },
+        {
+          "handle": "holder-41",
+          "id": "holder-41",
+          "bot": true,
+          "direction": "lower",
+          "shares": 62.5,
+          "cost": 42,
+          "worth": 21.66
+        },
+        {
+          "handle": "holder40",
+          "id": "holder-40",
+          "bot": true,
+          "direction": "higher",
+          "shares": 61,
+          "cost": 41,
+          "worth": 39.86
+        },
+        {
+          "handle": "holder-39",
+          "id": "holder-39",
+          "bot": true,
+          "direction": "lower",
+          "shares": 59.5,
+          "cost": 40,
+          "worth": 20.62
+        },
+        {
+          "handle": "holder38",
+          "id": "holder-38",
+          "bot": true,
+          "direction": "higher",
+          "shares": 58,
+          "cost": 39,
+          "worth": 37.9
+        },
+        {
+          "handle": "holder-37",
+          "id": "holder-37",
+          "bot": true,
+          "direction": "lower",
+          "shares": 56.5,
+          "cost": 38,
+          "worth": 19.58
+        },
+        {
+          "handle": "holder36",
+          "id": "holder-36",
+          "bot": true,
+          "direction": "higher",
+          "shares": 55,
+          "cost": 37,
+          "worth": 35.94
+        },
+        {
+          "handle": "holder-35",
+          "id": "holder-35",
+          "bot": true,
+          "direction": "lower",
+          "shares": 53.5,
+          "cost": 36,
+          "worth": 18.54
+        },
+        {
+          "handle": "holder34",
+          "id": "holder-34",
+          "bot": true,
+          "direction": "higher",
+          "shares": 52,
+          "cost": 35,
+          "worth": 33.98
+        },
+        {
+          "handle": "holder-33",
+          "id": "holder-33",
+          "bot": true,
+          "direction": "lower",
+          "shares": 50.5,
+          "cost": 34,
+          "worth": 17.5
+        },
+        {
+          "handle": "holder32",
+          "id": "holder-32",
+          "bot": true,
+          "direction": "higher",
+          "shares": 49,
+          "cost": 33,
+          "worth": 32.02
+        },
+        {
+          "handle": "holder-31",
+          "id": "holder-31",
+          "bot": true,
+          "direction": "lower",
+          "shares": 47.5,
+          "cost": 32,
+          "worth": 16.46
+        },
+        {
+          "handle": "holder30",
+          "id": "holder-30",
+          "bot": true,
+          "direction": "higher",
+          "shares": 46,
+          "cost": 31,
+          "worth": 30.06
+        },
+        {
+          "handle": "holder-29",
+          "id": "holder-29",
+          "bot": true,
+          "direction": "lower",
+          "shares": 44.5,
+          "cost": 30,
+          "worth": 15.42
+        },
+        {
+          "handle": "holder28",
+          "id": "holder-28",
+          "bot": true,
+          "direction": "higher",
+          "shares": 43,
+          "cost": 29,
+          "worth": 28.1
+        },
+        {
+          "handle": "holder-27",
+          "id": "holder-27",
+          "bot": true,
+          "direction": "lower",
+          "shares": 41.5,
+          "cost": 28,
+          "worth": 14.38
+        },
+        {
+          "handle": "holder26",
+          "id": "holder-26",
+          "bot": true,
+          "direction": "higher",
+          "shares": 40,
+          "cost": 27,
+          "worth": 26.14
+        },
+        {
+          "handle": "holder-25",
+          "id": "holder-25",
+          "bot": true,
+          "direction": "lower",
+          "shares": 38.5,
+          "cost": 26,
+          "worth": 13.34
+        },
+        {
+          "handle": "holder24",
+          "id": "holder-24",
+          "bot": true,
+          "direction": "higher",
+          "shares": 37,
+          "cost": 25,
+          "worth": 24.18
+        },
+        {
+          "handle": "holder-23",
+          "id": "holder-23",
+          "bot": true,
+          "direction": "lower",
+          "shares": 35.5,
+          "cost": 24,
+          "worth": 12.3
+        },
+        {
+          "handle": "holder22",
+          "id": "holder-22",
+          "bot": true,
+          "direction": "higher",
+          "shares": 34,
+          "cost": 23,
+          "worth": 22.22
+        },
+        {
+          "handle": "holder-21",
+          "id": "holder-21",
+          "bot": true,
+          "direction": "lower",
+          "shares": 32.5,
+          "cost": 22,
+          "worth": 11.26
+        },
+        {
+          "handle": "holder20",
+          "id": "holder-20",
+          "bot": true,
+          "direction": "higher",
+          "shares": 31,
+          "cost": 21,
+          "worth": 20.26
+        },
+        {
+          "handle": "holder-19",
+          "id": "holder-19",
+          "bot": true,
+          "direction": "lower",
+          "shares": 29.5,
+          "cost": 20,
+          "worth": 10.22
+        },
+        {
+          "handle": "holder18",
+          "id": "holder-18",
+          "bot": true,
+          "direction": "higher",
+          "shares": 28,
+          "cost": 19,
+          "worth": 18.3
+        },
+        {
+          "handle": "holder-17",
+          "id": "holder-17",
+          "bot": true,
+          "direction": "lower",
+          "shares": 26.5,
+          "cost": 18,
+          "worth": 9.18
+        },
+        {
+          "handle": "holder16",
+          "id": "holder-16",
+          "bot": true,
+          "direction": "higher",
+          "shares": 25,
+          "cost": 17,
+          "worth": 16.34
+        },
+        {
+          "handle": "holder-15",
+          "id": "holder-15",
+          "bot": true,
+          "direction": "lower",
+          "shares": 23.5,
+          "cost": 16,
+          "worth": 8.15
+        },
+        {
+          "handle": "holder14",
+          "id": "holder-14",
+          "bot": true,
+          "direction": "higher",
+          "shares": 22,
+          "cost": 15,
+          "worth": 14.37
+        },
+        {
+          "handle": "holder-13",
+          "id": "holder-13",
+          "bot": true,
+          "direction": "lower",
+          "shares": 20.5,
+          "cost": 14,
+          "worth": 7.11
+        },
+        {
+          "handle": "holder12",
+          "id": "holder-12",
+          "bot": true,
+          "direction": "higher",
+          "shares": 19,
+          "cost": 13,
+          "worth": 12.41
+        },
+        {
+          "handle": "holder-11",
+          "id": "holder-11",
+          "bot": true,
+          "direction": "lower",
+          "shares": 17.5,
+          "cost": 12,
+          "worth": 6.07
+        },
+        {
+          "handle": "holder10",
+          "id": "holder-10",
+          "bot": true,
+          "direction": "higher",
+          "shares": 16,
+          "cost": 11,
+          "worth": 10.45
+        }
+      ],
+      "trades": [
+        {
+          "id": "tr-big-509",
+          "handle": "holder-29",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.4,
+          "cost": 0.84,
+          "createdAt": "2026-09-13T17:08:29.000Z"
+        },
+        {
+          "id": "tr-big-508",
+          "handle": "holder28",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.3,
+          "cost": 0.78,
+          "createdAt": "2026-09-13T17:08:28.000Z"
+        },
+        {
+          "id": "tr-big-507",
+          "handle": "holder-27",
+          "bot": true,
+          "direction": "lower",
+          "kind": "buy",
+          "shares": 1.2,
+          "cost": 0.72,
+          "createdAt": "2026-09-13T17:08:27.000Z"
+        },
+        {
+          "id": "tr-big-506",
+          "handle": "holder26",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.1,
+          "cost": 0.66,
+          "createdAt": "2026-09-13T17:08:26.000Z"
+        },
+        {
+          "id": "tr-big-505",
+          "handle": "holder-25",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1,
+          "cost": 0.6,
+          "createdAt": "2026-09-13T17:08:25.000Z"
+        },
+        {
+          "id": "tr-big-504",
+          "handle": "holder24",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 0.5,
+          "cost": 0.3,
+          "createdAt": "2026-09-13T17:08:24.000Z"
+        },
+        {
+          "id": "tr-big-503",
+          "handle": "holder-23",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.3,
+          "cost": 0.78,
+          "createdAt": "2026-09-13T17:08:23.000Z"
+        },
+        {
+          "id": "tr-big-502",
+          "handle": "holder22",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.2,
+          "cost": 0.72,
+          "createdAt": "2026-09-13T17:08:22.000Z"
+        },
+        {
+          "id": "tr-big-501",
+          "handle": "holder-21",
+          "bot": true,
+          "direction": "lower",
+          "kind": "buy",
+          "shares": 1.1,
+          "cost": 0.66,
+          "createdAt": "2026-09-13T17:08:21.000Z"
+        },
+        {
+          "id": "tr-big-500",
+          "handle": "holder20",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1,
+          "cost": 0.6,
+          "createdAt": "2026-09-13T17:08:20.000Z"
+        },
+        {
+          "id": "tr-big-499",
+          "handle": "holder-19",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.4,
+          "cost": 0.84,
+          "createdAt": "2026-09-13T17:08:19.000Z"
+        },
+        {
+          "id": "tr-big-498",
+          "handle": "holder18",
+          "bot": true,
+          "direction": "lower",
+          "kind": "buy",
+          "shares": 1.3,
+          "cost": 0.78,
+          "createdAt": "2026-09-13T17:08:18.000Z"
+        },
+        {
+          "id": "tr-big-497",
+          "handle": "holder-17",
+          "bot": true,
+          "direction": "higher",
+          "kind": "sell",
+          "shares": 0.5,
+          "cost": 0.3,
+          "createdAt": "2026-09-13T17:08:17.000Z"
+        },
+        {
+          "id": "tr-big-496",
+          "handle": "holder16",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.1,
+          "cost": 0.66,
+          "createdAt": "2026-09-13T17:08:16.000Z"
+        },
+        {
+          "id": "tr-big-495",
+          "handle": "holder-15",
+          "bot": true,
+          "direction": "lower",
+          "kind": "buy",
+          "shares": 1,
+          "cost": 0.6,
+          "createdAt": "2026-09-13T17:08:15.000Z"
+        },
+        {
+          "id": "tr-big-494",
+          "handle": "holder14",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.4,
+          "cost": 0.84,
+          "createdAt": "2026-09-13T17:08:14.000Z"
+        },
+        {
+          "id": "tr-big-493",
+          "handle": "holder-13",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.3,
+          "cost": 0.78,
+          "createdAt": "2026-09-13T17:08:13.000Z"
+        },
+        {
+          "id": "tr-big-492",
+          "handle": "holder12",
+          "bot": true,
+          "direction": "lower",
+          "kind": "buy",
+          "shares": 1.2,
+          "cost": 0.72,
+          "createdAt": "2026-09-13T17:08:12.000Z"
+        },
+        {
+          "id": "tr-big-491",
+          "handle": "holder-11",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.1,
+          "cost": 0.66,
+          "createdAt": "2026-09-13T17:08:11.000Z"
+        },
+        {
+          "id": "tr-big-490",
+          "handle": "holder10",
+          "bot": true,
+          "direction": "higher",
+          "kind": "sell",
+          "shares": 0.5,
+          "cost": 0.3,
+          "createdAt": "2026-09-13T17:08:10.000Z"
+        },
+        {
+          "id": "tr-big-489",
+          "handle": "holder-09",
+          "bot": true,
+          "direction": "lower",
+          "kind": "buy",
+          "shares": 1.4,
+          "cost": 0.84,
+          "createdAt": "2026-09-13T17:08:09.000Z"
+        },
+        {
+          "id": "tr-big-488",
+          "handle": "holder8",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.3,
+          "cost": 0.78,
+          "createdAt": "2026-09-13T17:08:08.000Z"
+        },
+        {
+          "id": "tr-big-487",
+          "handle": "holder-07",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.2,
+          "cost": 0.72,
+          "createdAt": "2026-09-13T17:08:07.000Z"
+        },
+        {
+          "id": "tr-big-486",
+          "handle": "holder6",
+          "bot": true,
+          "direction": "lower",
+          "kind": "buy",
+          "shares": 1.1,
+          "cost": 0.66,
+          "createdAt": "2026-09-13T17:08:06.000Z"
+        },
+        {
+          "id": "tr-big-485",
+          "handle": "holder-05",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1,
+          "cost": 0.6,
+          "createdAt": "2026-09-13T17:08:05.000Z"
+        },
+        {
+          "id": "tr-big-484",
+          "handle": "holder4",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.4,
+          "cost": 0.84,
+          "createdAt": "2026-09-13T17:08:04.000Z"
+        },
+        {
+          "id": "tr-big-483",
+          "handle": "holder-03",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 0.5,
+          "cost": 0.3,
+          "createdAt": "2026-09-13T17:08:03.000Z"
+        },
+        {
+          "id": "tr-big-482",
+          "handle": "holder2",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.2,
+          "cost": 0.72,
+          "createdAt": "2026-09-13T17:08:02.000Z"
+        },
+        {
+          "id": "tr-big-481",
+          "handle": "holder-01",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.1,
+          "cost": 0.66,
+          "createdAt": "2026-09-13T17:08:01.000Z"
+        },
+        {
+          "id": "tr-big-480",
+          "handle": "holder0",
+          "bot": true,
+          "direction": "lower",
+          "kind": "buy",
+          "shares": 1,
+          "cost": 0.6,
+          "createdAt": "2026-09-13T17:08:00.000Z"
+        },
+        {
+          "id": "tr-big-479",
+          "handle": "holder-59",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.4,
+          "cost": 0.84,
+          "createdAt": "2026-09-13T17:07:59.000Z"
+        },
+        {
+          "id": "tr-big-478",
+          "handle": "holder58",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.3,
+          "cost": 0.78,
+          "createdAt": "2026-09-13T17:07:58.000Z"
+        },
+        {
+          "id": "tr-big-477",
+          "handle": "holder-57",
+          "bot": true,
+          "direction": "lower",
+          "kind": "buy",
+          "shares": 1.2,
+          "cost": 0.72,
+          "createdAt": "2026-09-13T17:07:57.000Z"
+        },
+        {
+          "id": "tr-big-476",
+          "handle": "holder56",
+          "bot": true,
+          "direction": "higher",
+          "kind": "sell",
+          "shares": 0.5,
+          "cost": 0.3,
+          "createdAt": "2026-09-13T17:07:56.000Z"
+        },
+        {
+          "id": "tr-big-475",
+          "handle": "holder-55",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1,
+          "cost": 0.6,
+          "createdAt": "2026-09-13T17:07:55.000Z"
+        },
+        {
+          "id": "tr-big-474",
+          "handle": "holder54",
+          "bot": true,
+          "direction": "lower",
+          "kind": "buy",
+          "shares": 1.4,
+          "cost": 0.84,
+          "createdAt": "2026-09-13T17:07:54.000Z"
+        },
+        {
+          "id": "tr-big-473",
+          "handle": "holder-53",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.3,
+          "cost": 0.78,
+          "createdAt": "2026-09-13T17:07:53.000Z"
+        },
+        {
+          "id": "tr-big-472",
+          "handle": "holder52",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.2,
+          "cost": 0.72,
+          "createdAt": "2026-09-13T17:07:52.000Z"
+        },
+        {
+          "id": "tr-big-471",
+          "handle": "holder-51",
+          "bot": true,
+          "direction": "lower",
+          "kind": "buy",
+          "shares": 1.1,
+          "cost": 0.66,
+          "createdAt": "2026-09-13T17:07:51.000Z"
+        },
+        {
+          "id": "tr-big-470",
+          "handle": "holder50",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1,
+          "cost": 0.6,
+          "createdAt": "2026-09-13T17:07:50.000Z"
+        },
+        {
+          "id": "tr-big-469",
+          "handle": "holder-49",
+          "bot": true,
+          "direction": "higher",
+          "kind": "sell",
+          "shares": 0.5,
+          "cost": 0.3,
+          "createdAt": "2026-09-13T17:07:49.000Z"
+        },
+        {
+          "id": "tr-big-468",
+          "handle": "holder48",
+          "bot": true,
+          "direction": "lower",
+          "kind": "buy",
+          "shares": 1.3,
+          "cost": 0.78,
+          "createdAt": "2026-09-13T17:07:48.000Z"
+        },
+        {
+          "id": "tr-big-467",
+          "handle": "holder-47",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.2,
+          "cost": 0.72,
+          "createdAt": "2026-09-13T17:07:47.000Z"
+        },
+        {
+          "id": "tr-big-466",
+          "handle": "holder46",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.1,
+          "cost": 0.66,
+          "createdAt": "2026-09-13T17:07:46.000Z"
+        },
+        {
+          "id": "tr-big-465",
+          "handle": "holder-45",
+          "bot": true,
+          "direction": "lower",
+          "kind": "buy",
+          "shares": 1,
+          "cost": 0.6,
+          "createdAt": "2026-09-13T17:07:45.000Z"
+        },
+        {
+          "id": "tr-big-464",
+          "handle": "holder44",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.4,
+          "cost": 0.84,
+          "createdAt": "2026-09-13T17:07:44.000Z"
+        },
+        {
+          "id": "tr-big-463",
+          "handle": "holder-43",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.3,
+          "cost": 0.78,
+          "createdAt": "2026-09-13T17:07:43.000Z"
+        },
+        {
+          "id": "tr-big-462",
+          "handle": "holder42",
+          "bot": true,
+          "direction": "lower",
+          "kind": "sell",
+          "shares": 0.5,
+          "cost": 0.3,
+          "createdAt": "2026-09-13T17:07:42.000Z"
+        },
+        {
+          "id": "tr-big-461",
+          "handle": "holder-41",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1.1,
+          "cost": 0.66,
+          "createdAt": "2026-09-13T17:07:41.000Z"
+        },
+        {
+          "id": "tr-big-460",
+          "handle": "holder40",
+          "bot": true,
+          "direction": "higher",
+          "kind": "buy",
+          "shares": 1,
+          "cost": 0.6,
+          "createdAt": "2026-09-13T17:07:40.000Z"
+        }
+      ],
+      "pool": [
+        {
+          "id": "liq-big-59",
+          "handle": "holder-59",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 60,
+          "pool": 180.22,
+          "createdAt": "2026-09-13T13:59:00.000Z"
+        },
+        {
+          "id": "liq-big-58",
+          "handle": "holder58",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 59,
+          "pool": 179.53,
+          "createdAt": "2026-09-13T13:58:00.000Z"
+        },
+        {
+          "id": "liq-big-57",
+          "handle": "holder-57",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 58,
+          "pool": 178.83,
+          "createdAt": "2026-09-13T13:57:00.000Z"
+        },
+        {
+          "id": "liq-big-56",
+          "handle": "holder56",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 57,
+          "pool": 178.14,
+          "createdAt": "2026-09-13T13:56:00.000Z"
+        },
+        {
+          "id": "liq-big-55",
+          "handle": "holder-55",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 56,
+          "pool": 177.45,
+          "createdAt": "2026-09-13T13:55:00.000Z"
+        },
+        {
+          "id": "liq-big-54",
+          "handle": "holder54",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 55,
+          "pool": 176.75,
+          "createdAt": "2026-09-13T13:54:00.000Z"
+        },
+        {
+          "id": "liq-big-53",
+          "handle": "holder-53",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 54,
+          "pool": 176.06,
+          "createdAt": "2026-09-13T13:53:00.000Z"
+        },
+        {
+          "id": "liq-big-52",
+          "handle": "holder52",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 53,
+          "pool": 175.37,
+          "createdAt": "2026-09-13T13:52:00.000Z"
+        },
+        {
+          "id": "liq-big-51",
+          "handle": "holder-51",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 52,
+          "pool": 174.67,
+          "createdAt": "2026-09-13T13:51:00.000Z"
+        },
+        {
+          "id": "liq-big-50",
+          "handle": "holder50",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 51,
+          "pool": 173.98,
+          "createdAt": "2026-09-13T13:50:00.000Z"
+        },
+        {
+          "id": "liq-big-49",
+          "handle": "holder-49",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 50,
+          "pool": 173.29,
+          "createdAt": "2026-09-13T13:49:00.000Z"
+        },
+        {
+          "id": "liq-big-48",
+          "handle": "holder48",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 49,
+          "pool": 172.59,
+          "createdAt": "2026-09-13T13:48:00.000Z"
+        },
+        {
+          "id": "liq-big-47",
+          "handle": "holder-47",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 48,
+          "pool": 171.9,
+          "createdAt": "2026-09-13T13:47:00.000Z"
+        },
+        {
+          "id": "liq-big-46",
+          "handle": "holder46",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 47,
+          "pool": 171.21,
+          "createdAt": "2026-09-13T13:46:00.000Z"
+        },
+        {
+          "id": "liq-big-45",
+          "handle": "holder-45",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 46,
+          "pool": 170.51,
+          "createdAt": "2026-09-13T13:45:00.000Z"
+        },
+        {
+          "id": "liq-big-44",
+          "handle": "holder44",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 45,
+          "pool": 169.82,
+          "createdAt": "2026-09-13T13:44:00.000Z"
+        },
+        {
+          "id": "liq-big-43",
+          "handle": "holder-43",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 44,
+          "pool": 169.13,
+          "createdAt": "2026-09-13T13:43:00.000Z"
+        },
+        {
+          "id": "liq-big-42",
+          "handle": "holder42",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 43,
+          "pool": 168.43,
+          "createdAt": "2026-09-13T13:42:00.000Z"
+        },
+        {
+          "id": "liq-big-41",
+          "handle": "holder-41",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 42,
+          "pool": 167.74,
+          "createdAt": "2026-09-13T13:41:00.000Z"
+        },
+        {
+          "id": "liq-big-40",
+          "handle": "holder40",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 41,
+          "pool": 167.05,
+          "createdAt": "2026-09-13T13:40:00.000Z"
+        },
+        {
+          "id": "liq-big-39",
+          "handle": "holder-39",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 40,
+          "pool": 166.36,
+          "createdAt": "2026-09-13T13:39:00.000Z"
+        },
+        {
+          "id": "liq-big-38",
+          "handle": "holder38",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 39,
+          "pool": 165.66,
+          "createdAt": "2026-09-13T13:38:00.000Z"
+        },
+        {
+          "id": "liq-big-37",
+          "handle": "holder-37",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 38,
+          "pool": 164.97,
+          "createdAt": "2026-09-13T13:37:00.000Z"
+        },
+        {
+          "id": "liq-big-36",
+          "handle": "holder36",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 37,
+          "pool": 164.28,
+          "createdAt": "2026-09-13T13:36:00.000Z"
+        },
+        {
+          "id": "liq-big-35",
+          "handle": "holder-35",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 36,
+          "pool": 163.58,
+          "createdAt": "2026-09-13T13:35:00.000Z"
+        },
+        {
+          "id": "liq-big-34",
+          "handle": "holder34",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 35,
+          "pool": 162.89,
+          "createdAt": "2026-09-13T13:34:00.000Z"
+        },
+        {
+          "id": "liq-big-33",
+          "handle": "holder-33",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 34,
+          "pool": 162.2,
+          "createdAt": "2026-09-13T13:33:00.000Z"
+        },
+        {
+          "id": "liq-big-32",
+          "handle": "holder32",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 33,
+          "pool": 161.5,
+          "createdAt": "2026-09-13T13:32:00.000Z"
+        },
+        {
+          "id": "liq-big-31",
+          "handle": "holder-31",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 32,
+          "pool": 160.81,
+          "createdAt": "2026-09-13T13:31:00.000Z"
+        },
+        {
+          "id": "liq-big-30",
+          "handle": "holder30",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 31,
+          "pool": 160.12,
+          "createdAt": "2026-09-13T13:30:00.000Z"
+        },
+        {
+          "id": "liq-big-29",
+          "handle": "holder-29",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 30,
+          "pool": 159.42,
+          "createdAt": "2026-09-13T13:29:00.000Z"
+        },
+        {
+          "id": "liq-big-28",
+          "handle": "holder28",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 29,
+          "pool": 158.73,
+          "createdAt": "2026-09-13T13:28:00.000Z"
+        },
+        {
+          "id": "liq-big-27",
+          "handle": "holder-27",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 28,
+          "pool": 158.04,
+          "createdAt": "2026-09-13T13:27:00.000Z"
+        },
+        {
+          "id": "liq-big-26",
+          "handle": "holder26",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 27,
+          "pool": 157.34,
+          "createdAt": "2026-09-13T13:26:00.000Z"
+        },
+        {
+          "id": "liq-big-25",
+          "handle": "holder-25",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 26,
+          "pool": 156.65,
+          "createdAt": "2026-09-13T13:25:00.000Z"
+        },
+        {
+          "id": "liq-big-24",
+          "handle": "holder24",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 25,
+          "pool": 155.96,
+          "createdAt": "2026-09-13T13:24:00.000Z"
+        },
+        {
+          "id": "liq-big-23",
+          "handle": "holder-23",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 24,
+          "pool": 155.26,
+          "createdAt": "2026-09-13T13:23:00.000Z"
+        },
+        {
+          "id": "liq-big-22",
+          "handle": "holder22",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 23,
+          "pool": 154.57,
+          "createdAt": "2026-09-13T13:22:00.000Z"
+        },
+        {
+          "id": "liq-big-21",
+          "handle": "holder-21",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 22,
+          "pool": 153.88,
+          "createdAt": "2026-09-13T13:21:00.000Z"
+        },
+        {
+          "id": "liq-big-20",
+          "handle": "holder20",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 21,
+          "pool": 153.19,
+          "createdAt": "2026-09-13T13:20:00.000Z"
+        },
+        {
+          "id": "liq-big-19",
+          "handle": "holder-19",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 20,
+          "pool": 152.49,
+          "createdAt": "2026-09-13T13:19:00.000Z"
+        },
+        {
+          "id": "liq-big-18",
+          "handle": "holder18",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 19,
+          "pool": 151.8,
+          "createdAt": "2026-09-13T13:18:00.000Z"
+        },
+        {
+          "id": "liq-big-17",
+          "handle": "holder-17",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 18,
+          "pool": 151.11,
+          "createdAt": "2026-09-13T13:17:00.000Z"
+        },
+        {
+          "id": "liq-big-16",
+          "handle": "holder16",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 17,
+          "pool": 150.41,
+          "createdAt": "2026-09-13T13:16:00.000Z"
+        },
+        {
+          "id": "liq-big-15",
+          "handle": "holder-15",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 16,
+          "pool": 149.72,
+          "createdAt": "2026-09-13T13:15:00.000Z"
+        },
+        {
+          "id": "liq-big-14",
+          "handle": "holder14",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 15,
+          "pool": 149.03,
+          "createdAt": "2026-09-13T13:14:00.000Z"
+        },
+        {
+          "id": "liq-big-13",
+          "handle": "holder-13",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 14,
+          "pool": 148.33,
+          "createdAt": "2026-09-13T13:13:00.000Z"
+        },
+        {
+          "id": "liq-big-12",
+          "handle": "holder12",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 13,
+          "pool": 147.64,
+          "createdAt": "2026-09-13T13:12:00.000Z"
+        },
+        {
+          "id": "liq-big-11",
+          "handle": "holder-11",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 12,
+          "pool": 146.95,
+          "createdAt": "2026-09-13T13:11:00.000Z"
+        },
+        {
+          "id": "liq-big-10",
+          "handle": "holder10",
+          "bot": true,
+          "kind": "deepened",
+          "amount": 11,
+          "pool": 146.25,
+          "createdAt": "2026-09-13T13:10:00.000Z"
+        }
+      ]
+    }
+  },
+  "history": {
+    "opt-000": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T14:00:00.000Z",
+          "consensus": 50.83
+        },
+        {
+          "at": "2026-09-13T15:00:00.000Z",
+          "consensus": 51.17
+        },
+        {
+          "at": "2026-09-13T16:00:00.000Z",
+          "consensus": 51.17
+        },
+        {
+          "at": "2026-09-13T16:00:00.000Z",
+          "consensus": 51.17
+        }
+      ]
+    },
+    "opt-001": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        }
+      ]
+    },
+    "opt-002": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T14:00:02.000Z",
+          "consensus": 51.75
+        },
+        {
+          "at": "2026-09-13T15:00:02.000Z",
+          "consensus": 52.25
+        }
+      ]
+    },
+    "opt-003": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        }
+      ]
+    },
+    "opt-004": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T14:00:04.000Z",
+          "consensus": 52.25
+        },
+        {
+          "at": "2026-09-13T15:00:04.000Z",
+          "consensus": 52.75
+        }
+      ]
+    },
+    "opt-005": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50.25
+        },
+        {
+          "at": "2026-09-13T16:00:05.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T16:00:05.000Z",
+          "consensus": 50
+        }
+      ]
+    },
+    "opt-006": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T14:00:06.000Z",
+          "consensus": 51.83
+        },
+        {
+          "at": "2026-09-13T15:00:06.000Z",
+          "consensus": 52.17
+        }
+      ]
+    },
+    "opt-007": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        }
+      ]
+    },
+    "opt-008": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T14:00:08.000Z",
+          "consensus": 53.25
+        },
+        {
+          "at": "2026-09-13T15:00:08.000Z",
+          "consensus": 53.74
+        }
+      ]
+    },
+    "opt-009": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        }
+      ]
+    },
+    "opt-010": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T14:00:10.000Z",
+          "consensus": 53.74
+        },
+        {
+          "at": "2026-09-13T15:00:10.000Z",
+          "consensus": 54.24
+        },
+        {
+          "at": "2026-09-13T16:00:10.000Z",
+          "consensus": 54.24
+        },
+        {
+          "at": "2026-09-13T16:00:10.000Z",
+          "consensus": 54.24
+        }
+      ]
+    },
+    "opt-011": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        }
+      ]
+    },
+    "opt-012": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T14:00:12.000Z",
+          "consensus": 52.83
+        },
+        {
+          "at": "2026-09-13T15:00:12.000Z",
+          "consensus": 53.16
+        }
+      ]
+    },
+    "opt-013": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        }
+      ]
+    },
+    "opt-014": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T14:00:14.000Z",
+          "consensus": 54.74
+        },
+        {
+          "at": "2026-09-13T15:00:14.000Z",
+          "consensus": 55.23
+        }
+      ]
+    },
+    "opt-015": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50.17
+        },
+        {
+          "at": "2026-09-13T16:00:15.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T16:00:15.000Z",
+          "consensus": 50
+        }
+      ]
+    },
+    "opt-016": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T14:00:16.000Z",
+          "consensus": 55.23
+        },
+        {
+          "at": "2026-09-13T15:00:16.000Z",
+          "consensus": 55.72
+        }
+      ]
+    },
+    "opt-017": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        }
+      ]
+    },
+    "opt-018": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T14:00:18.000Z",
+          "consensus": 53.83
+        },
+        {
+          "at": "2026-09-13T15:00:18.000Z",
+          "consensus": 54.16
+        }
+      ]
+    },
+    "opt-019": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        }
+      ]
+    },
+    "opt-020": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T14:00:20.000Z",
+          "consensus": 56.22
+        },
+        {
+          "at": "2026-09-13T15:00:20.000Z",
+          "consensus": 56.71
+        },
+        {
+          "at": "2026-09-13T16:00:20.000Z",
+          "consensus": 56.71
+        },
+        {
+          "at": "2026-09-13T16:00:20.000Z",
+          "consensus": 56.71
+        }
+      ]
+    },
+    "opt-021": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        }
+      ]
+    },
+    "opt-022": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T14:00:22.000Z",
+          "consensus": 56.71
+        },
+        {
+          "at": "2026-09-13T15:00:22.000Z",
+          "consensus": 57.2
+        }
+      ]
+    },
+    "opt-023": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        }
+      ]
+    },
+    "opt-024": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T14:00:24.000Z",
+          "consensus": 54.82
+        },
+        {
+          "at": "2026-09-13T15:00:24.000Z",
+          "consensus": 55.15
+        }
+      ]
+    },
+    "opt-025": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50.25
+        },
+        {
+          "at": "2026-09-13T16:00:25.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T16:00:25.000Z",
+          "consensus": 50
+        }
+      ]
+    },
+    "opt-026": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T14:00:26.000Z",
+          "consensus": 57.69
+        },
+        {
+          "at": "2026-09-13T15:00:26.000Z",
+          "consensus": 58.18
+        }
+      ]
+    },
+    "opt-027": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        }
+      ]
+    },
+    "opt-028": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T14:00:28.000Z",
+          "consensus": 58.18
+        },
+        {
+          "at": "2026-09-13T15:00:28.000Z",
+          "consensus": 58.66
+        }
+      ]
+    },
+    "opt-029": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        }
+      ]
+    },
+    "opt-030": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T14:00:30.000Z",
+          "consensus": 55.81
+        },
+        {
+          "at": "2026-09-13T15:00:30.000Z",
+          "consensus": 56.14
+        },
+        {
+          "at": "2026-09-13T16:00:30.000Z",
+          "consensus": 56.14
+        },
+        {
+          "at": "2026-09-13T16:00:30.000Z",
+          "consensus": 56.14
+        }
+      ]
+    },
+    "opt-031": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        }
+      ]
+    },
+    "opt-032": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T14:00:32.000Z",
+          "consensus": 59.15
+        },
+        {
+          "at": "2026-09-13T15:00:32.000Z",
+          "consensus": 59.63
+        }
+      ]
+    },
+    "opt-033": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        }
+      ]
+    },
+    "opt-034": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T14:00:34.000Z",
+          "consensus": 59.63
+        },
+        {
+          "at": "2026-09-13T15:00:34.000Z",
+          "consensus": 60.11
+        }
+      ]
+    },
+    "opt-035": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50.25
+        },
+        {
+          "at": "2026-09-13T16:00:35.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T16:00:35.000Z",
+          "consensus": 50
+        }
+      ]
+    },
+    "opt-036": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T14:00:36.000Z",
+          "consensus": 56.79
+        },
+        {
+          "at": "2026-09-13T15:00:36.000Z",
+          "consensus": 57.12
+        }
+      ]
+    },
+    "opt-037": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        }
+      ]
+    },
+    "opt-038": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        },
+        {
+          "at": "2026-09-13T14:00:38.000Z",
+          "consensus": 60.59
+        },
+        {
+          "at": "2026-09-13T15:00:38.000Z",
+          "consensus": 61.06
+        }
+      ]
+    },
+    "opt-039": {
+      "history": [
+        {
+          "at": "2026-09-13T11:00:00.000Z",
+          "consensus": 50
+        }
+      ]
+    },
+    "opt-big": {
+      "history": [
+        {
+          "at": "2026-09-13T17:00:10.000Z",
+          "consensus": 50.31
+        },
+        {
+          "at": "2026-09-13T17:00:11.000Z",
+          "consensus": 50.41
+        },
+        {
+          "at": "2026-09-13T17:00:12.000Z",
+          "consensus": 50.3
+        },
+        {
+          "at": "2026-09-13T17:00:13.000Z",
+          "consensus": 50.42
+        },
+        {
+          "at": "2026-09-13T17:00:14.000Z",
+          "consensus": 50.37
+        },
+        {
+          "at": "2026-09-13T17:00:15.000Z",
+          "consensus": 50.28
+        },
+        {
+          "at": "2026-09-13T17:00:16.000Z",
+          "consensus": 50.38
+        },
+        {
+          "at": "2026-09-13T17:00:17.000Z",
+          "consensus": 50.5
+        },
+        {
+          "at": "2026-09-13T17:00:18.000Z",
+          "consensus": 50.37
+        },
+        {
+          "at": "2026-09-13T17:00:19.000Z",
+          "consensus": 50.51
+        },
+        {
+          "at": "2026-09-13T17:00:20.000Z",
+          "consensus": 50.61
+        },
+        {
+          "at": "2026-09-13T17:00:21.000Z",
+          "consensus": 50.65
+        },
+        {
+          "at": "2026-09-13T17:00:22.000Z",
+          "consensus": 50.77
+        },
+        {
+          "at": "2026-09-13T17:00:23.000Z",
+          "consensus": 50.89
+        },
+        {
+          "at": "2026-09-13T17:00:24.000Z",
+          "consensus": 50.76
+        },
+        {
+          "at": "2026-09-13T17:00:25.000Z",
+          "consensus": 50.86
+        },
+        {
+          "at": "2026-09-13T17:00:26.000Z",
+          "consensus": 50.96
+        },
+        {
+          "at": "2026-09-13T17:00:27.000Z",
+          "consensus": 50.85
+        },
+        {
+          "at": "2026-09-13T17:00:28.000Z",
+          "consensus": 50.8
+        },
+        {
+          "at": "2026-09-13T17:00:29.000Z",
+          "consensus": 50.93
+        },
+        {
+          "at": "2026-09-13T17:00:30.000Z",
+          "consensus": 50.84
+        },
+        {
+          "at": "2026-09-13T17:00:31.000Z",
+          "consensus": 50.94
+        },
+        {
+          "at": "2026-09-13T17:00:32.000Z",
+          "consensus": 51.06
+        },
+        {
+          "at": "2026-09-13T17:00:33.000Z",
+          "consensus": 50.93
+        },
+        {
+          "at": "2026-09-13T17:00:34.000Z",
+          "consensus": 51.07
+        },
+        {
+          "at": "2026-09-13T17:00:35.000Z",
+          "consensus": 51.02
+        },
+        {
+          "at": "2026-09-13T17:00:36.000Z",
+          "consensus": 50.91
+        },
+        {
+          "at": "2026-09-13T17:00:37.000Z",
+          "consensus": 51.03
+        },
+        {
+          "at": "2026-09-13T17:00:38.000Z",
+          "consensus": 51.15
+        },
+        {
+          "at": "2026-09-13T17:00:39.000Z",
+          "consensus": 51.02
+        },
+        {
+          "at": "2026-09-13T17:00:40.000Z",
+          "consensus": 51.12
+        },
+        {
+          "at": "2026-09-13T17:00:41.000Z",
+          "consensus": 51.22
+        },
+        {
+          "at": "2026-09-13T17:00:42.000Z",
+          "consensus": 51.27
+        },
+        {
+          "at": "2026-09-13T17:00:43.000Z",
+          "consensus": 51.39
+        },
+        {
+          "at": "2026-09-13T17:00:44.000Z",
+          "consensus": 51.53
+        },
+        {
+          "at": "2026-09-13T17:00:45.000Z",
+          "consensus": 51.43
+        },
+        {
+          "at": "2026-09-13T17:00:46.000Z",
+          "consensus": 51.54
+        },
+        {
+          "at": "2026-09-13T17:00:47.000Z",
+          "consensus": 51.65
+        },
+        {
+          "at": "2026-09-13T17:00:48.000Z",
+          "consensus": 51.53
+        },
+        {
+          "at": "2026-09-13T17:00:49.000Z",
+          "consensus": 51.48
+        },
+        {
+          "at": "2026-09-13T17:00:50.000Z",
+          "consensus": 51.58
+        },
+        {
+          "at": "2026-09-13T17:00:51.000Z",
+          "consensus": 51.47
+        },
+        {
+          "at": "2026-09-13T17:00:52.000Z",
+          "consensus": 51.59
+        },
+        {
+          "at": "2026-09-13T17:00:53.000Z",
+          "consensus": 51.71
+        },
+        {
+          "at": "2026-09-13T17:00:54.000Z",
+          "consensus": 51.58
+        },
+        {
+          "at": "2026-09-13T17:00:55.000Z",
+          "consensus": 51.67
+        },
+        {
+          "at": "2026-09-13T17:00:56.000Z",
+          "consensus": 51.62
+        },
+        {
+          "at": "2026-09-13T17:00:57.000Z",
+          "consensus": 51.51
+        },
+        {
+          "at": "2026-09-13T17:00:58.000Z",
+          "consensus": 51.63
+        },
+        {
+          "at": "2026-09-13T17:00:59.000Z",
+          "consensus": 51.77
+        },
+        {
+          "at": "2026-09-13T17:01:00.000Z",
+          "consensus": 51.67
+        },
+        {
+          "at": "2026-09-13T17:01:01.000Z",
+          "consensus": 51.78
+        },
+        {
+          "at": "2026-09-13T17:01:02.000Z",
+          "consensus": 51.89
+        },
+        {
+          "at": "2026-09-13T17:01:03.000Z",
+          "consensus": 51.94
+        },
+        {
+          "at": "2026-09-13T17:01:04.000Z",
+          "consensus": 52.08
+        },
+        {
+          "at": "2026-09-13T17:01:05.000Z",
+          "consensus": 52.17
+        },
+        {
+          "at": "2026-09-13T17:01:06.000Z",
+          "consensus": 52.07
+        },
+        {
+          "at": "2026-09-13T17:01:07.000Z",
+          "consensus": 52.18
+        },
+        {
+          "at": "2026-09-13T17:01:08.000Z",
+          "consensus": 52.31
+        },
+        {
+          "at": "2026-09-13T17:01:09.000Z",
+          "consensus": 52.17
+        },
+        {
+          "at": "2026-09-13T17:01:10.000Z",
+          "consensus": 52.12
+        },
+        {
+          "at": "2026-09-13T17:01:11.000Z",
+          "consensus": 52.23
+        },
+        {
+          "at": "2026-09-13T17:01:12.000Z",
+          "consensus": 52.11
+        },
+        {
+          "at": "2026-09-13T17:01:13.000Z",
+          "consensus": 52.24
+        },
+        {
+          "at": "2026-09-13T17:01:14.000Z",
+          "consensus": 52.37
+        },
+        {
+          "at": "2026-09-13T17:01:15.000Z",
+          "consensus": 52.28
+        },
+        {
+          "at": "2026-09-13T17:01:16.000Z",
+          "consensus": 52.38
+        },
+        {
+          "at": "2026-09-13T17:01:17.000Z",
+          "consensus": 52.33
+        },
+        {
+          "at": "2026-09-13T17:01:18.000Z",
+          "consensus": 52.21
+        },
+        {
+          "at": "2026-09-13T17:01:19.000Z",
+          "consensus": 52.34
+        },
+        {
+          "at": "2026-09-13T17:01:20.000Z",
+          "consensus": 52.44
+        },
+        {
+          "at": "2026-09-13T17:01:21.000Z",
+          "consensus": 52.33
+        },
+        {
+          "at": "2026-09-13T17:01:22.000Z",
+          "consensus": 52.45
+        },
+        {
+          "at": "2026-09-13T17:01:23.000Z",
+          "consensus": 52.57
+        },
+        {
+          "at": "2026-09-13T17:01:24.000Z",
+          "consensus": 52.62
+        },
+        {
+          "at": "2026-09-13T17:01:25.000Z",
+          "consensus": 52.72
+        },
+        {
+          "at": "2026-09-13T17:01:26.000Z",
+          "consensus": 52.82
+        },
+        {
+          "at": "2026-09-13T17:01:27.000Z",
+          "consensus": 52.71
+        },
+        {
+          "at": "2026-09-13T17:01:28.000Z",
+          "consensus": 52.83
+        },
+        {
+          "at": "2026-09-13T17:01:29.000Z",
+          "consensus": 52.97
+        },
+        {
+          "at": "2026-09-13T17:01:30.000Z",
+          "consensus": 52.87
+        },
+        {
+          "at": "2026-09-13T17:01:31.000Z",
+          "consensus": 52.82
+        },
+        {
+          "at": "2026-09-13T17:01:32.000Z",
+          "consensus": 52.94
+        },
+        {
+          "at": "2026-09-13T17:01:33.000Z",
+          "consensus": 52.81
+        },
+        {
+          "at": "2026-09-13T17:01:34.000Z",
+          "consensus": 52.95
+        },
+        {
+          "at": "2026-09-13T17:01:35.000Z",
+          "consensus": 53.04
+        },
+        {
+          "at": "2026-09-13T17:01:36.000Z",
+          "consensus": 52.94
+        },
+        {
+          "at": "2026-09-13T17:01:37.000Z",
+          "consensus": 53.05
+        },
+        {
+          "at": "2026-09-13T17:01:38.000Z",
+          "consensus": 53.01
+        },
+        {
+          "at": "2026-09-13T17:01:39.000Z",
+          "consensus": 52.87
+        },
+        {
+          "at": "2026-09-13T17:01:40.000Z",
+          "consensus": 52.97
+        },
+        {
+          "at": "2026-09-13T17:01:41.000Z",
+          "consensus": 53.07
+        },
+        {
+          "at": "2026-09-13T17:01:42.000Z",
+          "consensus": 52.96
+        },
+        {
+          "at": "2026-09-13T17:01:43.000Z",
+          "consensus": 53.08
+        },
+        {
+          "at": "2026-09-13T17:01:44.000Z",
+          "consensus": 53.22
+        },
+        {
+          "at": "2026-09-13T17:01:45.000Z",
+          "consensus": 53.26
+        },
+        {
+          "at": "2026-09-13T17:01:46.000Z",
+          "consensus": 53.37
+        },
+        {
+          "at": "2026-09-13T17:01:47.000Z",
+          "consensus": 53.48
+        },
+        {
+          "at": "2026-09-13T17:01:48.000Z",
+          "consensus": 53.36
+        },
+        {
+          "at": "2026-09-13T17:01:49.000Z",
+          "consensus": 53.49
+        },
+        {
+          "at": "2026-09-13T17:01:50.000Z",
+          "consensus": 53.59
+        },
+        {
+          "at": "2026-09-13T17:01:51.000Z",
+          "consensus": 53.48
+        },
+        {
+          "at": "2026-09-13T17:01:52.000Z",
+          "consensus": 53.44
+        },
+        {
+          "at": "2026-09-13T17:01:53.000Z",
+          "consensus": 53.56
+        },
+        {
+          "at": "2026-09-13T17:01:54.000Z",
+          "consensus": 53.43
+        },
+        {
+          "at": "2026-09-13T17:01:55.000Z",
+          "consensus": 53.52
+        },
+        {
+          "at": "2026-09-13T17:01:56.000Z",
+          "consensus": 53.63
+        },
+        {
+          "at": "2026-09-13T17:01:57.000Z",
+          "consensus": 53.51
+        },
+        {
+          "at": "2026-09-13T17:01:58.000Z",
+          "consensus": 53.64
+        },
+        {
+          "at": "2026-09-13T17:01:59.000Z",
+          "consensus": 53.59
+        },
+        {
+          "at": "2026-09-13T17:02:00.000Z",
+          "consensus": 53.49
+        },
+        {
+          "at": "2026-09-13T17:02:01.000Z",
+          "consensus": 53.6
+        },
+        {
+          "at": "2026-09-13T17:02:02.000Z",
+          "consensus": 53.71
+        },
+        {
+          "at": "2026-09-13T17:02:03.000Z",
+          "consensus": 53.59
+        },
+        {
+          "at": "2026-09-13T17:02:04.000Z",
+          "consensus": 53.72
+        },
+        {
+          "at": "2026-09-13T17:02:05.000Z",
+          "consensus": 53.82
+        },
+        {
+          "at": "2026-09-13T17:02:06.000Z",
+          "consensus": 53.87
+        },
+        {
+          "at": "2026-09-13T17:02:07.000Z",
+          "consensus": 53.98
+        },
+        {
+          "at": "2026-09-13T17:02:08.000Z",
+          "consensus": 54.11
+        },
+        {
+          "at": "2026-09-13T17:02:09.000Z",
+          "consensus": 53.97
+        },
+        {
+          "at": "2026-09-13T17:02:10.000Z",
+          "consensus": 54.07
+        },
+        {
+          "at": "2026-09-13T17:02:11.000Z",
+          "consensus": 54.17
+        },
+        {
+          "at": "2026-09-13T17:02:12.000Z",
+          "consensus": 54.06
+        },
+        {
+          "at": "2026-09-13T17:02:13.000Z",
+          "consensus": 54.01
+        },
+        {
+          "at": "2026-09-13T17:02:14.000Z",
+          "consensus": 54.14
+        },
+        {
+          "at": "2026-09-13T17:02:15.000Z",
+          "consensus": 54.05
+        },
+        {
+          "at": "2026-09-13T17:02:16.000Z",
+          "consensus": 54.15
+        },
+        {
+          "at": "2026-09-13T17:02:17.000Z",
+          "consensus": 54.27
+        },
+        {
+          "at": "2026-09-13T17:02:18.000Z",
+          "consensus": 54.14
+        },
+        {
+          "at": "2026-09-13T17:02:19.000Z",
+          "consensus": 54.28
+        },
+        {
+          "at": "2026-09-13T17:02:20.000Z",
+          "consensus": 54.23
+        },
+        {
+          "at": "2026-09-13T17:02:21.000Z",
+          "consensus": 54.13
+        },
+        {
+          "at": "2026-09-13T17:02:22.000Z",
+          "consensus": 54.24
+        },
+        {
+          "at": "2026-09-13T17:02:23.000Z",
+          "consensus": 54.36
+        },
+        {
+          "at": "2026-09-13T17:02:24.000Z",
+          "consensus": 54.23
+        },
+        {
+          "at": "2026-09-13T17:02:25.000Z",
+          "consensus": 54.33
+        },
+        {
+          "at": "2026-09-13T17:02:26.000Z",
+          "consensus": 54.43
+        },
+        {
+          "at": "2026-09-13T17:02:27.000Z",
+          "consensus": 54.48
+        },
+        {
+          "at": "2026-09-13T17:02:28.000Z",
+          "consensus": 54.6
+        },
+        {
+          "at": "2026-09-13T17:02:29.000Z",
+          "consensus": 54.74
+        },
+        {
+          "at": "2026-09-13T17:02:30.000Z",
+          "consensus": 54.64
+        },
+        {
+          "at": "2026-09-13T17:02:31.000Z",
+          "consensus": 54.75
+        },
+        {
+          "at": "2026-09-13T17:02:32.000Z",
+          "consensus": 54.86
+        },
+        {
+          "at": "2026-09-13T17:02:33.000Z",
+          "consensus": 54.74
+        },
+        {
+          "at": "2026-09-13T17:02:34.000Z",
+          "consensus": 54.69
+        },
+        {
+          "at": "2026-09-13T17:02:35.000Z",
+          "consensus": 54.78
+        },
+        {
+          "at": "2026-09-13T17:02:36.000Z",
+          "consensus": 54.68
+        },
+        {
+          "at": "2026-09-13T17:02:37.000Z",
+          "consensus": 54.79
+        },
+        {
+          "at": "2026-09-13T17:02:38.000Z",
+          "consensus": 54.92
+        },
+        {
+          "at": "2026-09-13T17:02:39.000Z",
+          "consensus": 54.78
+        },
+        {
+          "at": "2026-09-13T17:02:40.000Z",
+          "consensus": 54.88
+        },
+        {
+          "at": "2026-09-13T17:02:41.000Z",
+          "consensus": 54.83
+        },
+        {
+          "at": "2026-09-13T17:02:42.000Z",
+          "consensus": 54.72
+        },
+        {
+          "at": "2026-09-13T17:02:43.000Z",
+          "consensus": 54.84
+        },
+        {
+          "at": "2026-09-13T17:02:44.000Z",
+          "consensus": 54.97
+        },
+        {
+          "at": "2026-09-13T17:02:45.000Z",
+          "consensus": 54.88
+        },
+        {
+          "at": "2026-09-13T17:02:46.000Z",
+          "consensus": 54.98
+        },
+        {
+          "at": "2026-09-13T17:02:47.000Z",
+          "consensus": 55.1
+        },
+        {
+          "at": "2026-09-13T17:02:48.000Z",
+          "consensus": 55.15
+        },
+        {
+          "at": "2026-09-13T17:02:49.000Z",
+          "consensus": 55.28
+        },
+        {
+          "at": "2026-09-13T17:02:50.000Z",
+          "consensus": 55.37
+        },
+        {
+          "at": "2026-09-13T17:02:51.000Z",
+          "consensus": 55.27
+        },
+        {
+          "at": "2026-09-13T17:02:52.000Z",
+          "consensus": 55.38
+        },
+        {
+          "at": "2026-09-13T17:02:53.000Z",
+          "consensus": 55.51
+        },
+        {
+          "at": "2026-09-13T17:02:54.000Z",
+          "consensus": 55.37
+        },
+        {
+          "at": "2026-09-13T17:02:55.000Z",
+          "consensus": 55.33
+        },
+        {
+          "at": "2026-09-13T17:02:56.000Z",
+          "consensus": 55.43
+        },
+        {
+          "at": "2026-09-13T17:02:57.000Z",
+          "consensus": 55.32
+        },
+        {
+          "at": "2026-09-13T17:02:58.000Z",
+          "consensus": 55.44
+        },
+        {
+          "at": "2026-09-13T17:02:59.000Z",
+          "consensus": 55.57
+        },
+        {
+          "at": "2026-09-13T17:03:00.000Z",
+          "consensus": 55.48
+        },
+        {
+          "at": "2026-09-13T17:03:01.000Z",
+          "consensus": 55.58
+        },
+        {
+          "at": "2026-09-13T17:03:02.000Z",
+          "consensus": 55.53
+        },
+        {
+          "at": "2026-09-13T17:03:03.000Z",
+          "consensus": 55.41
+        },
+        {
+          "at": "2026-09-13T17:03:04.000Z",
+          "consensus": 55.54
+        },
+        {
+          "at": "2026-09-13T17:03:05.000Z",
+          "consensus": 55.64
+        },
+        {
+          "at": "2026-09-13T17:03:06.000Z",
+          "consensus": 55.53
+        },
+        {
+          "at": "2026-09-13T17:03:07.000Z",
+          "consensus": 55.65
+        },
+        {
+          "at": "2026-09-13T17:03:08.000Z",
+          "consensus": 55.77
+        },
+        {
+          "at": "2026-09-13T17:03:09.000Z",
+          "consensus": 55.82
+        },
+        {
+          "at": "2026-09-13T17:03:10.000Z",
+          "consensus": 55.91
+        },
+        {
+          "at": "2026-09-13T17:03:11.000Z",
+          "consensus": 56.02
+        },
+        {
+          "at": "2026-09-13T17:03:12.000Z",
+          "consensus": 55.91
+        },
+        {
+          "at": "2026-09-13T17:03:13.000Z",
+          "consensus": 56.03
+        },
+        {
+          "at": "2026-09-13T17:03:14.000Z",
+          "consensus": 56.16
+        },
+        {
+          "at": "2026-09-13T17:03:15.000Z",
+          "consensus": 56.07
+        },
+        {
+          "at": "2026-09-13T17:03:16.000Z",
+          "consensus": 56.02
+        },
+        {
+          "at": "2026-09-13T17:03:17.000Z",
+          "consensus": 56.13
+        },
+        {
+          "at": "2026-09-13T17:03:18.000Z",
+          "consensus": 56.01
+        },
+        {
+          "at": "2026-09-13T17:03:19.000Z",
+          "consensus": 56.14
+        },
+        {
+          "at": "2026-09-13T17:03:20.000Z",
+          "consensus": 56.24
+        },
+        {
+          "at": "2026-09-13T17:03:21.000Z",
+          "consensus": 56.13
+        },
+        {
+          "at": "2026-09-13T17:03:22.000Z",
+          "consensus": 56.25
+        },
+        {
+          "at": "2026-09-13T17:03:23.000Z",
+          "consensus": 56.2
+        },
+        {
+          "at": "2026-09-13T17:03:24.000Z",
+          "consensus": 56.07
+        },
+        {
+          "at": "2026-09-13T17:03:25.000Z",
+          "consensus": 56.16
+        },
+        {
+          "at": "2026-09-13T17:03:26.000Z",
+          "consensus": 56.26
+        },
+        {
+          "at": "2026-09-13T17:03:27.000Z",
+          "consensus": 56.15
+        },
+        {
+          "at": "2026-09-13T17:03:28.000Z",
+          "consensus": 56.27
+        },
+        {
+          "at": "2026-09-13T17:03:29.000Z",
+          "consensus": 56.41
+        },
+        {
+          "at": "2026-09-13T17:03:30.000Z",
+          "consensus": 56.45
+        },
+        {
+          "at": "2026-09-13T17:03:31.000Z",
+          "consensus": 56.56
+        },
+        {
+          "at": "2026-09-13T17:03:32.000Z",
+          "consensus": 56.67
+        },
+        {
+          "at": "2026-09-13T17:03:33.000Z",
+          "consensus": 56.55
+        },
+        {
+          "at": "2026-09-13T17:03:34.000Z",
+          "consensus": 56.68
+        },
+        {
+          "at": "2026-09-13T17:03:35.000Z",
+          "consensus": 56.78
+        },
+        {
+          "at": "2026-09-13T17:03:36.000Z",
+          "consensus": 56.67
+        },
+        {
+          "at": "2026-09-13T17:03:37.000Z",
+          "consensus": 56.62
+        },
+        {
+          "at": "2026-09-13T17:03:38.000Z",
+          "consensus": 56.75
+        },
+        {
+          "at": "2026-09-13T17:03:39.000Z",
+          "consensus": 56.61
+        },
+        {
+          "at": "2026-09-13T17:03:40.000Z",
+          "consensus": 56.71
+        },
+        {
+          "at": "2026-09-13T17:03:41.000Z",
+          "consensus": 56.81
+        },
+        {
+          "at": "2026-09-13T17:03:42.000Z",
+          "consensus": 56.7
+        },
+        {
+          "at": "2026-09-13T17:03:43.000Z",
+          "consensus": 56.82
+        },
+        {
+          "at": "2026-09-13T17:03:44.000Z",
+          "consensus": 56.78
+        },
+        {
+          "at": "2026-09-13T17:03:45.000Z",
+          "consensus": 56.68
+        },
+        {
+          "at": "2026-09-13T17:03:46.000Z",
+          "consensus": 56.78
+        },
+        {
+          "at": "2026-09-13T17:03:47.000Z",
+          "consensus": 56.9
+        },
+        {
+          "at": "2026-09-13T17:03:48.000Z",
+          "consensus": 56.78
+        },
+        {
+          "at": "2026-09-13T17:03:49.000Z",
+          "consensus": 56.91
+        },
+        {
+          "at": "2026-09-13T17:03:50.000Z",
+          "consensus": 57
+        },
+        {
+          "at": "2026-09-13T17:03:51.000Z",
+          "consensus": 57.05
+        },
+        {
+          "at": "2026-09-13T17:03:52.000Z",
+          "consensus": 57.16
+        },
+        {
+          "at": "2026-09-13T17:03:53.000Z",
+          "consensus": 57.28
+        },
+        {
+          "at": "2026-09-13T17:03:54.000Z",
+          "consensus": 57.15
+        },
+        {
+          "at": "2026-09-13T17:03:55.000Z",
+          "consensus": 57.25
+        },
+        {
+          "at": "2026-09-13T17:03:56.000Z",
+          "consensus": 57.35
+        },
+        {
+          "at": "2026-09-13T17:03:57.000Z",
+          "consensus": 57.24
+        },
+        {
+          "at": "2026-09-13T17:03:58.000Z",
+          "consensus": 57.19
+        },
+        {
+          "at": "2026-09-13T17:03:59.000Z",
+          "consensus": 57.32
+        },
+        {
+          "at": "2026-09-13T17:04:00.000Z",
+          "consensus": 57.23
+        },
+        {
+          "at": "2026-09-13T17:04:01.000Z",
+          "consensus": 57.33
+        },
+        {
+          "at": "2026-09-13T17:04:02.000Z",
+          "consensus": 57.44
+        },
+        {
+          "at": "2026-09-13T17:04:03.000Z",
+          "consensus": 57.32
+        },
+        {
+          "at": "2026-09-13T17:04:04.000Z",
+          "consensus": 57.45
+        },
+        {
+          "at": "2026-09-13T17:04:05.000Z",
+          "consensus": 57.41
+        },
+        {
+          "at": "2026-09-13T17:04:06.000Z",
+          "consensus": 57.3
+        },
+        {
+          "at": "2026-09-13T17:04:07.000Z",
+          "consensus": 57.42
+        },
+        {
+          "at": "2026-09-13T17:04:08.000Z",
+          "consensus": 57.54
+        },
+        {
+          "at": "2026-09-13T17:04:09.000Z",
+          "consensus": 57.41
+        },
+        {
+          "at": "2026-09-13T17:04:10.000Z",
+          "consensus": 57.5
+        },
+        {
+          "at": "2026-09-13T17:04:11.000Z",
+          "consensus": 57.6
+        },
+        {
+          "at": "2026-09-13T17:04:12.000Z",
+          "consensus": 57.65
+        },
+        {
+          "at": "2026-09-13T17:04:13.000Z",
+          "consensus": 57.77
+        },
+        {
+          "at": "2026-09-13T17:04:14.000Z",
+          "consensus": 57.9
+        },
+        {
+          "at": "2026-09-13T17:04:15.000Z",
+          "consensus": 57.81
+        },
+        {
+          "at": "2026-09-13T17:04:16.000Z",
+          "consensus": 57.91
+        },
+        {
+          "at": "2026-09-13T17:04:17.000Z",
+          "consensus": 58.03
+        },
+        {
+          "at": "2026-09-13T17:04:18.000Z",
+          "consensus": 57.9
+        },
+        {
+          "at": "2026-09-13T17:04:19.000Z",
+          "consensus": 57.86
+        },
+        {
+          "at": "2026-09-13T17:04:20.000Z",
+          "consensus": 57.95
+        },
+        {
+          "at": "2026-09-13T17:04:21.000Z",
+          "consensus": 57.85
+        },
+        {
+          "at": "2026-09-13T17:04:22.000Z",
+          "consensus": 57.96
+        },
+        {
+          "at": "2026-09-13T17:04:23.000Z",
+          "consensus": 58.08
+        },
+        {
+          "at": "2026-09-13T17:04:24.000Z",
+          "consensus": 57.95
+        },
+        {
+          "at": "2026-09-13T17:04:25.000Z",
+          "consensus": 58.04
+        },
+        {
+          "at": "2026-09-13T17:04:26.000Z",
+          "consensus": 58
+        },
+        {
+          "at": "2026-09-13T17:04:27.000Z",
+          "consensus": 57.89
+        },
+        {
+          "at": "2026-09-13T17:04:28.000Z",
+          "consensus": 58.01
+        },
+        {
+          "at": "2026-09-13T17:04:29.000Z",
+          "consensus": 58.14
+        },
+        {
+          "at": "2026-09-13T17:04:30.000Z",
+          "consensus": 58.04
+        },
+        {
+          "at": "2026-09-13T17:04:31.000Z",
+          "consensus": 58.15
+        },
+        {
+          "at": "2026-09-13T17:04:32.000Z",
+          "consensus": 58.26
+        },
+        {
+          "at": "2026-09-13T17:04:33.000Z",
+          "consensus": 58.31
+        },
+        {
+          "at": "2026-09-13T17:04:34.000Z",
+          "consensus": 58.44
+        },
+        {
+          "at": "2026-09-13T17:04:35.000Z",
+          "consensus": 58.53
+        },
+        {
+          "at": "2026-09-13T17:04:36.000Z",
+          "consensus": 58.43
+        },
+        {
+          "at": "2026-09-13T17:04:37.000Z",
+          "consensus": 58.54
+        },
+        {
+          "at": "2026-09-13T17:04:38.000Z",
+          "consensus": 58.66
+        },
+        {
+          "at": "2026-09-13T17:04:39.000Z",
+          "consensus": 58.53
+        },
+        {
+          "at": "2026-09-13T17:04:40.000Z",
+          "consensus": 58.48
+        },
+        {
+          "at": "2026-09-13T17:04:41.000Z",
+          "consensus": 58.59
+        },
+        {
+          "at": "2026-09-13T17:04:42.000Z",
+          "consensus": 58.48
+        },
+        {
+          "at": "2026-09-13T17:04:43.000Z",
+          "consensus": 58.6
+        },
+        {
+          "at": "2026-09-13T17:04:44.000Z",
+          "consensus": 58.73
+        },
+        {
+          "at": "2026-09-13T17:04:45.000Z",
+          "consensus": 58.63
+        },
+        {
+          "at": "2026-09-13T17:04:46.000Z",
+          "consensus": 58.74
+        },
+        {
+          "at": "2026-09-13T17:04:47.000Z",
+          "consensus": 58.69
+        },
+        {
+          "at": "2026-09-13T17:04:48.000Z",
+          "consensus": 58.57
+        },
+        {
+          "at": "2026-09-13T17:04:49.000Z",
+          "consensus": 58.7
+        },
+        {
+          "at": "2026-09-13T17:04:50.000Z",
+          "consensus": 58.79
+        },
+        {
+          "at": "2026-09-13T17:04:51.000Z",
+          "consensus": 58.69
+        },
+        {
+          "at": "2026-09-13T17:04:52.000Z",
+          "consensus": 58.8
+        },
+        {
+          "at": "2026-09-13T17:04:53.000Z",
+          "consensus": 58.92
+        },
+        {
+          "at": "2026-09-13T17:04:54.000Z",
+          "consensus": 58.97
+        },
+        {
+          "at": "2026-09-13T17:04:55.000Z",
+          "consensus": 59.06
+        },
+        {
+          "at": "2026-09-13T17:04:56.000Z",
+          "consensus": 59.16
+        },
+        {
+          "at": "2026-09-13T17:04:57.000Z",
+          "consensus": 59.05
+        },
+        {
+          "at": "2026-09-13T17:04:58.000Z",
+          "consensus": 59.17
+        },
+        {
+          "at": "2026-09-13T17:04:59.000Z",
+          "consensus": 59.3
+        },
+        {
+          "at": "2026-09-13T17:05:00.000Z",
+          "consensus": 59.21
+        },
+        {
+          "at": "2026-09-13T17:05:01.000Z",
+          "consensus": 59.16
+        },
+        {
+          "at": "2026-09-13T17:05:02.000Z",
+          "consensus": 59.28
+        },
+        {
+          "at": "2026-09-13T17:05:03.000Z",
+          "consensus": 59.16
+        },
+        {
+          "at": "2026-09-13T17:05:04.000Z",
+          "consensus": 59.29
+        },
+        {
+          "at": "2026-09-13T17:05:05.000Z",
+          "consensus": 59.38
+        },
+        {
+          "at": "2026-09-13T17:05:06.000Z",
+          "consensus": 59.28
+        },
+        {
+          "at": "2026-09-13T17:05:07.000Z",
+          "consensus": 59.39
+        },
+        {
+          "at": "2026-09-13T17:05:08.000Z",
+          "consensus": 59.34
+        },
+        {
+          "at": "2026-09-13T17:05:09.000Z",
+          "consensus": 59.21
+        },
+        {
+          "at": "2026-09-13T17:05:10.000Z",
+          "consensus": 59.3
+        },
+        {
+          "at": "2026-09-13T17:05:11.000Z",
+          "consensus": 59.41
+        },
+        {
+          "at": "2026-09-13T17:05:12.000Z",
+          "consensus": 59.29
+        },
+        {
+          "at": "2026-09-13T17:05:13.000Z",
+          "consensus": 59.42
+        },
+        {
+          "at": "2026-09-13T17:05:14.000Z",
+          "consensus": 59.54
+        },
+        {
+          "at": "2026-09-13T17:05:15.000Z",
+          "consensus": 59.59
+        },
+        {
+          "at": "2026-09-13T17:05:16.000Z",
+          "consensus": 59.69
+        },
+        {
+          "at": "2026-09-13T17:05:17.000Z",
+          "consensus": 59.8
+        },
+        {
+          "at": "2026-09-13T17:05:18.000Z",
+          "consensus": 59.68
+        },
+        {
+          "at": "2026-09-13T17:05:19.000Z",
+          "consensus": 59.81
+        },
+        {
+          "at": "2026-09-13T17:05:20.000Z",
+          "consensus": 59.91
+        },
+        {
+          "at": "2026-09-13T17:05:21.000Z",
+          "consensus": 59.8
+        },
+        {
+          "at": "2026-09-13T17:05:22.000Z",
+          "consensus": 59.76
+        },
+        {
+          "at": "2026-09-13T17:05:23.000Z",
+          "consensus": 59.88
+        },
+        {
+          "at": "2026-09-13T17:05:24.000Z",
+          "consensus": 59.75
+        },
+        {
+          "at": "2026-09-13T17:05:25.000Z",
+          "consensus": 59.84
+        },
+        {
+          "at": "2026-09-13T17:05:26.000Z",
+          "consensus": 59.94
+        },
+        {
+          "at": "2026-09-13T17:05:27.000Z",
+          "consensus": 59.83
+        },
+        {
+          "at": "2026-09-13T17:05:28.000Z",
+          "consensus": 59.95
+        },
+        {
+          "at": "2026-09-13T17:05:29.000Z",
+          "consensus": 59.91
+        },
+        {
+          "at": "2026-09-13T17:05:30.000Z",
+          "consensus": 59.81
+        },
+        {
+          "at": "2026-09-13T17:05:31.000Z",
+          "consensus": 59.91
+        },
+        {
+          "at": "2026-09-13T17:05:32.000Z",
+          "consensus": 60.03
+        },
+        {
+          "at": "2026-09-13T17:05:33.000Z",
+          "consensus": 59.91
+        },
+        {
+          "at": "2026-09-13T17:05:34.000Z",
+          "consensus": 60.03
+        },
+        {
+          "at": "2026-09-13T17:05:35.000Z",
+          "consensus": 60.13
+        },
+        {
+          "at": "2026-09-13T17:05:36.000Z",
+          "consensus": 60.17
+        },
+        {
+          "at": "2026-09-13T17:05:37.000Z",
+          "consensus": 60.28
+        },
+        {
+          "at": "2026-09-13T17:05:38.000Z",
+          "consensus": 60.4
+        },
+        {
+          "at": "2026-09-13T17:05:39.000Z",
+          "consensus": 60.27
+        },
+        {
+          "at": "2026-09-13T17:05:40.000Z",
+          "consensus": 60.37
+        },
+        {
+          "at": "2026-09-13T17:05:41.000Z",
+          "consensus": 60.47
+        },
+        {
+          "at": "2026-09-13T17:05:42.000Z",
+          "consensus": 60.36
+        },
+        {
+          "at": "2026-09-13T17:05:43.000Z",
+          "consensus": 60.31
+        },
+        {
+          "at": "2026-09-13T17:05:44.000Z",
+          "consensus": 60.44
+        },
+        {
+          "at": "2026-09-13T17:05:45.000Z",
+          "consensus": 60.35
+        },
+        {
+          "at": "2026-09-13T17:05:46.000Z",
+          "consensus": 60.45
+        },
+        {
+          "at": "2026-09-13T17:05:47.000Z",
+          "consensus": 60.56
+        },
+        {
+          "at": "2026-09-13T17:05:48.000Z",
+          "consensus": 60.44
+        },
+        {
+          "at": "2026-09-13T17:05:49.000Z",
+          "consensus": 60.57
+        },
+        {
+          "at": "2026-09-13T17:05:50.000Z",
+          "consensus": 60.52
+        },
+        {
+          "at": "2026-09-13T17:05:51.000Z",
+          "consensus": 60.42
+        },
+        {
+          "at": "2026-09-13T17:05:52.000Z",
+          "consensus": 60.53
+        },
+        {
+          "at": "2026-09-13T17:05:53.000Z",
+          "consensus": 60.65
+        },
+        {
+          "at": "2026-09-13T17:05:54.000Z",
+          "consensus": 60.52
+        },
+        {
+          "at": "2026-09-13T17:05:55.000Z",
+          "consensus": 60.61
+        },
+        {
+          "at": "2026-09-13T17:05:56.000Z",
+          "consensus": 60.72
+        },
+        {
+          "at": "2026-09-13T17:05:57.000Z",
+          "consensus": 60.76
+        },
+        {
+          "at": "2026-09-13T17:05:58.000Z",
+          "consensus": 60.88
+        },
+        {
+          "at": "2026-09-13T17:05:59.000Z",
+          "consensus": 61.01
+        },
+        {
+          "at": "2026-09-13T17:06:00.000Z",
+          "consensus": 60.92
+        },
+        {
+          "at": "2026-09-13T17:06:01.000Z",
+          "consensus": 61.02
+        },
+        {
+          "at": "2026-09-13T17:06:02.000Z",
+          "consensus": 61.13
+        },
+        {
+          "at": "2026-09-13T17:06:03.000Z",
+          "consensus": 61.01
+        },
+        {
+          "at": "2026-09-13T17:06:04.000Z",
+          "consensus": 60.96
+        },
+        {
+          "at": "2026-09-13T17:06:05.000Z",
+          "consensus": 61.05
+        },
+        {
+          "at": "2026-09-13T17:06:06.000Z",
+          "consensus": 60.95
+        },
+        {
+          "at": "2026-09-13T17:06:07.000Z",
+          "consensus": 61.06
+        },
+        {
+          "at": "2026-09-13T17:06:08.000Z",
+          "consensus": 61.18
+        },
+        {
+          "at": "2026-09-13T17:06:09.000Z",
+          "consensus": 61.05
+        },
+        {
+          "at": "2026-09-13T17:06:10.000Z",
+          "consensus": 61.15
+        },
+        {
+          "at": "2026-09-13T17:06:11.000Z",
+          "consensus": 61.1
+        },
+        {
+          "at": "2026-09-13T17:06:12.000Z",
+          "consensus": 60.99
+        },
+        {
+          "at": "2026-09-13T17:06:13.000Z",
+          "consensus": 61.11
+        },
+        {
+          "at": "2026-09-13T17:06:14.000Z",
+          "consensus": 61.24
+        },
+        {
+          "at": "2026-09-13T17:06:15.000Z",
+          "consensus": 61.15
+        },
+        {
+          "at": "2026-09-13T17:06:16.000Z",
+          "consensus": 61.25
+        },
+        {
+          "at": "2026-09-13T17:06:17.000Z",
+          "consensus": 61.36
+        },
+        {
+          "at": "2026-09-13T17:06:18.000Z",
+          "consensus": 61.4
+        },
+        {
+          "at": "2026-09-13T17:06:19.000Z",
+          "consensus": 61.53
+        },
+        {
+          "at": "2026-09-13T17:06:20.000Z",
+          "consensus": 61.62
+        },
+        {
+          "at": "2026-09-13T17:06:21.000Z",
+          "consensus": 61.52
+        },
+        {
+          "at": "2026-09-13T17:06:22.000Z",
+          "consensus": 61.63
+        },
+        {
+          "at": "2026-09-13T17:06:23.000Z",
+          "consensus": 61.75
+        },
+        {
+          "at": "2026-09-13T17:06:24.000Z",
+          "consensus": 61.62
+        },
+        {
+          "at": "2026-09-13T17:06:25.000Z",
+          "consensus": 61.57
+        },
+        {
+          "at": "2026-09-13T17:06:26.000Z",
+          "consensus": 61.67
+        },
+        {
+          "at": "2026-09-13T17:06:27.000Z",
+          "consensus": 61.57
+        },
+        {
+          "at": "2026-09-13T17:06:28.000Z",
+          "consensus": 61.68
+        },
+        {
+          "at": "2026-09-13T17:06:29.000Z",
+          "consensus": 61.81
+        },
+        {
+          "at": "2026-09-13T17:06:30.000Z",
+          "consensus": 61.72
+        },
+        {
+          "at": "2026-09-13T17:06:31.000Z",
+          "consensus": 61.82
+        },
+        {
+          "at": "2026-09-13T17:06:32.000Z",
+          "consensus": 61.77
+        },
+        {
+          "at": "2026-09-13T17:06:33.000Z",
+          "consensus": 61.66
+        },
+        {
+          "at": "2026-09-13T17:06:34.000Z",
+          "consensus": 61.78
+        },
+        {
+          "at": "2026-09-13T17:06:35.000Z",
+          "consensus": 61.87
+        },
+        {
+          "at": "2026-09-13T17:06:36.000Z",
+          "consensus": 61.77
+        },
+        {
+          "at": "2026-09-13T17:06:37.000Z",
+          "consensus": 61.88
+        },
+        {
+          "at": "2026-09-13T17:06:38.000Z",
+          "consensus": 62
+        },
+        {
+          "at": "2026-09-13T17:06:39.000Z",
+          "consensus": 62.05
+        },
+        {
+          "at": "2026-09-13T17:06:40.000Z",
+          "consensus": 62.14
+        },
+        {
+          "at": "2026-09-13T17:06:41.000Z",
+          "consensus": 62.24
+        },
+        {
+          "at": "2026-09-13T17:06:42.000Z",
+          "consensus": 62.13
+        },
+        {
+          "at": "2026-09-13T17:06:43.000Z",
+          "consensus": 62.25
+        },
+        {
+          "at": "2026-09-13T17:06:44.000Z",
+          "consensus": 62.37
+        },
+        {
+          "at": "2026-09-13T17:06:45.000Z",
+          "consensus": 62.28
+        },
+        {
+          "at": "2026-09-13T17:06:46.000Z",
+          "consensus": 62.24
+        },
+        {
+          "at": "2026-09-13T17:06:47.000Z",
+          "consensus": 62.35
+        },
+        {
+          "at": "2026-09-13T17:06:48.000Z",
+          "consensus": 62.23
+        },
+        {
+          "at": "2026-09-13T17:06:49.000Z",
+          "consensus": 62.35
+        },
+        {
+          "at": "2026-09-13T17:06:50.000Z",
+          "consensus": 62.44
+        },
+        {
+          "at": "2026-09-13T17:06:51.000Z",
+          "consensus": 62.35
+        },
+        {
+          "at": "2026-09-13T17:06:52.000Z",
+          "consensus": 62.45
+        },
+        {
+          "at": "2026-09-13T17:06:53.000Z",
+          "consensus": 62.41
+        },
+        {
+          "at": "2026-09-13T17:06:54.000Z",
+          "consensus": 62.28
+        },
+        {
+          "at": "2026-09-13T17:06:55.000Z",
+          "consensus": 62.37
+        },
+        {
+          "at": "2026-09-13T17:06:56.000Z",
+          "consensus": 62.47
+        },
+        {
+          "at": "2026-09-13T17:06:57.000Z",
+          "consensus": 62.36
+        },
+        {
+          "at": "2026-09-13T17:06:58.000Z",
+          "consensus": 62.48
+        },
+        {
+          "at": "2026-09-13T17:06:59.000Z",
+          "consensus": 62.61
+        },
+        {
+          "at": "2026-09-13T17:07:00.000Z",
+          "consensus": 62.65
+        },
+        {
+          "at": "2026-09-13T17:07:01.000Z",
+          "consensus": 62.75
+        },
+        {
+          "at": "2026-09-13T17:07:02.000Z",
+          "consensus": 62.86
+        },
+        {
+          "at": "2026-09-13T17:07:03.000Z",
+          "consensus": 62.74
+        },
+        {
+          "at": "2026-09-13T17:07:04.000Z",
+          "consensus": 62.87
+        },
+        {
+          "at": "2026-09-13T17:07:05.000Z",
+          "consensus": 62.96
+        },
+        {
+          "at": "2026-09-13T17:07:06.000Z",
+          "consensus": 62.86
+        },
+        {
+          "at": "2026-09-13T17:07:07.000Z",
+          "consensus": 62.81
+        },
+        {
+          "at": "2026-09-13T17:07:08.000Z",
+          "consensus": 62.93
+        },
+        {
+          "at": "2026-09-13T17:07:09.000Z",
+          "consensus": 62.8
+        },
+        {
+          "at": "2026-09-13T17:07:10.000Z",
+          "consensus": 62.89
+        },
+        {
+          "at": "2026-09-13T17:07:11.000Z",
+          "consensus": 62.99
+        },
+        {
+          "at": "2026-09-13T17:07:12.000Z",
+          "consensus": 62.89
+        },
+        {
+          "at": "2026-09-13T17:07:13.000Z",
+          "consensus": 63
+        },
+        {
+          "at": "2026-09-13T17:07:14.000Z",
+          "consensus": 62.96
+        },
+        {
+          "at": "2026-09-13T17:07:15.000Z",
+          "consensus": 62.87
+        },
+        {
+          "at": "2026-09-13T17:07:16.000Z",
+          "consensus": 62.97
+        },
+        {
+          "at": "2026-09-13T17:07:17.000Z",
+          "consensus": 63.07
+        },
+        {
+          "at": "2026-09-13T17:07:18.000Z",
+          "consensus": 62.96
+        },
+        {
+          "at": "2026-09-13T17:07:19.000Z",
+          "consensus": 63.08
+        },
+        {
+          "at": "2026-09-13T17:07:20.000Z",
+          "consensus": 63.17
+        },
+        {
+          "at": "2026-09-13T17:07:21.000Z",
+          "consensus": 63.22
+        },
+        {
+          "at": "2026-09-13T17:07:22.000Z",
+          "consensus": 63.32
+        },
+        {
+          "at": "2026-09-13T17:07:23.000Z",
+          "consensus": 63.44
+        },
+        {
+          "at": "2026-09-13T17:07:24.000Z",
+          "consensus": 63.32
+        },
+        {
+          "at": "2026-09-13T17:07:25.000Z",
+          "consensus": 63.4
+        },
+        {
+          "at": "2026-09-13T17:07:26.000Z",
+          "consensus": 63.5
+        },
+        {
+          "at": "2026-09-13T17:07:27.000Z",
+          "consensus": 63.4
+        },
+        {
+          "at": "2026-09-13T17:07:28.000Z",
+          "consensus": 63.35
+        },
+        {
+          "at": "2026-09-13T17:07:29.000Z",
+          "consensus": 63.48
+        },
+        {
+          "at": "2026-09-13T17:07:30.000Z",
+          "consensus": 63.39
+        },
+        {
+          "at": "2026-09-13T17:07:31.000Z",
+          "consensus": 63.48
+        },
+        {
+          "at": "2026-09-13T17:07:32.000Z",
+          "consensus": 63.59
+        },
+        {
+          "at": "2026-09-13T17:07:33.000Z",
+          "consensus": 63.48
+        },
+        {
+          "at": "2026-09-13T17:07:34.000Z",
+          "consensus": 63.6
+        },
+        {
+          "at": "2026-09-13T17:07:35.000Z",
+          "consensus": 63.56
+        },
+        {
+          "at": "2026-09-13T17:07:36.000Z",
+          "consensus": 63.46
+        },
+        {
+          "at": "2026-09-13T17:07:37.000Z",
+          "consensus": 63.57
+        },
+        {
+          "at": "2026-09-13T17:07:38.000Z",
+          "consensus": 63.68
+        },
+        {
+          "at": "2026-09-13T17:07:39.000Z",
+          "consensus": 63.56
+        },
+        {
+          "at": "2026-09-13T17:07:40.000Z",
+          "consensus": 63.65
+        },
+        {
+          "at": "2026-09-13T17:07:41.000Z",
+          "consensus": 63.74
+        },
+        {
+          "at": "2026-09-13T17:07:42.000Z",
+          "consensus": 63.79
+        },
+        {
+          "at": "2026-09-13T17:07:43.000Z",
+          "consensus": 63.9
+        },
+        {
+          "at": "2026-09-13T17:07:44.000Z",
+          "consensus": 64.03
+        },
+        {
+          "at": "2026-09-13T17:07:45.000Z",
+          "consensus": 63.94
+        },
+        {
+          "at": "2026-09-13T17:07:46.000Z",
+          "consensus": 64.04
+        },
+        {
+          "at": "2026-09-13T17:07:47.000Z",
+          "consensus": 64.14
+        },
+        {
+          "at": "2026-09-13T17:07:48.000Z",
+          "consensus": 64.03
+        },
+        {
+          "at": "2026-09-13T17:07:49.000Z",
+          "consensus": 63.98
+        },
+        {
+          "at": "2026-09-13T17:07:50.000Z",
+          "consensus": 64.07
+        },
+        {
+          "at": "2026-09-13T17:07:51.000Z",
+          "consensus": 63.97
+        },
+        {
+          "at": "2026-09-13T17:07:52.000Z",
+          "consensus": 64.08
+        },
+        {
+          "at": "2026-09-13T17:07:53.000Z",
+          "consensus": 64.2
+        },
+        {
+          "at": "2026-09-13T17:07:54.000Z",
+          "consensus": 64.07
+        },
+        {
+          "at": "2026-09-13T17:07:55.000Z",
+          "consensus": 64.16
+        },
+        {
+          "at": "2026-09-13T17:07:56.000Z",
+          "consensus": 64.12
+        },
+        {
+          "at": "2026-09-13T17:07:57.000Z",
+          "consensus": 64.01
+        },
+        {
+          "at": "2026-09-13T17:07:58.000Z",
+          "consensus": 64.12
+        },
+        {
+          "at": "2026-09-13T17:07:59.000Z",
+          "consensus": 64.25
+        },
+        {
+          "at": "2026-09-13T17:08:00.000Z",
+          "consensus": 64.16
+        },
+        {
+          "at": "2026-09-13T17:08:01.000Z",
+          "consensus": 64.26
+        },
+        {
+          "at": "2026-09-13T17:08:02.000Z",
+          "consensus": 64.36
+        },
+        {
+          "at": "2026-09-13T17:08:03.000Z",
+          "consensus": 64.41
+        },
+        {
+          "at": "2026-09-13T17:08:04.000Z",
+          "consensus": 64.53
+        },
+        {
+          "at": "2026-09-13T17:08:05.000Z",
+          "consensus": 64.62
+        },
+        {
+          "at": "2026-09-13T17:08:06.000Z",
+          "consensus": 64.52
+        },
+        {
+          "at": "2026-09-13T17:08:07.000Z",
+          "consensus": 64.63
+        },
+        {
+          "at": "2026-09-13T17:08:08.000Z",
+          "consensus": 64.74
+        },
+        {
+          "at": "2026-09-13T17:08:09.000Z",
+          "consensus": 64.62
+        },
+        {
+          "at": "2026-09-13T17:08:10.000Z",
+          "consensus": 64.57
+        },
+        {
+          "at": "2026-09-13T17:08:11.000Z",
+          "consensus": 64.67
+        },
+        {
+          "at": "2026-09-13T17:08:12.000Z",
+          "consensus": 64.57
+        },
+        {
+          "at": "2026-09-13T17:08:13.000Z",
+          "consensus": 64.68
+        },
+        {
+          "at": "2026-09-13T17:08:14.000Z",
+          "consensus": 64.8
+        },
+        {
+          "at": "2026-09-13T17:08:15.000Z",
+          "consensus": 64.72
+        },
+        {
+          "at": "2026-09-13T17:08:16.000Z",
+          "consensus": 64.81
+        },
+        {
+          "at": "2026-09-13T17:08:17.000Z",
+          "consensus": 64.77
+        },
+        {
+          "at": "2026-09-13T17:08:18.000Z",
+          "consensus": 64.65
+        },
+        {
+          "at": "2026-09-13T17:08:19.000Z",
+          "consensus": 64.78
+        },
+        {
+          "at": "2026-09-13T17:08:20.000Z",
+          "consensus": 64.86
+        },
+        {
+          "at": "2026-09-13T17:08:21.000Z",
+          "consensus": 64.77
+        },
+        {
+          "at": "2026-09-13T17:08:22.000Z",
+          "consensus": 64.87
+        },
+        {
+          "at": "2026-09-13T17:08:23.000Z",
+          "consensus": 64.99
+        },
+        {
+          "at": "2026-09-13T17:08:24.000Z",
+          "consensus": 65.03
+        },
+        {
+          "at": "2026-09-13T17:08:25.000Z",
+          "consensus": 65.12
+        },
+        {
+          "at": "2026-09-13T17:08:26.000Z",
+          "consensus": 65.21
+        },
+        {
+          "at": "2026-09-13T17:08:27.000Z",
+          "consensus": 65.11
+        },
+        {
+          "at": "2026-09-13T17:08:28.000Z",
+          "consensus": 65.22
+        },
+        {
+          "at": "2026-09-13T17:08:29.000Z",
+          "consensus": 65.34
+        }
+      ]
+    }
+  }
+}

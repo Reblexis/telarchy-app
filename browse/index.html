@@ -13784,6 +13784,18 @@ brief). A read that wants one proposal's markets is served by
 returns the newest 100 by default (<code>limit</code> up to 500) and pages with
 <code>before</code> (a proposal number, or an ISO instant on <code>createdAt</code>); a page
 shorter than <code>limit</code> is the last one.</li>
+<li><strong>A burst of per-book reads costs a fixed number of statements.</strong> A
+floor opening a proposal with options asks
+<code>GET /api/marketplace/:idOrSlug/market-activity</code> and
+<code>GET /api/marketplace/:workspaceId/markets/:marketId/history</code> once per
+option book, up to 218 at once, and the beta store is one connection.
+Concurrent calls to either route on one workspace share one resolution
+of the workspace and one query per table for every book waiting
+(<code>lib/coalesce.ts</code>), so the burst costs the same handful of statements
+for two books or for 218, and reads only the rows of the books asked
+for. Limits stay per book: top 50 positions, newest 50 trades and pool
+rows, 500 history points. Nothing is cached: a call that arrives after a
+batch has run reads again.</li>
 <li><strong>Crons process due work in bounded batches.</strong> <code>resolvePredictions</code>
 looks a fixing up once per (metric, target date) rather than once per
 book, at most two lookups in flight, and settles or voids at most

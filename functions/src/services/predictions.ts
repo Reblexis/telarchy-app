@@ -14,6 +14,7 @@ import {
 } from '../db/schema';
 import { afterCommit } from '../lib/after-commit';
 import { consensus, pHigher, resolutionPayouts } from '../lib/amm';
+import { coalesce } from '../lib/coalesce';
 import { mapWithConcurrency } from '../lib/concurrency';
 import { periodEndInstant, periodStartInstant, resolutionInstant } from '../lib/date-utils';
 import { AppError } from '../lib/errors';
@@ -778,30 +779,77 @@ onPricesChanged((workspaceId, marketId) => {
 
 /** Test seam. */
 
+/**
+ * A book, its trades and its liquidity events, oldest first, for every book of
+ * one workspace whose replay is asked for at the same moment: three queries
+ * for the burst, not three per book (docs/infra/deploy.md, "A burst of
+ * per-book reads costs a fixed number of statements"). A floor opening a
+ * proposal with options replays every option book at once. A book not in the
+ * workspace is absent.
+ */
+const replayRowsOf = coalesce<
+  { workspaceId: string; marketId: string },
+  {
+    market: typeof markets.$inferSelect;
+    rows: Array<typeof trades.$inferSelect>;
+    liqRows: Array<typeof liquidityEvents.$inferSelect>;
+  }
+>({
+  groupOf: k => k.workspaceId,
+  keyOf: k => k.marketId,
+  loadMany: async keys => {
+    const workspaceId = keys[0].workspaceId;
+    const books = await db
+      .select()
+      .from(markets)
+      .where(
+        and(
+          eq(markets.workspaceId, workspaceId),
+          inArray(
+            markets.id,
+            keys.map(k => k.marketId),
+          ),
+        ),
+      );
+    if (books.length === 0) return new Map();
+    const ids = books.map(b => b.id);
+
+    // Rows written at the same instant keep the order they were written in
+    // (`ctid`), which is the order the per-book index scan this replaced
+    // returned them in. It matters: a book whose first move is a redemption
+    // rewinds whichever of its two same-instant rows comes first to find the
+    // opening price.
+    const tradeRows = await db
+      .select()
+      .from(trades)
+      .where(and(eq(trades.workspaceId, workspaceId), inArray(trades.marketId, ids)))
+      .orderBy(asc(trades.createdAt), sql`"trades"."ctid"`);
+
+    const liquidityRows = await db
+      .select()
+      .from(liquidityEvents)
+      .where(
+        and(
+          eq(liquidityEvents.workspaceId, workspaceId),
+          inArray(liquidityEvents.marketId, ids),
+          gt(liquidityEvents.totalLiquidity, 0),
+        ),
+      )
+      .orderBy(asc(liquidityEvents.createdAt), sql`"liquidity_events"."ctid"`);
+
+    const out = new Map(
+      books.map(market => [market.id, { market, rows: [] as typeof tradeRows, liqRows: [] as typeof liquidityRows }]),
+    );
+    for (const t of tradeRows) out.get(t.marketId)?.rows.push(t);
+    for (const l of liquidityRows) out.get(l.marketId)?.liqRows.push(l);
+    return out;
+  },
+});
+
 async function computeReplayBundle(marketId: string, workspaceId: string): Promise<ReplayBundle> {
-  const [market] = await db
-    .select()
-    .from(markets)
-    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.id, marketId)));
-  if (!market) return { market: null, points: [], opening: null };
-
-  const rows = await db
-    .select()
-    .from(trades)
-    .where(and(eq(trades.workspaceId, workspaceId), eq(trades.marketId, marketId)))
-    .orderBy(asc(trades.createdAt));
-
-  const liqRows = await db
-    .select()
-    .from(liquidityEvents)
-    .where(
-      and(
-        eq(liquidityEvents.workspaceId, workspaceId),
-        eq(liquidityEvents.marketId, marketId),
-        gt(liquidityEvents.totalLiquidity, 0),
-      ),
-    )
-    .orderBy(asc(liquidityEvents.createdAt));
+  const loaded = await replayRowsOf({ workspaceId, marketId });
+  if (!loaded) return { market: null, points: [], opening: null };
+  const { market, rows, liqRows } = loaded;
 
   type Ev =
     | { at: number; kind: 'trade'; trade: (typeof rows)[number] }
