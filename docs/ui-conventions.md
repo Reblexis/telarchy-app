@@ -1198,7 +1198,11 @@ graph where will it be moved.. just like when buying"): with the sell panel
 open, the chart shows where the market's call lands if those shares are
 sold, moving with the size slider and clearing with Cancel, in the sold
 side's own colour, because selling Higher moves the call the way buying
-Lower does and the reader should see that before they press.
+Lower does and the reader should see that before they press. **Every ghost
+and the landing value read the price at rest**: resting limit orders the
+move crosses fill in the same transaction and pull the call back, so both
+show where it ends after them, never the trade's own momentary peak
+(docs/limit-orders.md, "A quote lands where the price comes to rest").
 
 **The chart's footer is where the counts live** (revised 2026-09-09,
 moving them up from the tab row): one quiet row under the plot, the way

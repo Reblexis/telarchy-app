@@ -157,6 +157,38 @@ turns a limit order into something else:
 A market that resolves or is voided refunds every resting order's remainder,
 so credits are never stranded in a market that can no longer trade.
 
+## A quote lands where the price comes to rest
+
+A trade's landing is where the price ends after the fill pass, not where the
+trade alone leaves it. A buy that pushes the call through resting orders is
+pulled back by them in the same transaction, so a ticket that drew only the
+trade's own move would show a price nobody ever sees.
+
+- **The prices read lists every open order.** Each book on
+  `GET /api/marketplace/:id/prices` carries `orders`: `id`, `side`,
+  `direction`, `limitValue`, `left` (credits on a buy, shares on a sell),
+  `holder` (a small number standing for one participant within that book and
+  that answer, so one participant's orders can be told apart without saying
+  who), `held` (that participant's `higher` and `lower` shares on the book)
+  and `expiresAt` when set. Orders are already public in the actions log with
+  their owners' names; this is the same fact without the name. An order past
+  its expiry counts for nothing.
+- **Placing or cancelling an order moves the prices version**, so a changed
+  list is never answered as a 304.
+- **The ticket runs the fill pass on that list** after the composed trade, in
+  the same order the server does (the order the price passed furthest first,
+  opposing rounds booked at once), until no order is crossed, and shows the
+  result: the landing value, its arrow and the chart's ghost all read the
+  price at rest. That holds for a buy, a typed value, a sale, and an order
+  placed past the market, whose own fill sets off the others. The trader's
+  own orders are in the list and fill like anyone's.
+- **The trader's own fill is not changed by it.** The trade executes before
+  any order fills, so shares, cost, proceeds and the payoff line are the
+  trade's own; the ticket's default price guard is also computed from where
+  the trade alone lands, because the guard bounds the trader's fill.
+- **A dry run runs the pass too**, inside its rolled-back transaction, and
+  reports `limitFills` and `settledConsensus` exactly as the real trade would.
+
 The AMM is the counterparty to every fill, so no anti-wash rule is needed;
 the existing cap and the charter's coordination rule still govern.
 
@@ -168,6 +200,10 @@ the existing cap and the charter's coordination rule still govern.
 
 A buy placed without `side` behaves and answers exactly as before sells
 existed; the new fields are additions.
+
+Where a trade would come to rest after the orders it crosses is readable
+before placing it: from the `orders` on the prices read, or from a dry run's
+`settledConsensus` (above, "A quote lands where the price comes to rest").
 
 Every open book takes limit orders, in the API and in the ticket alike,
 however soon its trading closes.

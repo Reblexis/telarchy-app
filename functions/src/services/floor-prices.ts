@@ -40,6 +40,36 @@ export interface FloorBook {
   pool: number;
   /** Rows that moved the book, the same count as a dry run's basis.tradeCount. */
   tradeCount: number;
+  /**
+   * Every open order resting on the book, anonymous (docs/limit-orders.md,
+   * "A quote lands where the price comes to rest"): the ticket runs the fill
+   * pass on these so a trade shows where the price comes to rest.
+   */
+  orders: RestingOrderRow[];
+}
+
+export interface RestingOrderRow {
+  id: string;
+  side: 'buy' | 'sell';
+  direction: 'higher' | 'lower';
+  limitValue: number;
+  /** Credits on a buy, shares on a sell. */
+  left: number;
+  /** One participant within this book and this answer; never who. */
+  holder: number;
+  /** That participant's shares on each side of the book. */
+  held: { higher: number; lower: number };
+  expiresAt?: string;
+}
+
+/** jsonb/json through a raw subquery: some drivers hand back the parsed value, others the text. */
+function parsedJson<T>(raw: unknown, fallback: T): T {
+  if (typeof raw !== 'string') return (raw as T) ?? fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
 }
 
 export type PricesAnswer =
@@ -113,6 +143,30 @@ async function readBooks(workspaceId: string): Promise<FloorBook[]> {
       pool: markets.pool,
       // Outer columns spelled out, for the same reason as the access query.
       tradeCount: sql<number>`(select count(*)::int from trades t where t.workspace_id = "markets"."workspace_id" and t.market_id = "markets"."id")`,
+      // Inside the same statement, so a moved version still costs one query.
+      // The holder is a rank within this book, never the participant's id; an
+      // expiry is written as UTC, the zone the column is stored in.
+      orders: sql<unknown>`(
+        select coalesce(json_agg(json_strip_nulls(json_build_object(
+          'id', o.id,
+          'side', o.side,
+          'direction', o.direction,
+          'limitValue', o.limit_value,
+          'left', case when o.side = 'sell' then coalesce(o.shares, 0) - coalesce(o.filled_shares, 0) else o.budget_credits - o.filled_credits end,
+          'holder', o.holder,
+          'held', json_build_object(
+            'higher', coalesce((select p.shares from positions p where p.workspace_id = o.workspace_id and p.id = o.agent_id || '_' || o.market_id || '_higher'), 0),
+            'lower', coalesce((select p.shares from positions p where p.workspace_id = o.workspace_id and p.id = o.agent_id || '_' || o.market_id || '_lower'), 0)
+          ),
+          'expiresAt', to_char(o.expires_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+        )) order by o.created_at, o.id), '[]'::json)
+        from (
+          select lo.*, dense_rank() over (order by lo.agent_id)::int - 1 as holder
+          from limit_orders lo
+          where lo.workspace_id = "markets"."workspace_id" and lo.market_id = "markets"."id"
+            and lo.status = 'open' and (lo.expires_at is null or lo.expires_at > now())
+        ) o
+      )`,
     })
     .from(markets)
     .leftJoin(proposals, and(eq(proposals.id, markets.proposalId), eq(proposals.workspaceId, markets.workspaceId)))
@@ -135,6 +189,7 @@ async function readBooks(workspaceId: string): Promise<FloorBook[]> {
       probability: funded ? Math.round(pHigher(shares, r.liquidity) * 10000) / 10000 : null,
       pool: r.pool ?? 0,
       tradeCount: Number(r.tradeCount) || 0,
+      orders: parsedJson<RestingOrderRow[]>(r.orders, []),
     };
   });
 }

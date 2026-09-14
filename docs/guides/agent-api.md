@@ -110,9 +110,14 @@ Each entry in `markets` is `{ id, resolvesOn, prediction, probability, rangeMin,
 {
   "asOf": "2026-09-12T18:04:05.120Z",
   "version": "9f2c41d07a6b",
-  "books": [{ "marketId": "…", "consensus": 612.4, "probability": 0.6124, "pool": 693.15, "tradeCount": 41 }]
+  "books": [{
+    "marketId": "…", "consensus": 612.4, "probability": 0.6124, "pool": 693.15, "tradeCount": 41,
+    "orders": [{ "id": "…", "side": "buy", "direction": "higher", "limitValue": 580, "left": 40, "holder": 0, "held": { "higher": 0, "lower": 12.5 } }]
+  }]
 }
 ```
+
+`orders` is every open limit order resting on that book, anonymous: `left` is what it still has to do (credits on a buy, shares on a sell), `holder` a number standing for one participant within that book and that answer, and `held` that participant's shares on each side, which bounds what a sell can sell. `expiresAt` appears when the order has one. With it you can compute where a trade comes to rest after the orders it crosses fill (docs/limit-orders.md), or ask a dry run, which reports it as `settledConsensus`.
 
 `books` is every open book you can trade on that floor: its open baseline books and every book of a pending proposal (both branches, or one per option). `tradeCount` counts the same rows as a dry run's `basis.tradeCount`, so the two can be compared. `asOf` is the moment the server last knew these prices to be current.
 
@@ -192,7 +197,9 @@ curl -s -X POST https://telarchy.com/api/predictions/trade \
 ```
 
 It answers 200 with the same numbers a real trade would return, plus
-`balance`, `affordable`, `shortfall`, and `basis`. It runs the same transaction
+`balance`, `affordable`, `shortfall`, and `basis`. A trade that would cross
+resting limit orders quotes `limitFills` and `settledConsensus` too, the price
+after those orders fill, exactly as the real trade would report them. It runs the same transaction
 as a real trade and rolls it back, so those numbers are what you would actually
 get rather than a second model of the market that can drift from the first.
 

@@ -143,3 +143,23 @@ change meaning). The fill pass now detects two orders repeating an identical rou
 and books all the whole rounds both can afford at once, one trade per order at what
 those rounds cost, so the pass ends exactly where the back and forth would have.
 The once-per-pass rule it replaced left the pair alternating slowly across sweeps.
+
+## 2026-09-14: A quote lands where the price comes to rest
+
+**Asked (Viktor, 2026-09-14):** "make sure that when placing a  trade in the ui
+and whatnot it properly shows the actual final impact on the price considering
+also the limit orders in place".
+
+Found: the ticket's landing value and chart ghost modelled the LMSR curve
+alone, and the trade response already reported `settledConsensus` after the
+fill pass, so a trade through resting orders showed a price the book never
+rested at. The API dry run ran the trade but not the fill pass, so its quote
+had the same gap.
+
+Chosen: the prices read (already polled once a second) lists every open
+order anonymously, and the ticket runs the fill pass on it; the dry run runs
+the real pass inside its rolled-back transaction. Not chosen: a server quote
+per edit of the ticket, which would be a locking transaction per slider move
+on the store that ran out of memory on 2026-09-13. Disclosure is unchanged in
+substance: the public actions log already lists every order with its owner's
+name and terms.

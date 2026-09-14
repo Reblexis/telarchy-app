@@ -92,6 +92,17 @@ const LEGACY_MARKET_FILTERS: ReadonlyArray<[string, Date]> = [
   ['includeVoided', new Date('2026-08-14T00:00:00Z')],
 ];
 
+/** What a trade or its quote reports of the resting orders it set off (docs/guides/agent-api.md). */
+function limitFillsOf(fills: Awaited<ReturnType<typeof fillLimitOrdersInTx>>) {
+  return fills.map(f => ({
+    side: f.side,
+    direction: f.direction,
+    limitValue: f.limitValue,
+    cost: f.cost,
+    ...(f.side === 'sell' ? { proceeds: f.proceeds, shares: f.shares } : {}),
+  }));
+}
+
 export const predictionsRouter = Router();
 
 type MetricTradePermissionGroup = {
@@ -401,6 +412,10 @@ predictionsRouter.post(
             quoteOnly: true,
             limit,
           });
+          // The real trade runs the fill pass in its transaction, so the quote
+          // does too (docs/limit-orders.md, "A quote lands where the price
+          // comes to rest"); the rollback below undoes the fills with the rest.
+          const quoteFills = await fillLimitOrdersInTx(tx, workspaceId, marketId as string);
           const price = outcome.isSell ? outcome.proceeds : outcome.cost;
           const shortfall = outcome.isSell ? 0 : Math.max(0, Math.round((price - outcome.balance) * 1e6) / 1e6);
           quote = {
@@ -424,6 +439,9 @@ predictionsRouter.post(
               liquidity: before?.liquidity ?? 0,
               consensus: outcome.prevConsensus,
             },
+            ...(quoteFills.length > 0
+              ? { limitFills: limitFillsOf(quoteFills), settledConsensus: quoteFills[quoteFills.length - 1].consensus }
+              : {}),
           };
           throw new RollBack();
         });
@@ -532,13 +550,7 @@ predictionsRouter.post(
         // The caller's own fill numbers are unchanged; this reports that other
         // people's resting orders executed behind them and where the price
         // actually came to rest.
-        tradeResponse.limitFills = fills.map(f => ({
-          side: f.side,
-          direction: f.direction,
-          limitValue: f.limitValue,
-          cost: f.cost,
-          ...(f.side === 'sell' ? { proceeds: f.proceeds, shares: f.shares } : {}),
-        }));
+        tradeResponse.limitFills = limitFillsOf(fills);
         tradeResponse.settledConsensus = settled;
       }
       eventPayload = {
@@ -839,6 +851,9 @@ predictionsRouter.post(
       };
     });
 
+    // The prices read lists resting orders, so a new one moves its version
+    // (docs/limit-orders.md, "A quote lands where the price comes to rest").
+    emitPricesChanged(workspaceId, marketId);
     // An order that filled at placement is a trade like any other: the board
     // reads it at once and the floor hears about it.
     if (immediate) clearBoardCache();
@@ -940,6 +955,7 @@ predictionsRouter.delete(
     const isAdmin = req.auth!.capabilities.has('manage');
     const orderId = String(req.params.id);
     let refunded = 0;
+    let bookId = '';
 
     await db.transaction(async tx => {
       const [order] = await tx
@@ -951,7 +967,10 @@ predictionsRouter.delete(
       if (!isAdmin && order.agentId !== req.auth!.agentId) throw new AppError('Not your limit order', 403);
       if (order.status !== 'open') throw new AppError(`Limit order is already ${order.status}`, 400);
       refunded = await closeLimitOrderInTx(tx, order, 'cancelled');
+      bookId = order.marketId;
     });
+    // The order leaves the prices read's list (docs/limit-orders.md).
+    emitPricesChanged(workspaceId, bookId);
 
     res.json({ id: orderId, status: 'cancelled', refundedCredits: refunded });
   }),

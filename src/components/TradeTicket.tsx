@@ -4,6 +4,7 @@ import { useEarnAvailable } from '../hooks/useEarnAvailable';
 import { previewSell, previewSellPrice, previewTargetBet, previewTrade, sharesSoldToPrice } from '../lib/amm';
 import type { LimitOrder } from '../lib/api';
 import { amountToSlider, SLIDER_STEPS, sliderToAmount } from '../lib/bet-slider';
+import { type RestingOrder, settleThroughOrders } from '../lib/limit-fills';
 import { maxWinLabel } from '../lib/market-quote';
 import { guardLimit, pushesCallUp } from '../lib/price-guard';
 import { PayoffLine } from './PayoffLine';
@@ -94,6 +95,14 @@ interface Props {
   onCancelLimit?: (id: string) => Promise<void>;
   /** Rest a sell of `shares` of the held `direction` position at `limitValue`. */
   onPlaceSellLimit?: (direction: 'higher' | 'lower', limitValue: number, shares: number) => Promise<void>;
+  /** Every open order resting on this book, from the prices read: the landing
+      and the ghost are where the price comes to rest once the ones a trade
+      crosses have filled (docs/limit-orders.md, "A quote lands where the price
+      comes to rest"). Pass a stable array; a new one re-casts the ghost. */
+  restingOrders?: RestingOrder[];
+  /** Ids of the trader's own resting orders among them, so what the composed
+      trade does to the trader's holdings reaches the trader's own sells. */
+  ownOrderIds?: string[];
   /** Open with a side already chosen (the floor's Lower/Higher buttons
       preselect it when they spawn the ticket in a dialog). */
   initialDir?: 'higher' | 'lower';
@@ -182,6 +191,8 @@ export function TradeTicket({
   onPlaceLimit,
   onCancelLimit,
   onPlaceSellLimit,
+  restingOrders,
+  ownOrderIds,
   initialDir,
   manageMode = false,
   subject,
@@ -230,6 +241,35 @@ export function TradeTicket({
   // back 1 credit per matched pair the buy creates.
   const held = positions.find(p => p.shares > 1e-9) ?? null;
 
+  // Where the call comes to rest once the resting orders a move crosses have
+  // filled (docs/limit-orders.md, "A quote lands where the price comes to
+  // rest"). `change` is what the move does to the trader's own holdings. The
+  // trader's own fill is never re-priced by it: the guard reads the trade's
+  // own landing.
+  const atRest = (newProb: number, change: { higher: number; lower: number }): number =>
+    restingOrders && restingOrders.length > 0 && rangeMin !== undefined && rangeMax !== undefined
+      ? settleThroughOrders({
+          prob: newProb,
+          liquidity,
+          rangeMin,
+          rangeMax,
+          orders: restingOrders,
+          heldChange: { orderIds: ownOrderIds ?? [], ...change },
+        })
+      : newProb;
+  // A buy adds its shares and then redeems matched pairs (docs/ui-conventions.md,
+  // "A trader holds ONE net side").
+  const buyChange = (direction: 'higher' | 'lower', shares: number) => {
+    const before = { higher: 0, lower: 0 };
+    if (held) before[held.direction] = held.shares;
+    const after = { ...before };
+    after[direction] += shares;
+    const pairs = Math.min(after.higher, after.lower);
+    return { higher: after.higher - pairs - before.higher, lower: after.lower - pairs - before.lower };
+  };
+  const sellChange = (direction: 'higher' | 'lower', shares: number) =>
+    direction === 'higher' ? { higher: -shares, lower: 0 } : { higher: 0, lower: -shares };
+
   // The bet ceiling is what the trader can afford (owner removed the
   // per-market cap 2026-08-11); fall back to a sane default before the
   // balance loads. The slider maxes here. The balance is the whole ceiling
@@ -267,8 +307,12 @@ export function TradeTicket({
   const composed =
     targetComposed ?? (dir && amountNum > 0 ? previewTrade(probability, liquidity, dir, amountNum, held) : null);
   const _payout = composed?.shares ?? null;
-  // Where the market's call would land if this bet were placed now.
-  const newValue = composed && span !== null && rangeMin !== undefined ? rangeMin + composed.newProb * span : null;
+  // Where the market's call would come to rest if this bet were placed now:
+  // after the resting orders it crosses fill, not at the trade's own peak.
+  const restProb = composed
+    ? atRest(composed.newProb, buyChange(targetComposed?.direction ?? dir ?? 'higher', composed.shares))
+    : null;
+  const newValue = restProb !== null && span !== null && rangeMin !== undefined ? rangeMin + restProb * span : null;
   /**
    * The landing the composer SHOWS. A 0 cr bet moves the market nowhere, so
    * at rest the landing is the market's own call: the arrow and the value
@@ -301,7 +345,8 @@ export function TradeTicket({
     if (!passed) return null;
     const r = previewTargetBet(probability, liquidity, rangeMin, rangeMin + span, limitNum, amountNum, held);
     if (!r || r.direction !== dir || r.cost <= 0) return null;
-    return { cost: Math.min(r.cost, amountNum), newProb: r.newProb };
+    // Its own fill, then the others that fill sets off.
+    return { cost: Math.min(r.cost, amountNum), newProb: atRest(r.newProb, buyChange(dir, r.shares)) };
   })();
 
   // A sell waits for the price its position wants: a higher position sells at
@@ -326,7 +371,11 @@ export function TradeTicket({
     const size = Math.min(held.shares, Math.max(0, sellShares));
     const n = Math.min(sharesSoldToPrice(probability, liquidity, held.direction, (limitNum - rangeMin) / span), size);
     if (!(n > 0)) return null;
-    return { shares: n, of: size, newProb: previewSellPrice(probability, liquidity, held.direction, n) };
+    return {
+      shares: n,
+      of: size,
+      newProb: atRest(previewSellPrice(probability, liquidity, held.direction, n), sellChange(held.direction, n)),
+    };
   })();
 
   // The win, said comprehensibly. A share's payout is linear in the settled
@@ -369,9 +418,22 @@ export function TradeTicket({
       return;
     }
     const show = composed && dir;
-    onPreview?.(show ? { direction: dir, newProb: composed.newProb } : null);
+    onPreview?.(show ? { direction: dir, newProb: restProb ?? composed.newProb } : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, dir, amountNum, probability, liquidity, isLimit, limitNum, target, held?.direction, held?.shares]);
+  }, [
+    tab,
+    dir,
+    amountNum,
+    probability,
+    liquidity,
+    isLimit,
+    limitNum,
+    target,
+    held?.direction,
+    held?.shares,
+    restingOrders,
+    ownOrderIds,
+  ]);
   // A sale casts the same ghost (docs/ui-conventions.md, "The price and the
   // chart", 2026-09-10): where the call lands if the shares on the size
   // slider are sold, in the sold side's colour. Nothing while the panel is
@@ -386,11 +448,14 @@ export function TradeTicket({
           ? { direction: sellDir, newProb: sellFillNow.newProb }
           : null
         : pos && sellDir && n > 0
-          ? { direction: sellDir, newProb: previewSellPrice(probability, liquidity, sellDir, n) }
+          ? {
+              direction: sellDir,
+              newProb: atRest(previewSellPrice(probability, liquidity, sellDir, n), sellChange(sellDir, n)),
+            }
           : null,
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, sellDir, sellShares, probability, liquidity, positions, isSellLimit, limitNum]);
+  }, [tab, sellDir, sellShares, probability, liquidity, positions, isSellLimit, limitNum, restingOrders, ownOrderIds]);
   // Clear the ghost when the ticket unmounts.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => () => onPreview?.(null), []);

@@ -291,6 +291,8 @@ export function TradePage() {
   const [joined, setJoined] = useState(false);
   const [positions, setPositions] = useState<TicketPosition[]>([]);
   const [orders, setOrders] = useState<LimitOrder[]>([]);
+  // Stable between refreshes: the ticket re-casts its ghost when this changes.
+  const ownOrderIds = useMemo(() => orders.map(o => o.id), [orders]);
   const [balance, setBalance] = useState<number | null>(null);
   // The walled liquidity wallet beside it: what a market can be funded with,
   // and what the server counts first when it decides whether an owner can
@@ -2794,6 +2796,12 @@ export function TradePage() {
                 onPlaceLimit={trading ? placeLimit : async () => {}}
                 onCancelLimit={trading ? cancelLimit : undefined}
                 onPlaceSellLimit={trading ? placeSellLimit : undefined}
+                /* Where a trade comes to rest after the resting orders it
+                 crosses fill (docs/limit-orders.md, "A quote lands where the
+                 price comes to rest"): the prices read's list, which only
+                 changes identity when the floor moves. */
+                restingOrders={activeMarketId ? floorPrices.books?.get(activeMarketId)?.orders : undefined}
+                ownOrderIds={ownOrderIds}
                 onRequireSignup={trading ? undefined : () => navigate(authPath('signup', location))}
                 initialDir={betModal === 'manage' || betModal === null ? undefined : betModal}
                 manageMode={betModal === 'manage'}

@@ -39,7 +39,7 @@ jest.mock('../middleware/auth', () => {
 import { eq } from 'drizzle-orm';
 import express from 'express';
 import request from 'supertest';
-import { agents, markets, metrics, permissionGroups, positions, trades } from '../db/schema';
+import { agents, limitOrders, markets, metrics, permissionGroups, positions, trades } from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { AppError } from '../lib/errors';
 import { provisionWorkspace } from '../lib/participants';
@@ -232,5 +232,67 @@ describe('a dry run refuses everything a real trade refuses', () => {
   test('a malformed body is still malformed', async () => {
     const res = await post(FUNDED, { marketId: MARKET, dryRun: true });
     expect(res.status).toBe(400);
+  });
+});
+
+/**
+ * A quote through resting orders (docs/limit-orders.md, "A quote lands where
+ * the price comes to rest"): the real trade runs the fill pass in its own
+ * transaction, so the quote runs it too, and reports where the price rests.
+ */
+describe('a dry run through resting limit orders', () => {
+  // The owner waits to buy lower at 51 or above; a 5 cr buy of higher on this
+  // book lands near 52.5, so the order buys it back down to 51.
+  async function rest() {
+    await db.insert(limitOrders).values({
+      id: 'resting-lower',
+      workspaceId: WS,
+      marketId: MARKET,
+      agentId: OWNER,
+      side: 'buy',
+      direction: 'lower',
+      limitValue: 51,
+      budgetCredits: 100,
+    });
+  }
+
+  test('the quote says where the price comes to rest after the orders it crosses fill', async () => {
+    await rest();
+    const res = await post(FUNDED, { ...buy, dryRun: true });
+    expect(res.status).toBe(200);
+    expect(res.body.consensus).toBeGreaterThan(52);
+    expect(res.body.settledConsensus).toBeCloseTo(51, 1);
+    expect(res.body.limitFills).toHaveLength(1);
+    expect(res.body.limitFills[0]).toEqual(
+      expect.objectContaining({ side: 'buy', direction: 'lower', limitValue: 51 }),
+    );
+  });
+
+  test('EXACTNESS: the real trade rests exactly where the quote said, with the same fills', async () => {
+    await rest();
+    const quote = await post(FUNDED, { ...buy, dryRun: true });
+    const real = await post(FUNDED, buy);
+    expect(real.status).toBe(201);
+    expect(real.body.settledConsensus).toBe(quote.body.settledConsensus);
+    expect(real.body.limitFills).toEqual(quote.body.limitFills);
+  });
+
+  test('THE RULE: a quote through resting orders moves nothing, the orders included', async () => {
+    await rest();
+    const res = await post(FUNDED, { ...buy, dryRun: true });
+    expect(res.status).toBe(200);
+    const [order] = await db.select().from(limitOrders).where(eq(limitOrders.id, 'resting-lower'));
+    expect(order.status).toBe('open');
+    expect(order.filledCredits).toBe(0);
+    expect(await balanceOf(OWNER)).toBe(0);
+    expect(await balanceOf(FUNDED)).toBe(1000);
+    expect(await db.select().from(trades)).toHaveLength(0);
+    expect(await db.select().from(positions)).toHaveLength(0);
+  });
+
+  test('a quote that crosses no order answers exactly as before', async () => {
+    const res = await post(FUNDED, { ...buy, dryRun: true });
+    expect(res.body).not.toHaveProperty('limitFills');
+    expect(res.body).not.toHaveProperty('settledConsensus');
   });
 });

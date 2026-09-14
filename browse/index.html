@@ -196,9 +196,10 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h3">Model</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h4">Funds are reserved, not merely promised</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h5">Execution</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h6">API</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h7">UI</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h8">What this deliberately does not do</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h6">A quote lands where the price comes to rest</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h7">API</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h8">UI</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-limit-orders-md--h9">What this deliberately does not do</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-liquidity-purchases-md">docs/liquidity-purchases.md</a></summary>
@@ -2753,9 +2754,40 @@ as a deadlock, and the decision fails.</li>
 </ul>
 <p>A market that resolves or is voided refunds every resting order's remainder,
 so credits are never stranded in a market that can no longer trade.</p>
+<h2 id="docs-limit-orders-md--h6">A quote lands where the price comes to rest</h2>
+<p>A trade's landing is where the price ends after the fill pass, not where the
+trade alone leaves it. A buy that pushes the call through resting orders is
+pulled back by them in the same transaction, so a ticket that drew only the
+trade's own move would show a price nobody ever sees.</p>
+<ul>
+<li><strong>The prices read lists every open order.</strong> Each book on
+<code>GET /api/marketplace/:id/prices</code> carries <code>orders</code>: <code>id</code>, <code>side</code>,
+<code>direction</code>, <code>limitValue</code>, <code>left</code> (credits on a buy, shares on a sell),
+<code>holder</code> (a small number standing for one participant within that book and
+that answer, so one participant's orders can be told apart without saying
+who), <code>held</code> (that participant's <code>higher</code> and <code>lower</code> shares on the book)
+and <code>expiresAt</code> when set. Orders are already public in the actions log with
+their owners' names; this is the same fact without the name. An order past
+its expiry counts for nothing.</li>
+<li><strong>Placing or cancelling an order moves the prices version</strong>, so a changed
+list is never answered as a 304.</li>
+<li><strong>The ticket runs the fill pass on that list</strong> after the composed trade, in
+the same order the server does (the order the price passed furthest first,
+opposing rounds booked at once), until no order is crossed, and shows the
+result: the landing value, its arrow and the chart's ghost all read the
+price at rest. That holds for a buy, a typed value, a sale, and an order
+placed past the market, whose own fill sets off the others. The trader's
+own orders are in the list and fill like anyone's.</li>
+<li><strong>The trader's own fill is not changed by it.</strong> The trade executes before
+any order fills, so shares, cost, proceeds and the payoff line are the
+trade's own; the ticket's default price guard is also computed from where
+the trade alone lands, because the guard bounds the trader's fill.</li>
+<li><strong>A dry run runs the pass too</strong>, inside its rolled-back transaction, and
+reports <code>limitFills</code> and <code>settledConsensus</code> exactly as the real trade would.</li>
+</ul>
 <p>The AMM is the counterparty to every fill, so no anti-wash rule is needed;
 the existing cap and the charter's coordination rule still govern.</p>
-<h2 id="docs-limit-orders-md--h6">API</h2>
+<h2 id="docs-limit-orders-md--h7">API</h2>
 <ul>
 <li><code>POST /api/predictions/limit-orders</code>: a buy is <code>{ marketId, direction, limitValue, budgetCredits, expiresAt? }</code> (<code>side: &quot;buy&quot;</code> optional); it debits the budget and returns the order. A sell is <code>{ marketId, side: &quot;sell&quot;, direction, limitValue, shares, expiresAt? }</code>; it moves nothing and returns the order. An order whose limit the market has already reached fills at once, up to its limit and never past it, and whatever is left rests (below, &quot;An order placed past the market fills at once&quot;). The response then carries <code>filledNow</code> (<code>cost</code> on a buy or <code>proceeds</code> on a sell, <code>shares</code>, <code>consensus</code>), and an order with nothing left comes back <code>filled</code>. 400 <code>insufficient_shares</code> for a sell beyond what is held.</li>
 <li><code>GET /api/predictions/limit-orders?marketId=&amp;status=</code>: the caller's own orders; admins may pass <code>agentId</code>. <code>status</code> defaults to <code>open</code>; <code>status=all</code> returns every state. Every row carries <code>side</code>; a sell also carries <code>shares</code>, <code>filledShares</code> and <code>remainingShares</code>.</li>
@@ -2763,6 +2795,9 @@ the existing cap and the charter's coordination rule still govern.</p>
 </ul>
 <p>A buy placed without <code>side</code> behaves and answers exactly as before sells
 existed; the new fields are additions.</p>
+<p>Where a trade would come to rest after the orders it crosses is readable
+before placing it: from the <code>orders</code> on the prices read, or from a dry run's
+<code>settledConsensus</code> (above, &quot;A quote lands where the price comes to rest&quot;).</p>
 <p>Every open book takes limit orders, in the API and in the ticket alike,
 however soon its trading closes.</p>
 <p>A trade's own <code>limit</code> (docs/guides/agent-api.md, &quot;Guard the price&quot;) is not a
@@ -2771,7 +2806,7 @@ spend; nothing rests and nothing is reserved. The fill pass above is the same
 whether or not the trade that triggered it carried one.</p>
 <p>All three appear in <code>/api/help</code> and in telarchy-skill, per the parity rule:
 anything the UI can do, an API key can do.</p>
-<h2 id="docs-limit-orders-md--h7">UI</h2>
+<h2 id="docs-limit-orders-md--h8">UI</h2>
 <p>Inside the ticket, which stays one object (see <code>ui-conventions.md</code>). The
 ticket already asks two questions, side and amount; limit adds a third that
 is optional and hidden until wanted:</p>
@@ -2811,7 +2846,7 @@ at their limits, in the direction's colour, labelled with the verb
 (&quot;▲ buy 65,000&quot;, &quot;▲ sell 80,000&quot;): seeing your order sitting in the price
 makes the abstraction concrete, and it costs one line per order.</li>
 </ul>
-<h2 id="docs-limit-orders-md--h8">What this deliberately does not do</h2>
+<h2 id="docs-limit-orders-md--h9">What this deliberately does not do</h2>
 <p>No order book depth chart, no partial-fill notifications, no
 good-till-date presets beyond a plain expiry, no stop orders. Those are
 exchange features for markets with counterparties; here they would be
@@ -6154,7 +6189,11 @@ graph where will it be moved.. just like when buying&quot;): with the sell panel
 open, the chart shows where the market's call lands if those shares are
 sold, moving with the size slider and clearing with Cancel, in the sold
 side's own colour, because selling Higher moves the call the way buying
-Lower does and the reader should see that before they press.</p>
+Lower does and the reader should see that before they press. <strong>Every ghost
+and the landing value read the price at rest</strong>: resting limit orders the
+move crosses fill in the same transaction and pull the call back, so both
+show where it ends after them, never the trade's own momentary peak
+(docs/limit-orders.md, &quot;A quote lands where the price comes to rest&quot;).</p>
 <p><strong>The chart's footer is where the counts live</strong> (revised 2026-09-09,
 moving them up from the tab row): one quiet row under the plot, the way
 every exchange labels a chart. The range chips stay in the chart's own
@@ -9335,9 +9374,13 @@ GET /api/status?trends=1&amp;trendsLimit=5   # fewer history points, fewer token
 <pre><code class="language-json">{
   &quot;asOf&quot;: &quot;2026-09-12T18:04:05.120Z&quot;,
   &quot;version&quot;: &quot;9f2c41d07a6b&quot;,
-  &quot;books&quot;: [{ &quot;marketId&quot;: &quot;…&quot;, &quot;consensus&quot;: 612.4, &quot;probability&quot;: 0.6124, &quot;pool&quot;: 693.15, &quot;tradeCount&quot;: 41 }]
+  &quot;books&quot;: [{
+    &quot;marketId&quot;: &quot;…&quot;, &quot;consensus&quot;: 612.4, &quot;probability&quot;: 0.6124, &quot;pool&quot;: 693.15, &quot;tradeCount&quot;: 41,
+    &quot;orders&quot;: [{ &quot;id&quot;: &quot;…&quot;, &quot;side&quot;: &quot;buy&quot;, &quot;direction&quot;: &quot;higher&quot;, &quot;limitValue&quot;: 580, &quot;left&quot;: 40, &quot;holder&quot;: 0, &quot;held&quot;: { &quot;higher&quot;: 0, &quot;lower&quot;: 12.5 } }]
+  }]
 }
 </code></pre>
+<p><code>orders</code> is every open limit order resting on that book, anonymous: <code>left</code> is what it still has to do (credits on a buy, shares on a sell), <code>holder</code> a number standing for one participant within that book and that answer, and <code>held</code> that participant's shares on each side, which bounds what a sell can sell. <code>expiresAt</code> appears when the order has one. With it you can compute where a trade comes to rest after the orders it crosses fill (docs/limit-orders.md), or ask a dry run, which reports it as <code>settledConsensus</code>.</p>
 <p><code>books</code> is every open book you can trade on that floor: its open baseline books and every book of a pending proposal (both branches, or one per option). <code>tradeCount</code> counts the same rows as a dry run's <code>basis.tradeCount</code>, so the two can be compared. <code>asOf</code> is the moment the server last knew these prices to be current.</p>
 <p>The response carries an <code>ETag</code>, and <code>version</code> is the same value. Send it back as <code>If-None-Match</code> and a floor whose prices have not moved answers <code>304</code> with no body. The server answers it from memory, so polling once a second is what it is for, and it is never rate limited. The floor's own page polls it at that rate.</p>
 <p>It follows the floor's disclosure rule: 404 for an unknown floor, 403 for a floor that is not public or whose Public group cannot read.</p>
@@ -9386,7 +9429,9 @@ trade would do, and does nothing:</p>
   -d '{&quot;marketId&quot;:&quot;&lt;id&gt;&quot;,&quot;direction&quot;:&quot;higher&quot;,&quot;amount&quot;:5,&quot;dryRun&quot;:true}'
 </code></pre>
 <p>It answers 200 with the same numbers a real trade would return, plus
-<code>balance</code>, <code>affordable</code>, <code>shortfall</code>, and <code>basis</code>. It runs the same transaction
+<code>balance</code>, <code>affordable</code>, <code>shortfall</code>, and <code>basis</code>. A trade that would cross
+resting limit orders quotes <code>limitFills</code> and <code>settledConsensus</code> too, the price
+after those orders fill, exactly as the real trade would report them. It runs the same transaction
 as a real trade and rolls it back, so those numbers are what you would actually
 get rather than a second model of the market that can drift from the first.</p>
 <p>Two things it is for. Sizing, because on a thin book the price you pay is the

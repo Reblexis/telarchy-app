@@ -1,5 +1,6 @@
 import type { TimePreference } from '../types';
 import { BASE_PATH, withBase } from './base-path';
+import type { RestingOrder } from './limit-fills';
 import { pickCurrentSeason } from './season-clock';
 import type { TimelineItem } from './timeline-model';
 
@@ -974,6 +975,9 @@ export interface FloorPriceBook {
   probability: number | null;
   pool: number;
   tradeCount: number;
+  /** Every open order resting on the book, anonymous (docs/limit-orders.md,
+      "A quote lands where the price comes to rest"). Absent from an older server. */
+  orders?: RestingOrder[];
 }
 
 export interface PublicWorkspaceMarket {

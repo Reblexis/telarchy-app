@@ -36,7 +36,17 @@ jest.mock('../middleware/auth', () => {
 import { and, eq } from 'drizzle-orm';
 import express from 'express';
 import request from 'supertest';
-import { agents, markets, metrics, permissionGroups, proposals, trades, workspaces } from '../db/schema';
+import {
+  agents,
+  limitOrders,
+  markets,
+  metrics,
+  permissionGroups,
+  positions,
+  proposals,
+  trades,
+  workspaces,
+} from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { apiErrorHandler } from '../lib/api-error-handler';
 import { provisionWorkspace } from '../lib/participants';
@@ -208,7 +218,7 @@ describe('the answer', () => {
     expect(Number.isNaN(Date.parse(res.body.asOf))).toBe(false);
     expect(typeof res.body.version).toBe('string');
     const base = res.body.books.find((b: { marketId: string }) => b.marketId === 'm-base');
-    expect(Object.keys(base).sort()).toEqual(['consensus', 'marketId', 'pool', 'probability', 'tradeCount']);
+    expect(Object.keys(base).sort()).toEqual(['consensus', 'marketId', 'orders', 'pool', 'probability', 'tradeCount']);
     expect(base.consensus).toBeCloseTo(51.25, 2);
     expect(base.probability).toBeCloseTo(0.5125, 4);
     expect(base.pool).toBeCloseTo(initialPool(200), 6);
@@ -415,5 +425,217 @@ describe('every price-changing write moves the version', () => {
     expect(after.status).toBe(200);
     const left = after.body.books.find((b: { marketId: string }) => b.marketId === 'm-opt-left');
     expect(left.pool).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * The resting orders on each book (docs/limit-orders.md, "A quote lands where
+ * the price comes to rest"): the ticket runs the fill pass on this list, so a
+ * trade through resting orders shows where the price actually comes to rest.
+ */
+describe('resting orders on the prices read', () => {
+  async function seedOrders() {
+    const past = new Date(Date.now() - 60_000);
+    const later = new Date('2099-01-01T12:00:00.000Z');
+    await db.insert(positions).values([
+      {
+        id: `${TRADER}_m-base_higher`,
+        workspaceId: WS,
+        agentId: TRADER,
+        marketId: 'm-base',
+        direction: 'higher',
+        shares: 10,
+        totalCost: 6,
+      },
+    ]);
+    await db.insert(limitOrders).values([
+      {
+        id: 'o-buy',
+        workspaceId: WS,
+        marketId: 'm-base',
+        agentId: TRADER,
+        side: 'buy',
+        direction: 'higher',
+        limitValue: 40,
+        budgetCredits: 25,
+        createdAt: new Date(Date.now() - 5000),
+      },
+      {
+        id: 'o-sell',
+        workspaceId: WS,
+        marketId: 'm-base',
+        agentId: TRADER,
+        side: 'sell',
+        direction: 'higher',
+        limitValue: 70,
+        budgetCredits: 0,
+        shares: 8,
+        filledShares: 3,
+        createdAt: new Date(Date.now() - 4000),
+      },
+      {
+        id: 'o-other',
+        workspaceId: WS,
+        marketId: 'm-base',
+        agentId: OWNER,
+        side: 'buy',
+        direction: 'lower',
+        limitValue: 60,
+        budgetCredits: 30,
+        filledCredits: 10,
+        createdAt: new Date(Date.now() - 3000),
+      },
+      {
+        id: 'o-filled',
+        workspaceId: WS,
+        marketId: 'm-base',
+        agentId: OWNER,
+        side: 'buy',
+        direction: 'lower',
+        limitValue: 60,
+        budgetCredits: 30,
+        filledCredits: 30,
+        status: 'filled',
+      },
+      {
+        id: 'o-cancelled',
+        workspaceId: WS,
+        marketId: 'm-base',
+        agentId: OWNER,
+        side: 'buy',
+        direction: 'lower',
+        limitValue: 60,
+        budgetCredits: 30,
+        status: 'cancelled',
+      },
+      {
+        id: 'o-expired',
+        workspaceId: WS,
+        marketId: 'm-base',
+        agentId: OWNER,
+        side: 'buy',
+        direction: 'lower',
+        limitValue: 60,
+        budgetCredits: 30,
+        expiresAt: past,
+      },
+      {
+        id: 'o-later',
+        workspaceId: WS,
+        marketId: 'm-pair-approved',
+        agentId: TRADER,
+        side: 'buy',
+        direction: 'lower',
+        limitValue: 80,
+        budgetCredits: 5,
+        expiresAt: later,
+      },
+    ]);
+  }
+  const bookOf = (res: request.Response, id: string) =>
+    res.body.books.find((b: { marketId: string }) => b.marketId === id);
+
+  test('each book lists its open orders and nothing closed or expired', async () => {
+    await seed();
+    await seedOrders();
+    const res = await poll();
+    expect(bookOf(res, 'm-base').orders.map((o: { id: string }) => o.id)).toEqual(['o-buy', 'o-sell', 'o-other']);
+    expect(bookOf(res, 'm-pair-approved').orders.map((o: { id: string }) => o.id)).toEqual(['o-later']);
+    expect(bookOf(res, 'm-pair-declined').orders).toEqual([]);
+  });
+
+  test('an order says what it still has to do: credits on a buy, shares on a sell', async () => {
+    await seed();
+    await seedOrders();
+    const orders = bookOf(await poll(), 'm-base').orders;
+    const byId = Object.fromEntries(orders.map((o: { id: string }) => [o.id, o]));
+    expect(Object.keys(byId['o-buy']).sort()).toEqual([
+      'direction',
+      'held',
+      'holder',
+      'id',
+      'left',
+      'limitValue',
+      'side',
+    ]);
+    expect(byId['o-buy']).toEqual(
+      expect.objectContaining({ side: 'buy', direction: 'higher', limitValue: 40, left: 25 }),
+    );
+    expect(byId['o-sell']).toEqual(
+      expect.objectContaining({ side: 'sell', direction: 'higher', limitValue: 70, left: 5 }),
+    );
+    expect(byId['o-other'].left).toBe(20);
+    expect(bookOf(await poll(), 'm-pair-approved').orders[0].expiresAt).toBe('2099-01-01T12:00:00.000Z');
+  });
+
+  test('ANONYMOUS: an order names no participant, only which orders share one and what that one holds', async () => {
+    await seed();
+    await seedOrders();
+    const res = await poll();
+    expect(res.text).not.toContain(TRADER);
+    expect(res.text).not.toContain(OWNER);
+    const byId = Object.fromEntries(bookOf(res, 'm-base').orders.map((o: { id: string }) => [o.id, o]));
+    expect(byId['o-buy'].holder).toBe(byId['o-sell'].holder);
+    expect(byId['o-other'].holder).not.toBe(byId['o-buy'].holder);
+    expect(byId['o-sell'].held).toEqual({ higher: 10, lower: 0 });
+    expect(byId['o-other'].held).toEqual({ higher: 0, lower: 0 });
+  });
+
+  test('placing a resting order moves the version', async () => {
+    await seed();
+    setPriceTransport(live);
+    const first = await poll();
+    const placed = await request(app)
+      .post('/api/predictions/limit-orders')
+      .set('X-Test-Agent-Id', TRADER)
+      .set('X-Workspace-Id', WS)
+      .send({ marketId: 'm-base', direction: 'higher', limitValue: 30, budgetCredits: 10 });
+    expect(placed.status).toBe(201);
+    const after = await poll(WS, first.headers.etag);
+    expect(after.status).toBe(200);
+    expect(bookOf(after, 'm-base').orders.map((o: { id: string }) => o.id)).toEqual([placed.body.id]);
+  });
+
+  test('cancelling a resting order moves the version', async () => {
+    await seed();
+    setPriceTransport(live);
+    const placed = await request(app)
+      .post('/api/predictions/limit-orders')
+      .set('X-Test-Agent-Id', TRADER)
+      .set('X-Workspace-Id', WS)
+      .send({ marketId: 'm-base', direction: 'higher', limitValue: 30, budgetCredits: 10 });
+    expect(placed.status).toBe(201);
+    const first = await poll();
+    const cancelled = await request(app)
+      .delete(`/api/predictions/limit-orders/${placed.body.id}`)
+      .set('X-Test-Agent-Id', TRADER)
+      .set('X-Workspace-Id', WS);
+    expect(cancelled.status).toBe(200);
+    const after = await poll(WS, first.headers.etag);
+    expect(after.status).toBe(200);
+    expect(bookOf(after, 'm-base').orders).toEqual([]);
+  });
+
+  test('a floor with resting orders still costs one read per move, however many viewers ask', async () => {
+    await seed();
+    await seedOrders();
+    setPriceTransport(live);
+    const first = await poll();
+    const t = await request(app)
+      .post('/api/predictions/trade')
+      .set('X-Test-Agent-Id', TRADER)
+      .set('X-Workspace-Id', WS)
+      .send({ marketId: 'm-base', direction: 'higher', amount: 1 });
+    expect(t.status).toBe(201);
+    await new Promise(resolve => setImmediate(resolve));
+    const log = captureQueries();
+    let answers: request.Response[];
+    try {
+      answers = await Promise.all(Array.from({ length: 20 }, () => poll(WS, first.headers.etag)));
+    } finally {
+      log.stop();
+    }
+    expect(log.queries).toHaveLength(1);
+    for (const a of answers) expect(bookOf(a, 'm-base').orders.length).toBe(3);
   });
 });
