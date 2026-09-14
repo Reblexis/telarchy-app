@@ -116,7 +116,18 @@ losing transaction back whole, and the decision runs that transaction again
 checks its own work under the lock first, so running one twice refunds
 nobody twice.
 
-**Undecided at the deadline, a proposal lapses.** Both branches are voided
+**A proposal is decided exactly once.** Approve, decline, decline as spam,
+withdraw and the lapse each claim the pending proposal before they void or
+pay anything, and only one claim can win. Whatever arrives second, even a
+millisecond later, is refused with 409 and code `not_pending`, carrying the
+`status` the proposal already has, and moves no money: no book is voided,
+no stake bought out, no reward paid. So an owner deciding at the last second
+and the deadline sweep can never both act on the same proposal.
+
+**Undecided at the deadline, a proposal lapses.** Trading closes at the
+deadline instant; the lapse itself takes the proposal only once the deadline
+is **10 seconds** past, so a decision sent right at the deadline still lands
+instead of racing the sweep. Both branches are voided
 and everyone is refunded: nobody ruled, so neither world is the one we are
 in and there is nothing to settle against. Its status is `lapsed`, its own
 thing and not a decline, so it counts against nobody; the prices at the

@@ -68,6 +68,10 @@ export const ERROR_CODES = [
   'no_options',
   /** The named option is not one of the proposal's. Carries `options`. */
   'unknown_option',
+  /** The proposal was already decided, withdrawn or lapsed: a proposal is
+   *  decided exactly once, and the call that lost moved nothing. Carries
+   *  `status` (docs/guides/proposals.md, "The deadline, and the close"). */
+  'not_pending',
   /** The floor is closed to outside proposals: only a caller holding manage
    *  posts one there (docs/guides/proposals.md, "Closing the floor to outside
    *  proposals"). Nothing was created or charged; trading is unaffected. */

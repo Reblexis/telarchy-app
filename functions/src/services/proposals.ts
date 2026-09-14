@@ -34,9 +34,59 @@ import {
 import { applyCredits } from './credits';
 import { emitEvent } from './events';
 import { voidMarket } from './markets';
-import { releaseLimitOrdersForMarket } from './trading';
+import { releaseLimitOrdersForMarket, type Tx } from './trading';
 
 type MarketRow = typeof markets.$inferSelect;
+
+/**
+ * A proposal is decided exactly once (docs/guides/proposals.md, "The
+ * deadline, and the close"). Every ending (approve, decline, decline as
+ * spam, withdraw, lapse) claims the pending row with one guarded UPDATE
+ * before it voids or pays anything, and only one claim can match
+ * `status = 'pending'`. Reading `pending` first and writing later let the
+ * one-minute lapse sweep and an owner's last-second approve both act on the
+ * same proposal: the last write won the status while the other had already
+ * voided its books.
+ */
+export const LAPSE_GRACE_MS = 10_000;
+
+function notPending(status: string | undefined): AppError {
+  return new AppError(
+    `Proposal is not pending: it is already ${status ?? 'gone'}`,
+    409,
+    { status: status ?? null },
+    'not_pending',
+  );
+}
+
+async function claimPending(
+  exec: typeof db | Tx,
+  proposalId: string,
+  workspaceId: string,
+  set: Partial<typeof proposals.$inferInsert>,
+): Promise<boolean> {
+  const won = await exec
+    .update(proposals)
+    .set(set)
+    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId), eq(proposals.status, 'pending')))
+    .returning({ id: proposals.id });
+  return won.length > 0;
+}
+
+/** Claim or throw 409 not_pending naming what the proposal already is. */
+async function claimPendingOrThrow(
+  exec: typeof db | Tx,
+  proposalId: string,
+  workspaceId: string,
+  set: Partial<typeof proposals.$inferInsert>,
+): Promise<void> {
+  if (await claimPending(exec, proposalId, workspaceId, set)) return;
+  const [row] = await exec
+    .select({ status: proposals.status })
+    .from(proposals)
+    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+  throw notPending(row?.status);
+}
 
 export async function getTradeCountMap(marketIds: string[], workspaceId: string): Promise<Map<string, number>> {
   if (marketIds.length === 0) return new Map();
@@ -690,7 +740,10 @@ export async function lapseOverdueProposals(workspaceId: string): Promise<number
         eq(proposals.workspaceId, workspaceId),
         eq(proposals.status, 'pending'),
         isNotNull(proposals.decideBy),
-        lt(proposals.decideBy, new Date()),
+        // Trading closed at the deadline itself; the lapse waits a grace
+        // period past it so a decision sent right at the deadline lands
+        // instead of racing this sweep.
+        lt(proposals.decideBy, new Date(Date.now() - LAPSE_GRACE_MS)),
       ),
     );
   let lapsed = 0;
@@ -699,12 +752,21 @@ export async function lapseOverdueProposals(workspaceId: string): Promise<number
       // What it was priced at when the clock ran out, taken before the books
       // are voided, so the floor can still show what the market made of it.
       const decidedPricing = await pairPricesNow(id, workspaceId);
-      await voidProposalMarkets(id, workspaceId);
       const at = new Date();
-      await db
-        .update(proposals)
-        .set({ status: 'lapsed', decidedPricing, lapsedAt: at, closedAt: at, resolvedAt: at })
-        .where(and(eq(proposals.id, id), eq(proposals.workspaceId, workspaceId)));
+      // Claimed before anything is voided: a decision that got there first
+      // keeps its books, and this proposal is simply not lapsed.
+      if (
+        !(await claimPending(db, id, workspaceId, {
+          status: 'lapsed',
+          decidedPricing,
+          lapsedAt: at,
+          closedAt: at,
+          resolvedAt: at,
+        }))
+      ) {
+        continue;
+      }
+      await voidProposalMarkets(id, workspaceId);
       emitPricesChanged(workspaceId);
       lapsed++;
     } catch (e) {
@@ -765,7 +827,7 @@ export async function approveProposal(
     .from(proposals)
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
   if (!proposal) throw new AppError('Proposal not found', 404);
-  if (proposal.status !== 'pending') throw new AppError('Proposal is not pending', 400);
+  if (proposal.status !== 'pending') throw notPending(proposal.status);
 
   // Deciding is choosing (docs/guides/proposals.md, "More than two
   // options"): a proposal with options is approved by naming one, and a
@@ -827,6 +889,63 @@ export async function approveProposal(
   // What the decision is priced on, taken before anything is voided.
   const decidedPricing = await pairPricesNow(proposalId, workspaceId);
 
+  // Claim the decision before anything is voided or paid (a proposal is
+  // decided exactly once). With a reward, the claim and the payment are one
+  // transaction: an owner who cannot cover it, or an approve that lost the
+  // claim, leaves every balance and book exactly as it was.
+  const decided = {
+    status: 'approved',
+    decidedPricing,
+    decidedOption: chosen,
+    resolvedAt: new Date(),
+    closedAt: new Date(),
+  } as const;
+  const ownerAgentId = configuredReward > 0 ? await resolveWorkspaceOwnerAgentId(workspaceId) : null;
+  let rewardPaid = 0;
+  if (configuredReward <= 0) {
+    await claimPendingOrThrow(db, proposalId, workspaceId, { ...decided, resolvedBy: resolvedBy ?? null });
+  } else if (!ownerAgentId) {
+    throw new AppError('Workspace has no owner participant; cannot pay proposal reward', 409);
+  } else if (ownerAgentId === proposal.proposedBy) {
+    await claimPendingOrThrow(db, proposalId, workspaceId, { ...decided, resolvedBy: resolvedBy ?? ownerAgentId });
+  } else {
+    const reward = configuredReward;
+    await retryTransient(() =>
+      db.transaction(async tx => {
+        const [owner] = await tx.select().from(agents).where(eq(agents.id, ownerAgentId)).for('update');
+        if (!owner) throw new AppError('Workspace owner participant not found', 409);
+        if (!sufficientBalance(owner.balance as number, reward)) {
+          throw new AppError(
+            `Workspace owner balance insufficient to pay proposal reward: need ${reward}, have ${fromUnits(owner.balance as number)}`,
+            409,
+          );
+        }
+        await claimPendingOrThrow(tx, proposalId, workspaceId, {
+          ...decided,
+          rewardPaid: reward,
+          resolvedBy: resolvedBy ?? ownerAgentId,
+        });
+        await applyCredits(tx, {
+          agentId: ownerAgentId,
+          workspaceId,
+          deltaUnits: -toUnits(reward),
+          reason: 'proposal_reward',
+          refType: 'proposal',
+          refId: proposalId,
+        });
+        await applyCredits(tx, {
+          agentId: proposal.proposedBy,
+          workspaceId,
+          deltaUnits: toUnits(reward),
+          reason: 'proposal_reward',
+          refType: 'proposal',
+          refId: proposalId,
+        });
+      }),
+    );
+    rewardPaid = reward;
+  }
+
   // The declined-branch counterfactual never materialises once approved, so
   // void it and refund any positions. The approved branch stays live and
   // resolves against the actual KPI at target date. With options, the
@@ -843,87 +962,8 @@ export async function approveProposal(
   // at resolution like before; a broke owner must not block an approval.
   await buyOutProposerLiquidity(proposalId, workspaceId, proposal.proposedBy);
 
-  const [ws] = await db
-    .select({ proposalReward: workspaces.proposalReward })
-    .from(workspaces)
-    .where(eq(workspaces.id, workspaceId));
-  const reward = ws?.proposalReward ?? 0;
-
-  if (reward <= 0) {
-    await db
-      .update(proposals)
-      .set({
-        status: 'approved',
-        decidedPricing,
-        decidedOption: chosen,
-        resolvedAt: new Date(),
-        resolvedBy: resolvedBy ?? null,
-      })
-      .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
-    await closeProposalTrading(proposalId, workspaceId);
-    return { rewardPaid: 0 };
-  }
-
-  const ownerAgentId = await resolveWorkspaceOwnerAgentId(workspaceId);
-  if (!ownerAgentId) {
-    throw new AppError('Workspace has no owner participant; cannot pay proposal reward', 409);
-  }
-  if (ownerAgentId === proposal.proposedBy) {
-    await db
-      .update(proposals)
-      .set({
-        status: 'approved',
-        decidedPricing,
-        decidedOption: chosen,
-        resolvedAt: new Date(),
-        resolvedBy: resolvedBy ?? ownerAgentId,
-      })
-      .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
-    await closeProposalTrading(proposalId, workspaceId);
-    return { rewardPaid: 0 };
-  }
-
-  await retryTransient(() =>
-    db.transaction(async tx => {
-      const [owner] = await tx.select().from(agents).where(eq(agents.id, ownerAgentId)).for('update');
-      if (!owner) throw new AppError('Workspace owner participant not found', 409);
-      if (!sufficientBalance(owner.balance as number, reward)) {
-        throw new AppError(
-          `Workspace owner balance insufficient to pay proposal reward: need ${reward}, have ${fromUnits(owner.balance as number)}`,
-          409,
-        );
-      }
-      await applyCredits(tx, {
-        agentId: ownerAgentId,
-        workspaceId,
-        deltaUnits: -toUnits(reward),
-        reason: 'proposal_reward',
-        refType: 'proposal',
-        refId: proposalId,
-      });
-      await applyCredits(tx, {
-        agentId: proposal.proposedBy,
-        workspaceId,
-        deltaUnits: toUnits(reward),
-        reason: 'proposal_reward',
-        refType: 'proposal',
-        refId: proposalId,
-      });
-      await tx
-        .update(proposals)
-        .set({
-          status: 'approved',
-          decidedPricing,
-          decidedOption: chosen,
-          rewardPaid: reward,
-          resolvedAt: new Date(),
-          resolvedBy: resolvedBy ?? ownerAgentId,
-        })
-        .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
-    }),
-  );
   await closeProposalTrading(proposalId, workspaceId);
-  return { rewardPaid: reward };
+  return { rewardPaid };
 }
 
 /** Longest decline reason we store. Generous: an owner explaining why the
@@ -942,7 +982,7 @@ export async function declineProposal(
     .from(proposals)
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
   if (!proposal) throw new AppError('Proposal not found', 404);
-  if (proposal.status !== 'pending') throw new AppError('Can only decline pending proposals', 400);
+  if (proposal.status !== 'pending') throw notPending(proposal.status);
 
   // A charter is a public promise that a declined proposal gets a written
   // reason. Enforce it here rather than trusting the caller to remember: the
@@ -966,6 +1006,15 @@ export async function declineProposal(
   }
 
   const decidedPricing = await pairPricesNow(proposalId, workspaceId);
+  // Claimed before anything is voided (a proposal is decided exactly once).
+  await claimPendingOrThrow(db, proposalId, workspaceId, {
+    status: 'declined',
+    decidedPricing,
+    resolvedAt: new Date(),
+    closedAt: new Date(),
+    resolvedBy: resolvedBy ?? null,
+    declineReason: trimmed || null,
+  });
   if (refundStake || (proposal.options?.length ?? 0) > 0) {
     // "None of these" on a proposal with options: there is no declined world
     // to keep, so every option voids whatever `refund` says (docs/guides/
@@ -983,16 +1032,6 @@ export async function declineProposal(
     // record we use to compute calibration on declined proposals.
     await voidProposalBranch(proposalId, workspaceId, 'approved');
   }
-  await db
-    .update(proposals)
-    .set({
-      status: 'declined',
-      decidedPricing,
-      resolvedAt: new Date(),
-      resolvedBy: resolvedBy ?? null,
-      declineReason: trimmed || null,
-    })
-    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
   await closeProposalTrading(proposalId, workspaceId);
 }
 
@@ -1006,8 +1045,18 @@ export async function declineProposalAsSpam(
     .from(proposals)
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
   if (!proposal) throw new AppError('Proposal not found', 404);
-  if (proposal.status !== 'pending') throw new AppError('Can only decline pending proposals', 400);
+  if (proposal.status !== 'pending') throw notPending(proposal.status);
 
+  const ownerAgentId = await resolveWorkspaceOwnerAgentId(workspaceId);
+  // Claimed before anything is voided or charged (a proposal is decided
+  // exactly once).
+  await claimPendingOrThrow(db, proposalId, workspaceId, {
+    status: 'declined_spam',
+    closedAt: new Date(),
+    penaltyCharged: 0,
+    resolvedAt: new Date(),
+    resolvedBy: resolvedBy ?? ownerAgentId ?? null,
+  });
   await voidProposalMarkets(proposalId, workspaceId);
 
   const [ws] = await db
@@ -1017,7 +1066,6 @@ export async function declineProposalAsSpam(
   const configuredPenalty = ws?.spamPenalty ?? 0;
 
   let actualCharged = 0;
-  const ownerAgentId = await resolveWorkspaceOwnerAgentId(workspaceId);
 
   if (configuredPenalty > 0 && ownerAgentId && ownerAgentId !== proposal.proposedBy) {
     await db.transaction(async tx => {
@@ -1047,16 +1095,12 @@ export async function declineProposalAsSpam(
     });
   }
 
-  await db
-    .update(proposals)
-    .set({
-      status: 'declined_spam',
-      closedAt: new Date(),
-      penaltyCharged: actualCharged,
-      resolvedAt: new Date(),
-      resolvedBy: resolvedBy ?? ownerAgentId ?? null,
-    })
-    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+  if (actualCharged > 0) {
+    await db
+      .update(proposals)
+      .set({ penaltyCharged: actualCharged })
+      .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+  }
 
   return { penaltyCharged: actualCharged };
 }
@@ -1258,19 +1302,17 @@ export async function withdrawProposal(proposalId: string, workspaceId: string, 
     .from(proposals)
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
   if (!proposal) throw new AppError('Proposal not found', 404);
-  if (proposal.status !== 'pending') throw new AppError('Can only withdraw pending proposals', 400);
+  if (proposal.status !== 'pending') throw notPending(proposal.status);
   if (proposal.proposedBy !== byAgentId) throw new AppError('Only the proposer may withdraw a proposal', 403);
 
+  // Claimed before anything is voided (a proposal is decided exactly once).
+  await claimPendingOrThrow(db, proposalId, workspaceId, {
+    status: 'withdrawn',
+    resolvedAt: new Date(),
+    resolvedBy: byAgentId,
+    closedAt: new Date(),
+  });
   await voidProposalMarkets(proposalId, workspaceId);
-  await db
-    .update(proposals)
-    .set({
-      status: 'withdrawn',
-      resolvedAt: new Date(),
-      resolvedBy: byAgentId,
-      closedAt: new Date(),
-    })
-    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
 }
 
 export async function countPendingProposalsByProposer(workspaceId: string, proposedBy: string): Promise<number> {
