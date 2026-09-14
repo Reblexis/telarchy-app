@@ -14,6 +14,7 @@ import {
   type DataRoomVision,
 } from '../lib/api';
 import { withBase } from '../lib/base-path';
+import { startVisiblePoll } from '../lib/visible-poll';
 import { TopBar } from './TradePage';
 
 /**
@@ -145,7 +146,8 @@ export function ActionsLog({
   // the newest one on the page, prepended and marked until the pointer moves.
   useEffect(() => {
     if (state !== 'ready') return;
-    const id = window.setInterval(() => {
+    // Paused while the tab is hidden; tops up at once when it is shown again.
+    return startVisiblePoll(() => {
       const newest = rowsRef.current[0]?.at;
       if (!newest) return;
       api
@@ -163,7 +165,6 @@ export function ActionsLog({
           /* the next tick tries again; a missed poll is not a failed page */
         });
     }, POLL_MS);
-    return () => window.clearInterval(id);
   }, [state, filterKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadMore = useCallback(() => {

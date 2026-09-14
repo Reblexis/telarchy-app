@@ -13,6 +13,7 @@ import { dropInline, readInline } from '../lib/inline-data';
 import { optionLead, pairPool } from '../lib/proposal-options';
 import { pickCurrentSeason } from '../lib/season-clock';
 import { useSeasonClock } from '../lib/useSeasonClock';
+import { startVisiblePoll } from '../lib/visible-poll';
 import { TopBar } from './TradePage';
 
 /** The server plants the home payload in the served HTML under this id
@@ -630,17 +631,10 @@ export function FloorsPage() {
         })
         .catch(e => console.error('home fetch failed:', e));
     if (!inline) void load();
-    const timer = window.setInterval(() => {
-      if (document.visibilityState !== 'hidden') void load();
-    }, HOME_REFRESH_MS);
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') void load();
-    };
-    document.addEventListener('visibilitychange', onVisibility);
+    const stop = startVisiblePoll(load, HOME_REFRESH_MS);
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
-      document.removeEventListener('visibilitychange', onVisibility);
+      stop();
     };
   }, [inline]);
 

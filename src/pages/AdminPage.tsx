@@ -8,6 +8,7 @@ import { XWorkbench } from '../components/XWorkbench';
 import { useAuth } from '../hooks/useAuth';
 import { api, type FeedbackItem, type Journey, type JourneyFeed } from '../lib/api';
 import { pollDelay } from '../lib/poll';
+import { isTabHidden } from '../lib/visible-poll';
 import { TopBar } from './TradePage';
 
 /**
@@ -295,8 +296,10 @@ export function AdminPage() {
     const load = () => {
       // One round of the cockpit's four reads. A round is skipped while the
       // previous one is still in flight, so slow responses cannot stack, and
-      // the next round is scheduled only once this one has settled.
-      if (inFlightRef.current) return;
+      // the next round is scheduled only once this one has settled. A hidden
+      // tab reads nothing (docs/ui-conventions.md, "A hidden tab asks for
+      // nothing"); showing it again runs a round at once.
+      if (inFlightRef.current || isTabHidden()) return;
       inFlightRef.current = true;
       let failed = false;
       const fail = (what: string, e: unknown) => {
@@ -373,13 +376,25 @@ export function AdminPage() {
         // A round with any failure backs off; a clean one returns to the base
         // interval (docs/ui-conventions.md).
         failuresRef.current = failed ? failuresRef.current + 1 : 0;
+        if (isTabHidden()) return;
         timer = setTimeout(load, pollDelay(failuresRef.current));
       });
     };
+    let wasHidden = isTabHidden();
+    const onVisibility = () => {
+      const hidden = isTabHidden();
+      if (hidden === wasHidden) return;
+      wasHidden = hidden;
+      if (timer) clearTimeout(timer);
+      timer = undefined;
+      if (!hidden) load();
+    };
     load();
+    document.addEventListener('visibilitychange', onVisibility);
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [allowed, needsStats, needsFeedback]);
 

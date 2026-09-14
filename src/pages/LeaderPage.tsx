@@ -7,6 +7,7 @@ import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import { api, type LeaderboardEntry, type PrizeSeason, type PublicContractor, type SeasonStanding } from '../lib/api';
 import { pickCurrentSeason } from '../lib/season-clock';
 import { useSeasonClock } from '../lib/useSeasonClock';
+import { startVisiblePoll } from '../lib/visible-poll';
 import { TopBar } from './TradePage';
 
 /**
@@ -146,18 +147,10 @@ export function LeaderPage() {
         });
     };
     load();
-    const tick = () => {
-      if (typeof document === 'undefined' || !document.hidden) load();
-    };
-    const interval = setInterval(tick, 15_000);
-    const onVisible = () => {
-      if (!document.hidden) load();
-    };
-    document.addEventListener('visibilitychange', onVisible);
+    const stop = startVisiblePoll(load, 15_000);
     return () => {
       cancelled = true;
-      clearInterval(interval);
-      document.removeEventListener('visibilitychange', onVisible);
+      stop();
     };
     // Changing the floor refetches at once rather than waiting for the tick.
   }, [scope]);

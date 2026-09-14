@@ -394,8 +394,9 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h54">When in doubt</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h55">What a market says about itself, and what your position is worth</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h56">The data room</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h57">The frontend never speaks HTTP directly</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h58">Telling somebody there are credits to earn</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h57">A hidden tab asks for nothing</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h58">The frontend never speaks HTTP directly</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-ui-conventions-md--h59">Telling somebody there are credits to earn</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-vision-md">docs/vision.md</a></summary>
@@ -5429,7 +5430,8 @@ The current agent page marks it active. It replaces the top-bar theme toggle.</p
 is one compact two-line link to <code>/earn</code>: current credits above, <strong>Earn +N</strong>
 below when N is available, otherwise <strong>Get credits</strong>. The amount available is
 never added to the balance. A failed availability read shows no invented
-amount. Both lines remain visible on phones. There is no separate Earn credits
+amount. Both lines remain visible on phones. The balance re-reads when the account
+menu opens and every thirty seconds while the tab is visible. There is no separate Earn credits
 button in the top bar. Liquidity stays a separate, explicitly labeled wallet.</p>
 <p>Theme switching lives in the account menu. The site follows the OS until a
 visitor chooses a theme; the per-browser <code>telarchy-theme</code> choice and before-
@@ -7031,7 +7033,8 @@ lights: the bell takes the accent, sits in a soft amber field with a
 hairline ring, and carries a mono count, still no red dot. A fresh
 arrival pulses the ring once, and only on a rise, never on a poll that
 changed nothing, because a page that twitches at rest teaches people to
-ignore it. Its panel is a ruled list, one row per event, and unread rows
+ignore it. It re-reads the inbox once a minute while the tab is visible
+(&quot;A hidden tab asks for nothing&quot;). Its panel is a ruled list, one row per event, and unread rows
 carry an amber hairline down the left edge as the only unread marker (a
 badge per row turns twelve rows into a field of noise). Opening a row
 reads THAT row: the count drops by one, its hairline goes, and the rest
@@ -7948,7 +7951,8 @@ in real time.</li>
 be hammered by its own console: after a failed poll the next one waits
 longer, doubling up to five minutes, and a successful poll resets it. A
 poll is also skipped while the previous one is still in flight, so slow
-responses cannot stack.</li>
+responses cannot stack, and a hidden tab does not poll at all (&quot;A hidden
+tab asks for nothing&quot;).</li>
 <li><strong>The visitor log is indexed on time.</strong> Every read of it is a time range,
 and it grows forever between purges.</li>
 </ul>
@@ -8095,7 +8099,29 @@ components as <code>/guides</code>) inside the room's column and palette, with t
 room's tab row above them. <strong>Vision</strong> renders one markdown document the
 same way an announcement body is rendered, under the tab row, with its
 &quot;updated&quot; date in mono.</p>
-<h2 id="docs-ui-conventions-md--h57">The frontend never speaks HTTP directly</h2>
+<h2 id="docs-ui-conventions-md--h57">A hidden tab asks for nothing</h2>
+<p>Every page that re-reads the server on a timer does so only while its tab is
+visible (<code>document.visibilityState</code> is not <code>hidden</code>). While the tab is
+visible, each poll keeps the cadence its own section states; this rule changes
+none of them. While it is hidden, no timed read is sent, however long it stays
+hidden. The moment the tab is visible again the poll reads once, at once, and
+its cadence restarts from that read, so a returning viewer never waits a full
+period for fresh numbers and never gets two reads back to back. A visibility
+event that leaves the tab as it was starts nothing, so however often a tab
+flips there is only ever one timer per poll. A poll whose page opens in a
+hidden tab makes its first timed read when the tab is first shown. Leaving the
+page stops its polls.</p>
+<p>Visible means what the browser reports and nothing more: a window covered by
+another window, or a headless browser left running, reports visible and keeps
+polling at full cadence.</p>
+<p>Fixed-cadence polls go through one helper, <code>src/lib/visible-poll.ts</code>
+(<code>startVisiblePoll</code>, and <code>useVisiblePoll</code> for a read that lives on a
+component). The loops that schedule themselves keep their own timers and obey
+the same rule: the floor's prices poll with its back-off (&quot;The floor's live
+poll&quot;), the cockpit's back-off (&quot;The cockpit may never take the site down&quot;)
+and the stale-tab guard. <code>polls-pause-when-hidden.test.ts</code> fails the build on
+a <code>setInterval</code> anywhere else under <code>src/</code> that is not a local clock.</p>
+<h2 id="docs-ui-conventions-md--h58">The frontend never speaks HTTP directly</h2>
 <p><code>src/lib/api.ts</code> is the one module that calls <code>fetch</code>. Everything else, page
 or component, calls a method on <code>api</code>. That is not tidiness: the parity guard
 that proves the UI has no capability the public API lacks reads that single
@@ -8103,7 +8129,7 @@ file, so a component doing its own <code>fetch</code> is a capability nobody can
 is also what makes &quot;an assistant acting as you can do what you can do, and
 nothing more&quot; true by construction rather than by review.</p>
 <p><code>api-parity.test.ts</code> fails the build on a <code>fetch(</code> anywhere else under <code>src/</code>.</p>
-<h2 id="docs-ui-conventions-md--h58">Telling somebody there are credits to earn</h2>
+<h2 id="docs-ui-conventions-md--h59">Telling somebody there are credits to earn</h2>
 <p>Discovery goes where the lack is felt, not where attention is cheapest
 (owner ask 2026-08-30; design
 https://claude.ai/code/artifact/9794469a-2222-4fb9-938a-c519b412d771).
@@ -13038,6 +13064,10 @@ refreshes on focus. Each tick is ~5 endpoints; the cadence is a
 database-load decision, pinned by a test, not a frontend tweak. Prices
 alone are polled every second, from <code>GET /api/marketplace/:id/prices</code>, which
 costs the database nothing while prices stand still (below).</li>
+<li>No timed poll anywhere in the frontend reads while its tab is hidden
+(docs/ui-conventions.md, &quot;A hidden tab asks for nothing&quot;), so an idle
+background tab costs nothing; a visible one, a covered window or a headless
+browser still polls at full cadence.</li>
 <li>Price-history replays are cached 30s per market and invalidated the moment
 a trade or liquidity event lands (<code>lib/market-events.ts</code>). The floor
 payload as a whole is deliberately NOT cached: it carries ballots and

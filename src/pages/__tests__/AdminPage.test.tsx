@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const navigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -210,5 +210,65 @@ describe('/admin questions', () => {
     // Identity: a handle where there is one, "anonymous" where there is not.
     expect(screen.getByText(/anonymous · CZ/)).toBeTruthy();
     expect(screen.getByText(/trader-7/)).toBeTruthy();
+  });
+});
+
+/**
+ * A HIDDEN TAB ASKS FOR NOTHING (docs/ui-conventions.md, "A hidden tab asks
+ * for nothing"; "The cockpit may never take the site down"): /admin is the
+ * page left open for hours, so a background cockpit must not keep reading.
+ */
+describe('THE COCKPIT ASKS NOTHING WHILE THE TAB IS HIDDEN', () => {
+  let visibility: 'visible' | 'hidden' = 'visible';
+  const setVisibility = async (next: 'visible' | 'hidden') => {
+    visibility = next;
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+  };
+  beforeEach(() => {
+    visibility = 'visible';
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibility });
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => visibility === 'hidden' });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    visibility = 'visible';
+  });
+
+  test('a hidden cockpit does not poll, and polls once at once when shown again', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPage();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await waitFor(() => expect(api.getFloorStats).toHaveBeenCalled());
+    // While visible it keeps polling on its own cadence.
+    const first = vi.mocked(api.getFloorStats).mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+    });
+    expect(vi.mocked(api.getFloorStats).mock.calls.length).toBeGreaterThan(first);
+    await setVisibility('hidden');
+    // A round already scheduled may not fire into a hidden tab either.
+    const hiddenAt = vi.mocked(api.getFloorStats).mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60 * 60_000);
+    });
+    expect(vi.mocked(api.getFloorStats).mock.calls.length).toBe(hiddenAt);
+    await setVisibility('visible');
+    expect(vi.mocked(api.getFloorStats).mock.calls.length).toBe(hiddenAt + 1);
+    // Flipping back and forth never stacks a second loop.
+    await setVisibility('hidden');
+    await setVisibility('visible');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    const settled = vi.mocked(api.getFloorStats).mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    const perMinute = vi.mocked(api.getFloorStats).mock.calls.length - settled;
+    expect(perMinute).toBeLessThanOrEqual(3);
   });
 });

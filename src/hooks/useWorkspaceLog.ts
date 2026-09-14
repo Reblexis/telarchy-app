@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type ActionRow, api } from '../lib/api';
+import { startVisiblePoll } from '../lib/visible-poll';
 
 /**
  * The floor's Live column, kept live (docs/ui-conventions.md, "The live log").
@@ -7,8 +8,9 @@ import { type ActionRow, api } from '../lib/api';
  * Every reader of a floor asks the same read, `workspace=<slug>&limit=30`,
  * which the server holds for five seconds (docs/data-room.md, "The feed"), so
  * this never asks with `after`: it reads the held page and finds new rows by
- * id. It reads on open, every 15 seconds while the tab is visible, and at once
- * on refresh() (a live feed's step). A failed read leaves the rows standing,
+ * id. It reads on open, every 15 seconds while the tab is visible, once at once
+ * when a hidden tab is shown again, and at once on refresh() (a live feed's
+ * step). A failed read leaves the rows standing,
  * and a poll never removes a row already held.
  */
 
@@ -58,10 +60,7 @@ export function useWorkspaceLog(slug: string | null | undefined) {
     setState('loading');
     if (!slug) return;
     void read();
-    const id = window.setInterval(() => {
-      if (typeof document === 'undefined' || !document.hidden) void read();
-    }, LIVE_LOG_POLL_MS);
-    return () => window.clearInterval(id);
+    return startVisiblePoll(read, LIVE_LOG_POLL_MS);
   }, [slug, read]);
 
   const refresh = useCallback(() => {

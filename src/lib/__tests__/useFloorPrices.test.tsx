@@ -128,6 +128,25 @@ describe('useFloorPrices', () => {
     expect(getFloorPrices).toHaveBeenCalledTimes(3);
   });
 
+  test('a visibility event that leaves a visible tab visible asks nothing extra', async () => {
+    renderHook(() => useFloorPrices('snake'));
+    await act(async () => {});
+    expect(getFloorPrices).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    await act(async () => {
+      setVisibility('visible');
+      setVisibility('visible');
+    });
+    expect(getFloorPrices).toHaveBeenCalledTimes(1);
+    // Nor does it move the period already under way.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(getFloorPrices).toHaveBeenCalledTimes(2);
+  });
+
   test('it sends back the ETag it last received', async () => {
     getFloorPrices.mockResolvedValueOnce(body(50));
     renderHook(() => useFloorPrices('snake'));

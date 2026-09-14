@@ -88,9 +88,16 @@ export function useFloorPrices(idOrSlug: string | undefined, enabled = true): Fl
         schedule(askedAt);
       }
     };
+    // Only a real change counts (docs/ui-conventions.md, "A hidden tab asks
+    // for nothing"): an event that leaves a visible tab visible asks nothing
+    // and keeps the period under way.
+    let wasHidden = hidden();
     const onVisibility = () => {
+      const now = hidden();
+      if (now === wasHidden) return;
+      wasHidden = now;
       clear();
-      if (!hidden()) void ask();
+      if (!now) void ask();
     };
     void ask();
     document.addEventListener('visibilitychange', onVisibility);
