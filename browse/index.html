@@ -1963,7 +1963,7 @@ A: No. Owner-listed company numbers only.</p>
 Description: List the numbers that decide the most for your company. Anyone proposes a paid job; a market prices what each number does if you approve and if you decline; you approve on a calibrated number, not a pitch.</p>
 <h1 id="docs-audience-pages-md--h30">Approve on evidence, not on who argued best.</h1>
 <p>You list the numbers your company runs on. Before you approve a plan, a market tells you what it does to them. You say yes on that number, not on a pitch.</p>
-<p>CATCH: Free today, up to three workspaces. A floor in a minute, unlisted until you publish it.</p>
+<p>CATCH: A floor in a minute, unlisted until you publish it.</p>
 <p>LIVE: marketplace-stats</p>
 <h3 id="docs-audience-pages-md--h31">A decision, already priced</h3>
 <p><strong>Every proposal on your floor arrives with its price on your number.</strong> This is Telarchy's own floor, live. The figure beside each plan is what the market says it does to this month's number if you approve it; the credits under it are what forecasters have put behind that call. You read the column and decide.</p>
@@ -2007,7 +2007,7 @@ A: Yes, and so can anyone else's. Every participant is scored the same way.
 Q: Is my data public?
 A: Only the metrics you mark public. Everything else is per-metric permissioned.
 Q: What does it cost?
-A: The managed service is free today, up to three workspaces per account. A new workspace starts unlisted, live and shareable by link.</p>
+A: Creating a workspace is free, up to three per account, and a new one starts unlisted. A private floor set up for you on one decision you have open is a paid four-week pilot: ask at telarchy.com/contact.</p>
 <p>CTA: List your numbers (telarchy.com) · See a floor running (telarchy.com/telarchy)</p>
 <h2 id="docs-audience-pages-md--h36">/compare/futarchy-fi (Telarchy vs Futarchy.fi)</h2>
 <p>Title: Telarchy vs Futarchy.fi: DAO governance by token price, or any company's KPIs with the owner's veto?
@@ -3840,7 +3840,12 @@ workbench (<code>X_DRAFT_MODEL</code>, <code>X_DRAFT_EFFORT</code>, <code>X_DRAF
 <li><strong>The rules for a first message to a stranger.</strong> Answer first, under 75
 words, one ask, his name in the first line, the hook is the decision they
 have open, quote only the evidence, never flatter, never explain the
-mechanism (the link does that), say it is free and why, no em-dashes.</li>
+mechanism (the link does that), say the number stays private (a private
+floor, only forecasters they invite see it, no Stripe keys, they type the
+number in) and that he sets it up himself, never call it free and never
+name a price, no em-dashes. The price belongs to his answer to a yes: the
+offer is a paid four-week pilot on one decision (docs/vision.md, &quot;The first
+owners buy a pilot&quot;).</li>
 <li><strong>The voice profile</strong> (shared with the X workbench; one row, his samples
 and the facts he may state).</li>
 <li><strong>The lessons.</strong> A text the owner keeps, in his words, of what he has
@@ -8363,6 +8368,7 @@ instead, because that is the recruiting line that brought them.</p>
 <li><strong>Liquidity can be bought; credits cannot, ever.</strong> Resolved 2026-08-28: the purchasable thing is market liquidity (Stripe Checkout, <code>POST /api/workspaces/:id/liquidity/checkout</code>, pool-only, docs/liquidity-purchases.md), which gives Telarchy its revenue line without a per-credit price, and per-credit purchase stays out permanently because a credit price makes every market a real-money bet (the legality analysis in the telarchy umbrella, notes/wheel-vs-proportional-legality-2026-08-28.md). The paragraph below records the pre-resolution state. This was the one that is not a UI problem. The USDC deposit path is implemented but the managed instance runs with settlement disabled (<code>GET /api/agents/deposit-address</code> returns 503) and managed credits are admin-granted play money, so an operator willing to pay cannot. Until this exists Telarchy cannot charge anyone for anything, and every pricing conversation is theoretical. It is legal-gated (see ToS section 6); the interim is an invoice-plus-admin-grant path run by a human, documented rather than improvised.</li>
 </ol>
 <p>Sequencing: (1) is the only one that blocks a waiting operator, and it is a permission plus one screen. (2) is what makes an operator's second week worth anything, because without it their liquidity sits spread evenly across markets they do not care about. (3) cannot be first however much it matters.</p>
+<p><strong>The first owners buy a pilot.</strong> Creating a floor stays free and self-serve. An owner Telarchy approaches is offered a paid pilot instead: a private floor set up for them on one decision they have open, priced by forecasters for four weeks, paid as pool liquidity on that floor, with a second four weeks free when the price did not change or firm up the decision (a purchase stays non-refundable, docs/liquidity-purchases.md). Outreach never calls it free and names the price only in the answer to a yes. Prices and the record of who was asked live in the telarchy umbrella, <code>notes/outreach-30-2026-09.md</code>.</p>
 <p>Trader-first is not reversed by the owner side being open. Every account is still a trader by default and signup still lands in the trading surface; wanting to own a floor is not a request submitted to a waitlist.</p>
 <p>Three mechanisms stack, always in this order:</p>
 <ol>
