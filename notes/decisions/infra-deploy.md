@@ -341,3 +341,66 @@ happy, nothing else watches.
 New Cloud Scheduler job `telarchy-self-sync` (`40 * * * *`, `POST /api/cron/self-sync`,
 master key in `X-API-Key`), and `SELF_SYNC_WORKSPACE_ID` set on the `api`
 service. Rationale for the metric behaviour is in notes/decisions/metrics.md.
+
+## 2026-09-14: a push builds an image only when it changes an image input
+
+Trigger: the GCP cost check (telarchy umbrella `notes/gcp-cost-2026-09-13.md`)
+counted 597 Cloud Build builds and 1,873 build-minutes for Sep 1 to 13 and
+approved item 7, "do not build a preview image for docs-only pushes".
+
+What was already there: a workflow-level `paths-ignore` of `**/*.md` and
+`docs/**`. It had three faults. It skipped the tests along with the build. It
+skipped `docs/guides/`, `docs/audience-pages.md` and `docs/data-room/vision.md`,
+which the Dockerfile copies and the app serves, so a push of only a guide never
+reached the beta. And it almost never matched, because every docs commit also
+carries the regenerated `browse/index.html`.
+
+Replaced by the `changes` job and `scripts/image-build-needed.mjs` (rule in
+docs/infra/deploy.md, "A push builds only when the image would change"). It
+compares against the last commit the workflow BUILT for the ref, not the
+push's `before`, because a pending run in the same concurrency group is
+cancelled by a newer push, so `before` may never have been built.
+
+Expected saving, measured before shipping: of 489 September push runs whose
+commits were still fetchable (163 more were on deleted branches), 22 changed
+no image input under the new rule (10 on main, 12 on branches). Pushes of
+only `*.md` or `docs/**` were already not running, so the new rule removes
+roughly 4.5% of builds, about 190 build-minutes a month, not the ~1,800
+minutes over the free tier. The builds are code pushes; the lever for Cloud
+Build minutes is how often a branch push builds a preview at all (for example
+building previews only on request from the picker), which is an owner
+decision.
+
+Image separation for Artifact Registry (investigated, nothing changed in GCP):
+
+- The repository `cloud-run-source-deploy` holds one package, `api`, and
+  already carries active cleanup policies (dry run off, updated 2026-09-14
+  00:10 UTC): DELETE untagged older than 7 days, DELETE any older than 30
+  days, KEEP the 5 most recent versions of packages prefixed `api`. Every
+  image there is untagged, so from the next policy pass everything older than
+  7 days goes except the newest 5 `api` versions, previews and candidates
+  alike.
+- Consequence to check before it bites: at about 40 builds a day the newest
+  5 versions cover a few hours. The published revision's image is protected
+  only while it is younger than 7 days, and a revision whose image is deleted
+  cannot start a new instance (scale-out, restart, crash). If nobody presses
+  Publish for 7 days, the serving revision loses its image.
+- `gcloud run deploy --source` accepts `--image`, but with `--source` "the
+  image name must be the same as the name of the service": a preview cannot
+  go to another package name in the same repository in one step. Two ways to
+  separate: (a) push previews to a second repository, e.g.
+  `--image us-central1-docker.pkg.dev/telarchy-e0043/cloud-run-previews/api`,
+  whose only policy is DELETE older than 7 days, leaving
+  `cloud-run-source-deploy` with production candidates only under a keep
+  policy sized for rollback; or (b) build with `gcloud builds submit --tag
+  .../cloud-run-source-deploy/preview-api:<sha>` and deploy with `--image`,
+  one repository, two packages. Name the preview package so it does not start
+  with `api` (`packageNamePrefixes` is a prefix match; `api-preview` would
+  fall under the production keep policy). Either way the deploy service
+  account needs write on the new repository or package, and the runtime
+  pull permission recorded under "The permission behind the button" must
+  cover it.
+- Recommendation: (a), plus replacing the repository-wide 7-day and 30-day
+  DELETE on `cloud-run-source-deploy` with a policy that never deletes the
+  serving revision's image (a larger keep count, or no age-based delete once
+  previews live elsewhere). Owner's call; no policy was edited.
