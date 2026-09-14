@@ -2,6 +2,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
 import { agents, authUser, prizeSeasons, recordLinks, seasonEntries, workspaces } from '../db/schema';
+import { afterCommit } from '../lib/after-commit';
 import { loadBoard, loadSeasonMarked, loadSeasonSettled } from '../lib/board';
 import { onPricesChanged } from '../lib/market-events';
 import {
@@ -95,6 +96,10 @@ export const leaderboardRouter = Router();
  */
 const boardCache = ttlCache({
   ttlMs: 5_000,
+  // Fresh past the TTL, never the last board while a reload runs: a trade
+  // written anywhere is on the board by the next poll (owner report
+  // 2026-08-21, leaderboard-freshness.test.ts).
+  serveStale: false,
   // One entry per distinct workspace set ever asked for: small today, grows
   // with scoped boards, hence the (default) size bound in the helper.
   keyOf: (workspaceIds: string[]) => [...workspaceIds].sort().join(','),
@@ -103,20 +108,33 @@ const boardCache = ttlCache({
 
 export const cachedBoard = (workspaceIds: string[]) => boardCache.get(workspaceIds);
 
-/** Settlement, the trade route, and any test that just wrote trades needs the
- *  next read to see them rather than a cached answer. */
+/** Settlement, and any test that just wrote trades, needs the next read to
+ *  see them rather than a cached answer. */
 export function clearBoardCache(): void {
   boardCache.clear();
   settledCache.clear();
   markedCache.clear();
 }
 
+/** Every cached board and season score that includes this floor, and nothing
+ *  else: the trade route after its commit, and every change that moved money.
+ *  A machine-run floor moving money every second must not empty every other
+ *  floor's boards every second. */
+export function clearBoardCacheFor(workspaceId: string): void {
+  boardCache.invalidateWhere(ids => ids.includes(workspaceId));
+  settledCache.invalidateWhere((_season, ids) => ids.includes(workspaceId));
+  markedCache.invalidateWhere((_season, ids) => ids.includes(workspaceId));
+}
+
 // A trade another instance took used to leave this instance's board stale
 // for the whole TTL; the price channel now says so (docs/infra/deploy.md,
-// "Prices, one channel across instances"). Local trades already clear it in
-// the trade route, after the commit.
-onPricesChanged((_workspaceId, _marketId, origin) => {
-  if (origin === 'remote') clearBoardCache();
+// "Prices, one channel across instances"). Only a change that moved money
+// empties a board, and only the boards that include its floor; a local one
+// waits for its commit, so a read in between cannot cache the old board.
+onPricesChanged((workspaceId, _marketId, origin, change) => {
+  if (change && !change.moneyMoved) return;
+  if (origin === 'remote') clearBoardCacheFor(workspaceId);
+  else afterCommit(() => clearBoardCacheFor(workspaceId));
 });
 
 /**
@@ -128,6 +146,10 @@ onPricesChanged((_workspaceId, _marketId, origin) => {
  */
 const settledCache = ttlCache({
   ttlMs: 5_000,
+  // Fresh past the TTL, never the last board while a reload runs: a trade
+  // written anywhere is on the board by the next poll (owner report
+  // 2026-08-21, leaderboard-freshness.test.ts).
+  serveStale: false,
   keyOf: (seasonId: string, _workspaceIds: string[], _from: Date, _to: Date) => seasonId,
   load: (_seasonId: string, workspaceIds: string[], from: Date, to: Date) => loadSeasonSettled(workspaceIds, from, to),
 });
@@ -140,6 +162,10 @@ const settledCache = ttlCache({
  */
 const markedCache = ttlCache({
   ttlMs: 5_000,
+  // Fresh past the TTL, never the last board while a reload runs: a trade
+  // written anywhere is on the board by the next poll (owner report
+  // 2026-08-21, leaderboard-freshness.test.ts).
+  serveStale: false,
   keyOf: (seasonId: string, _workspaceIds: string[], _from: Date, _to: Date) => seasonId,
   load: (_seasonId: string, workspaceIds: string[], from: Date, to: Date) => loadSeasonMarked(workspaceIds, from, to),
 });

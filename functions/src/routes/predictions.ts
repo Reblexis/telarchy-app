@@ -59,7 +59,7 @@ import {
   guardFields,
   type TradeMode,
 } from '../services/trading';
-import { clearBoardCache } from './leaderboard';
+import { clearBoardCacheFor } from './leaderboard';
 
 /**
  * A request body in a form two equal bodies always hash the same way: keys
@@ -568,7 +568,8 @@ predictionsRouter.post(
     // The board must include this trade on the very next read: the floor rail
     // reloads right after a trade lands, and a cached answer that omits the
     // trade reads as the board being broken (owner report 2026-08-21).
-    clearBoardCache();
+    // Only the boards that include this floor: nobody else's ranking moved.
+    clearBoardCacheFor(workspaceId);
 
     res.status(201).json(tradeResponse);
     emitEvent('trade:executed', eventPayload, workspaceId).catch(e => console.error('emitEvent failed:', e));
@@ -841,7 +842,7 @@ predictionsRouter.post(
 
     // An order that filled at placement is a trade like any other: the board
     // reads it at once and the floor hears about it.
-    if (immediate) clearBoardCache();
+    if (immediate) clearBoardCacheFor(workspaceId);
     res.status(201).json(created);
     if (immediate) {
       const trade = immediate as { metricName: string; direction: string; cost: number; consensus: number | null };
@@ -1577,7 +1578,8 @@ predictionsRouter.post(
         // states the liquidity), so it asks the same question explicitly.
         await anchorUntradedMarketTx(tx, { workspaceId, marketId });
       });
-      emitPricesChanged(workspaceId, marketId);
+      // A new book: prices only, nobody's money moved.
+      emitPricesChanged(workspaceId, marketId, { moneyMoved: false });
     }
 
     res.status(201).json({ id: marketId, metricId, metricName: metric.name, targetDate });
@@ -1731,7 +1733,8 @@ predictionsRouter.post(
         // per market), which means it also has to ask the opening-price
         // question itself. A no-op on every market that already has a price.
         await anchorUntradedMarketTx(tx, { workspaceId, marketId: market.id });
-        emitPricesChanged(workspaceId, market.id);
+        // Funding a book moves its depth, not anybody's position.
+        emitPricesChanged(workspaceId, market.id, { moneyMoved: false });
       }
 
       // Persist the per-market top-up on a pending proposal so the subsidy

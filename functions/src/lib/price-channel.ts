@@ -9,10 +9,12 @@ import { bumpEveryPriceVersion, bumpPriceVersion, priceKey } from './price-versi
  * How every instance learns that a floor's prices moved (docs/infra/deploy.md,
  * "Prices, one channel across instances").
  *
- *   write commits ─▶ bump this instance's version ─▶ announce (next tick)
+ *   write commits ─▶ bump this instance's version ─▶ announce (next tick, or
+ *                                                        │  when the floor's second ends)
  *                                                        │ pg_notify
  *                     other instance ◀── LISTEN ─────────┘
- *                     bump its version, drop its replay and board caches
+ *                     bump its version, drop that floor's replays, and its
+ *                     boards when money moved
  *
  * NOTHING HERE MAY SIT IN A TRADE'S REQUEST PATH (owner ask 2026-09-12: "dont
  * block the actual trade"). The bump is a map write; the announcement is
@@ -53,63 +55,112 @@ interface Pending {
   workspaceId: string;
   markets: Set<string>;
   whole: boolean;
+  /** Whether any change in this message moved money. */
+  money: boolean;
 }
 
+/**
+ * At most one message a floor a second (docs/infra/deploy.md, "Prices, one
+ * channel across instances"): a machine-run floor changes prices several times
+ * a second, and each message is a pg_notify. The first change of a quiet
+ * second goes on the next tick; the rest of that second ride one message when
+ * it ends.
+ */
+export const ANNOUNCE_INTERVAL_MS = 1_000;
+
 const pending = new Map<string, Pending>();
+/** Floors due on the next tick. */
+const dueNow = new Set<string>();
+/** Floors held until their second ends, and when each last sent. */
+const trailing = new Map<string, ReturnType<typeof setTimeout>>();
+const lastSentAt = new Map<string, number>();
 let scheduled = false;
 
-/** Queue one message for the floor; several changes in one tick send once. */
-export function announcePriceChange(store: string, workspaceId: string, marketId?: string): void {
+/** Queue one message for the floor: at once if its last message is a second old, else when that second ends. */
+export function announcePriceChange(store: string, workspaceId: string, marketId?: string, moneyMoved = true): void {
   const key = priceKey(store, workspaceId);
-  const entry = pending.get(key) ?? { store, workspaceId, markets: new Set<string>(), whole: false };
+  const entry = pending.get(key) ?? { store, workspaceId, markets: new Set<string>(), whole: false, money: false };
   if (marketId) entry.markets.add(marketId);
   else entry.whole = true;
+  entry.money = entry.money || moneyMoved;
   pending.set(key, entry);
-  if (!scheduled) {
-    scheduled = true;
-    setImmediate(flushAnnouncements);
+  if (dueNow.has(key) || trailing.has(key)) return;
+
+  const last = lastSentAt.get(key);
+  const wait = last === undefined ? 0 : ANNOUNCE_INTERVAL_MS - (Date.now() - last);
+  if (wait <= 0) {
+    dueNow.add(key);
+    if (!scheduled) {
+      scheduled = true;
+      setImmediate(flushAnnouncements);
+    }
+    return;
   }
+  const timer = setTimeout(() => {
+    trailing.delete(key);
+    sendOne(key);
+  }, wait);
+  timer.unref?.();
+  trailing.set(key, timer);
+}
+
+/** Test seam: forget every queued message and every floor's last send. */
+export function resetPriceAnnouncements(): void {
+  for (const timer of trailing.values()) clearTimeout(timer);
+  trailing.clear();
+  dueNow.clear();
+  pending.clear();
+  lastSentAt.clear();
 }
 
 function flushAnnouncements(): void {
   scheduled = false;
-  const batch = [...pending.values()];
-  pending.clear();
+  const keys = [...dueNow];
+  dueNow.clear();
+  for (const key of keys) sendOne(key);
+}
+
+function sendOne(key: string): void {
+  const entry = pending.get(key);
+  if (!entry) return;
+  pending.delete(key);
+  lastSentAt.set(key, Date.now());
   const out = transport;
   if (!out) return;
-  for (const entry of batch) {
-    const market = !entry.whole && entry.markets.size === 1 ? [...entry.markets][0] : undefined;
-    const payload = JSON.stringify({
-      i: INSTANCE_ID,
-      s: entry.store,
-      w: entry.workspaceId,
-      ...(market ? { m: market } : {}),
-    });
-    try {
-      const sent = out.send(payload);
-      if (sent && typeof (sent as Promise<unknown>).catch === 'function') {
-        (sent as Promise<unknown>).catch(e => console.error('price channel send failed:', e));
-      }
-    } catch (e) {
-      console.error('price channel send failed:', e);
+  const market = !entry.whole && entry.markets.size === 1 ? [...entry.markets][0] : undefined;
+  const payload = JSON.stringify({
+    i: INSTANCE_ID,
+    s: entry.store,
+    w: entry.workspaceId,
+    ...(market ? { m: market } : {}),
+    // Only the absence of money is spelled out, so a message from an instance
+    // that predates the flag still reads as money moved.
+    ...(entry.money ? {} : { k: 0 }),
+  });
+  try {
+    const sent = out.send(payload);
+    if (sent && typeof (sent as Promise<unknown>).catch === 'function') {
+      (sent as Promise<unknown>).catch(e => console.error('price channel send failed:', e));
     }
+  } catch (e) {
+    console.error('price channel send failed:', e);
   }
 }
 
 // A local write: move this instance's version once it commits, then tell the
 // others. A remote change is already everyone's news, so it is not re-sent.
-onPricesChanged((workspaceId, marketId, origin) => {
+onPricesChanged((workspaceId, marketId, origin, change) => {
   if (origin === 'remote') return;
   const store = currentStoreName();
   afterCommit(() => {
     bumpPriceVersion(priceKey(store, workspaceId));
-    announcePriceChange(store, workspaceId, marketId);
+    announcePriceChange(store, workspaceId, marketId, change?.moneyMoved ?? true);
   });
 });
 
 /** A message from the channel. Its own and malformed messages are ignored. */
 export function receivePriceMessage(payload: string): void {
-  let msg: { i?: unknown; s?: unknown; w?: unknown; m?: unknown };
+  let msg: { i?: unknown; s?: unknown; w?: unknown; m?: unknown; k?: unknown };
   try {
     msg = JSON.parse(payload);
   } catch {
@@ -118,7 +169,7 @@ export function receivePriceMessage(payload: string): void {
   if (!msg || typeof msg.w !== 'string' || typeof msg.s !== 'string') return;
   if (msg.i === INSTANCE_ID) return;
   bumpPriceVersion(priceKey(msg.s, msg.w));
-  emitRemotePricesChanged(msg.w, typeof msg.m === 'string' ? msg.m : undefined);
+  emitRemotePricesChanged(msg.w, typeof msg.m === 'string' ? msg.m : undefined, { moneyMoved: msg.k !== 0 });
 }
 
 /** 1, 2, 4 ... seconds between reconnects, capped at 30. */

@@ -858,7 +858,8 @@ const replayCache = ttlCache({
 onPricesChanged((workspaceId, marketId) => {
   const drop = () => {
     if (marketId) replayCache.invalidate(`${workspaceId}:${marketId}`);
-    else replayCache.clear();
+    // A floor-wide change drops that floor's histories, never the whole site's.
+    else replayCache.invalidateWhere((_marketId, ws) => ws === workspaceId);
   };
   drop();
   // Again once the write commits: a history read between the emit and the

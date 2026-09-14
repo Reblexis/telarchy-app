@@ -96,6 +96,9 @@ async function resolveAccess(idOrSlug: string): Promise<Access> {
 
 const accessCache = ttlCache({
   ttlMs: ACCESS_TTL_MS,
+  // Whether a stranger may read a floor is trusted 10 seconds and no longer:
+  // a floor made private must not keep answering while a reload runs.
+  serveStale: false,
   keyOf: (store: string, idOrSlug: string) => `${store}:${idOrSlug}`,
   load: (_store: string, idOrSlug: string) => resolveAccess(idOrSlug),
   maxEntries: 512,

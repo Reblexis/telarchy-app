@@ -2337,6 +2337,14 @@ is a fact about the log, and a typo is not allowed to look like one.</p>
 row after the last one returned, ordered on the instant and then the id, so
 two rows at the same instant page cleanly. <code>next</code> is null when the log is
 exhausted. <code>before</code> and <code>cursor</code> together take the stricter of the two.</p>
+<p><strong>A read across floors, by participant or over every floor, reaches back
+thirty days.</strong> Such a read names no floor, machine-run ones included, so it considers only
+actions in the thirty days before its newest instant: <code>before</code>, else the
+cursor's instant, else now. An <code>after</code> older than that is raised to it.
+Each page reaches thirty days back from its own cursor, so a busy history
+still pages to its start; a quiet stretch longer than thirty days ends the
+walk, and naming <code>before</code> reads past it. A read that names one floor
+reaches that floor's whole history, whatever else it filters on.</p>
 <h2 id="docs-data-room-md--h5">The feed</h2>
 <p><code>GET /api/data-room/actions</code> is one public, uncredentialed read, open to every
 origin like the rest of the data room (<code>lib/cors.ts</code>). It answers</p>
@@ -2356,7 +2364,10 @@ keeps that cheap. One filtered read is held: a read that names exactly one
 <code>after</code>, <code>before</code> or <code>cursor</code>) is held for five seconds per full query,
 with one computation in flight per query, because every floor's Live column
 polls exactly that read (docs/ui-conventions.md, &quot;The live log&quot;) and a
-floor has far more readers than this page. A reader wanting rows after an
+floor has far more readers than this page. While a held page is being
+recomputed, readers get the page it replaces, and a computation that fails
+is retried after a pause (one second, doubling to thirty), never by the very
+next reader. A reader wanting rows after an
 instant filters the held page by id instead of asking with <code>after</code>. The log is therefore never behind the
 tables by more than the page's own minute poll. The read also rolls the visit log into <code>traffic_daily</code>
 as it always has, so the traffic history keeps accumulating for whatever the
@@ -13848,17 +13859,26 @@ connection) and <code>LISTEN</code>s. It reconnects on error with a backoff of 1
 4 ... up to 30 seconds, and on every (re)connect it moves every version it
 holds, since it may have missed messages while it was down.</li>
 <li>After a price-changing transaction commits, the instance moves its own
-version and sends <code>pg_notify</code> with <code>{ instance, store, workspace, market }</code>,
-asynchronously: never awaited by the request, sent outside the
-transaction, several changes to one floor in the same tick sent once,
-errors logged and swallowed. It goes over the dedicated client while it is
+version and sends <code>pg_notify</code> with <code>{ instance, store, workspace, market, money }</code>, asynchronously: never awaited by the request, sent outside the
+transaction, errors logged and swallowed. A floor gets at most one message
+a second: the first change of a quiet second is sent at once, and every
+further change within that second rides one message when the second ends,
+so a floor changing prices many times a second costs one notification a
+second and another instance hears of a change at most a second late.
+<code>money</code> says whether money moved: a trade, a resolution, or a void of a book
+somebody traded. A new book, a proposal's funding, trading closing, or the
+void of an untraded book moves prices only. It goes over the dedicated client while it is
 connected and over the pool otherwise, so an instance whose own listener is
 down still tells the others. A trade never waits on it and never fails
 because of it.</li>
 <li>A receiving instance ignores its own messages and moves the named floor's
-version. The same message drops that instance's price-history replay cache
-for the market and its leaderboard cache, which used to be dropped only on
-the instance that took the trade.</li>
+version. The same message drops that instance's price-history replays for
+the named market (for every market of that floor when none is named) and,
+only when money moved, its cached boards and season scores that include
+that floor. Nothing cached for another floor is dropped: a floor that moves a
+price every second must not empty every other floor's caches every second.
+The instance that took a trade drops the boards that include its floor
+once the trade commits, so the trader's next read shows it.</li>
 </ul>
 <p><strong>Without the channel.</strong> When an instance's listener is down, a cached
 answer is trusted for at most 1 second before the next read queries again,
@@ -13957,6 +13977,12 @@ same read.</li>
 book (trades, orders, liquidity, book comments) cuts itself to the page
 before it joins <code>markets</code>, so a page decorates at most <code>limit + 1</code> rows
 per branch whatever the floor holds.</li>
+<li><strong>The actions log reads a floor's decisions, deliveries and funding off
+an index.</strong> A decision's instant is the generated column
+<code>proposals.decided_at</code>, so a floor's decisions come newest first without
+sorting its history; the subsidy cutoff walks back one funded minute at a
+time, <code>limit + 2</code> index probes; a read that names no floor reaches back
+thirty days (docs/data-room.md, &quot;Filtering&quot;).</li>
 <li><strong>The workspace brief reads bounded history.</strong> The metric log query is
 windowed to <code>BRIEF_HISTORY_DAYS</code>, the first reading day is a separate
 <code>min(timestamp)</code>, and the 25 proposals' markets come back in one query.</li>
@@ -13965,6 +13991,8 @@ row in <code>system_config</code> is deleted when the spawn finishes, and event
 cleanup counts deleted rows instead of returning them.</li>
 <li><strong>Every hot predicate has an index.</strong> <code>markets (workspace_id, proposal_id)</code>; the open set and the open baseline set on
 <code>(workspace_id, metric_id, target_date)</code> as partial indexes; <code>markets (resolved_at) where resolved</code>; <code>proposals (workspace_id, status, created_at)</code>, <code>(workspace_id, created_at)</code>, <code>(workspace_id, decide_by) where pending</code>, <code>(status, resolved_at)</code>, <code>(proposed_by, created_at)</code>;
+<code>(workspace_id, decided_at) where decided_at is not null</code>,
+<code>(workspace_id, delivered_at) where delivered_at is not null</code>;
 <code>liquidity_events (market_id)</code>, <code>(workspace_id, created_at)</code>; <code>trades (market_id)</code>, <code>(agent_id, market_id)</code>, <code>(workspace_id, created_at)</code>,
 <code>(agent_id, created_at)</code>; <code>positions (agent_id, workspace_id)</code>; <code>markets (workspace_id, created_at, id)</code>, <code>(workspace_id, resolved_at) where resolved</code>, <code>(resolved_at) where resolved and traded_volume &gt; 0</code>;
 <code>limit_orders (workspace_id, created_at)</code>, <code>(workspace_id, updated_at)</code>.

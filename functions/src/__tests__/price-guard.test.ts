@@ -47,7 +47,7 @@ import { agents, markets, metrics, positions, trades } from '../db/schema';
 import { boundSide, initialPool, pHigher, sharesForBudget, sharesToBound } from '../lib/amm';
 import { apiErrorHandler } from '../lib/api-error-handler';
 import { provisionWorkspace } from '../lib/participants';
-import { setPriceTransport } from '../lib/price-channel';
+import { resetPriceAnnouncements, setPriceTransport } from '../lib/price-channel';
 import { fromUnits, toUnits } from '../lib/validation';
 import { authMiddleware } from '../middleware/auth';
 import { predictionsRouter } from '../routes/predictions';
@@ -70,6 +70,8 @@ beforeAll(async () => {
 beforeEach(async () => {
   await truncateAll();
   setPriceTransport(null);
+  // A floor sends one price message a second: forget the previous test's.
+  resetPriceAnnouncements();
   await db.insert(agents).values([
     { id: 'agent-guard-owner', apiKeyHash: 'h-go', balance: 0 },
     { id: TRADER, apiKeyHash: 'h-gt', balance: toUnits(1000) },

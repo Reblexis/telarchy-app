@@ -164,6 +164,15 @@ row after the last one returned, ordered on the instant and then the id, so
 two rows at the same instant page cleanly. `next` is null when the log is
 exhausted. `before` and `cursor` together take the stricter of the two.
 
+**A read across floors, by participant or over every floor, reaches back
+thirty days.** Such a read names no floor, machine-run ones included, so it considers only
+actions in the thirty days before its newest instant: `before`, else the
+cursor's instant, else now. An `after` older than that is raised to it.
+Each page reaches thirty days back from its own cursor, so a busy history
+still pages to its start; a quiet stretch longer than thirty days ends the
+walk, and naming `before` reads past it. A read that names one floor
+reaches that floor's whole history, whatever else it filters on.
+
 ## The feed
 
 `GET /api/data-room/actions` is one public, uncredentialed read, open to every
@@ -189,7 +198,10 @@ keeps that cheap. One filtered read is held: a read that names exactly one
 `after`, `before` or `cursor`) is held for five seconds per full query,
 with one computation in flight per query, because every floor's Live column
 polls exactly that read (docs/ui-conventions.md, "The live log") and a
-floor has far more readers than this page. A reader wanting rows after an
+floor has far more readers than this page. While a held page is being
+recomputed, readers get the page it replaces, and a computation that fails
+is retried after a pause (one second, doubling to thirty), never by the very
+next reader. A reader wanting rows after an
 instant filters the held page by id instead of asking with `after`. The log is therefore never behind the
 tables by more than the page's own minute poll. The read also rolls the visit log into `traffic_daily`
 as it always has, so the traffic history keeps accumulating for whatever the
