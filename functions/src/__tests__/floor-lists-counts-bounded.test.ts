@@ -275,7 +275,8 @@ describe('THE RULE: the prices read joins no decided proposal', () => {
     const client = globalThis.__getTestDbShared().client as {
       query: (...args: unknown[]) => Promise<{ rows: Array<Record<string, unknown>> }>;
     };
-    await client.query('ANALYZE');
+    // No ANALYZE: planner statistics outlive truncateAll and would change the
+    // plans other suites in this process assert on.
     const original = client.query.bind(client);
     const captured: Array<{ sql: string; params: unknown[] }> = [];
     (client as { query: unknown }).query = async (...args: unknown[]) => {
