@@ -428,7 +428,7 @@ Description: List the numbers that decide the most for your company. Anyone prop
 
 You list the numbers your company runs on. Before you approve a plan, a market tells you what it does to them. You say yes on that number, not on a pitch.
 
-CATCH: Free today, up to three workspaces. A floor in a minute, unlisted until you publish it.
+CATCH: A floor in a minute, unlisted until you publish it.
 
 LIVE: marketplace-stats
 
@@ -471,7 +471,7 @@ A: Yes, and so can anyone else's. Every participant is scored the same way.
 Q: Is my data public?
 A: Only the metrics you mark public. Everything else is per-metric permissioned.
 Q: What does it cost?
-A: The managed service is free today, up to three workspaces per account. A new workspace starts unlisted, live and shareable by link.
+A: Creating a workspace is free, up to three per account, and a new one starts unlisted. A private floor set up for you on one decision you have open is a paid four-week pilot: ask at telarchy.com/contact.
 
 CTA: List your numbers (telarchy.com) · See a floor running (telarchy.com/telarchy)
 

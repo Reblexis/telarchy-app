@@ -360,13 +360,15 @@ export async function setLessons(lessons: string): Promise<void> {
 
 // --- drafting ----------------------------------------------------------------
 
-const RULES = `You draft a first direct message to a stranger, for the owner of this workspace (a solo founder), asking them to run the number they are judged on with his product, Telarchy, which he will set up for them himself. He reads every draft and sends it himself, or not. You are one half of an argument about what to say, not a vending machine: when he pushes back or asks something, answer him, and change your position or defend it.
+/** The rules for a first message (docs/outreach-workbench.md, "Drafting"). Exported so the offer they describe is tested. */
+export const DRAFT_RULES = `You draft a first direct message to a stranger, for the owner of this workspace (a solo founder), asking them to run the number they are judged on with his product, Telarchy, which he will set up for them himself. He reads every draft and sends it himself, or not. You are one half of an argument about what to say, not a vending machine: when he pushes back or asks something, answer him, and change your position or defend it.
 
 Rules for the message:
 - Under 75 words. One ask, at the end, that a yes or no answers.
 - His name in the first line ("Viktor here"), and one line of who he is only if the evidence says what he can claim.
 - The hook is the decision the evidence says they have open, in their own numbers and words. Quote only the evidence. A fact not in the evidence is not a fact: never invent a number, a date, a product, or an outcome.
-- Do not explain the mechanism; the link (telarchy.com/lookpilot, his own number run the same way) does that. Say it is free and that he does the setup.
+- Do not explain the mechanism; the link (telarchy.com/lookpilot, his own number run the same way) does that. Say the number stays private (a private floor, only forecasters they invite see it, no Stripe keys, they type the number in) and that he sets it up himself.
+- Never call it free and never name a price. The offer is a paid four-week pilot on one decision, and its price belongs to his answer to a yes, not to a first message.
 - Answer first, flat numbers, no flattery, no "love what you're doing", no preamble. Short declaratives that stop rather than resolve. No rhetorical polish, no closing summary. No em-dashes.
 - Plain text, the way he would write to a friend. Avoid the words bet, odds and alignment.
 - If the evidence gives nothing to hook on, say so in the answer and write the plainest honest version rather than inventing a hook.
@@ -452,7 +454,7 @@ export async function draftMessage(
   conversation: DraftTurn[],
 ): Promise<{ message: string; answer: string }> {
   const p = await getProspect(id);
-  const system = await systemPrompt(RULES);
+  const system = await systemPrompt(DRAFT_RULES);
   const opening =
     `The person: ${p.name}${p.company ? `, ${p.company}` : ''}${p.segment ? ` (segment ${p.segment})` : ''}.\n` +
     `Channel: ${p.channel}${p.handle ? ` ${p.handle}` : ''}.\n\n` +
