@@ -25,6 +25,7 @@ import { type BaselineOrderKey, compareSoonestFirst, primaryOf } from '../lib/ba
 import { coalesce } from '../lib/coalesce';
 import { type ContractorEntry, type ContractorJobPair, computeContractors, pairDelta } from '../lib/contractors';
 import { periodEndInstant, periodStartInstant, resolutionInstant, settlesOn } from '../lib/date-utils';
+import { horizonTitleFor } from '../lib/horizon-credits';
 import { historyQuery, type LiveEndpoint, LiveFeedError, readLiveFeed } from '../lib/live-feed';
 import { branchIsShown } from '../lib/market-pairs';
 import {
@@ -50,6 +51,7 @@ import { marketPriceSeries } from '../services/predictions';
 import { countProposalStatuses, countProposalsUpTo, PENDING_LISTED_MAX } from '../services/proposal-counts';
 import { webSearchTool } from '../services/web-search';
 import { buildWorkspaceContext, renderContextIndex, renderContextMarkdown } from '../services/workspace-context';
+import type { TimePreference } from '../types';
 import { ensureSystemGroups } from './groups';
 
 export const marketplaceRouter = Router();
@@ -563,6 +565,7 @@ async function buildFloorPayload(ws: PublicWs) {
       order: metrics.order,
       description: metrics.description,
       marketTitle: metrics.marketTitle,
+      timePreference: metrics.timePreference,
       resetsEvery: metrics.resetsEvery,
       resolvesNaUntilMeasured: metrics.resolvesNaUntilMeasured,
     })
@@ -600,6 +603,13 @@ async function buildFloorPayload(ws: PublicWs) {
         // row because that is what the floor's heading is about, but it is
         // kept on the metric so it outlives each new horizon's book.
         marketTitle: metricById.get(m.metricId)?.marketTitle ?? null,
+        // The words the owner wrote for this book's date, read where the floor
+        // would name the clock (docs/guides/time-preference.md, "A title for a
+        // date"); kept on the metric's timePreference, keyed by the entry.
+        dateTitle: horizonTitleFor(
+          metricById.get(m.metricId)?.timePreference as TimePreference | null | undefined,
+          m.targetDate,
+        ),
         // The market's facts (docs/ui-conventions.md, "What a market says
         // about itself"): how many distinct traders, and credits traded.
         traderCount: tradersByMarket.get(m.id) ?? 0,

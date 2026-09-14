@@ -10491,6 +10491,23 @@ textarea.jobform-line--desc {
 .metrics-dates-input.is-zero { font-weight: 500; color: var(--text-tertiary); }
 .metrics-dates-unit { font-size: 0.74rem; color: var(--text-tertiary); }
 .metrics-dates-note { margin: 0; }
+/* A date row's title, edited in place under what the row is
+   (docs/owner-on-the-floor.md, "Every row carries a title"). */
+.metrics-dates-title {
+  display: block;
+  width: 100%;
+  margin-top: 0.3rem;
+  padding: 0 0 2px;
+  border: none;
+  border-bottom: 1px solid var(--border-strong);
+  border-radius: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+.metrics-dates-title:focus { outline: none; border-bottom-color: var(--accent); }
+.metrics-dates-title::placeholder { color: var(--text-tertiary); }
 /* The add form's two numbers, side by side where there is room. */
 .dates-add-numbers {
   display: grid;

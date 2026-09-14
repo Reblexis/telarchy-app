@@ -123,6 +123,32 @@ grace when none arrives. A reading stamped one second past the minute belongs to
 the next cell. Dates whose period has already passed are pruned on save
 rather than rejected, so re-saving an old config never fails.
 
+**A date that settles when you settle it** is the entry `until-settled`. It
+has no clock: its book never falls due on a reading, never waits out a
+deadline, never goes N/A for want of a number, and trades until you settle
+the metric with `POST /api/metrics/:id/settle { value, reason }`. Use it for
+a question whose answer arrives at a moment only you can name, such as the
+length a game's attempt reaches or the price a launch ships at. Its book
+carries `targetDate: "until-settled"` and a `resolvesOn` of
+`9999-12-31T00:00:00Z`, the far edge no clock reaches, so a client tells it
+apart by the target date, never by arithmetic on the instant; the metric's
+`settlementLagMinutes` does not apply to it. Settling the metric settles every
+open book on it, dated ones included, so give a date like this a metric of
+its own or one whose dated books share the same answer. Once its book has
+settled, the next refresh opens a fresh one, so the question comes round
+again the way a rolling entry does, and stopping the entry is how it ends. A
+metric has at most one: a second copy is a duplicate and is dropped.
+
+**A title for a date** rides on the same object, keyed by the entry:
+`horizonTitles: { "until-settled": "this attempt", "2026-12": "at the end of season 1" }`.
+A title is the words the floor reads where it would otherwise name the
+clock: on the date's tab and in the question after the metric ("What will be
+Snake's reached length this attempt?"), so write it to follow the metric's
+name in that sentence. At most 60 characters; a blank title is no title and
+the floor names the clock again ("this week", "on 30 Sep"), or "until
+settled" for an `until-settled` date. Keys that name no entry in
+`customHorizons` are dropped on save.
+
 **What each date opens with** rides on the same object, keyed by the entry:
 `horizonCredits: { "+0w": { "book": 500, "proposal": 250 } }`. `book` is what
 the metric's own market on that date opens with, in credits, paid by the

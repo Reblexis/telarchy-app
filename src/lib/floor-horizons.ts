@@ -32,6 +32,7 @@
  */
 
 import type { PublicWorkspace } from './api';
+import { OWNER_SETTLED } from './horizon-entries';
 import { clockOf, instantOf, viewerZone } from './viewer-time';
 
 export interface HorizonView {
@@ -49,8 +50,16 @@ export interface HorizonView {
   /** '$' or '' — the tail's currency, display-only. */
   unit: string;
   targetDate: string;
-  /** Reader-facing name of the clock: "this week", "end of 2026". */
+  /** Reader-facing name of the clock: "this week", "end of 2026"; the owner's
+   *  title for the date instead, when they wrote one. */
   label: string;
+  /** The owner's title for this date, verbatim, or null
+   *  (docs/guides/time-preference.md, "A title for a date"). */
+  dateTitle?: string | null;
+  /** True for a book on the `until-settled` date: it has no clock, and its
+   *  resolvesOn names no real moment (docs/market-integrity.md, "A date with
+   *  no clock"). */
+  settlesByOwner?: boolean;
   /** The day the period ends: "31 December 2026". */
   settleDay: string | null;
   /** The same day, short, for the caption: "31 Dec" (year only when it differs). */
@@ -151,6 +160,8 @@ export function settleDayOf(targetDate: string, zone?: string): string | null {
  * and "end of 2026", not in ISO period strings.
  */
 export function horizonLabel(targetDate: string, now: Date = new Date(), zone?: string): string {
+  // A date with no clock is named by who settles it.
+  if (targetDate === OWNER_SETTLED) return 'until settled';
   // "this week" only when it IS this week. In the window between a week
   // rolling over and the hourly refresh creating the new market, last week's
   // market is still the one on the page, and a label reading "this week"
@@ -256,7 +267,11 @@ export function buildHorizonViews(
       title: m.marketTitle?.trim() ? m.marketTitle.trim() : null,
       unit: currencyOf(m.metricName),
       targetDate: m.targetDate,
-      label: horizonLabel(m.targetDate, now, zone),
+      /* The owner's words for the date stand where the clock's name would;
+         blank is no title. */
+      dateTitle: m.dateTitle?.trim() ? m.dateTitle.trim() : null,
+      settlesByOwner: m.targetDate === OWNER_SETTLED,
+      label: m.dateTitle?.trim() ? m.dateTitle.trim() : horizonLabel(m.targetDate, now, zone),
       settleDay: settleDayOf(m.targetDate, zone),
       settleShort: settleShortOf(m.targetDate, now, zone),
       resolvesOn: m.resolvesOn ?? null,
@@ -390,7 +405,7 @@ export function settleNoteOf(v: HorizonView | null): string | undefined {
  * has passed. Null when the payload carries no settle instant.
  */
 export function timeLeftOf(v: HorizonView | null, now: Date = new Date()): string | null {
-  if (!v?.resolvesOn) return null;
+  if (!v?.resolvesOn || v.settlesByOwner || isNoMoment(v.resolvesOn)) return null;
   const ms = new Date(v.resolvesOn).getTime() - now.getTime();
   if (!Number.isFinite(ms)) return null;
   if (ms <= 0) return 'settling';
@@ -432,6 +447,8 @@ export function timeAgoOf(at: string | null | undefined, now: Date = new Date())
  */
 export function dateSegmentOf(v: HorizonView | null): string {
   if (!v) return '';
+  // A titled date, or one with no clock, is its words and nothing else.
+  if (v.dateTitle || v.settlesByOwner) return v.label;
   // A minute or hour cell is its clock ("12:38", "hour to 13:00") and nothing
   // else: the day rides the settle note.
   if (cellKindOf(v.targetDate)) return v.label;
@@ -452,6 +469,9 @@ export function dateSegmentOf(v: HorizonView | null): string {
  */
 export function dateQuestionOf(v: HorizonView | null): { word: string; lead: '' | 'on ' | 'at ' | 'in the hour to ' } {
   if (!v) return { word: '', lead: '' };
+  // The owner's title follows the metric verbatim, with no lead word, and so
+  // does the name of a date with no clock (docs/ui-conventions.md).
+  if (v.dateTitle || v.settlesByOwner) return { word: v.label, lead: '' };
   if (/^(today|this week|this month)$/.test(v.label)) return { word: v.label, lead: '' };
   const cell = cellKindOf(v.targetDate);
   if (cell === 'minute') return { word: v.label, lead: 'at ' };
@@ -471,7 +491,7 @@ export function moveQuestionOf(
   v: HorizonView | null,
   now: Date = new Date(),
 ): { word: string; lead: '' | 'on ' | 'at ' | 'in ' | 'in the hour to ' } {
-  if (!v || cellKindOf(v.targetDate) !== 'minute') return dateQuestionOf(v);
+  if (!v || v.dateTitle || cellKindOf(v.targetDate) !== 'minute') return dateQuestionOf(v);
   const end = v.resolvesOn ? new Date(v.resolvesOn) : cellEndOf(v.targetDate);
   if (!end || Number.isNaN(end.getTime())) return dateQuestionOf(v);
   // Moves are whole minutes between the current minute and the cell (the cell
@@ -672,6 +692,7 @@ export function openableDates(now: Date = new Date()): Array<{ label: string; ta
  * named once so a reader far from the boundary's midnight is not misled.
  */
 export function settleInstant(iso: string, zone?: string): string {
+  if (isNoMoment(iso)) return 'when the owner settles it';
   return instantOf(iso, zone);
 }
 
@@ -700,9 +721,18 @@ const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'S
 export function forecastDayOf(resolvesOn: string | null | undefined): string | null {
   if (!resolvesOn) return null;
   const t = new Date(resolvesOn).getTime();
-  if (!Number.isFinite(t)) return null;
+  if (!Number.isFinite(t) || isNoMoment(resolvesOn)) return null;
   // Own month names: en-GB short months print "Sept" in current ICU data,
   // and the picker above says "30 SEP".
   const d = new Date(t - 1);
   return `${d.getUTCDate()} ${SHORT_MONTHS[d.getUTCMonth()]}`;
+}
+
+/** The far edge a date with no clock stands at (9999-12-31T00:00Z, the
+ *  server's `until-settled` period end): an instant that names no real
+ *  moment, so it is never printed as a day, a clock or a countdown. */
+const NO_MOMENT_MS = Date.UTC(9999, 11, 31);
+function isNoMoment(iso: string): boolean {
+  const t = Date.parse(iso);
+  return Number.isFinite(t) && t >= NO_MOMENT_MS;
 }
