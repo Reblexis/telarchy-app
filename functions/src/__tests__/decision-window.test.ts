@@ -258,7 +258,7 @@ describe('the deadline enforces itself, without waiting for a sweep', () => {
     const id = await posted();
     await db
       .update(proposals)
-      .set({ decideBy: new Date(Date.now() - 1000) })
+      .set({ decideBy: new Date(Date.now() - 60_000) })
       .where(eq(proposals.id, id));
     expect(await lapseOverdueProposals(WS)).toBe(1);
     const p = await proposal(id);
@@ -374,7 +374,7 @@ describe('a lapse is N/A, not a decline', () => {
 
     await db
       .update(proposals)
-      .set({ decideBy: new Date(Date.now() - 1000) })
+      .set({ decideBy: new Date(Date.now() - 60_000) })
       .where(eq(proposals.id, id));
     await lapseOverdueProposals(WS);
 
@@ -391,7 +391,7 @@ describe('a lapse is N/A, not a decline', () => {
     const id = await posted();
     await db
       .update(proposals)
-      .set({ decideBy: new Date(Date.now() - 1000) })
+      .set({ decideBy: new Date(Date.now() - 60_000) })
       .where(eq(proposals.id, id));
     await lapseOverdueProposals(WS);
     const p = await proposal(id);
@@ -406,7 +406,7 @@ describe('a lapse is N/A, not a decline', () => {
     await trade(TRADER, approved.id, { direction: 'higher', amount: 5 });
     await db
       .update(proposals)
-      .set({ decideBy: new Date(Date.now() - 1000) })
+      .set({ decideBy: new Date(Date.now() - 60_000) })
       .where(eq(proposals.id, id));
     await lapseOverdueProposals(WS);
     const rec = (await proposal(id)).decidedPricing;
@@ -420,7 +420,7 @@ describe('a lapse is N/A, not a decline', () => {
     const id = await posted();
     await db
       .update(proposals)
-      .set({ decideBy: new Date(Date.now() - 1000) })
+      .set({ decideBy: new Date(Date.now() - 60_000) })
       .where(eq(proposals.id, id));
     await lapseOverdueProposals(WS);
     const rows = await db.select().from(proposals).where(eq(proposals.workspaceId, WS));

@@ -773,7 +773,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/proposals/:id/approve',
       auth: 'admin',
       description:
-        "Approve a pending proposal. Body: { option? }. The declined branch is voided and refunded; the approved branch closes to trading (buys and sells alike, code proposal_closed; open limit orders released) and its positions settle against the metric at its date. On a proposal with options, deciding is choosing: option names the id of the option to keep (400 code option_required without it, 400 unknown_option for an id that is not one of the proposal's, and 400 no_options when option is sent to a two-branch proposal); the chosen option's markets stay live and settle at their dates, every other option's markets void and refund at net cash, decidedOption records the winner and decidedPricing records every option's consensus at the choice. Everything else approving does happens the same way: the reward is checked first and paid, the proposer's stake is bought out, trading closes at the press. If the workspace has proposalReward > 0, debits owner balance and credits proposer; returns 409 if owner balance is insufficient.",
+        "Approve a pending proposal. Body: { option? }. The declined branch is voided and refunded; the approved branch closes to trading (buys and sells alike, code proposal_closed; open limit orders released) and its positions settle against the metric at its date. On a proposal with options, deciding is choosing: option names the id of the option to keep (400 code option_required without it, 400 unknown_option for an id that is not one of the proposal's, and 400 no_options when option is sent to a two-branch proposal); the chosen option's markets stay live and settle at their dates, every other option's markets void and refund at net cash, decidedOption records the winner and decidedPricing records every option's consensus at the choice. Everything else approving does happens the same way: the reward is checked first and paid, the proposer's stake is bought out, trading closes at the press. If the workspace has proposalReward > 0, debits owner balance and credits proposer; returns 409 if owner balance is insufficient. A proposal is decided exactly once: an approve that arrives after it was already decided, withdrawn or lapsed answers 409 code not_pending with { status } and moves nothing.",
     },
     {
       method: 'PATCH',
@@ -801,21 +801,21 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/proposals/:id/decline',
       auth: 'admin',
       description:
-        'Decline a pending proposal in good faith. Body: { declineReason?, refund? }. The approved branch is voided and refunded; the declined branch closes to trading and settles against the metric at its date. declineReason (string, max 4000 chars) is published permanently on the proposal and returned by GET /api/proposals and GET /api/proposals/:id; it is REQUIRED (400 without it) when the workspace has a charter set, optional otherwise. By default voids the approved branch and keeps the declined branch live (the calibration counterfactual). refund:true instead voids BOTH branches so the proposer\'s whole staked liquidity comes straight back (a genuine idea the owner is not taking); no penalty either way. On a proposal with options decline is "none of these": there is no branch to keep, so every option voids and refunds whatever refund says; the charter rule on declineReason is unchanged.',
+        'Decline a pending proposal in good faith. Body: { declineReason?, refund? }. The approved branch is voided and refunded; the declined branch closes to trading and settles against the metric at its date. declineReason (string, max 4000 chars) is published permanently on the proposal and returned by GET /api/proposals and GET /api/proposals/:id; it is REQUIRED (400 without it) when the workspace has a charter set, optional otherwise. By default voids the approved branch and keeps the declined branch live (the calibration counterfactual). refund:true instead voids BOTH branches so the proposer\'s whole staked liquidity comes straight back (a genuine idea the owner is not taking); no penalty either way. On a proposal with options decline is "none of these": there is no branch to keep, so every option voids and refunds whatever refund says; the charter rule on declineReason is unchanged. A decline that arrives after the proposal was already decided, withdrawn or lapsed answers 409 code not_pending with { status } and moves nothing.',
     },
     {
       method: 'POST',
       path: '/api/proposals/:id/decline-spam',
       auth: 'admin',
       description:
-        'Decline a pending proposal as spam. Voids conditional markets. If workspace.spamPenalty > 0, deducts up to spamPenalty from the proposer (capped at their available balance) and credits the workspace owner. Returns { ok, penaltyCharged } with the actual amount taken.',
+        'Decline a pending proposal as spam. Voids conditional markets. If workspace.spamPenalty > 0, deducts up to spamPenalty from the proposer (capped at their available balance) and credits the workspace owner. Returns { ok, penaltyCharged } with the actual amount taken. 409 code not_pending with { status } if it was already decided, withdrawn or lapsed.',
     },
     {
       method: 'POST',
       path: '/api/proposals/:id/withdraw',
       auth: 'agent',
       description:
-        'Withdraw your own pending proposal. Voids conditional markets, no balance changes. Caller must be the original proposer.',
+        'Withdraw your own pending proposal. Voids conditional markets, no balance changes. Caller must be the original proposer. 409 code not_pending with { status } if it was already decided or lapsed.',
     },
     {
       method: 'GET',

@@ -9772,6 +9772,12 @@ back to this table.</p>
 <td>Approve it without <code>option</code>.</td>
 </tr>
 <tr>
+<td><code>not_pending</code></td>
+<td>409</td>
+<td>The proposal was already decided, withdrawn or lapsed when this approve, decline, decline as spam or withdraw arrived: a proposal is decided exactly once, and the call that loses moved nothing. Carries <code>status</code>, what it already is.</td>
+<td>Re-read the proposal; do not retry the same decision.</td>
+</tr>
+<tr>
 <td><code>market_settling</code></td>
 <td>400</td>
 <td><strong>Retired 2026-09-01, never returned.</strong> It meant &quot;the resolution date has passed&quot;, from the fortnight when a market stopped trading at its period end. A market past its period keeps trading now and resolves when its reading arrives, so there is nothing for this to describe. Listed because a published code is never reused.</td>
@@ -11901,7 +11907,17 @@ losing transaction back whole, and the decision runs that transaction again
 (up to three attempts) instead of answering an error. Every step it retries
 checks its own work under the lock first, so running one twice refunds
 nobody twice.</p>
-<p><strong>Undecided at the deadline, a proposal lapses.</strong> Both branches are voided
+<p><strong>A proposal is decided exactly once.</strong> Approve, decline, decline as spam,
+withdraw and the lapse each claim the pending proposal before they void or
+pay anything, and only one claim can win. Whatever arrives second, even a
+millisecond later, is refused with 409 and code <code>not_pending</code>, carrying the
+<code>status</code> the proposal already has, and moves no money: no book is voided,
+no stake bought out, no reward paid. So an owner deciding at the last second
+and the deadline sweep can never both act on the same proposal.</p>
+<p><strong>Undecided at the deadline, a proposal lapses.</strong> Trading closes at the
+deadline instant; the lapse itself takes the proposal only once the deadline
+is <strong>10 seconds</strong> past, so a decision sent right at the deadline still lands
+instead of racing the sweep. Both branches are voided
 and everyone is refunded: nobody ruled, so neither world is the one we are
 in and there is nothing to settle against. Its status is <code>lapsed</code>, its own
 thing and not a decline, so it counts against nobody; the prices at the
