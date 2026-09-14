@@ -6884,7 +6884,9 @@ selection, which is what the page's one market view is pointed at: a
 selected decided proposal forces the fold open, because a
 <code>#proposal=&lt;id&gt;</code> link from a notification must never land on a row the
 fold is hiding; and hiding the fold while a decided proposal is selected
-releases that selection, so the control can never be dead.</p>
+releases that selection, so the control can never be dead. The payload carries every pending proposal however many were decided
+after it, and the newest 40 decided ones for the fold
+(docs/infra/deploy.md, &quot;A list never hides a live proposal&quot;).</p>
 <p><strong>The board is a
 selector, not a second trading surface</strong>: selecting a proposal re-points
 the page's ONE market view and ONE ticket at that proposal's conditional
@@ -13875,6 +13877,27 @@ for two books or for 218, and reads only the rows of the books asked
 for. Limits stay per book: top 50 positions, newest 50 trades and pool
 rows, 500 history points. Nothing is cached: a call that arrives after a
 batch has run reads again.</li>
+<li><strong>A list never hides a live proposal.</strong> A floor can decide a proposal a
+second while one proposal stays open for a minute, so a &quot;newest N&quot; window
+would push the open one out behind the decided ones posted after it.
+Every list that stands for a floor's proposals therefore reads the
+pending ones and the decided ones as two bounded reads: the public
+ballot carries every pending proposal (up to <code>PENDING_LISTED_MAX</code>, 200)
+and the newest 40 decided; the workspace brief every pending proposal
+(up to 200) and the newest 25 others. <code>GET /api/proposals</code> without
+<code>status</code> lists pending proposals ahead of the rest, each part newest
+first: <code>before=&lt;number&gt;</code> continues from that proposal's place in that
+order, and <code>before=&lt;instant&gt;</code> stays a plain time filter.</li>
+<li><strong>Counts stop at a cap.</strong> The 30-day <code>proposalStats</code> on the floor
+payload and the public listing count at most <code>PROPOSAL_COUNT_CAP</code>
+(10,000) proposals per status, and the contracts read's <code>contractsTotal</code>
+at most 10,000: a count at the cap means at least that many. Each is an
+index range read that stops at the cap, never a count of a floor's
+whole history.</li>
+<li><strong>The prices read joins no decided proposal.</strong> The once-a-second prices
+read finds the pending proposals through the pending index instead of
+joining every proposal the workspace ever had, and the floor's week
+counts read <code>trades (workspace_id, created_at)</code>.</li>
 <li><strong>Crons process due work in bounded batches.</strong> <code>resolvePredictions</code>
 looks a fixing up once per (metric, target date) rather than once per
 book, at most two lookups in flight, and settles or voids at most
@@ -13906,7 +13929,9 @@ row in <code>system_config</code> is deleted when the spawn finishes, and event
 cleanup counts deleted rows instead of returning them.</li>
 <li><strong>Every hot predicate has an index.</strong> <code>markets (workspace_id, proposal_id)</code>; the open set and the open baseline set on
 <code>(workspace_id, metric_id, target_date)</code> as partial indexes; <code>markets (resolved_at) where resolved</code>; <code>proposals (workspace_id, status, created_at)</code>, <code>(workspace_id, created_at)</code>, <code>(workspace_id, decide_by) where pending</code>, <code>(status, resolved_at)</code>, <code>(proposed_by, created_at)</code>;
-<code>liquidity_events (market_id)</code>, <code>(workspace_id, created_at)</code>; <code>trades (market_id)</code>, <code>(agent_id, market_id)</code>; <code>limit_orders (workspace_id, created_at)</code>, <code>(workspace_id, updated_at)</code>. Additive, <code>IF NOT EXISTS</code>, and declared in <code>functions/src/db/schema.ts</code> so drizzle-kit
+<code>liquidity_events (market_id)</code>, <code>(workspace_id, created_at)</code>; <code>trades (market_id)</code>, <code>(agent_id, market_id)</code>, <code>(workspace_id, created_at)</code>;
+<code>limit_orders (workspace_id, created_at)</code>, <code>(workspace_id, updated_at)</code>.
+Additive, <code>IF NOT EXISTS</code>, and declared in <code>functions/src/db/schema.ts</code> so drizzle-kit
 keeps them. On the beta store the journal <code>when</code> has to be newer than
 the last applied migration or the store skips it.</li>
 </ul>

@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { and, asc, desc, eq, lt, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, lt, ne, notInArray, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
 import { agents, proposalMessages, proposals, workspaces } from '../db/schema';
@@ -368,6 +368,65 @@ function beforeCursor(raw: string | undefined): { number?: number; createdAt?: D
   return Number.isNaN(at.getTime()) ? null : { createdAt: at };
 }
 
+/**
+ * The unfiltered list, pending proposals ahead of the rest, each part newest
+ * first (docs/infra/deploy.md, "A list never hides a live proposal"). A floor
+ * that decides a proposal a second while one stays open for a minute would
+ * otherwise page its open proposal out behind the decided ones. `before` is
+ * a proposal number: the page continues from that proposal's place in this
+ * order, so walking the pages returns every proposal exactly once. Two
+ * bounded reads, each served by proposals (workspace_id, status, created_at)
+ * or (workspace_id, created_at).
+ */
+async function pendingFirstPage(workspaceId: string, limit: number, beforeNumber: number | undefined) {
+  let pendingBefore: number | undefined;
+  let othersBefore: number | undefined;
+  let pendingDone = false;
+  if (beforeNumber !== undefined) {
+    const [at] = await db
+      .select({ status: proposals.status })
+      .from(proposals)
+      .where(and(eq(proposals.workspaceId, workspaceId), eq(proposals.number, beforeNumber)))
+      .limit(1);
+    if (at?.status === 'pending') pendingBefore = beforeNumber;
+    else if (at) {
+      pendingDone = true;
+      othersBefore = beforeNumber;
+    } else {
+      pendingBefore = beforeNumber;
+      othersBefore = beforeNumber;
+    }
+  }
+  const open = pendingDone
+    ? []
+    : await db
+        .select()
+        .from(proposals)
+        .where(
+          and(
+            eq(proposals.workspaceId, workspaceId),
+            eq(proposals.status, 'pending'),
+            pendingBefore !== undefined ? lt(proposals.number, pendingBefore) : undefined,
+          ),
+        )
+        .orderBy(desc(proposals.createdAt))
+        .limit(limit);
+  if (open.length >= limit) return open;
+  const others = await db
+    .select()
+    .from(proposals)
+    .where(
+      and(
+        eq(proposals.workspaceId, workspaceId),
+        notInArray(proposals.status, ['pending', 'removed']),
+        othersBefore !== undefined ? lt(proposals.number, othersBefore) : undefined,
+      ),
+    )
+    .orderBy(desc(proposals.createdAt))
+    .limit(limit - open.length);
+  return [...open, ...others];
+}
+
 proposalsRouter.get(
   '/',
   requireCapability('read'),
@@ -385,19 +444,22 @@ proposalsRouter.get(
     // Removed jobs are off the board for everyone; the row survives only so the
     // ledger entries that reference its markets keep resolving. Asking for them
     // explicitly (?status=removed) still works, for an admin auditing a removal.
-    const rows = await db
-      .select()
-      .from(proposals)
-      .where(
-        and(
-          eq(proposals.workspaceId, workspaceId),
-          status ? eq(proposals.status, status) : ne(proposals.status, 'removed'),
-          cursor?.number !== undefined ? lt(proposals.number, cursor.number) : undefined,
-          cursor?.createdAt ? lt(proposals.createdAt, cursor.createdAt) : undefined,
-        ),
-      )
-      .orderBy(desc(proposals.createdAt))
-      .limit(limit);
+    const rows =
+      status || cursor?.createdAt
+        ? await db
+            .select()
+            .from(proposals)
+            .where(
+              and(
+                eq(proposals.workspaceId, workspaceId),
+                status ? eq(proposals.status, status) : ne(proposals.status, 'removed'),
+                cursor?.number !== undefined ? lt(proposals.number, cursor.number) : undefined,
+                cursor?.createdAt ? lt(proposals.createdAt, cursor.createdAt) : undefined,
+              ),
+            )
+            .orderBy(desc(proposals.createdAt))
+            .limit(limit)
+        : await pendingFirstPage(workspaceId, limit, cursor?.number);
 
     const names = await getParticipantDisplayNames(rows.map(t => t.proposedBy));
     // Every option carries the market it is traded on and its price, so a bot

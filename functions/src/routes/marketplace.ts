@@ -47,6 +47,7 @@ import { answerFloorPrices } from '../services/floor-prices';
 import { type ApiCallRecord, ottoApiTools } from '../services/otto-tools';
 import { linkedManifoldCount, platformStats } from '../services/platform-stats';
 import { marketPriceSeries } from '../services/predictions';
+import { countProposalStatuses, countProposalsUpTo, PENDING_LISTED_MAX } from '../services/proposal-counts';
 import { webSearchTool } from '../services/web-search';
 import { buildWorkspaceContext, renderContextIndex, renderContextMarkdown } from '../services/workspace-context';
 import { ensureSystemGroups } from './groups';
@@ -271,33 +272,8 @@ export async function listPublicWorkspaces() {
 
   const wsIds = rows.map(r => r.id);
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const statRows = await db
-    .select({
-      workspaceId: proposals.workspaceId,
-      status: proposals.status,
-      n: sql<number>`count(*)::int`,
-    })
-    .from(proposals)
-    .where(and(inArray(proposals.workspaceId, wsIds), gte(proposals.createdAt, since), ne(proposals.status, 'removed')))
-    .groupBy(proposals.workspaceId, proposals.status);
-
-  const statsByWs = new Map<
-    string,
-    { total: number; approved: number; declined: number; declinedSpam: number; withdrawn: number; pending: number }
-  >();
-  for (const id of wsIds) {
-    statsByWs.set(id, { total: 0, approved: 0, declined: 0, declinedSpam: 0, withdrawn: 0, pending: 0 });
-  }
-  for (const row of statRows) {
-    const s = statsByWs.get(row.workspaceId);
-    if (!s) continue;
-    s.total += row.n;
-    if (row.status === 'approved') s.approved += row.n;
-    else if (row.status === 'declined') s.declined += row.n;
-    else if (row.status === 'declined_spam') s.declinedSpam += row.n;
-    else if (row.status === 'withdrawn') s.withdrawn += row.n;
-    else if (row.status === 'pending') s.pending += row.n;
-  }
+  // Capped per status (docs/infra/deploy.md, "Counts stop at a cap").
+  const statsByWs = await countProposalStatuses(wsIds, since);
 
   // Activity counts so an agent can tell empty workspaces from active ones in
   // one call, before joining. metricCount = metrics defined; openMarketCount =
@@ -516,6 +492,9 @@ const HOME_PAYLOAD_TTL_MS = 15_000;
  * bounded here rather than by how many proposals a workspace has approved.
  */
 export const CONTRACTOR_DECIDED_WINDOW = 200;
+
+/** How many decided proposals the ballot's fold carries, newest first. */
+export const BALLOT_DECIDED_WINDOW = 40;
 let homeCache: { payload: HomePayload; builtAt: number } | null = null;
 let homeInFlight: Promise<HomePayload> | null = null;
 
@@ -654,22 +633,8 @@ async function buildFloorPayload(ws: PublicWs) {
   const [owner] = [...(await getOwnerHandles([ws.createdBy])).values()];
 
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const proposalRows = await db
-    .select({ status: proposals.status, n: sql<number>`count(*)::int` })
-    .from(proposals)
-    .where(
-      and(eq(proposals.workspaceId, workspaceId), gte(proposals.createdAt, since), ne(proposals.status, 'removed')),
-    )
-    .groupBy(proposals.status);
-  const proposalStats = { total: 0, approved: 0, declined: 0, declinedSpam: 0, withdrawn: 0, pending: 0 };
-  for (const row of proposalRows) {
-    proposalStats.total += row.n;
-    if (row.status === 'approved') proposalStats.approved += row.n;
-    else if (row.status === 'declined') proposalStats.declined += row.n;
-    else if (row.status === 'declined_spam') proposalStats.declinedSpam += row.n;
-    else if (row.status === 'withdrawn') proposalStats.withdrawn += row.n;
-    else if (row.status === 'pending') proposalStats.pending += row.n;
-  }
+  // Capped per status (docs/infra/deploy.md, "Counts stop at a cap").
+  const proposalStats = (await countProposalStatuses([workspaceId], since)).get(workspaceId)!;
 
   const [metricCountRow] = await db
     .select({ n: sql<number>`count(*)::int` })
@@ -923,17 +888,28 @@ async function buildFloorPayload(ws: PublicWs) {
     // show status inline instead of a separate history. Decided jobs keep
     // their markets (resolved/voided included, not just active) so clicking one
     // still shows the impact that was priced for it.
-    const pending = await db
-      .select()
-      .from(proposals)
-      .where(
-        and(
-          eq(proposals.workspaceId, workspaceId),
-          inArray(proposals.status, ['pending', 'approved', 'declined', 'lapsed']),
-        ),
-      )
-      .orderBy(desc(proposals.createdAt))
-      .limit(40);
+    //
+    // Every pending proposal, then the newest BALLOT_DECIDED_WINDOW decided
+    // ones, as two bounded reads: a single "newest 40" window lost a move
+    // proposal that stays open for a minute behind the small proposals a
+    // floor decides every second (docs/infra/deploy.md, "A list never hides a
+    // live proposal").
+    const pending = [
+      ...(await db
+        .select()
+        .from(proposals)
+        .where(and(eq(proposals.workspaceId, workspaceId), eq(proposals.status, 'pending')))
+        .orderBy(desc(proposals.createdAt))
+        .limit(PENDING_LISTED_MAX)),
+      ...(await db
+        .select()
+        .from(proposals)
+        .where(
+          and(eq(proposals.workspaceId, workspaceId), inArray(proposals.status, ['approved', 'declined', 'lapsed'])),
+        )
+        .orderBy(desc(proposals.createdAt))
+        .limit(BALLOT_DECIDED_WINDOW)),
+    ];
     const names = await getParticipantDisplayNames(pending.map(p => p.proposedBy));
     const proposerBots = await botIds(pending.map(p => p.proposedBy));
     // When each proposal was last edited, so the floor can say "edited" beside
@@ -1698,11 +1674,10 @@ marketplaceRouter.get(
     // The brief carries the newest 25 proposals, so on a busy floor this read
     // is showing a window. A window a reader does not know about is a silent
     // cut, which is the failure this endpoint exists to end, so it is stated.
-    const [countRow] = await db
-      .select({ n: sql<number>`count(*)::int` })
-      .from(proposals)
-      .where(and(eq(proposals.workspaceId, ws.id), ne(proposals.status, 'removed')));
-    const contractsTotal = countRow?.n ?? 0;
+    // Counted up to PROPOSAL_COUNT_CAP: past it the only thing a reader needs
+    // is that older proposals are omitted (docs/infra/deploy.md, "Counts stop
+    // at a cap").
+    const contractsTotal = await countProposalsUpTo(ws.id);
 
     const all = req.query.horizons === 'all';
     // Enough of the pitch to know what the work IS. A title alone does not say

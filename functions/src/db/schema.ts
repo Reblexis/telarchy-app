@@ -726,6 +726,9 @@ export const trades = pgTable(
     // (lib/board.ts) and every hot read filters one of these shapes. The PK
     // leads on id, so it serves none of them.
     index('trades_ws_market_created_idx').on(t.workspaceId, t.marketId, t.createdAt),
+    // A floor's week counts (migration 0130; docs/infra/deploy.md, "The
+    // prices read joins no decided proposal").
+    index('trades_ws_created_idx').on(t.workspaceId, t.createdAt),
     index('trades_created_idx').on(t.createdAt),
     // Count-by-market without a workspace predicate (migration 0117).
     index('trades_market_idx').on(t.marketId),

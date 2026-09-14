@@ -1159,6 +1159,27 @@ within weeks. The rule:
   for. Limits stay per book: top 50 positions, newest 50 trades and pool
   rows, 500 history points. Nothing is cached: a call that arrives after a
   batch has run reads again.
+- **A list never hides a live proposal.** A floor can decide a proposal a
+  second while one proposal stays open for a minute, so a "newest N" window
+  would push the open one out behind the decided ones posted after it.
+  Every list that stands for a floor's proposals therefore reads the
+  pending ones and the decided ones as two bounded reads: the public
+  ballot carries every pending proposal (up to `PENDING_LISTED_MAX`, 200)
+  and the newest 40 decided; the workspace brief every pending proposal
+  (up to 200) and the newest 25 others. `GET /api/proposals` without
+  `status` lists pending proposals ahead of the rest, each part newest
+  first: `before=<number>` continues from that proposal's place in that
+  order, and `before=<instant>` stays a plain time filter.
+- **Counts stop at a cap.** The 30-day `proposalStats` on the floor
+  payload and the public listing count at most `PROPOSAL_COUNT_CAP`
+  (10,000) proposals per status, and the contracts read's `contractsTotal`
+  at most 10,000: a count at the cap means at least that many. Each is an
+  index range read that stops at the cap, never a count of a floor's
+  whole history.
+- **The prices read joins no decided proposal.** The once-a-second prices
+  read finds the pending proposals through the pending index instead of
+  joining every proposal the workspace ever had, and the floor's week
+  counts read `trades (workspace_id, created_at)`.
 - **Crons process due work in bounded batches.** `resolvePredictions`
   looks a fixing up once per (metric, target date) rather than once per
   book, at most two lookups in flight, and settles or voids at most
@@ -1195,8 +1216,9 @@ within weeks. The rule:
   created_at)`, `(workspace_id, created_at)`, `(workspace_id, decide_by)
   where pending`, `(status, resolved_at)`, `(proposed_by, created_at)`;
   `liquidity_events (market_id)`, `(workspace_id, created_at)`; `trades
-  (market_id)`, `(agent_id, market_id)`; `limit_orders (workspace_id,
-  created_at)`, `(workspace_id, updated_at)`. Additive, `IF NOT
+  (market_id)`, `(agent_id, market_id)`, `(workspace_id, created_at)`;
+  `limit_orders (workspace_id, created_at)`, `(workspace_id, updated_at)`.
+  Additive, `IF NOT
   EXISTS`, and declared in `functions/src/db/schema.ts` so drizzle-kit
   keeps them. On the beta store the journal `when` has to be newer than
   the last applied migration or the store skips it.

@@ -2003,7 +2003,9 @@ selection, which is what the page's one market view is pointed at: a
 selected decided proposal forces the fold open, because a
 `#proposal=<id>` link from a notification must never land on a row the
 fold is hiding; and hiding the fold while a decided proposal is selected
-releases that selection, so the control can never be dead.
+releases that selection, so the control can never be dead. The payload carries every pending proposal however many were decided
+after it, and the newest 40 decided ones for the fold
+(docs/infra/deploy.md, "A list never hides a live proposal").
 
 **The board is a
 selector, not a second trading surface**: selecting a proposal re-points
