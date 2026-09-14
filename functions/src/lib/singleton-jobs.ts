@@ -37,6 +37,9 @@ export const LOCK_KEYS = {
   /** The one-minute pass that lapses overdue proposals and sends the
    *  owner's deadline reminder (docs/guides/proposals.md). */
   proposalDeadlines: 71006,
+  /** The watchdog that emails the owner when a house agent stops
+   *  (docs/infra/deploy.md, "Cron schedule"). */
+  agentWatchdog: 71007,
 } as const;
 
 export type LockName = keyof typeof LOCK_KEYS;

@@ -554,6 +554,11 @@
     "agent": 200,
     "master": 403
   },
+  "POST /api/cron/agent-watchdog": {
+    "anon": 401,
+    "agent": 401,
+    "master": 200
+  },
   "POST /api/cron/refresh": {
     "anon": 401,
     "agent": 401,
