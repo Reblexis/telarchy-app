@@ -3581,6 +3581,7 @@ not done.</p>
 <li><strong>Why a record and not a comment:</strong> the comment is prose for people; the metric needs the number, stamped with the instant it was made, from the participant itself rather than parsed out of text.</li>
 <li><strong>Why the reference trades:</strong> the floor's claim is that the market with everyone in it beats the best single agent. The agent is in the market too; if the crowd cannot improve on it, the crowd adds nothing, and that is what the number should say. The reference's own trade moves the price toward its estimate, so a market nobody else touched scores close to the reference by construction, not above it.</li>
 <li><strong>The two stages:</strong> at spawn the reference sees the metric, its history, the workspace brief and the sources, and not the book (the book is the untouched anchor then). At maturity it sees everything a trader sees: the price, the trades, the thread, the sources. The mature estimate is the one the skill metric scores, because it is made with the same information the market had.</li>
+<li><strong>When it stops:</strong> the <code>agent-watchdog</code> cron emails the owner within about half an hour, whether the machine went down, the unit died, or the bot runs and files nothing (docs/infra/deploy.md, &quot;Cron schedule&quot;).</li>
 <li><strong>How to compute:</strong> the table <code>market_forecasts</code> (id, workspace, market, participant, value, stage, model, note, filed at); the route in <code>functions/src/routes/predictions.ts</code> beside the market messages. The reference participant runs as <code>cli-agents/reference-astra</code> in <code>telarchy-agents</code> (its <code>strategy.md</code> is its living spec).</li>
 </ul>
 <h3 id="docs-metrics-md--h12">Skill vs reference, trailing 30 days (<code>skillVsReference</code>)</h3>
@@ -13647,8 +13648,40 @@ a service nothing else watches.</p>
 <td><code>40 * * * *</code> (hourly)</td>
 <td><code>POST /api/cron/self-sync</code></td>
 </tr>
+<tr>
+<td><code>telarchy-agent-watchdog</code></td>
+<td><code>*/15 * * * *</code> (every 15 minutes)</td>
+<td><code>POST /api/cron/agent-watchdog</code></td>
+</tr>
 </tbody>
 </table></div>
+<p><code>agent-watchdog</code> emails the owner when a watched house agent stops
+working, from whatever cause, and emails again when it works again. It
+runs here, off the machine the agents run on, because the commonest way
+for an agent to stop is for that machine to stop, and nothing on it can
+report that. The watched agents are <code>reference-astra</code> (the reference
+forecaster, docs/metrics.md). An agent counts as stopped when any of these
+holds:</p>
+<ul>
+<li>it has not reported for 30 minutes: no row in <code>agent_heartbeats</code>, or its
+<code>updatedAt</code> is older than that (the runner reports at least every five
+minutes, so this is the machine down, the unit dead, or the network gone);</li>
+<li>its last report says <code>status: error</code> (the unit exhausted its restarts);</li>
+<li>work is due and not done: an open market (active, not resolved, not
+voided) on a public workspace, opened more than 6 hours ago, whose
+settlement falls at least 12 hours after it opened, carries no forecast
+from the agent (this is the failure a heartbeat cannot see: the model's
+credits run out, its login expires, a membership is lost, and every
+cycle still reports idle).</li>
+</ul>
+<p>Mail goes to <code>OWNER_NOTIFY_EMAIL</code> through Resend: one message when an agent
+goes from working to stopped, naming every reason, when it last reported,
+when it last filed a forecast and what to check; a reminder every 24 hours
+while it stays stopped; one message when it works again. The state per
+agent lives in <code>system_config</code> under <code>agent_watchdog:&lt;agent&gt;</code> (<code>status</code>,
+<code>since</code>, <code>reasons</code>, <code>lastAlertAt</code>). A message Resend refuses is not
+recorded as sent, so the next run tries again. One run at a time holds
+the <code>agent-watchdog</code> advisory lock; a second concurrent run skips.</p>
 <p><code>self-sync</code> records Telarchy's own computed numbers as a reading on its own
 floor, and it runs here rather than in GitHub Actions because GitHub's
 scheduler cannot hold an hourly cadence: a <code>40 23 * * *</code> job fired at 01:36,

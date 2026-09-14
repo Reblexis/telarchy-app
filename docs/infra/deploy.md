@@ -927,6 +927,35 @@ payouts. Records: `notes/bug-hunt-2026-08-31.md`, P0-3.
   | `firebase-schedule-dailyResolve-us-central1` | `*/10 * * * *` (every 10 minutes) | `POST /api/cron/resolve` |
   | `firebase-schedule-dailyMarketRefresh-us-central1` | `10 * * * *` (hourly) | `POST /api/cron/refresh` |
   | `telarchy-self-sync` | `40 * * * *` (hourly) | `POST /api/cron/self-sync` |
+  | `telarchy-agent-watchdog` | `*/15 * * * *` (every 15 minutes) | `POST /api/cron/agent-watchdog` |
+
+  `agent-watchdog` emails the owner when a watched house agent stops
+  working, from whatever cause, and emails again when it works again. It
+  runs here, off the machine the agents run on, because the commonest way
+  for an agent to stop is for that machine to stop, and nothing on it can
+  report that. The watched agents are `reference-astra` (the reference
+  forecaster, docs/metrics.md). An agent counts as stopped when any of these
+  holds:
+
+  - it has not reported for 30 minutes: no row in `agent_heartbeats`, or its
+    `updatedAt` is older than that (the runner reports at least every five
+    minutes, so this is the machine down, the unit dead, or the network gone);
+  - its last report says `status: error` (the unit exhausted its restarts);
+  - work is due and not done: an open market (active, not resolved, not
+    voided) on a public workspace, opened more than 6 hours ago, whose
+    settlement falls at least 12 hours after it opened, carries no forecast
+    from the agent (this is the failure a heartbeat cannot see: the model's
+    credits run out, its login expires, a membership is lost, and every
+    cycle still reports idle).
+
+  Mail goes to `OWNER_NOTIFY_EMAIL` through Resend: one message when an agent
+  goes from working to stopped, naming every reason, when it last reported,
+  when it last filed a forecast and what to check; a reminder every 24 hours
+  while it stays stopped; one message when it works again. The state per
+  agent lives in `system_config` under `agent_watchdog:<agent>` (`status`,
+  `since`, `reasons`, `lastAlertAt`). A message Resend refuses is not
+  recorded as sent, so the next run tries again. One run at a time holds
+  the `agent-watchdog` advisory lock; a second concurrent run skips.
 
   `self-sync` records Telarchy's own computed numbers as a reading on its own
   floor, and it runs here rather than in GitHub Actions because GitHub's

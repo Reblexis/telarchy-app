@@ -88,6 +88,28 @@ cronRouter.post(
   }),
 );
 
+/**
+ * The agent watchdog (docs/infra/deploy.md, "Cron schedule"): emails the owner
+ * when a watched house agent stops working, and when it works again. One run
+ * at a time; a concurrent run skips rather than sending the mail twice.
+ */
+cronRouter.post(
+  '/agent-watchdog',
+  wrap(async (req, res) => {
+    if (!validateApiKey(req, res)) return;
+
+    const { runAgentWatchdog } = await import('../services/agent-watchdog');
+    const { withSingletonLock } = await import('../lib/singleton-jobs');
+    let agents: unknown[] = [];
+    const lock = await withSingletonLock('agentWatchdog', async () => {
+      agents = await runAgentWatchdog();
+    });
+    // Logged every run, quiet ones too, so a scheduler that stopped firing shows.
+    console.log('[cron/agent-watchdog]', JSON.stringify({ lock, agents }));
+    res.json({ ok: true, lock, agents });
+  }),
+);
+
 cronRouter.post(
   '/resolve',
   wrap(async (req, res) => {
