@@ -949,6 +949,41 @@ describe('THE MOST TRADED FLOOR IS FEATURED ABOVE THE BOARD', () => {
     }
   });
 
+  test('the chess card looked cramped beside the floor (2026-09-14): a card drawing a live board takes the live layout, a spark card does not', async () => {
+    const chessRow = { ...snakeRow, workspaceId: 'ws-chess', slug: 'chess', name: 'Chess' };
+    withRows(
+      [
+        { ...listing, volumePerHour: 1 },
+        { ...chessRow, volumePerHour: 9_000 },
+      ],
+      { chess: { ...snakeFloor, liveFeed: { kind: 'chess', url: 'https://chess.example' } } },
+    );
+    const chess = renderPage();
+    const chessCard = await screen.findByRole('region', { name: /most traded now/i });
+    await within(chessCard).findByTestId('chess-live');
+    expect(chessCard).toHaveClass('mkt-featured--live');
+    chess.unmount();
+
+    withRows([
+      { ...listing, volumePerHour: 1 },
+      { ...snakeRow, volumePerHour: 15_369 },
+    ]);
+    const snake = renderPage();
+    const snakeCard = await screen.findByRole('region', { name: /most traded now/i });
+    await within(snakeCard).findByTestId('snake-live');
+    expect(snakeCard).toHaveClass('mkt-featured--live');
+    snake.unmount();
+
+    withRows([
+      { ...listing, volumePerHour: 40 },
+      { ...snakeRow, volumePerHour: 2 },
+    ]);
+    renderPage();
+    const sparkCard = await screen.findByRole('region', { name: /most traded now/i });
+    await within(sparkCard).findByText('LookPilot');
+    expect(sparkCard).not.toHaveClass('mkt-featured--live');
+  });
+
   test('a featured floor without a live feed shows its market spark instead', async () => {
     withRows([
       { ...listing, volumePerHour: 40 },
@@ -1246,6 +1281,49 @@ describe('THE FEATURED CARD SHOWS ITS MOST TRADED OPEN PROPOSAL', () => {
     expect(
       within(block).getByText(/Each option is priced by what traders forecast it does to Reached length\./),
     ).toBeInTheDocument();
+  });
+
+  test('a chess move with 26 options filled the card (2026-09-14): past six options the block shows the six highest priced and one "+N more" row to the proposal', async () => {
+    const prices = [41, 58.5, 47, 50, 63.2, 44, 52.1, 39];
+    const many = optionProposal({
+      id: 'p-chess-11',
+      number: 414,
+      title: 'Game 41, move 11',
+      options: prices.map((_, i) => ({ id: `m${i}`, label: `Move ${i}` })),
+    });
+    many.markets[0].options = prices.map((consensus, i) => ({
+      id: `m${i}`,
+      label: `Move ${i}`,
+      marketId: `mk${i}`,
+      consensus,
+      liquidity: 100,
+      pool: 100,
+      traders: 1,
+      volume: 10,
+      delta: 0,
+    }));
+    serve([{ ...listing, volumePerHour: 1 }, snakeRow], { snake: snakeFloorWith([many]) });
+    renderPage();
+    const block = await deciding();
+    const rows = within(block).getAllByRole('link');
+    expect(rows.map(r => r.textContent)).toEqual([
+      expect.stringMatching(/^Move 4.*63\.2/),
+      expect.stringMatching(/^Move 1.*58\.5/),
+      expect.stringMatching(/^Move 6.*52\.1/),
+      expect.stringMatching(/^Move 3.*50\.0/),
+      expect.stringMatching(/^Move 2.*47\.0/),
+      expect.stringMatching(/^Move 5.*44\.0/),
+      '+2 more',
+    ]);
+    for (const r of rows) expect(r).toHaveAttribute('href', '/snake#proposal=p-chess-11');
+  });
+
+  test('six options or fewer keep every row, in the proposal\'s order, with no "+N more"', async () => {
+    serve([{ ...listing, volumePerHour: 1 }, snakeRow], { snake: snakeFloorWith([optionProposal()]) });
+    renderPage();
+    const block = await deciding();
+    expect(within(block).getAllByRole('link')).toHaveLength(3);
+    expect(within(block).queryByText(/more$/)).toBeNull();
   });
 
   test('the countdown to the decision ticks beside the label', async () => {

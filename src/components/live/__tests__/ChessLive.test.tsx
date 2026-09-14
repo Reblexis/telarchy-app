@@ -328,6 +328,57 @@ describe('a move made on the board opens its option', () => {
   });
 });
 
+describe('hovering a piece shows its moves before any press', () => {
+  const tinted = (c: HTMLElement, name: string) => sq(c, name).classList.contains('is-hover-piece');
+
+  test('a piece that can move is tinted and its squares get their dots on hover, and both clear on leave', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    fireEvent.mouseEnter(sq(container, 'e1'));
+    expect(tinted(container, 'e1')).toBe(true);
+    expect(dots(container)).toEqual(['d2', 'e2', 'f1', 'g1']);
+    fireEvent.mouseLeave(sq(container, 'e1'));
+    expect(tinted(container, 'e1')).toBe(false);
+    expect(dots(container)).toEqual([]);
+  });
+
+  test('hovering opens nothing: only a press on a target square does', async () => {
+    const onPickProposal = vi.fn();
+    const { container } = renderLive({ onPickProposal });
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    fireEvent.mouseEnter(sq(container, 'e1'));
+    fireEvent.mouseEnter(sq(container, 'g1'));
+    expect(onPickProposal).not.toHaveBeenCalled();
+  });
+
+  test('a piece that cannot move, an opponent piece, an empty square, and every piece with no open move show nothing', async () => {
+    const { container, unmount } = renderLive();
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    for (const name of ['a1', 'e8', 'a6']) {
+      fireEvent.mouseEnter(sq(container, name));
+      expect(tinted(container, name)).toBe(false);
+      expect(dots(container)).toEqual([]);
+      fireEvent.mouseLeave(sq(container, name));
+    }
+    unmount();
+    vi.mocked(api.getLiveState).mockImplementation(async () => h.state({ phase: 'their-move', open: null }) as never);
+    const idle = renderLive();
+    await waitFor(() => expect(nextLine(idle.container)).toMatch(/^Waiting for /));
+    fireEvent.mouseEnter(sq(idle.container, 'e1'));
+    expect(tinted(idle.container, 'e1')).toBe(false);
+    expect(dots(idle.container)).toEqual([]);
+  });
+
+  test('while a piece is picked up, hovering another piece does not replace its moves', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    fireEvent.click(sq(container, 'e1'));
+    fireEvent.mouseEnter(sq(container, 'd1'));
+    expect(dots(container)).toEqual(['d2', 'e2', 'f1', 'g1']);
+    expect(tinted(container, 'd1')).toBe(false);
+  });
+});
+
 describe('an arrow never takes the click meant for the board', () => {
   // Reported on the beta, 2026-09-13: a real click on a piece under the leader's arrow tail could not reach the square.
   test("an arrow's pressable area starts outside the square it leaves", async () => {

@@ -7130,6 +7130,8 @@ textarea.jobform-line--desc {
   background: var(--bg-primary);
   box-shadow: var(--shadow-md);
 }
+/* A card drawing a live board gives it the floor's live-slot width, board at the top (docs/ui-conventions.md, "The marketplace"). */
+.mkt-featured--live { grid-template-columns: minmax(0, 45rem) minmax(0, 1fr); align-items: start; }
 .mkt-featured-visual { min-width: 0; }
 .mkt-featured-visual .mkt-spark { height: 180px; }
 .mkt-featured-body { display: flex; flex-direction: column; gap: 0.7rem; min-width: 0; }
@@ -7226,6 +7228,7 @@ textarea.jobform-line--desc {
 .mkt-deciding-impact.is-down { color: var(--lower); }
 .mkt-deciding-pair { margin: 0; display: flex; justify-content: flex-end; }
 .mkt-deciding-mech { margin: 0; font-size: 0.85rem; line-height: 1.5; color: var(--text-secondary); }
+.mkt-deciding-more { justify-content: flex-start; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--text-secondary); }
 
 @media (max-width: 760px) {
   .mkt-featured {
@@ -12591,6 +12594,8 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .chess-square.is-last { fill: #e6d28a; }
 .chess-square.is-dark.is-last { fill: #d2bb6a; }
 .chess-square.is-selected { fill: #b9d8c3; }
+/* A piece that can move, under the pointer: tinted so it reads as pressable (docs/ui-conventions.md, "The chess feed", item 1). */
+.chess-square.is-hover-piece { fill: #d3e6d8; cursor: pointer; }
 .chess-piece { pointer-events: none; font-family: 'DejaVu Sans', 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols 2', serif; }
 .chess-piece.is-white { fill: #fbf9f4; stroke: #17171c; stroke-width: 1.2px; paint-order: stroke; }
 .chess-piece.is-black { fill: #17171c; }

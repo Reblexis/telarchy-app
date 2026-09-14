@@ -199,7 +199,9 @@ function Board({
   arrows,
   targets,
   selected,
+  hoverPiece,
   onSquare,
+  onSquareHover,
   onPick,
 }: {
   fen: string | null;
@@ -212,7 +214,11 @@ function Board({
   arrows: Arrow[];
   targets: Array<{ square: string; text: string; leader: boolean }>;
   selected: string | null;
+  /** A piece that can move, under the pointer while nothing is picked up: its square tinted. */
+  hoverPiece: string | null;
   onSquare: (square: string) => void;
+  /** The pointer entered a square (null: it left the board's squares). */
+  onSquareHover: (square: string | null) => void;
   onPick?: (n: number, option?: string) => void;
 }) {
   const pieces = useMemo(() => piecesOf(fen ?? START_FEN), [fen]);
@@ -243,6 +249,7 @@ function Board({
           proposalSquares.includes(sq) ? 'is-proposal' : '',
           hoverSquares.includes(sq) ? 'is-hover' : '',
           selected === sq ? 'is-selected' : '',
+          hoverPiece === sq ? 'is-hover-piece' : '',
         ]
           .filter(Boolean)
           .join(' ');
@@ -257,6 +264,8 @@ function Board({
             width={S}
             height={S}
             onClick={() => onSquare(sq)}
+            onMouseEnter={() => onSquareHover(sq)}
+            onMouseLeave={() => onSquareHover(null)}
           />
         );
       })}
@@ -416,6 +425,11 @@ export function ChessLive({
   });
   /* The move a list row is hovered or focused on (docs/ui-conventions.md, "The chess feed", item 4). */
   const [hoverState, setHoverState] = useState<{ id: string | null; move: string | null }>({ id: null, move: null });
+  /* The square under the pointer on the board (docs/ui-conventions.md, "The chess feed", item 1). */
+  const [squareHoverState, setSquareHoverState] = useState<{ id: string | null; square: string | null }>({
+    id: null,
+    square: null,
+  });
   const onStepRef = useRef(onStep);
   onStepRef.current = onStep;
   const onQuotesRef = useRef(onQuotes);
@@ -567,6 +581,7 @@ export function ChessLive({
   const selected = selectionState.id !== null && selectionState.id === openId ? selectionState.square : null;
   const hoverMove = hoverState.id !== null && hoverState.id === openId ? hoverState.move : null;
   const setSelected = (square: string | null) => setSelectionState({ id: openId, square });
+  const hoveredSquare = squareHoverState.id !== null && squareHoverState.id === openId ? squareHoverState.square : null;
 
   const replayRow = replay && replay.entry > 0 ? (plies[replay.game]?.[replay.entry - 1] ?? null) : null;
   const replayColor: Color = replay ? (games.find(g => g.number === replay.game)?.color ?? color) : color;
@@ -621,13 +636,19 @@ export function ChessLive({
         arrows: liveArrows(),
       };
 
+  /* A hovered piece previews its moves only while nothing is picked up, and only if it can move. */
+  const hoverPiece =
+    !replay && open && !selected && hoveredSquare && open.options.some(o => o.id.startsWith(hoveredSquare))
+      ? hoveredSquare
+      : null;
+  const shownFrom = selected ?? hoverPiece;
   const targetSquares =
-    open && selected
-      ? [...new Set(open.options.filter(o => o.id.startsWith(selected)).map(o => o.id.slice(2, 4)))]
+    open && shownFrom
+      ? [...new Set(open.options.filter(o => o.id.startsWith(shownFrom)).map(o => o.id.slice(2, 4)))]
       : [];
   const boardLeader = open ? leaderOf(openOptions) : null;
   const targets = targetSquares.map(square => {
-    const candidates = openOptions.filter(o => selected !== null && o.id.startsWith(`${selected}${square}`));
+    const candidates = openOptions.filter(o => shownFrom !== null && o.id.startsWith(`${shownFrom}${square}`));
     const move = candidates.find(o => o.id.endsWith('q')) ?? candidates[0];
     return {
       square,
@@ -726,7 +747,9 @@ export function ChessLive({
               arrows={drawn.arrows}
               targets={targets}
               selected={selected}
+              hoverPiece={replay ? null : hoverPiece}
               onSquare={onSquare}
+              onSquareHover={square => setSquareHoverState({ id: openId, square })}
               onPick={onPickProposal}
             />
           </div>
