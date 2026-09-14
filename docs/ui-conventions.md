@@ -2904,6 +2904,14 @@ no market at this address"; a crawl of the live site found it. A link the
 site advertises and does not serve is worse than no link, so the routes and
 the advertisements change together.
 
+An agent reads a guide at the same address a person does. For a known
+section the server serves `/guides/:section` with the guide's title in the head,
+a `text/markdown` alternate link to `/api/guides/:section`, and the guide's
+whole markdown text, escaped, in place of the home page's no-JavaScript
+fallback, so a reader that runs no script gets the guide rather than an empty
+shell. A request whose Accept header prefers `text/markdown` to `text/html`
+gets the markdown itself. Any other path under `/guides` is the plain app shell.
+
 ### Guide document rendering
 
 Each guide uses one 760px document column, with readable heading levels, paragraph spacing, lists, blockquotes and inline code. GitHub-flavored Markdown tables and fenced code render structurally. Wide tables and code scroll inside their own containers on small screens. Internal guide links retain the current preview base; relative Markdown guide links resolve to the corresponding guide route. The index and articles share the site top bar.

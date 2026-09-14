@@ -41,30 +41,43 @@ beforeEach(() => {
     { keyId: 'final', label: 'setup-unique' },
   ]);
 });
+const ACCESS_PHRASE = {
+  read: 'research only, no trades',
+  trade: 'read and trade in that workspace only',
+  manage: 'read, trade and manage',
+  full: 'full access to this identity',
+} as const;
+// Written once, in the guide the prompt points at; the prompt repeats none of it.
+const GUIDE_RULES = [
+  'dry run',
+  'credit per trade',
+  'reference-agent',
+  'TELARCHY_KEY',
+  '/api/feedback',
+  'stop commands',
+];
 for (const identity of ['bot', 'me'] as const)
-  for (const access of ['read', 'trade'] as const)
-    test(`PROMPT CARRIES IDENTITY AND PERMISSION: ${identity}/${access}`, () => {
+  for (const access of ['read', 'trade', 'manage', 'full'] as const)
+    test(`THE PROMPT ONLY POINTS AT THE SETUP GUIDE AND NAMES THIS SETUP: ${identity}/${access}`, () => {
       const text = builderPrompt('https://example.test/beta', { ...opts, identity, access });
       expect(text).toContain('https://example.test/beta/guides/build-agent');
-      expect(text).toContain('ws-one');
-      expect(text).toContain(identity === 'bot' ? 'separate bot' : 'existing identity');
-      expect(text).toContain(access === 'read' ? 'Do not place live trades' : 'Review the dry run');
-      for (const detail of [
-        'deterministic',
-        'LLM',
-        'tools',
-        'from scratch',
-        'own server',
-        'reference-agent',
-        'funding',
-      ])
-        expect(text).toContain(detail);
+      expect(text).toContain('"ws-one"');
+      expect(text).toContain(identity === 'bot' ? 'separate bot' : 'my own account');
+      expect(text).toContain(ACCESS_PHRASE[access]);
+      for (const rule of GUIDE_RULES) expect(text).not.toContain(rule);
+      expect(text.split(/\s+/).length).toBeLessThanOrEqual(80);
       expect(text).not.toContain('bootstrap-secret');
     });
+test('A CONNECTED BOT IS NEVER CREATED OR FUNDED AGAIN BY ITS PROMPT', () => {
+  const text = builderPrompt('https://example.test', { ...opts, access: 'full' }, 'bot-one');
+  expect(text).toContain('"bot-one"');
+  expect(text).toContain('already created and funded');
+  expect(text).not.toContain('separate bot');
+});
 test('NO WORKSPACE REQUIRED TO START WITH A PROMPT', () => {
   const text = builderPrompt('https://example.test', defaults);
-  expect(text).toContain('/api/marketplace/workspaces/public');
-  expect(text).not.toContain('Workspace id: ""');
+  expect(text).toContain('choose a public workspace');
+  expect(text).not.toContain('""');
 });
 test('STORAGE IS AN ALLOWLIST, NEVER A KEY STORE', () => {
   expect(readOptions({ ...opts, identity: 'bad', apiKey: 'secret', credits: 'Infinity' })).toEqual({
@@ -172,13 +185,6 @@ test('an unnamed bot retains one generated identity across an uncertain creation
   await connectBuilder({ ...opts, botName: '' }, 'read', checkpoint, () => true);
   expect(api.createAgent).toHaveBeenCalledTimes(1);
   expect(checkpoint.agentId).toBe(generated);
-});
-
-test('a connected prompt reuses the existing bot without funding or creating it again', () => {
-  const prompt = builderPrompt('https://example.test', opts, 'existing-bot');
-  expect(prompt).toContain('Use my existing connection "existing-bot"');
-  expect(prompt).toContain('Do not create another participant');
-  expect(prompt).not.toContain('Guide me through choosing its name');
 });
 
 test.each(['manage', 'full'] as const)(

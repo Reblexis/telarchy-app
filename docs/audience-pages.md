@@ -57,16 +57,10 @@ instructions remain available through the build guide and `/llms.txt`.
 
 Bots have full access to their own identity, with no permission selector. Personal keys offer Research, Trading, Workspace management, and Full access. Workspace management includes reading, trading and management in workspaces the user can access; Full access additionally includes account settings, balances, keys and creating bots. Access never exceeds the participant's underlying authority. Name is optional and bot starting credits default to 100. The form has no numbered steps, headings or separate panels.
 
-Runtime prompts use the existing connection and never request creation or starting credits again. The newly issued key remains available even if refreshing the connection list fails. Existing keys retain runtime controls after reload, with instructions derived from that key’s permissions. The prompt asks the coding assistant to help choose a strategy
-(deterministic, LLM-assisted, or an AI agent using tools), reference code versus
-from scratch, and local versus own-server deployment. It suggests the reference
-agent and a local dry run when the person has no preference. It uses the public Telarchy workspace, resolved through the API. Initial setup ignores stored workspace preferences and workspace URL parameters. If Telarchy is unavailable, creation stops with a retry action rather than switching to another workspace.
+Runtime prompts use the existing connection and never request creation or starting credits again. The newly issued key remains available even if refreshing the connection list fails. Existing keys retain runtime controls after reload, with instructions derived from that key’s permissions. The prompt is a pointer, not the instructions. It tells the coding assistant to follow the setup guide at `/guides/build-agent` and states only what that guide cannot know: the identity (an existing bot by its id, already created and funded; a separate bot still to create; or the person's own account), the workspace (or that one is still to be chosen), and the access (a research prompt says no trades). Everything else, from choosing a strategy to the dry run, budgets, credential storage, run and stop commands and reporting problems to Telarchy, is written once, in that guide, which the person and their assistant read at the same address. It uses the public Telarchy workspace, resolved through the API. Initial setup ignores stored workspace preferences and workspace URL parameters. If Telarchy is unavailable, creation stops with a retry action rather than switching to another workspace.
 
 The default is a separate bot with full access to its own identity. Personal keys default to research access. Both choices survive
-login and reload. Read-only prompts explicitly prohibit live trading. Trading
-prompts permit a trading-capable setup, then require review of the dry run and
-budget before starting it. Both explain credential storage, funding through the
-existing API, and exact run and stop commands. The assistant configures the runtime for the existing connection.
+login and reload. The assistant configures the runtime for the existing connection.
 Keys never enter URLs, prompts, or browser storage. The page never claims
 Telarchy hosts or has started the process. Copy errors leave selectable text.
 
