@@ -2,6 +2,18 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+// The fixture's week market is 2026-W38 (it resolves 21 Sep). The floor labels
+// the current week "this week" and any other week by its end, so the
+// assertions below hold only while today is before W38. Pin the clock there:
+// the test broke on 2026-09-14, the first day of W38, with no code change.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-09-10T12:00:00Z'));
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 /**
  * There is ONE chart, and how the call moved is a mode of it
  * (docs/ui-conventions.md, "The price and the chart", revised 2026-09-09;
