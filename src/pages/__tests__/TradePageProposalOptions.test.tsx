@@ -498,6 +498,24 @@ describe('THE DECISION BAR HAS ONE BUTTON PER OPTION', () => {
     expect(api.approveProposal).toHaveBeenCalledTimes(1);
   });
 
+  test('"Choosing an option commits Chess to it" named the floor (2026-09-14): the sentence names the proposer', async () => {
+    const { container } = renderFloor();
+    await opened(container);
+    const rules = words(container.querySelector('.pubws-decides'));
+    expect(rules).toContain('Choosing an option commits snake-operator to it.');
+    expect(rules).not.toMatch(/Choosing an option commits (?!snake-operator)/);
+  });
+
+  test('with an ask, the sentence pays the proposer and commits them, never the floor', async () => {
+    withFloor(ws => {
+      (ws.proposals[0] as Record<string, unknown>).askUsd = 40;
+    });
+    const { container } = renderFloor();
+    await opened(container);
+    const rules = words(container.querySelector('.pubws-decides'));
+    expect(rules).toContain('Choosing an option pays snake-operator $40 and commits them to it.');
+  });
+
   test('"How this decides" speaks of options: one market per option, the others voided on the choice', async () => {
     const { container } = renderFloor();
     await opened(container);
