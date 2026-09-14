@@ -398,6 +398,23 @@ import('./app')
           'for-agents',
           'owners',
         ]);
+        // A guide at the address a person reads it carries its whole text for
+        // an agent that runs no script, or the markdown itself when asked
+        // (docs/ui-conventions.md, "The guides").
+        if (req.path.startsWith('/guides/')) {
+          try {
+            const { guidePage } = await import('./lib/guide-page');
+            const page = guidePage(req.path, req.get('accept'), fs.readFileSync(indexPath, 'utf8'), publicOrigin());
+            if (page) {
+              res.setHeader('Cache-Control', 'no-cache');
+              res.vary('Accept');
+              res.type(page.type).send(page.body);
+              return;
+            }
+          } catch (e) {
+            console.error('guide page injection failed:', e);
+          }
+        }
         // The audience pages carry their own title, description and FAQ
         // structured data in the head: they exist to be found from a search
         // or an AI answer, and neither reads the SPA.
