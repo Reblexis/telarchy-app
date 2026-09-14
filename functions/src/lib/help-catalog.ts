@@ -1768,7 +1768,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/cron/agent-watchdog',
       auth: 'admin',
       description:
-        'Cron entry point, managed instance only (every 15 minutes): emails the owner (OWNER_NOTIFY_EMAIL) when a watched house agent stops working and again when it works again. Watched: reference-astra. Stopped means no heartbeat for 30 minutes, a last heartbeat with status "error", or an open market on a public workspace opened more than 6 hours ago (settling at least 12 hours after it opened) with no forecast from the agent. One mail per incident, a reminder every 24 hours while stopped, one when it recovers; state in system_config under agent_watchdog:<agent>. Master key only. Returns { ok, lock: "ran"|"skipped", agents: [{ agentId, status, reasons, mailed }] }.',
+        'Cron entry point, managed instance only (every 15 minutes): emails the owner (OWNER_NOTIFY_EMAIL) when a watched house agent stops working and again when it works again. Watched: reference-astra. Stopped means no heartbeat for 30 minutes, a last heartbeat with status "error", an open floor book on a public workspace opened more than 6 hours ago (settling at least 12 hours after it opened) with no forecast from the agent, or a pending public proposal posted more than 2 hours ago (deciding at least 4 hours after posting, deadline still ahead) none of whose open books carries a forecast from the agent. One mail per incident, a reminder every 24 hours while stopped, one when it recovers; state in system_config under agent_watchdog:<agent>. Master key only. Returns { ok, lock: "ran"|"skipped", agents: [{ agentId, status, reasons, mailed }] }.',
     },
     {
       method: 'POST',
