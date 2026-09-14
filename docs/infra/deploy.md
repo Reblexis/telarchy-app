@@ -1110,17 +1110,27 @@ database carries it, on the one channel `telarchy_prices`
   4 ... up to 30 seconds, and on every (re)connect it moves every version it
   holds, since it may have missed messages while it was down.
 - After a price-changing transaction commits, the instance moves its own
-  version and sends `pg_notify` with `{ instance, store, workspace, market }`,
-  asynchronously: never awaited by the request, sent outside the
-  transaction, several changes to one floor in the same tick sent once,
-  errors logged and swallowed. It goes over the dedicated client while it is
+  version and sends `pg_notify` with `{ instance, store, workspace, market,
+  money }`, asynchronously: never awaited by the request, sent outside the
+  transaction, errors logged and swallowed. A floor gets at most one message
+  a second: the first change of a quiet second is sent at once, and every
+  further change within that second rides one message when the second ends,
+  so a floor changing prices many times a second costs one notification a
+  second and another instance hears of a change at most a second late.
+  `money` says whether money moved: a trade, a resolution, or a void of a book
+  somebody traded. A new book, a proposal's funding, trading closing, or the
+  void of an untraded book moves prices only. It goes over the dedicated client while it is
   connected and over the pool otherwise, so an instance whose own listener is
   down still tells the others. A trade never waits on it and never fails
   because of it.
 - A receiving instance ignores its own messages and moves the named floor's
-  version. The same message drops that instance's price-history replay cache
-  for the market and its leaderboard cache, which used to be dropped only on
-  the instance that took the trade.
+  version. The same message drops that instance's price-history replays for
+  the named market (for every market of that floor when none is named) and,
+  only when money moved, its cached boards and season scores that include
+  that floor. Nothing cached for another floor is dropped: a floor that moves a
+  price every second must not empty every other floor's caches every second.
+  The instance that took a trade drops the boards that include its floor
+  once the trade commits, so the trader's next read shows it.
 
 **Without the channel.** When an instance's listener is down, a cached
 answer is trusted for at most 1 second before the next read queries again,
@@ -1221,6 +1231,12 @@ within weeks. The rule:
   book (trades, orders, liquidity, book comments) cuts itself to the page
   before it joins `markets`, so a page decorates at most `limit + 1` rows
   per branch whatever the floor holds.
+- **The actions log reads a floor's decisions, deliveries and funding off
+  an index.** A decision's instant is the generated column
+  `proposals.decided_at`, so a floor's decisions come newest first without
+  sorting its history; the subsidy cutoff walks back one funded minute at a
+  time, `limit + 2` index probes; a read that names no floor reaches back
+  thirty days (docs/data-room.md, "Filtering").
 - **The workspace brief reads bounded history.** The metric log query is
   windowed to `BRIEF_HISTORY_DAYS`, the first reading day is a separate
   `min(timestamp)`, and the 25 proposals' markets come back in one query.
@@ -1233,6 +1249,8 @@ within weeks. The rule:
   (resolved_at) where resolved`; `proposals (workspace_id, status,
   created_at)`, `(workspace_id, created_at)`, `(workspace_id, decide_by)
   where pending`, `(status, resolved_at)`, `(proposed_by, created_at)`;
+  `(workspace_id, decided_at) where decided_at is not null`,
+  `(workspace_id, delivered_at) where delivered_at is not null`;
   `liquidity_events (market_id)`, `(workspace_id, created_at)`; `trades
   (market_id)`, `(agent_id, market_id)`, `(workspace_id, created_at)`,
   `(agent_id, created_at)`; `positions (agent_id, workspace_id)`; `markets

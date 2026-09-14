@@ -147,9 +147,6 @@ export async function voidMarket(
         alreadyVoided = true;
         return;
       }
-      // A voided book leaves the floor's open books: the prices read must move
-      // (docs/infra/deploy.md, "Prices, one channel across instances").
-      emitPricesChanged(workspaceId, market.id);
       // The pool under the lock, not the one on the row the caller handed in:
       // refreshRelativeDateMarkets reads its markets once and voids them much
       // later, with funding transactions possible in between.
@@ -167,6 +164,11 @@ export async function voidMarket(
         .from(trades)
         .where(and(eq(trades.workspaceId, workspaceId), eq(trades.marketId, market.id)))
         .groupBy(trades.agentId);
+
+      // A voided book leaves the floor's open books: the prices read must move
+      // (docs/infra/deploy.md, "Prices, one channel across instances"). Money
+      // moves only when somebody traded it.
+      emitPricesChanged(workspaceId, market.id, { moneyMoved: stakeRows.length > 0 });
 
       await tx
         .update(markets)
@@ -308,7 +310,7 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
       await tx.insert(markets).values(newMarkets);
       await tx.insert(liquidityEvents).values(newLiqEvents);
     });
-    for (const e of newLiqEvents) emitPricesChanged(workspaceId, e.marketId);
+    for (const e of newLiqEvents) emitPricesChanged(workspaceId, e.marketId, { moneyMoved: false });
     return pending.length;
   };
 

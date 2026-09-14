@@ -21,6 +21,7 @@ import {
   priceChannelLive,
   receivePriceMessage,
   reconnectBackoffMs,
+  resetPriceAnnouncements,
   setPriceTransport,
   startPriceChannel,
 } from '../lib/price-channel';
@@ -37,6 +38,7 @@ beforeEach(async () => {
   // so it cannot land in this test's recorder.
   setPriceTransport(null);
   await tick();
+  resetPriceAnnouncements();
   await truncateAll();
 });
 afterAll(() => {
@@ -161,7 +163,7 @@ describe('a message from another instance', () => {
     // from outside; the wiring is pinned at the source.
     const { readFileSync } = require('fs') as typeof import('fs');
     const src = readFileSync(require.resolve('../routes/leaderboard'), 'utf8');
-    expect(src).toMatch(/onPricesChanged\([^)]*origin[\s\S]*?remote[\s\S]*?clearBoardCache\(\)/);
+    expect(src).toMatch(/onPricesChanged\([^)]*origin[\s\S]*?remote[\s\S]*?clearBoardCacheFor\(workspaceId\)/);
   });
 });
 
@@ -258,7 +260,8 @@ describe('the listening connection', () => {
     clients[0].emit('error', new Error('connection reset'));
     expect(priceChannelLive()).toBe(false);
     jest.useRealTimers();
-    emitPricesChanged('ws-send');
+    // Another floor: this one sent a moment ago and is held to one message a second.
+    emitPricesChanged('ws-send-after-drop');
     await tick();
     expect(fallback).toHaveLength(1);
     spy.mockRestore();

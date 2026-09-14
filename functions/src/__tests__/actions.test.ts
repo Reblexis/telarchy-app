@@ -837,7 +837,7 @@ describe('every kind the doc names renders', () => {
     await seedEverything();
     const { rows } = await rowsOf('?kinds=workspace');
     expect(rows.map(r => r.id)).toEqual(['workspace:ws-telarchy']);
-    expect((await rowsOf('?kinds=workspace&floors=all')).rows.map(r => r.id)).toEqual([
+    expect((await rowsOf('?kinds=workspace&floors=all&before=2026-08-30T00:00:00Z')).rows.map(r => r.id)).toEqual([
       'workspace:ws-snake',
       'workspace:ws-telarchy',
     ]);
@@ -1230,12 +1230,16 @@ describe('an automated floor is hidden by default', () => {
     const byName = (await rowsOf('?workspace=snake')).rows;
     expect(byName.map(r => r.id)).toContain('trade:t-snake');
     for (const r of byName) expect(r.workspace?.slug).toBe('snake');
-    const all = (await rowsOf('?floors=all&limit=200')).rows;
+    // A read over every floor reaches thirty days back from its newest instant
+    // (docs/data-room.md, "Filtering"), so it names one inside the seed.
+    const all = (await rowsOf('?floors=all&limit=200&before=2026-09-02T00:00:00Z')).rows;
     expect(all.some(r => r.id === 'trade:t-snake')).toBe(true);
     expect(all.some(r => r.id === 'trade:t-buy')).toBe(true);
     // A participant filter still shows their rows on the hidden floor: the
     // question was about them, not the floor.
-    expect((await rowsOf('?participant=a3&limit=200')).rows.some(r => r.id === 'trade:t-snake')).toBe(true);
+    expect(
+      (await rowsOf('?participant=a3&limit=200&before=2026-09-02T00:00:00Z')).rows.some(r => r.id === 'trade:t-snake'),
+    ).toBe(true);
   });
 
   it('floors takes only "all"', async () => {
@@ -1251,7 +1255,7 @@ describe('an automated floor is hidden by default', () => {
     // The vocabulary names the hidden floor; no row on it is listed.
     expect(text).toContain('snake (hidden by default');
     expect(text).not.toMatch(/trade\s+a3\s+snake\s/);
-    const shown = await actionsTool().run({ floors: 'all' });
+    const shown = await actionsTool().run({ floors: 'all', before: '2026-09-02T00:00:00Z' });
     expect(shown).toMatch(/trade\s+a3\s+snake\s/);
   });
 });

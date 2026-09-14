@@ -925,6 +925,13 @@
       "when": 1789383292002,
       "tag": "0131_unbounded_loads",
       "breakpoints": true
+    },
+    {
+      "idx": 132,
+      "version": "7",
+      "when": 1789383952914,
+      "tag": "0132_live_log_indexes",
+      "breakpoints": true
     }
   ]
 }

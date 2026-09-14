@@ -545,7 +545,7 @@ export async function createConditionalMarkets(
           }),
         );
         if (liqRows.length > 0) await tx.insert(liquidityEvents).values(liqRows);
-        for (const r of liqRows) emitPricesChanged(workspaceId, r.marketId);
+        for (const r of liqRows) emitPricesChanged(workspaceId, r.marketId, { moneyMoved: false });
       }
     });
 
@@ -681,7 +681,10 @@ export async function closeProposalTrading(proposalId: string, workspaceId: stri
   // Every decision passes through here after its status is written: the
   // proposal's books have left the floor's open books, so its prices read
   // must move (docs/infra/deploy.md, "Prices, one channel across instances").
-  emitPricesChanged(workspaceId);
+  // Closing moves nobody's money, and each book is named so only its own
+  // history is dropped.
+  if (live.length === 0) emitPricesChanged(workspaceId, undefined, { moneyMoved: false });
+  for (const m of live) emitPricesChanged(workspaceId, m.id, { moneyMoved: false });
 }
 
 /**

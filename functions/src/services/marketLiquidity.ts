@@ -173,7 +173,8 @@ export async function applyAgentLiquidityInjectionTx(
   // 2026-08-31). A no-op on every other injection: a market with a price
   // already has shares.
   await anchorUntradedMarketTx(tx, { workspaceId: params.workspaceId, marketId: params.marketId });
-  emitPricesChanged(params.workspaceId, params.marketId);
+  // Depth, not anybody's position: prices only (docs/infra/deploy.md).
+  emitPricesChanged(params.workspaceId, params.marketId, { moneyMoved: false });
 }
 
 /**
