@@ -3148,8 +3148,11 @@ approved" and "If declined" with their prices and the impact of approving
 under them. Then one sentence: "Each option is priced by what traders
 forecast it does to <metric>." On the Snake that block is always the
 current move. Beside them, on the left, the
-floor's live board when the floor has a live feed (the same snake board as
-its page, without the replay row), else the hero market's spark. At phone
+floor's live board when the floor has a live feed: the board its feed's
+`kind` names, the same one its page draws (the snake board for `snake`, the
+chess board for `chess`), without the replay row. A kind this build cannot
+draw shows the hero market's spark instead, as a floor without a feed does;
+the card never draws one kind's board over another kind's feed. At phone
 width the card stacks, the board or spark first. The card never says "bet":
 the home page's words are forecast words.
 
