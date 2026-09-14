@@ -174,6 +174,9 @@ async function giveSettledProfit(
     resolvedAt,
     voided: false,
     proposalId: null,
+    // The trade below is written as a row, so the volume the trade path would
+    // have added is stamped here (lib/board.ts reads settled books by it).
+    tradedVolume: 1,
   });
   await db.insert(trades).values({
     id: `trade-${tag}`,
