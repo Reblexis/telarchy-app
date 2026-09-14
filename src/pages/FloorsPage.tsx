@@ -75,7 +75,9 @@ interface Listing {
    *  featured card's buttons and heading. */
   heroMarketId?: string | null;
   question?: string | null;
-  /** The floor draws a live board (today the snake). */
+  /** The floor's live feed is a snake game, so the featured card draws its
+   *  board (docs/ui-conventions.md, "The marketplace"); any other kind of
+   *  feed, the chess floor's included, leaves this false. */
   live?: boolean;
   /** The floor's most traded open proposal, for the featured card's deciding
    *  now block; null when it has none. */
@@ -423,7 +425,7 @@ function fromFloor(
     proposal: pickOpenProposal((ws as { proposals?: PublicProposal[] }).proposals),
     heroMarketId: m?.marketId ?? null,
     question: m?.title ?? null,
-    live: !!(ws as { liveFeed?: unknown }).liveFeed,
+    live: (ws as { liveFeed?: { kind?: string } | null }).liveFeed?.kind === 'snake',
     traders: ws.tradersThisWeek ?? null,
     tradesThisWeek: ws.tradesThisWeek ?? null,
     liquidity: poolLiquidityOf(ws),

@@ -590,7 +590,10 @@ export function SnakeLive({
   };
 
   const row = replay ? entryOf(replay.game, replay.entry) : null;
-  const game = state?.game ?? null;
+  /* Only a snake game is drawn: another kind of feed (the chess floor's) has a
+     game with no snake in it, and the board must not fail the page for it
+     (docs/ui-conventions.md, "The marketplace"). */
+  const game = state?.game && Array.isArray(state.game.snake) ? state.game : null;
   const grid = replay
     ? (games.find(g => g.number === replay.game)?.size ?? state?.grid ?? 12)
     : (state?.grid ?? game?.size ?? 12);
@@ -644,7 +647,7 @@ export function SnakeLive({
     ];
   };
   const drawn = replay
-    ? row
+    ? row && Array.isArray(row.snake)
       ? {
           snake: row.snake,
           food: row.food,

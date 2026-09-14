@@ -919,6 +919,25 @@ describe('THE MOST TRADED FLOOR IS FEATURED ABOVE THE BOARD', () => {
     expect(live).toHaveAttribute('data-replay', 'false');
   });
 
+  test('THE HOME PAGE NEVER CRASHES WHEN THE MOST TRADED FLOOR IS CHESS: a live feed that is not a snake shows the spark', async () => {
+    // Viktor, 2026-09-14, the beta home page: "Uncaught TypeError: can't access
+    // property 0, n is undefined". The card drew the snake board for the chess feed.
+    const chessRow = { ...snakeRow, workspaceId: 'ws-chess', slug: 'chess', name: 'Chess' };
+    const chessFloor = { ...snakeFloor, liveFeed: { kind: 'chess', url: 'https://chess.telarchy.com' } };
+    withRows(
+      [
+        { ...listing, volumePerHour: 1 },
+        { ...chessRow, volumePerHour: 9_000 },
+      ],
+      { chess: chessFloor },
+    );
+    renderPage();
+    const card = await screen.findByRole('region', { name: /most traded now/i });
+    expect(within(card).getByText('Chess')).toBeInTheDocument();
+    await waitFor(() => expect(card.querySelector('.mkt-spark')).toBeTruthy());
+    expect(within(card).queryByTestId('snake-live')).toBeNull();
+  });
+
   test('a featured floor without a live feed shows its market spark instead', async () => {
     withRows([
       { ...listing, volumePerHour: 40 },

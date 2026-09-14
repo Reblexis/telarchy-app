@@ -953,3 +953,41 @@ describe('THE HOME PAGE DRAWS THE BOARD WITHOUT ITS REPLAY ROW', () => {
     expect(await screen.findByRole('group', { name: 'Replay' })).toBeInTheDocument();
   });
 });
+
+/**
+ * Viktor, 2026-09-14, the beta home page: "Uncaught TypeError: can't access
+ * property 0, n is undefined". The featured card handed the snake board the
+ * chess floor's feed, whose game is a chess game with no snake in it.
+ */
+describe('a feed that is not a snake game', () => {
+  const chess = () => ({
+    schema: 1,
+    phase: 'playing',
+    player: 'TelarchyBot',
+    game: {
+      number: 3,
+      id: 'abc',
+      fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+      moves: [],
+      turn: 'white',
+      status: 'started',
+    },
+    open: null,
+    recentDecisions: [],
+  });
+
+  test('THE HOME PAGE NEVER CRASHES ON A FEED WITH NO SNAKE: the board draws an empty grid', async () => {
+    vi.mocked(api.getLiveState).mockImplementation(async () => chess() as never);
+    try {
+      const { container } = renderLive({ replay: false });
+      await waitFor(() => expect(api.getLiveState).toHaveBeenCalled());
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(container.querySelector('svg.snake-board')).toBeTruthy();
+      expect(container.querySelectorAll('.snake-arrow').length).toBe(0);
+    } finally {
+      vi.mocked(api.getLiveState).mockImplementation(async () => h.state() as never);
+    }
+  });
+});
