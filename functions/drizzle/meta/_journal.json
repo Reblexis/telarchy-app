@@ -911,6 +911,13 @@
       "when": 1789371691094,
       "tag": "0129_hot_query_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 130,
+      "version": "7",
+      "when": 1789375190647,
+      "tag": "0130_trades_ws_created_index",
+      "breakpoints": true
     }
   ]
 }

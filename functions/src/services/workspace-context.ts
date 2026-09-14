@@ -17,7 +17,7 @@
  * effect of this endpoint existing.
  */
 
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import type { ProposalOption } from '../db/schema';
 import {
@@ -35,6 +35,7 @@ import { consensus } from '../lib/amm';
 import { resolutionInstant } from '../lib/date-utils';
 import { branchIsShown, horizonSettled } from '../lib/market-pairs';
 import { getParticipantDisplayNames } from '../lib/participants';
+import { PENDING_LISTED_MAX } from './proposal-counts';
 import { getProposalMarketSummariesForProposals, getTradeCountMap, optionSummariesWithDeltas } from './proposals';
 
 /**
@@ -148,6 +149,9 @@ export interface WorkspaceContext {
   documents: Array<{ name: string; description: string; content: string; updatedAt: string }>;
 }
 
+/** How many proposals besides the pending ones the brief carries, newest first. */
+export const BRIEF_OTHERS_WINDOW = 25;
+
 /** Public workspaces only; the caller decides what to do with null. */
 export async function buildWorkspaceContext(workspaceId: string): Promise<WorkspaceContext | null> {
   const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
@@ -161,12 +165,24 @@ export async function buildWorkspaceContext(workspaceId: string): Promise<Worksp
       .select()
       .from(markets)
       .where(and(eq(markets.workspaceId, workspaceId), eq(markets.active, true), isNull(markets.proposalId))),
-    db
-      .select()
-      .from(proposals)
-      .where(eq(proposals.workspaceId, workspaceId))
-      .orderBy(desc(proposals.createdAt))
-      .limit(25),
+    // Every pending proposal and the newest BRIEF_OTHERS_WINDOW others,
+    // newest first: a single "newest 25" window lost a proposal that stays
+    // open for a minute behind the ones a floor decides every second
+    // (docs/infra/deploy.md, "A list never hides a live proposal").
+    Promise.all([
+      db
+        .select()
+        .from(proposals)
+        .where(and(eq(proposals.workspaceId, workspaceId), eq(proposals.status, 'pending')))
+        .orderBy(desc(proposals.createdAt))
+        .limit(PENDING_LISTED_MAX),
+      db
+        .select()
+        .from(proposals)
+        .where(and(eq(proposals.workspaceId, workspaceId), notInArray(proposals.status, ['pending', 'removed'])))
+        .orderBy(desc(proposals.createdAt))
+        .limit(BRIEF_OTHERS_WINDOW),
+    ]).then(([open, others]) => [...open, ...others].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())),
     db
       .select()
       .from(announcements)

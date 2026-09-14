@@ -115,14 +115,32 @@ async function readBooks(workspaceId: string): Promise<FloorBook[]> {
       tradeCount: sql<number>`(select count(*)::int from trades t where t.workspace_id = "markets"."workspace_id" and t.market_id = "markets"."id")`,
     })
     .from(markets)
-    .leftJoin(proposals, and(eq(proposals.id, markets.proposalId), eq(proposals.workspaceId, markets.workspaceId)))
     .where(
       and(
         eq(markets.workspaceId, workspaceId),
         eq(markets.resolved, false),
         eq(markets.voided, false),
         eq(markets.active, true),
-        or(isNull(markets.proposalId), and(eq(proposals.status, 'pending'), isNull(proposals.closedAt))),
+        // The pending proposals as a subquery the pending partial index serves,
+        // not a join: a join let the planner hash every proposal the floor
+        // ever had, once a second, on a floor that decides one a second
+        // (docs/infra/deploy.md, "The prices read joins no decided proposal").
+        or(
+          isNull(markets.proposalId),
+          inArray(
+            markets.proposalId,
+            db
+              .select({ id: proposals.id })
+              .from(proposals)
+              .where(
+                and(
+                  eq(proposals.workspaceId, workspaceId),
+                  eq(proposals.status, 'pending'),
+                  isNull(proposals.closedAt),
+                ),
+              ),
+          ),
+        ),
       ),
     )
     .orderBy(asc(markets.id));
