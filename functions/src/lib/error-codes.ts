@@ -31,6 +31,9 @@ export const ERROR_CODES = [
   'trade_too_small',
   /** No such market in this workspace. */
   'market_not_found',
+  /** A settled, voided or all-states market list named neither `proposalId`
+   *  nor `since`; a busy floor's history is millions of books. */
+  'history_needs_narrowing',
   /** Settled. Nothing trades, in either direction, ever again. */
   'market_resolved',
   /** Cancelled and refunded. Nothing trades. */

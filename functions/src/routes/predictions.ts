@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'crypto';
-import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, isNull, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
 import {
@@ -44,7 +44,7 @@ import { refreshRelativeDateMarkets, voidMarket } from '../services/markets';
 import { getAllMetrics, getMetricLogs, getUpdates } from '../services/metrics';
 import { notifyCommentPosted } from '../services/notifications';
 import {
-  getMarkets,
+  listMarkets,
   type MarketStatus,
   replayMarketTradePoints,
   resolvePredictions,
@@ -974,7 +974,12 @@ predictionsRouter.get(
     // A position says what it is a position IN (docs/guides/agent-api.md,
     // "Watching your own account"): the proposal, the option or branch, and
     // the metric, so a bot need not keep its own market list to read its book.
-    let rows = await db
+    // The market and held-shares filters are the database's (docs/infra/deploy.md,
+    // "Per-participant reads are keyed by the participant"): a trading page polls
+    // this with ?marketId= every 15 s, and a bot on a busy floor holds a position
+    // in every book it ever touched.
+    const marketId = typeof req.query.marketId === 'string' && req.query.marketId ? req.query.marketId : undefined;
+    const rows = await db
       .select({
         id: positions.id,
         workspaceId: positions.workspaceId,
@@ -989,11 +994,15 @@ predictionsRouter.get(
       })
       .from(positions)
       .leftJoin(markets, eq(markets.id, positions.marketId))
-      .where(and(eq(positions.workspaceId, workspaceId), eq(positions.agentId, agentId)));
-    if (req.query.marketId) {
-      rows = rows.filter(p => p.marketId === req.query.marketId);
-    }
-    res.json(rows.filter(p => p.shares > 0));
+      .where(
+        and(
+          eq(positions.workspaceId, workspaceId),
+          eq(positions.agentId, agentId),
+          marketId ? eq(positions.marketId, marketId) : undefined,
+          gt(positions.shares, 0),
+        ),
+      );
+    res.json(rows);
   }),
 );
 
@@ -1073,12 +1082,20 @@ predictionsRouter.get(
       rawStatus === 'all'
         ? rawStatus
         : undefined;
-    const marketRows = await getMarkets(
-      { proposalId, status, active, includeResolved, includeVoided, minLiquidity, limit, kind },
-      undefined,
+    const sinceRaw = typeof req.query.since === 'string' ? req.query.since : undefined;
+    const since = sinceRaw === undefined ? undefined : new Date(sinceRaw);
+    if (since && Number.isNaN(since.getTime())) {
+      throw new AppError('since must be an ISO instant, e.g. 2026-09-01T00:00:00Z', 400);
+    }
+    const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
+    // One page, at most MARKETS_PAGE_MAX rows; the header names the next
+    // (docs/guides/markets.md, "Where to look").
+    const page = await listMarkets(
+      { proposalId, status, active, includeResolved, includeVoided, minLiquidity, limit, kind, since, cursor },
       workspaceId,
     );
-    res.json(marketRows);
+    if (page.nextCursor) res.setHeader('X-Next-Cursor', page.nextCursor);
+    res.json(page.rows);
   }),
 );
 

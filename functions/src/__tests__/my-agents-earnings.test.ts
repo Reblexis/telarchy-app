@@ -193,3 +193,18 @@ describe('the list of agents you own', () => {
     expect(me.balance).toBe(500);
   });
 });
+
+describe('the list reads the cached board (docs/infra/deploy.md, "The season\'s settled half starts from traded books")', () => {
+  test('a second read within the cache window does not rebuild the board', async () => {
+    const { captureQueries } = require('./harness/query-log');
+    expect((await mine()).status).toBe(200);
+    const log = captureQueries();
+    try {
+      expect((await mine()).status).toBe(200);
+    } finally {
+      log.stop();
+    }
+    const boardReads = log.stats.filter((s: { sql: string }) => /from "positions"/i.test(s.sql));
+    expect(boardReads).toEqual([]);
+  });
+});

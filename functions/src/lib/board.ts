@@ -368,6 +368,15 @@ function tradedIn(workspaceIds: string[]): SQL {
   )`;
 }
 
+/**
+ * The book in the enclosing query has a trade or a position on it: the same
+ * membership as `tradedIn`, probed per book through `trades (market_id)` and
+ * `positions (market_id)`, for a read whose candidate books are already few.
+ */
+function tradedHere(): SQL {
+  return sql`(exists (select 1 from "trades" tr where tr.market_id = "markets"."id" and tr.workspace_id = "markets"."workspace_id") or exists (select 1 from "positions" po where po.market_id = "markets"."id" and po.workspace_id = "markets"."workspace_id"))`;
+}
+
 export async function loadSeasonSettled(
   workspaceIds: string[],
   windowStart: Date,
@@ -377,12 +386,21 @@ export async function loadSeasonSettled(
 
   const inWindow = and(
     inArray(markets.workspaceId, workspaceIds),
+    // Traded books only, in the shape the partial index `markets (resolved_at)
+    // where resolved and traded_volume > 0` serves (docs/infra/deploy.md, "The
+    // season's settled half starts from traded books"): a void sets resolved,
+    // untraded voids are most of a busy floor's settled books (the Snake voids
+    // ~10k a day, the chess floor every option but one, every move), and a
+    // book with a trade always has volume.
+    eq(markets.resolved, true),
+    gt(markets.tradedVolume, 0),
     isNotNull(markets.resolvedAt),
     gt(markets.resolvedAt, windowStart),
     lte(markets.resolvedAt, windowEnd),
     or(eq(markets.voided, true), and(eq(markets.resolved, true), isNotNull(markets.actualValue))),
-    // Settled books nobody traded score nobody; the Snake voids ~10k a day.
-    tradedIn(workspaceIds),
+    // Settled books nobody traded score nobody. Probed per candidate book
+    // rather than as the set of every book the workspaces ever traded.
+    tradedHere(),
   )!;
 
   const marketRows = await db

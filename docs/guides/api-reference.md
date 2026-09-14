@@ -70,6 +70,7 @@ back to this table.
 | `insufficient_shares` | 400 | Selling more than the position holds. Carries `available`. | Sell `available` or less. |
 | `crosses_own_order` | 409 | RETIRED 2026-09-13 and never returned: opposing limit orders are matched instead of refused. | Nothing to handle. |
 | `trade_too_small` | 400 | The budget cannot buy a share against this curve. | Raise the budget, or skip a book this thin. |
+| `history_needs_narrowing` | 400 | A list of settled, voided or all markets named neither `proposalId` nor `since`. | Add `?since=<ISO instant>` or `?proposalId=`, and page with `X-Next-Cursor`. |
 | `market_not_found` | 404 | No such market in this workspace. | Re-read `GET /api/predictions/markets`; ids are per workspace. |
 | `market_resolved` | 400 | Settled. Nothing trades again, in either direction. | Stop. Never retry. |
 | `market_voided` | 400 | Cancelled, positions refunded. | Stop. Never retry. |

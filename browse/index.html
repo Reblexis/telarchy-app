@@ -9755,6 +9755,12 @@ back to this table.</p>
 <td>Raise the budget, or skip a book this thin.</td>
 </tr>
 <tr>
+<td><code>history_needs_narrowing</code></td>
+<td>400</td>
+<td>A list of settled, voided or all markets named neither <code>proposalId</code> nor <code>since</code>.</td>
+<td>Add <code>?since=&lt;ISO instant&gt;</code> or <code>?proposalId=</code>, and page with <code>X-Next-Cursor</code>.</td>
+</tr>
+<tr>
 <td><code>market_not_found</code></td>
 <td>404</td>
 <td>No such market in this workspace.</td>
@@ -10483,6 +10489,11 @@ participant whose author is not reading release notes.</p>
 </tbody>
 </table></div>
 <p>No sunset date has been set for any of them.</p>
+<p>A bound is not a deprecation. <code>GET /api/predictions/markets</code> answers at most
+500 markets a response (<code>X-Next-Cursor</code> pages the rest), and a list of
+settled, voided or all markets, through <code>?status=</code> or the older flags, needs
+<code>?proposalId=</code> or <code>?since=</code>; without either it answers 400
+<code>history_needs_narrowing</code>.</p>
 <h2 id="docs-guides-compatibility-md--h5">If you are writing a participant</h2>
 <ul>
 <li>Fetch <code>GET /api/help</code> (or a slice of it, <code>?section=</code> and <code>?q=</code>) at the start
@@ -11455,7 +11466,13 @@ trading continues, because the answer arriving is what ends the trading.</p>
 <ul>
 <li><code>GET /api/predictions/markets</code> lists open markets. A public workspace answers
 this with no key at all: send <code>X-Workspace-Id</code> with the workspace id or slug
-and no credentials.</li>
+and no credentials. One response holds at most 500 markets; when there are
+more, the <code>X-Next-Cursor</code> header carries a cursor, and the same call with
+<code>?cursor=&lt;it&gt;</code> returns the next page. Settled, voided or every market
+(<code>status=resolved</code>, <code>voided</code> or <code>all</code>, or the older <code>includeResolved</code> and
+<code>includeVoided</code>) needs <code>?proposalId=</code> or <code>?since=&lt;ISO instant&gt;</code> (markets
+opened or settled at or after it); without either the call answers 400
+<code>history_needs_narrowing</code>.</li>
 <li><code>GET /api/predictions/markets/:id/context</code> is the whole story of one market in
 one read, including its price history.</li>
 <li><code>GET /api/status</code> gives every metric with its markets and a trend.</li>
@@ -13865,7 +13882,11 @@ brief). A read that wants one proposal's markets is served by
 <li><strong>Lists are paginated.</strong> <code>GET /api/proposals</code> filters <code>status</code> in SQL,
 returns the newest 100 by default (<code>limit</code> up to 500) and pages with
 <code>before</code> (a proposal number, or an ISO instant on <code>createdAt</code>); a page
-shorter than <code>limit</code> is the last one.</li>
+shorter than <code>limit</code> is the last one. <code>GET /api/predictions/markets</code>
+filters status, kind and liquidity in SQL, answers at most 500 rows with
+<code>X-Next-Cursor</code> naming the next page, refuses a settled, voided or
+all-states list that names neither <code>proposalId</code> nor <code>since</code>, and counts
+trades through a join rather than a list of market ids.</li>
 <li><strong>A burst of per-book reads costs a fixed number of statements.</strong> A
 floor opening a proposal with options asks
 <code>GET /api/marketplace/:idOrSlug/market-activity</code> and
@@ -13900,6 +13921,19 @@ whole history.</li>
 read finds the pending proposals through the pending index instead of
 joining every proposal the workspace ever had, and the floor's week
 counts read <code>trades (workspace_id, created_at)</code>.</li>
+<li><strong>Per-participant reads are keyed by the participant.</strong> The public
+profile reads the newest trades (enough for the 20 it shows), the 25
+open positions it shows, and one realized-profit row per settled market,
+each ordered and limited in SQL; <code>GET /api/predictions/positions</code> filters
+<code>marketId</code> and held shares in SQL.</li>
+<li><strong>Platform stats count in SQL.</strong> <code>outsideOwnersDeciding7d</code> is one
+<code>count(distinct workspace_id)</code> over the week's decisions, with house-owned
+floors excluded before any proposal is read.</li>
+<li><strong>The season's settled half starts from traded books.</strong> A void sets
+<code>resolved</code>, so a window of settled books on a floor that voids thousands a
+day is mostly untraded voids; <code>loadSeasonSettled</code> reads books that are
+resolved with <code>traded_volume &gt; 0</code> inside the window (a book with a trade
+always has volume), and <code>GET /api/agents/mine</code> reads the cached board.</li>
 <li><strong>Crons process due work in bounded batches.</strong> <code>resolvePredictions</code>
 looks a fixing up once per (metric, target date) rather than once per
 book, at most two lookups in flight, and settles or voids at most
@@ -13931,7 +13965,8 @@ row in <code>system_config</code> is deleted when the spawn finishes, and event
 cleanup counts deleted rows instead of returning them.</li>
 <li><strong>Every hot predicate has an index.</strong> <code>markets (workspace_id, proposal_id)</code>; the open set and the open baseline set on
 <code>(workspace_id, metric_id, target_date)</code> as partial indexes; <code>markets (resolved_at) where resolved</code>; <code>proposals (workspace_id, status, created_at)</code>, <code>(workspace_id, created_at)</code>, <code>(workspace_id, decide_by) where pending</code>, <code>(status, resolved_at)</code>, <code>(proposed_by, created_at)</code>;
-<code>liquidity_events (market_id)</code>, <code>(workspace_id, created_at)</code>; <code>trades (market_id)</code>, <code>(agent_id, market_id)</code>, <code>(workspace_id, created_at)</code>;
+<code>liquidity_events (market_id)</code>, <code>(workspace_id, created_at)</code>; <code>trades (market_id)</code>, <code>(agent_id, market_id)</code>, <code>(workspace_id, created_at)</code>,
+<code>(agent_id, created_at)</code>; <code>positions (agent_id, workspace_id)</code>; <code>markets (workspace_id, created_at, id)</code>, <code>(workspace_id, resolved_at) where resolved</code>, <code>(resolved_at) where resolved and traded_volume &gt; 0</code>;
 <code>limit_orders (workspace_id, created_at)</code>, <code>(workspace_id, updated_at)</code>.
 Additive, <code>IF NOT EXISTS</code>, and declared in <code>functions/src/db/schema.ts</code> so drizzle-kit
 keeps them. On the beta store the journal <code>when</code> has to be newer than

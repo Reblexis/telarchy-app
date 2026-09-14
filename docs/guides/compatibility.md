@@ -69,6 +69,12 @@ participant whose author is not reading release notes.
 
 No sunset date has been set for any of them.
 
+A bound is not a deprecation. `GET /api/predictions/markets` answers at most
+500 markets a response (`X-Next-Cursor` pages the rest), and a list of
+settled, voided or all markets, through `?status=` or the older flags, needs
+`?proposalId=` or `?since=`; without either it answers 400
+`history_needs_narrowing`.
+
 ## If you are writing a participant
 
 - Fetch `GET /api/help` (or a slice of it, `?section=` and `?q=`) at the start

@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from 'crypto';
-import { and, asc, desc, eq, inArray, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNotNull, or, sql } from 'drizzle-orm';
 import { type Request, Router } from 'express';
 import { db } from '../db/client';
 import {
@@ -22,7 +22,6 @@ import {
 } from '../db/schema';
 import { consensus, directionSellProceeds, pHigher, resolutionPayouts } from '../lib/amm';
 import { creatorSource, isValidSourceSlug } from '../lib/attribution';
-import { loadBoard } from '../lib/board';
 import { resolutionInstant, settlesOn } from '../lib/date-utils';
 import { creditsIssuedForUsdcDeposit, depositBuyRateUsd } from '../lib/economy';
 import { AppError } from '../lib/errors';
@@ -295,7 +294,12 @@ agentsRouter.post(
  */
 async function withPerformance(rows: Array<typeof agents.$inferSelect>): Promise<Record<string, unknown>[]> {
   const publicWs = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.visibility, 'public'));
-  const board = await loadBoard(publicWs.map(w => w.id));
+  // Through the leaderboard's five-second cache (docs/infra/deploy.md): the
+  // same aggregation, not a fresh one per call. Dynamic for the same reason
+  // as the profile's: routes/leaderboard.ts reaches back into modules this
+  // router loads.
+  const { cachedBoard } = await import('./leaderboard');
+  const board = await cachedBoard(publicWs.map(w => w.id));
   return rows.map(row => {
     const { apiKeyHash: _, ...data } = row;
     const split = board.breakdownById.get(row.id);
@@ -728,6 +732,17 @@ agentsRouter.get(
     // are left out on purpose: a voided position is refunded out of band,
     // so reporting it as open would be wrong, and a trade on one keeps its
     // row but names no market.
+    // What the page shows, read with its order and limit in SQL (docs/infra/
+    // deploy.md, "Per-participant reads are keyed by the participant"): the
+    // newest trades (a redemption's two ledger rows collapse into one line, so
+    // twice the RECENT_TRADES_LIMIT shown always covers them), the open
+    // positions in the order the page lists them, and the markets those rows
+    // name. A bot on a busy floor has hundreds of thousands of trades and
+    // positions; none of these reads grows with that. Voided markets stay
+    // out: a voided position is refunded out of band, so reporting it as open
+    // would be wrong, and a trade on one keeps its row but names no market.
+    const RECENT_TRADES_LIMIT = 20;
+    const OPEN_POSITIONS_LIMIT = 25;
     const tradeRows =
       detailScope.length > 0
         ? await db
@@ -746,6 +761,8 @@ agentsRouter.get(
             })
             .from(trades)
             .where(and(eq(trades.agentId, agent.id), inArray(trades.workspaceId, detailScope)))
+            .orderBy(desc(trades.createdAt), desc(trades.id))
+            .limit(RECENT_TRADES_LIMIT * 2)
         : [];
     const positionRows =
       detailScope.length > 0
@@ -759,10 +776,26 @@ agentsRouter.get(
               totalCost: positions.totalCost,
             })
             .from(positions)
-            .where(and(eq(positions.agentId, agent.id), inArray(positions.workspaceId, detailScope)))
+            .innerJoin(markets, and(eq(markets.id, positions.marketId), eq(markets.workspaceId, positions.workspaceId)))
+            .where(
+              and(
+                eq(positions.agentId, agent.id),
+                inArray(positions.workspaceId, detailScope),
+                gt(positions.shares, 0),
+                eq(markets.voided, false),
+              ),
+            )
+            // Open first, then conditional, closed, resolved; heaviest exposure
+            // first within each, as the list below renders them.
+            .orderBy(
+              sql`case when ${markets.resolved} then 3 when ${markets.active} = false then 2 when ${markets.proposalId} is not null then 1 else 0 end`,
+              sql`abs(${positions.shares}) desc`,
+            )
+            .limit(OPEN_POSITIONS_LIMIT)
         : [];
+    const shownMarketIds = [...new Set([...tradeRows.map(t => t.marketId), ...positionRows.map(p => p.marketId)])];
     const wsMarkets =
-      detailScope.length > 0
+      shownMarketIds.length > 0
         ? await db
             .select({
               id: markets.id,
@@ -784,11 +817,7 @@ agentsRouter.get(
               and(
                 inArray(markets.workspaceId, detailScope),
                 eq(markets.voided, false),
-                sql`${markets.id} in (
-                  select ${trades.marketId} from ${trades} where ${trades.agentId} = ${agent.id}
-                  union
-                  select ${positions.marketId} from ${positions} where ${positions.agentId} = ${agent.id}
-                )`,
+                inArray(markets.id, shownMarketIds),
               ),
             )
         : [];
@@ -797,12 +826,25 @@ agentsRouter.get(
     // activeWorkspaces stays public-only so anonymous callers see the same
     // "where they trade publicly" list they always have. Detail-level lists
     // (open positions, recent trades) expand for authenticated viewers.
+    // activeWorkspaces stays public-only so anonymous callers see the same
+    // "where they trade publicly" list they always have, from every trade and
+    // position rather than the newest page of them: one row per floor.
     const publicWsIdSet = new Set(publicWsIds);
+    const activeScope = detailScope.filter(id => publicWsIdSet.has(id));
     const activeWorkspaceIds = new Set<string>();
-    for (const t of tradeRows)
-      if (t.agentId === agent.id && publicWsIdSet.has(t.workspaceId)) activeWorkspaceIds.add(t.workspaceId);
-    for (const p of positionRows)
-      if (p.agentId === agent.id && publicWsIdSet.has(p.workspaceId)) activeWorkspaceIds.add(p.workspaceId);
+    if (activeScope.length > 0) {
+      const [tradedOn, heldOn] = await Promise.all([
+        db
+          .selectDistinct({ workspaceId: trades.workspaceId })
+          .from(trades)
+          .where(and(eq(trades.agentId, agent.id), inArray(trades.workspaceId, activeScope))),
+        db
+          .selectDistinct({ workspaceId: positions.workspaceId })
+          .from(positions)
+          .where(and(eq(positions.agentId, agent.id), inArray(positions.workspaceId, activeScope))),
+      ]);
+      for (const r of [...tradedOn, ...heldOn]) activeWorkspaceIds.add(r.workspaceId);
+    }
     const activeWorkspaces = Array.from(activeWorkspaceIds).map(id => ({ id, name: wsNameById.get(id) ?? id }));
 
     const ownerTrades = tradeRows.filter(t => t.agentId === agent.id && viewerWsIds.has(t.workspaceId));
@@ -885,9 +927,8 @@ agentsRouter.get(
     // A profile is a glance, not a ledger (owner direction 2026-08-11):
     // cap the positions list so a prolific bot does not render thousands of
     // rows. Heaviest exposure is already first.
-    const openPositionsCapped = openPositions.slice(0, 25);
+    const openPositionsCapped = openPositions.slice(0, OPEN_POSITIONS_LIMIT);
 
-    const RECENT_TRADES_LIMIT = 20;
     // Collapse first, cap second: a profile shows 20 things that happened,
     // and a redemption's two ledger rows are one of them.
     const recentTrades = collapseRedemptions(
@@ -926,24 +967,44 @@ agentsRouter.get(
     // participant traded, the net trade cash plus the resolution payout lands
     // at the market's resolvedAt. Scoped to viewer-visible workspaces, same as
     // openPositions / recentTrades (public ones plus any the caller can read).
+    // One row per settled market, the trade cash and the held shares summed
+    // in the database, so the line costs a row per settled market rather than
+    // a row per trade.
+    const settledRows =
+      detailScope.length > 0
+        ? await db
+            .select({
+              id: markets.id,
+              resolvedAt: markets.resolvedAt,
+              actualValue: markets.actualValue,
+              rangeMin: markets.rangeMin,
+              rangeMax: markets.rangeMax,
+              netCash: sql<number>`coalesce((select sum(t.cost) from "trades" t where t.agent_id = ${agent.id} and t.workspace_id = "markets"."workspace_id" and t.market_id = "markets"."id"), 0)::float`,
+              higher: sql<number>`coalesce((select sum(p.shares) from "positions" p where p.agent_id = ${agent.id} and p.workspace_id = "markets"."workspace_id" and p.market_id = "markets"."id" and p.direction = 'higher' and p.shares > 0), 0)::float`,
+              lower: sql<number>`coalesce((select sum(p.shares) from "positions" p where p.agent_id = ${agent.id} and p.workspace_id = "markets"."workspace_id" and p.market_id = "markets"."id" and p.direction = 'lower' and p.shares > 0), 0)::float`,
+            })
+            .from(markets)
+            .where(
+              and(
+                inArray(markets.workspaceId, detailScope),
+                eq(markets.resolved, true),
+                eq(markets.voided, false),
+                isNotNull(markets.actualValue),
+                isNotNull(markets.resolvedAt),
+                sql`"markets"."id" in (select t.market_id from "trades" t where t.agent_id = ${agent.id} union select p.market_id from "positions" p where p.agent_id = ${agent.id} and p.shares > 0)`,
+              ),
+            )
+        : [];
     const pnlByMarket = new Map<string, number>();
-    for (const t of tradeRows) {
-      if (t.agentId !== agent.id || !viewerWsIds.has(t.workspaceId)) continue;
-      const m = marketById.get(t.marketId);
-      if (!m?.resolved || m.actualValue === null || !m.resolvedAt) continue;
-      pnlByMarket.set(t.marketId, (pnlByMarket.get(t.marketId) ?? 0) - t.cost);
-    }
-    for (const pos of positionRows) {
-      if (pos.agentId !== agent.id || pos.shares <= 0 || !viewerWsIds.has(pos.workspaceId)) continue;
-      const m = marketById.get(pos.marketId);
-      if (!m?.resolved || m.actualValue === null || !m.resolvedAt) continue;
-      const [lowerPay, higherPay] = resolutionPayouts(Math.min(m.actualValue, m.rangeMax), m.rangeMin, m.rangeMax);
-      const factor = pos.direction === 'higher' ? higherPay : lowerPay;
-      pnlByMarket.set(pos.marketId, (pnlByMarket.get(pos.marketId) ?? 0) + pos.shares * factor);
+    const settledAtById = new Map<string, Date>();
+    for (const m of settledRows) {
+      const [lowerPay, higherPay] = resolutionPayouts(Math.min(m.actualValue!, m.rangeMax), m.rangeMin, m.rangeMax);
+      pnlByMarket.set(m.id, -Number(m.netCash) + Number(m.higher) * higherPay + Number(m.lower) * lowerPay);
+      settledAtById.set(m.id, m.resolvedAt!);
     }
     let cumulativePnl = 0;
     const pnlHistory = Array.from(pnlByMarket, ([mId, delta]) => ({
-      at: marketById.get(mId)!.resolvedAt as Date,
+      at: settledAtById.get(mId) as Date,
       delta,
     }))
       .sort((a, b) => a.at.getTime() - b.at.getTime())

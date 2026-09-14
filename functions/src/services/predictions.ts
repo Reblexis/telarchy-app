@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { and, asc, count, eq, gt, gte, inArray, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, getTableColumns, gt, gte, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import {
   agents,
@@ -575,6 +575,44 @@ export interface GetMarketsOptions {
    * Ignored when opts.proposalId is set (that already pins to one proposal).
    */
   kind?: 'baseline' | 'conditional' | 'all';
+  /** Markets opened or settled at or after this instant. What makes a
+   *  settled, voided or all-states list answerable without `proposalId`. */
+  since?: Date;
+  /** The `X-Next-Cursor` of the previous page, as issued. */
+  cursor?: string;
+}
+
+/** The most markets one listing answers (docs/guides/markets.md, "Where to look"). */
+export const MARKETS_PAGE_MAX = 500;
+
+/**
+ * Where the next page of a listing starts: the ordering it belongs to and the
+ * last row's key under it. `created` pages on (created_at, id) ascending, the
+ * key being the database's own text for created_at so it is exact to the
+ * microsecond; `liquidity` pages on liquidity descending, then id.
+ */
+type MarketsCursor = { order: 'created'; key: string; id: string } | { order: 'liquidity'; key: number; id: string };
+
+const TIMESTAMP_TEXT = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d{1,6})?$/;
+
+function encodeMarketsCursor(c: MarketsCursor): string {
+  return Buffer.from(JSON.stringify([c.order, c.key, c.id])).toString('base64url');
+}
+
+function decodeMarketsCursor(raw: string): MarketsCursor | null {
+  try {
+    const v = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'));
+    if (!Array.isArray(v) || v.length !== 3 || typeof v[2] !== 'string') return null;
+    if (v[0] === 'created' && typeof v[1] === 'string' && TIMESTAMP_TEXT.test(v[1])) {
+      return { order: 'created', key: v[1], id: v[2] };
+    }
+    if (v[0] === 'liquidity' && typeof v[1] === 'number' && Number.isFinite(v[1])) {
+      return { order: 'liquidity', key: v[1], id: v[2] };
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 export async function getMarkets(
@@ -583,7 +621,22 @@ export async function getMarkets(
   workspaceId: string,
 ) {
   const opts: GetMarketsOptions = typeof options === 'boolean' ? { includeResolved: options, proposalId } : options;
+  return (await listMarkets(opts, workspaceId)).rows;
+}
 
+/**
+ * One page of a workspace's markets (docs/guides/markets.md, "Where to look";
+ * docs/infra/deploy.md, "Reads are bounded in the size of a workspace").
+ * Status, kind, liquidity and the page limit are the database's; a page holds
+ * at most MARKETS_PAGE_MAX rows and `nextCursor` names the next one. A
+ * settled, voided or all-states list is a workspace's whole history, millions
+ * of books on a floor that opens a pair a second, so it needs `proposalId` or
+ * `since`.
+ */
+export async function listMarkets(
+  opts: GetMarketsOptions,
+  workspaceId: string,
+): Promise<{ rows: ReturnType<typeof marketListRow>[]; nextCursor: string | null }> {
   // Resolve which lifecycle states the caller actually wants. Explicit
   // `status` is authoritative. Otherwise: if any legacy flag is set, treat
   // the call as legacy; if nothing is set, default to status='open' so a
@@ -598,102 +651,139 @@ export async function getMarkets(
   const wantsVoided =
     effectiveStatus === 'voided' || effectiveStatus === 'all' || (effectiveStatus === 'legacy' && !!opts.includeVoided);
 
-  let rows = await db
-    .select()
+  if ((wantsResolved || wantsVoided) && !opts.proposalId && !opts.since) {
+    throw new AppError(
+      'A list of settled, voided or all markets needs proposalId or since (an ISO instant); page it with X-Next-Cursor',
+      400,
+      undefined,
+      'history_needs_narrowing',
+    );
+  }
+
+  const order: MarketsCursor['order'] =
+    opts.minLiquidity !== undefined || opts.limit !== undefined ? 'liquidity' : 'created';
+  let after: MarketsCursor | null = null;
+  if (opts.cursor !== undefined) {
+    after = decodeMarketsCursor(opts.cursor);
+    if (!after || after.order !== order) {
+      throw new AppError('cursor is not one this listing issued: pass X-Next-Cursor back with the same query', 400);
+    }
+  }
+  const pageSize =
+    opts.limit !== undefined && opts.limit > 0 ? Math.min(opts.limit, MARKETS_PAGE_MAX) : MARKETS_PAGE_MAX;
+
+  const kind = opts.kind ?? 'baseline';
+  const lifecycle =
+    effectiveStatus === 'open'
+      ? and(eq(markets.active, true), eq(markets.resolved, false), eq(markets.voided, false))
+      : effectiveStatus === 'closed'
+        ? and(eq(markets.active, false), eq(markets.resolved, false), eq(markets.voided, false))
+        : effectiveStatus === 'resolved'
+          ? and(eq(markets.resolved, true), eq(markets.voided, false))
+          : effectiveStatus === 'voided'
+            ? eq(markets.voided, true)
+            : effectiveStatus === 'all'
+              ? undefined
+              : and(
+                  wantsResolved ? undefined : eq(markets.resolved, false),
+                  wantsVoided ? undefined : eq(markets.voided, false),
+                  opts.active !== undefined ? eq(markets.active, opts.active) : undefined,
+                );
+
+  const fetched = await db
+    .select({
+      ...getTableColumns(markets),
+      cursorAt: sql<string>`"markets"."created_at"::text`,
+      // Counted per listed book through the trades index, never an id list.
+      tradeCount: sql<number>`(select count(*)::int from "trades" t where t.workspace_id = "markets"."workspace_id" and t.market_id = "markets"."id")`,
+    })
     .from(markets)
     .where(
       and(
         eq(markets.workspaceId, workspaceId),
-        wantsResolved ? undefined : eq(markets.resolved, false),
-        wantsVoided ? undefined : eq(markets.voided, false),
-        opts.proposalId ? eq(markets.proposalId, opts.proposalId) : undefined,
+        opts.proposalId
+          ? eq(markets.proposalId, opts.proposalId)
+          : kind === 'baseline'
+            ? isNull(markets.proposalId)
+            : kind === 'conditional'
+              ? isNotNull(markets.proposalId)
+              : undefined,
+        lifecycle,
+        opts.minLiquidity !== undefined && opts.minLiquidity > 0
+          ? gte(markets.liquidity, opts.minLiquidity)
+          : undefined,
+        opts.since ? or(gte(markets.createdAt, opts.since), gte(markets.resolvedAt, opts.since)) : undefined,
+        after === null
+          ? undefined
+          : after.order === 'created'
+            ? sql`("markets"."created_at", "markets"."id") > (${after.key}::timestamp, ${after.id})`
+            : sql`("markets"."liquidity" < ${after.key} or ("markets"."liquidity" = ${after.key} and "markets"."id" > ${after.id}))`,
       ),
-    );
+    )
+    .orderBy(
+      ...(order === 'created' ? [asc(markets.createdAt), asc(markets.id)] : [desc(markets.liquidity), asc(markets.id)]),
+    )
+    .limit(pageSize + 1);
 
-  if (!opts.proposalId) {
-    const kind = opts.kind ?? 'baseline';
-    if (kind === 'baseline') rows = rows.filter(m => !m.proposalId);
-    else if (kind === 'conditional') rows = rows.filter(m => !!m.proposalId);
-    // 'all' keeps both
-  }
-  if (!rows.length) return [];
+  const more = fetched.length > pageSize;
+  const page = more ? fetched.slice(0, pageSize) : fetched;
+  const last = page[page.length - 1];
+  const nextCursor =
+    more && last
+      ? encodeMarketsCursor(
+          order === 'created'
+            ? { order: 'created', key: last.cursorAt, id: last.id }
+            : { order: 'liquidity', key: last.liquidity, id: last.id },
+        )
+      : null;
 
-  if (effectiveStatus === 'open') {
-    rows = rows.filter(m => m.active !== false && !m.resolved && !m.voided);
-  } else if (effectiveStatus === 'closed') {
-    rows = rows.filter(m => m.active === false && !m.resolved && !m.voided);
-  } else if (effectiveStatus === 'resolved') {
-    rows = rows.filter(m => m.resolved && !m.voided);
-  } else if (effectiveStatus === 'voided') {
-    rows = rows.filter(m => m.voided);
-  } else if (effectiveStatus === 'legacy' && opts.active !== undefined) {
-    rows = rows.filter(m => (m.active !== false) === opts.active);
-  }
-  // effectiveStatus === 'all' or legacy-without-active: no additional filter.
-  if (opts.minLiquidity !== undefined && opts.minLiquidity > 0) {
-    rows = rows.filter(m => (m.liquidity ?? 0) >= opts.minLiquidity!);
-  }
-  if (opts.minLiquidity !== undefined || opts.limit !== undefined) {
-    rows = [...rows].sort((a, b) => (b.liquidity ?? 0) - (a.liquidity ?? 0));
-  } else {
-    rows = [...rows].sort((a, b) => {
-      const dateDiff = periodEndInstant(a.targetDate).getTime() - periodEndInstant(b.targetDate).getTime();
-      if (dateDiff !== 0) return dateDiff;
-      return a.targetDate.localeCompare(b.targetDate);
-    });
-  }
-  if (opts.limit !== undefined && opts.limit > 0) {
-    rows = rows.slice(0, opts.limit);
-  }
+  // Within a page, the listing's own order: heaviest first when liquidity
+  // was asked about, otherwise earliest resolution first.
+  const ordered =
+    order === 'liquidity'
+      ? page
+      : [...page].sort((a, b) => {
+          const dateDiff = periodEndInstant(a.targetDate).getTime() - periodEndInstant(b.targetDate).getTime();
+          if (dateDiff !== 0) return dateDiff;
+          return a.targetDate.localeCompare(b.targetDate);
+        });
 
-  // Batch-count trades per market to avoid N+1 queries.
-  const marketIds = rows.map(m => m.id);
-  const tradeCounts = marketIds.length
-    ? await db
-        .select({ marketId: trades.marketId, count: count() })
-        .from(trades)
-        // The workspace is what the trades index leads with; without it this
-        // is a scan of every trade on the site per listing.
-        .where(and(eq(trades.workspaceId, workspaceId), inArray(trades.marketId, marketIds)))
-        .groupBy(trades.marketId)
-    : [];
-  const tradeCountMap: Record<string, number> = {};
-  for (const r of tradeCounts) tradeCountMap[r.marketId] = Number(r.count);
+  return { rows: ordered.map(m => marketListRow(m, Number(m.tradeCount ?? 0))), nextCursor };
+}
 
-  return rows.map(m => {
-    const shares = (m.shares as [number, number]) || [0, 0];
-    const status: 'open' | 'resolved' | 'voided' | 'closed' = m.voided
-      ? 'voided'
-      : m.resolved
-        ? 'resolved'
-        : m.active === false
-          ? 'closed'
-          : 'open';
-    return {
-      id: m.id,
-      metricId: m.metricId,
-      metricName: m.metricName,
-      targetDate: m.targetDate,
-      resolvesOn: resolutionInstant(m.targetDate),
-      active: m.active !== false,
-      resolved: m.resolved,
-      resolvedAt: m.resolvedAt ?? null,
-      actualValue: m.actualValue ?? null,
-      voided: m.voided,
-      status,
-      createdAt: m.createdAt,
-      proposalId: m.proposalId ?? undefined,
-      branch: m.branch ?? undefined,
-      consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
-      probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
-      rangeMin: m.rangeMin,
-      rangeMax: m.rangeMax,
-      liquidity: m.liquidity,
-      totalStake: m.liquidity,
-      tradeCount: tradeCountMap[m.id] ?? 0,
-      tradedVolume: m.tradedVolume ?? 0,
-    };
-  });
+function marketListRow(m: typeof markets.$inferSelect, tradeCount: number) {
+  const shares = (m.shares as [number, number]) || [0, 0];
+  const status: 'open' | 'resolved' | 'voided' | 'closed' = m.voided
+    ? 'voided'
+    : m.resolved
+      ? 'resolved'
+      : m.active === false
+        ? 'closed'
+        : 'open';
+  return {
+    id: m.id,
+    metricId: m.metricId,
+    metricName: m.metricName,
+    targetDate: m.targetDate,
+    resolvesOn: resolutionInstant(m.targetDate),
+    active: m.active !== false,
+    resolved: m.resolved,
+    resolvedAt: m.resolvedAt ?? null,
+    actualValue: m.actualValue ?? null,
+    voided: m.voided,
+    status,
+    createdAt: m.createdAt,
+    proposalId: m.proposalId ?? undefined,
+    branch: m.branch ?? undefined,
+    consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
+    probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
+    rangeMin: m.rangeMin,
+    rangeMax: m.rangeMax,
+    liquidity: m.liquidity,
+    totalStake: m.liquidity,
+    tradeCount,
+    tradedVolume: m.tradedVolume ?? 0,
+  };
 }
 
 export interface MarketTradePoint {

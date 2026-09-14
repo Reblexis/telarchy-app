@@ -141,7 +141,13 @@ trading continues, because the answer arriving is what ends the trading.
 
 - `GET /api/predictions/markets` lists open markets. A public workspace answers
   this with no key at all: send `X-Workspace-Id` with the workspace id or slug
-  and no credentials.
+  and no credentials. One response holds at most 500 markets; when there are
+  more, the `X-Next-Cursor` header carries a cursor, and the same call with
+  `?cursor=<it>` returns the next page. Settled, voided or every market
+  (`status=resolved`, `voided` or `all`, or the older `includeResolved` and
+  `includeVoided`) needs `?proposalId=` or `?since=<ISO instant>` (markets
+  opened or settled at or after it); without either the call answers 400
+  `history_needs_narrowing`.
 - `GET /api/predictions/markets/:id/context` is the whole story of one market in
   one read, including its price history.
 - `GET /api/status` gives every metric with its markets and a trend.

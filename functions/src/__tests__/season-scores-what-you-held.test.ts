@@ -129,6 +129,9 @@ describe('every trade counts, including the late ones', () => {
       voided: false,
       actualValue: 100,
       resolvedAt: RESOLVED_AT,
+      // Fixture trades are written as rows, so the volume the trade path
+      // would have added is stamped here (lib/board.ts reads settled books by it).
+      tradedVolume: 1,
     });
     // Bought a day before resolution: comfortably before any cutoff.
     await db.insert(trades).values({
