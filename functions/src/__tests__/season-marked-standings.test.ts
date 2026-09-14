@@ -138,6 +138,9 @@ async function market(opts: {
     actualValue: opts.actualValue ?? null,
     voided: opts.voided ?? false,
     proposalId: null,
+    // Fixture trades are written as rows, so the volume the trade path would
+    // have added is stamped here (lib/board.ts reads settled books by it).
+    tradedVolume: 1,
   });
 }
 
@@ -244,7 +247,8 @@ describe('the mark beside the season score', () => {
     await market({
       id: 'm-void',
       targetDate: '2026-08-20',
-      resolved: false,
+      // A void sets resolved, as services/markets.ts voidMarket does.
+      resolved: true,
       voided: true,
       resolvedAt: new Date('2026-08-21T00:00:00Z'),
     });

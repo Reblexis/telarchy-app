@@ -213,27 +213,28 @@ export async function houseAgentIds(): Promise<Set<string>> {
  */
 export async function outsideOwnersDeciding7d(): Promise<number> {
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const rows = await db
-    .select({
-      workspaceId: proposals.workspaceId,
-      resolvedBy: proposals.resolvedBy,
-      proposedBy: proposals.proposedBy,
-      proposalCreatedAt: proposals.createdAt,
-      workspaceCreatedAt: workspaces.createdAt,
-      owner: workspaces.createdBy,
-    })
+  // One count in the database (docs/infra/deploy.md, "Platform stats count in
+  // SQL"): a floor that decides a proposal a second puts 600k decided rows in
+  // a week, and this runs every 60 seconds on the public stats read. House
+  // floors leave by owner before a proposal is read; the house set is one
+  // parameter, not a list.
+  const house = JSON.stringify([...(await houseAgentIds())]);
+  const [row] = await db
+    .select({ n: sql<number>`count(distinct ${proposals.workspaceId})::int` })
     .from(proposals)
     .innerJoin(workspaces, eq(workspaces.id, proposals.workspaceId))
-    .where(and(inArray(proposals.status, ['approved', 'declined']), gt(proposals.resolvedAt, weekAgo)));
-  const house = await houseAgentIds();
-  const deciding = new Set<string>();
-  for (const r of rows) {
-    if (house.has(r.owner)) continue;
-    if (r.resolvedBy !== r.owner) continue;
-    if (isStarterProposal(r)) continue;
-    deciding.add(r.workspaceId);
-  }
-  return deciding.size;
+    .where(
+      and(
+        sql`${workspaces.createdBy} <> all(select jsonb_array_elements_text(${house}::jsonb))`,
+        inArray(proposals.status, ['approved', 'declined']),
+        gt(proposals.resolvedAt, weekAgo),
+        sql`${proposals.resolvedBy} = ${workspaces.createdBy}`,
+        // Not the starter (isStarterProposal): proposed by the owner within the
+        // window after the workspace was born.
+        sql`not (${proposals.proposedBy} = ${workspaces.createdBy} and ${proposals.createdAt} >= ${workspaces.createdAt} and ${proposals.createdAt} < ${workspaces.createdAt} + (${STARTER_PROPOSAL_WINDOW_MS}::int * interval '1 millisecond'))`,
+      ),
+    );
+  return Number(row?.n ?? 0);
 }
 
 /** Credits of profit a participant needs to count as a profitable forecaster. */

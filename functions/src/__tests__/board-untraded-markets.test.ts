@@ -80,9 +80,18 @@ async function seed() {
       actualValue: 80,
       resolvedAt: RESOLVED_AT,
       shares: [4, 10],
+      // Traded through rows written directly: the volume the trade path adds.
+      tradedVolume: 7,
     }),
     // Cancelled: kai's net cash on it is refunded.
-    market({ id: 'm-voided', workspaceId: WS_B, voided: true, resolved: true, resolvedAt: RESOLVED_AT }),
+    market({
+      id: 'm-voided',
+      workspaceId: WS_B,
+      voided: true,
+      resolved: true,
+      resolvedAt: RESOLVED_AT,
+      tradedVolume: 4,
+    }),
     // Open and untraded: a baseline nobody touched.
     market({ id: 'm-quiet', workspaceId: WS_B }),
   ]);

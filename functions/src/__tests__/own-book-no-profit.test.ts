@@ -140,6 +140,9 @@ describe('the season board actually finds who funded what', () => {
       voided: false,
       actualValue: 100,
       resolvedAt: RESOLVED_AT,
+      // Fixture trades are written as rows, so the volume the trade path
+      // would have added is stamped here (lib/board.ts reads settled books by it).
+      tradedVolume: 1,
     });
     // Mallory funded this book with 2,000 of pool credits...
     await db.insert(liquidityEvents).values({

@@ -29,6 +29,9 @@ const OPEN = 'mkt-open';
 const CLOSED = 'mkt-closed';
 const RESOLVED = 'mkt-resolved';
 const VOIDED = 'mkt-voided';
+// A settled, voided or all-states list needs proposalId or since
+// (docs/guides/markets.md, "Where to look"); the epoch keeps every row here.
+const SINCE = new Date(0);
 
 async function seed() {
   await db.insert(workspaces).values({
@@ -129,19 +132,19 @@ describe('getMarkets status filter', () => {
 
   test('status="resolved" returns only resolved markets', async () => {
     await seed();
-    const rows = await getMarkets({ status: 'resolved' }, undefined, WS);
+    const rows = await getMarkets({ status: 'resolved', since: SINCE }, undefined, WS);
     expect(rows.map(r => r.id)).toEqual([RESOLVED]);
   });
 
   test('status="voided" returns only voided markets', async () => {
     await seed();
-    const rows = await getMarkets({ status: 'voided' }, undefined, WS);
+    const rows = await getMarkets({ status: 'voided', since: SINCE }, undefined, WS);
     expect(rows.map(r => r.id)).toEqual([VOIDED]);
   });
 
   test('status="all" returns every market regardless of state', async () => {
     await seed();
-    const rows = await getMarkets({ status: 'all' }, undefined, WS);
+    const rows = await getMarkets({ status: 'all', since: SINCE }, undefined, WS);
     expect(rows.map(r => r.id).sort()).toEqual([OPEN, CLOSED, RESOLVED, VOIDED].sort());
   });
 
@@ -159,7 +162,7 @@ describe('getMarkets status filter', () => {
 
   test('legacy ?includeResolved=true keeps the prior shape minus voided', async () => {
     await seed();
-    const rows = await getMarkets({ includeResolved: true }, undefined, WS);
+    const rows = await getMarkets({ includeResolved: true, since: SINCE }, undefined, WS);
     expect(rows.map(r => r.id).sort()).toEqual([OPEN, CLOSED, RESOLVED].sort());
   });
 
@@ -169,7 +172,7 @@ describe('getMarkets status filter', () => {
     // includeVoided=true alone returns active + inactive + voided, still
     // excluding resolved since includeResolved was not set.
     await seed();
-    const rows = await getMarkets({ includeVoided: true }, undefined, WS);
+    const rows = await getMarkets({ includeVoided: true, since: SINCE }, undefined, WS);
     expect(rows.map(r => r.id).sort()).toEqual([OPEN, CLOSED, VOIDED].sort());
   });
 

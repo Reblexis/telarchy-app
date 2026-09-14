@@ -1146,7 +1146,11 @@ within weeks. The rule:
 - **Lists are paginated.** `GET /api/proposals` filters `status` in SQL,
   returns the newest 100 by default (`limit` up to 500) and pages with
   `before` (a proposal number, or an ISO instant on `createdAt`); a page
-  shorter than `limit` is the last one.
+  shorter than `limit` is the last one. `GET /api/predictions/markets`
+  filters status, kind and liquidity in SQL, answers at most 500 rows with
+  `X-Next-Cursor` naming the next page, refuses a settled, voided or
+  all-states list that names neither `proposalId` nor `since`, and counts
+  trades through a join rather than a list of market ids.
 - **A burst of per-book reads costs a fixed number of statements.** A
   floor opening a proposal with options asks
   `GET /api/marketplace/:idOrSlug/market-activity` and
@@ -1181,6 +1185,19 @@ within weeks. The rule:
   read finds the pending proposals through the pending index instead of
   joining every proposal the workspace ever had, and the floor's week
   counts read `trades (workspace_id, created_at)`.
+- **Per-participant reads are keyed by the participant.** The public
+  profile reads the newest trades (enough for the 20 it shows), the 25
+  open positions it shows, and one realized-profit row per settled market,
+  each ordered and limited in SQL; `GET /api/predictions/positions` filters
+  `marketId` and held shares in SQL.
+- **Platform stats count in SQL.** `outsideOwnersDeciding7d` is one
+  `count(distinct workspace_id)` over the week's decisions, with house-owned
+  floors excluded before any proposal is read.
+- **The season's settled half starts from traded books.** A void sets
+  `resolved`, so a window of settled books on a floor that voids thousands a
+  day is mostly untraded voids; `loadSeasonSettled` reads books that are
+  resolved with `traded_volume > 0` inside the window (a book with a trade
+  always has volume), and `GET /api/agents/mine` reads the cached board.
 - **Crons process due work in bounded batches.** `resolvePredictions`
   looks a fixing up once per (metric, target date) rather than once per
   book, at most two lookups in flight, and settles or voids at most
@@ -1217,7 +1234,10 @@ within weeks. The rule:
   created_at)`, `(workspace_id, created_at)`, `(workspace_id, decide_by)
   where pending`, `(status, resolved_at)`, `(proposed_by, created_at)`;
   `liquidity_events (market_id)`, `(workspace_id, created_at)`; `trades
-  (market_id)`, `(agent_id, market_id)`, `(workspace_id, created_at)`;
+  (market_id)`, `(agent_id, market_id)`, `(workspace_id, created_at)`,
+  `(agent_id, created_at)`; `positions (agent_id, workspace_id)`; `markets
+  (workspace_id, created_at, id)`, `(workspace_id, resolved_at) where
+  resolved`, `(resolved_at) where resolved and traded_volume > 0`;
   `limit_orders (workspace_id, created_at)`, `(workspace_id, updated_at)`.
   Additive, `IF NOT
   EXISTS`, and declared in `functions/src/db/schema.ts` so drizzle-kit

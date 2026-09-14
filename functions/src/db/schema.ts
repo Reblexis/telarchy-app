@@ -659,6 +659,14 @@ export const markets = pgTable(
       .on(t.workspaceId, t.metricId, t.targetDate)
       .where(sql`${t.resolved} = false and ${t.proposalId} is null`),
     index('markets_resolved_at_idx').on(t.resolvedAt).where(sql`${t.resolved} = true`),
+    // A listing pages on (created_at, id) inside the workspace, and `since`
+    // reaches settled books through resolved_at (migration 0130).
+    index('markets_ws_created_idx').on(t.workspaceId, t.createdAt, t.id),
+    index('markets_ws_resolved_at_idx').on(t.workspaceId, t.resolvedAt).where(sql`${t.resolved} = true`),
+    // The season's settled half reads traded books only; a void sets resolved,
+    // and untraded voids are most of a busy floor's settled books (lib/board.ts,
+    // loadSeasonSettled; migration 0130).
+    index('markets_resolved_traded_idx').on(t.resolvedAt).where(sql`${t.resolved} = true and ${t.tradedVolume} > 0`),
   ],
 );
 
@@ -680,6 +688,8 @@ export const positions = pgTable(
     primaryKey({ columns: [t.id, t.workspaceId] }),
     index('positions_workspace_idx').on(t.workspaceId),
     index('positions_market_idx').on(t.marketId),
+    // A participant's own positions: profile, positions list (migration 0130).
+    index('positions_agent_ws_idx').on(t.agentId, t.workspaceId),
   ],
 );
 
@@ -735,6 +745,8 @@ export const trades = pgTable(
     // The bell's "books I traded" reads (agent) -> distinct market from the
     // index alone; it answered one row per trade before (migration 0129).
     index('trades_agent_market_idx').on(t.agentId, t.marketId),
+    // A participant's own trades, newest first: the profile (migration 0130).
+    index('trades_agent_created_idx').on(t.agentId, t.createdAt),
   ],
 );
 
