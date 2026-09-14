@@ -149,8 +149,9 @@ describe('pictures', () => {
     expect(kinds.filter(k => k === 'viz')).toHaveLength(1);
     expect(owners.blocks).toContainEqual({ kind: 'live', name: 'marketplace-stats' });
     expect(owners.blocks).toContainEqual({ kind: 'show', name: 'proposals' });
-    // The catch line is the objection answered beside the button.
-    expect((owners.blocks.find(b => b.kind === 'catch') as { text: string }).text).toMatch(/^Free today/);
+    // The catch line is the objection answered beside the button; what it may
+    // say about price is owner-offer-copy.test.ts's to pin.
+    expect((owners.blocks.find(b => b.kind === 'catch') as { text: string }).text.length).toBeGreaterThan(0);
   });
 
   test('a comparison page keeps its table, which is the picture it already had', () => {

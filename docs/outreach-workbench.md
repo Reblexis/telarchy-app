@@ -119,7 +119,12 @@ workbench (`X_DRAFT_MODEL`, `X_DRAFT_EFFORT`, `X_DRAFT_FALLBACK`; docs/x-workben
 - **The rules for a first message to a stranger.** Answer first, under 75
   words, one ask, his name in the first line, the hook is the decision they
   have open, quote only the evidence, never flatter, never explain the
-  mechanism (the link does that), say it is free and why, no em-dashes.
+  mechanism (the link does that), say the number stays private (a private
+  floor, only forecasters they invite see it, no Stripe keys, they type the
+  number in) and that he sets it up himself, never call it free and never
+  name a price, no em-dashes. The price belongs to his answer to a yes: the
+  offer is a paid four-week pilot on one decision (docs/vision.md, "The first
+  owners buy a pilot").
 - **The voice profile** (shared with the X workbench; one row, his samples
   and the facts he may state).
 - **The lessons.** A text the owner keeps, in his words, of what he has

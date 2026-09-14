@@ -551,7 +551,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
       },
       {
         "kind": "catch",
-        "text": "Free today, up to three workspaces. A floor in a minute, unlisted until you publish it."
+        "text": "A floor in a minute, unlisted until you publish it."
       },
       {
         "kind": "live",
@@ -656,7 +656,7 @@ export const AUDIENCE_PAGES: AudiencePage[] = [
           },
           {
             "q": "What does it cost?",
-            "a": "The managed service is free today, up to three workspaces per account. A new workspace starts unlisted, live and shareable by link."
+            "a": "Creating a workspace is free, up to three per account, and a new one starts unlisted. A private floor set up for you on one decision you have open is a paid four-week pilot: ask at telarchy.com/contact."
           }
         ]
       }

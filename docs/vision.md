@@ -47,6 +47,8 @@ The mission (alignment layer for AI and humans) and the owner-side positioning a
 
 Sequencing: (1) is the only one that blocks a waiting operator, and it is a permission plus one screen. (2) is what makes an operator's second week worth anything, because without it their liquidity sits spread evenly across markets they do not care about. (3) cannot be first however much it matters.
 
+**The first owners buy a pilot.** Creating a floor stays free and self-serve. An owner Telarchy approaches is offered a paid pilot instead: a private floor set up for them on one decision they have open, priced by forecasters for four weeks, paid as pool liquidity on that floor, with a second four weeks free when the price did not change or firm up the decision (a purchase stays non-refundable, docs/liquidity-purchases.md). Outreach never calls it free and names the price only in the answer to a yes. Prices and the record of who was asked live in the telarchy umbrella, `notes/outreach-30-2026-09.md`.
+
 Trader-first is not reversed by the owner side being open. Every account is still a trader by default and signup still lands in the trading surface; wanting to own a floor is not a request submitted to a waitlist.
 
 Three mechanisms stack, always in this order:
