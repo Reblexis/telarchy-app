@@ -114,7 +114,13 @@ interface Props {
 
 function fmtVal(v: number, unit: string): string {
   const decimals = Math.abs(v) >= 100 ? 0 : 1;
-  return unit + v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  return (
+    unit +
+    v.toLocaleString('en-US', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    })
+  );
 }
 
 /** A signed impact figure as the ballot prints it: "+12.0", "-3.0", "+120". */
@@ -289,6 +295,9 @@ export function hasOptions(p: PublicProposal): boolean {
 }
 
 /** The label of a proposal's option by id, or the id itself when unknown. */
+/** The most option chips a board row carries before it folds to "+N more". */
+const MAX_ROW_CHIPS = 6;
+
 export function optionLabelOf(p: PublicProposal, id: string | null | undefined): string | null {
   if (!id) return null;
   return (
@@ -398,7 +407,11 @@ export function JobsBoard({
   /* Ruling in place: which row is being ruled on, which way, and the reason
      the charter promises to publish. Approve confirms too, because a list is
      a place to mis-click and approving pays real money. */
-  const [ruling, setRuling] = useState<{ id: string; action: 'approve' | 'decline'; reason: string } | null>(null);
+  const [ruling, setRuling] = useState<{
+    id: string;
+    action: 'approve' | 'decline';
+    reason: string;
+  } | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [ask, setAsk] = useState('');
@@ -740,22 +753,50 @@ export function JobsBoard({
                 )}
                 {optioned && onOpenOption && isPending(p) && (
                   <span className="pubws-prow-acts pubws-optchips">
-                    {optionList.map(o => {
-                      const quote = (rowPair ?? p.markets[0])?.options?.find(q => q.id === o.id) ?? null;
-                      const value = quote && isPricedOption(quote) && quote.consensus !== null ? quote.consensus : null;
-                      const leads = leaderId === o.id;
-                      return (
-                        <button
-                          key={o.id}
-                          type="button"
-                          className={`pubws-dir pubws-dir--mini pubws-optchip${leads ? ' is-leader' : ''}`}
-                          onClick={() => onOpenOption(p.id, o.id)}
-                        >
-                          <span className="pubws-optchip-label">{o.label}</span>{' '}
-                          <span className="pubws-optchip-value">{value === null ? 'open' : fmtVal(value, unit)}</span>
-                        </button>
-                      );
-                    })}
+                    {(() => {
+                      const valueOf = (id: string) => {
+                        const quote = (rowPair ?? p.markets[0])?.options?.find(q => q.id === id) ?? null;
+                        return quote && isPricedOption(quote) && quote.consensus !== null ? quote.consensus : null;
+                      };
+                      /* A row never runs past its column (docs/ui-conventions.md, "An
+                         option row names its options"): past six options the six
+                         highest priced, highest first, then "+N more". */
+                      const folded =
+                        optionList.length > MAX_ROW_CHIPS
+                          ? [...optionList]
+                              .sort((a, b) => (valueOf(b.id) ?? -Infinity) - (valueOf(a.id) ?? -Infinity))
+                              .slice(0, MAX_ROW_CHIPS)
+                          : optionList;
+                      return [
+                        ...folded.map(o => {
+                          const value = valueOf(o.id);
+                          const leads = leaderId === o.id;
+                          return (
+                            <button
+                              key={o.id}
+                              type="button"
+                              className={`pubws-dir pubws-dir--mini pubws-optchip${leads ? ' is-leader' : ''}`}
+                              onClick={() => onOpenOption(p.id, o.id)}
+                            >
+                              <span className="pubws-optchip-label">{o.label}</span>{' '}
+                              <span className="pubws-optchip-value">
+                                {value === null ? 'open' : fmtVal(value, unit)}
+                              </span>
+                            </button>
+                          );
+                        }),
+                        optionList.length > MAX_ROW_CHIPS ? (
+                          <button
+                            key="more"
+                            type="button"
+                            className="pubws-dir pubws-dir--mini pubws-optchip-more"
+                            onClick={() => onSelect(p.id)}
+                          >
+                            {`+${optionList.length - MAX_ROW_CHIPS} more`}
+                          </button>
+                        ) : null,
+                      ];
+                    })()}
                   </span>
                 )}
                 {tradeable && !optioned && (

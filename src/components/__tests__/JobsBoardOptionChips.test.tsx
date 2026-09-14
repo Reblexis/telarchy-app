@@ -172,3 +172,46 @@ describe('AN OPTION ROW NAMES ITS OPTIONS INSTEAD OF HIGHER AND LOWER (docs/ui-c
     expect(chips(container)).toHaveLength(0);
   });
 });
+
+describe('A ROW NEVER RUNS PAST ITS COLUMN (docs/ui-conventions.md, "An option row names its options")', () => {
+  // Reported on the beta chess floor, 2026-09-13: 24 legal moves made 24 chips on one line that ran off the page.
+  const many = () => {
+    const opts = Array.from({ length: 24 }, (_, i) =>
+      option(`o${String(i).padStart(2, '0')}`, `Move ${i}`, 10 + i * 0.5, null),
+    );
+    return proposal({
+      options: opts.map(o => ({ id: o.id, label: o.label })),
+      markets: [optionRow(opts, 0.5)],
+    });
+  };
+
+  test('with more than six options the row carries the six highest priced, highest first, then "+18 more"', () => {
+    const { container } = renderBoard({ proposals: [many()], onTrade: () => {}, onOpenOption: () => {} });
+    const c = chips(container);
+    expect(c).toHaveLength(6);
+    expect(c.map(words)).toEqual([
+      'Move 23 21.5',
+      'Move 22 21.0',
+      'Move 21 20.5',
+      'Move 20 20.0',
+      'Move 19 19.5',
+      'Move 18 19.0',
+    ]);
+    expect(c[0].classList.contains('is-leader')).toBe(true);
+    const more = container.querySelector('.pubws-optchip-more') as HTMLElement;
+    expect(words(more)).toBe('+18 more');
+  });
+
+  test('"+N more" opens the proposal', () => {
+    const onSelect = vi.fn();
+    const { container } = renderBoard({ proposals: [many()], onSelect, onTrade: () => {}, onOpenOption: () => {} });
+    fireEvent.click(container.querySelector('.pubws-optchip-more') as HTMLElement);
+    expect(onSelect).toHaveBeenCalled();
+  });
+
+  test('six options or fewer keep every chip in the proposer\'s order and no "+N more"', () => {
+    const { container } = renderBoard({ onTrade: () => {}, onOpenOption: () => {} });
+    expect(chips(container).map(words)).toEqual(['Continue 7.2', 'Turn left 8.9', 'Turn right 5.1']);
+    expect(container.querySelector('.pubws-optchip-more')).toBeNull();
+  });
+});

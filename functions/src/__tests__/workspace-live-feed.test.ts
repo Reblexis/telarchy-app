@@ -121,8 +121,14 @@ afterEach(() => {
 });
 
 describe('the liveFeed setting', () => {
-  test('the allow-list is snake, and nothing else yet', () => {
-    expect([...LIVE_FEED_KINDS]).toEqual(['snake']);
+  test('the allow-list is snake and chess, and nothing else yet', () => {
+    expect([...LIVE_FEED_KINDS]).toEqual(['snake', 'chess']);
+  });
+
+  test('{ kind: chess, url: https } is accepted and served on the public floor payload', async () => {
+    const chess = { kind: 'chess', url: 'https://chess.example.com' };
+    expect((await put({ liveFeed: chess })).status).toBe(200);
+    expect((await floor()).liveFeed).toEqual(chess);
   });
 
   test('{ kind: snake, url: https } is accepted and served on the public floor payload', async () => {
@@ -164,7 +170,7 @@ describe('the liveFeed setting', () => {
       ['http', { kind: 'snake', url: 'http://snake.example.com' }],
       ['javascript:', { kind: 'snake', url: 'javascript:alert(1)' }],
       ['a bare word', { kind: 'snake', url: 'snake.example.com' }],
-      ['an unknown kind', { kind: 'chess', url: 'https://chess.example.com' }],
+      ['an unknown kind', { kind: 'checkers', url: 'https://checkers.example.com' }],
       ['an uppercase kind', { kind: 'Snake', url: 'https://snake.example.com' }],
       ['a missing kind', { url: 'https://snake.example.com' }],
       ['a missing url', { kind: 'snake' }],
@@ -190,7 +196,7 @@ describe('the liveFeed setting', () => {
 
     test('a refused value does not clobber the one already set', async () => {
       await put({ liveFeed: FEED });
-      expect((await put({ liveFeed: { kind: 'chess', url: 'https://x.example.com' } })).status).toBe(400);
+      expect((await put({ liveFeed: { kind: 'checkers', url: 'https://x.example.com' } })).status).toBe(400);
       expect((await floor()).liveFeed).toEqual(FEED);
     });
 

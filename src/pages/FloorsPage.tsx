@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Ghost, LoadingStatus } from '../components/Ghosts';
+import { ChessLive } from '../components/live/ChessLive';
 import { SnakeLive } from '../components/live/SnakeLive';
 import { Bars, Drop, Page, People, short } from '../components/MarketFacts';
 import { CreateWorkspaceDialog } from '../components/OwnerDialogs';
@@ -75,10 +76,9 @@ interface Listing {
    *  featured card's buttons and heading. */
   heroMarketId?: string | null;
   question?: string | null;
-  /** The floor's live feed is a snake game, so the featured card draws its
-   *  board (docs/ui-conventions.md, "The marketplace"); any other kind of
-   *  feed, the chess floor's included, leaves this false. */
-  live?: boolean;
+  /** The kind of the floor's live feed (`snake`, `chess`), null without one;
+   *  the featured card draws that kind's board and no other. */
+  liveKind?: string | null;
   /** The floor's most traded open proposal, for the featured card's deciding
    *  now block; null when it has none. */
   proposal?: PublicProposal | null;
@@ -414,18 +414,24 @@ function GhostCell() {
  *  itself does, so a cell and the page it links to never name different
  *  numbers. The furthest-resolving market is the cell's number (owner
  *  direction 2026-08-16). */
+/** The floor's live feed kind, or null when it has no feed or names no kind. */
+function liveKindOf(ws: PublicWorkspace): string | null {
+  const kind = (ws as { liveFeed?: { kind?: unknown } | null }).liveFeed?.kind;
+  return typeof kind === 'string' ? kind : null;
+}
+
 function fromFloor(
   ws: PublicWorkspace,
 ): Pick<
   Listing,
-  'hero' | 'traders' | 'tradesThisWeek' | 'liquidity' | 'heroMarketId' | 'question' | 'live' | 'proposal'
+  'hero' | 'traders' | 'tradesThisWeek' | 'liquidity' | 'heroMarketId' | 'question' | 'liveKind' | 'proposal'
 > {
   const m = primaryHorizonOf(buildHorizonViews(ws));
   return {
     proposal: pickOpenProposal((ws as { proposals?: PublicProposal[] }).proposals),
     heroMarketId: m?.marketId ?? null,
     question: m?.title ?? null,
-    live: (ws as { liveFeed?: { kind?: string } | null }).liveFeed?.kind === 'snake',
+    liveKind: liveKindOf(ws),
     traders: ws.tradersThisWeek ?? null,
     tradesThisWeek: ws.tradesThisWeek ?? null,
     liquidity: poolLiquidityOf(ws),
@@ -472,6 +478,9 @@ function fmtLeft(ms: number): string {
 
 /** The featured card's deciding now block (docs/ui-conventions.md, "The
  *  marketplace"): the proposal, its countdown, one row per world. */
+/** Rows the deciding now block shows before it folds the rest into "+N more". */
+const MAX_DECIDING_ROWS = 6;
+
 function DecidingNow({ p, slug }: { p: PublicProposal; slug: string }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -486,6 +495,7 @@ function DecidingNow({ p, slug }: { p: PublicProposal; slug: string }) {
   const decideBy = p.decideBy ? Date.parse(p.decideBy) : Number.NaN;
   type Row = { key: string; label: string; price: number | null; impact: number | null; leads: boolean };
   let rows: Row[];
+  let more = 0;
   if (m.options && m.options.length > 0) {
     const leaderId = optionLead(m.options)?.leader?.id ?? null;
     const order = p.options?.length ? p.options.map(o => o.id) : m.options.map(o => o.id);
@@ -493,6 +503,16 @@ function DecidingNow({ p, slug }: { p: PublicProposal; slug: string }) {
       .map(id => m.options?.find(o => o.id === id))
       .filter((o): o is NonNullable<typeof o> => !!o)
       .map(o => ({ key: o.id, label: o.label, price: o.consensus, impact: o.delta, leads: o.id === leaderId }));
+    /* Past six options (a chess move offers every legal move) the six highest priced, highest first,
+       ties in the proposal's order, then "+N more" (docs/ui-conventions.md, "The marketplace"). */
+    if (rows.length > MAX_DECIDING_ROWS) {
+      more = rows.length - MAX_DECIDING_ROWS;
+      rows = rows
+        .map((r, i) => ({ r, i }))
+        .sort((a, b) => (b.r.price ?? -Infinity) - (a.r.price ?? -Infinity) || a.i - b.i)
+        .slice(0, MAX_DECIDING_ROWS)
+        .map(x => x.r);
+    }
   } else {
     const d = m.delta ?? 0;
     rows = [
@@ -526,6 +546,11 @@ function DecidingNow({ p, slug }: { p: PublicProposal; slug: string }) {
             )}
           </Link>
         ))}
+        {more > 0 && (
+          <Link className="mkt-deciding-row mkt-deciding-more" to={href}>
+            {`+${more} more`}
+          </Link>
+        )}
       </div>
       {!m.options && m.delta !== null && (
         <p className="mkt-deciding-pair">
@@ -544,11 +569,18 @@ function DecidingNow({ p, slug }: { p: PublicProposal; slug: string }) {
 function FeaturedFloor({ r }: { r: Listing }) {
   const path = `/${r.slug || `marketplace/${r.workspaceId}`}`;
   const marketHref = r.slug && r.heroMarketId ? floorHref(r.slug, { marketId: r.heroMarketId }) : path;
+  /* A live board is drawn at the floor's live-slot width, as its page draws it. */
+  const liveBoard = !!r.slug && (r.liveKind === 'snake' || r.liveKind === 'chess');
   return (
-    <section className="mkt-featured pubws-rise" aria-label={`Most traded now: ${r.name}`}>
+    <section
+      className={`mkt-featured pubws-rise${liveBoard ? ' mkt-featured--live' : ''}`}
+      aria-label={`Most traded now: ${r.name}`}
+    >
       <div className="mkt-featured-visual">
-        {r.live && r.slug ? (
+        {r.liveKind === 'snake' && r.slug ? (
           <SnakeLive slug={r.slug} replay={false} />
+        ) : r.liveKind === 'chess' && r.slug ? (
+          <ChessLive slug={r.slug} replay={false} />
         ) : r.hero?.consensus != null ? (
           <MarketSpark history={r.hero.history} consensus={r.hero.consensus} />
         ) : (

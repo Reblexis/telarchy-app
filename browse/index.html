@@ -5962,7 +5962,11 @@ today (&quot;· leads&quot; after its label), the others are plain, and the sele
 cell is underlined in the same green its chart line wears. Every priced cell is a button
 (<code>aria-pressed</code>) that puts that option on the chart and the ticket; a press sticks: nothing the page does while it settles (resolving the address to the proposal, loading its books) undoes a pick, however early it was made; an
 unpriced one says &quot;no liquidity&quot; and cannot be pressed, as any pair does.
-Up to six options fit one row on the desktop floor; on a phone the row
+Up to six options fit one row on the desktop floor; with more than six
+the control holds the six highest priced (the selected option always
+among them) and a &quot;Show all N&quot; cell that opens the rest in the
+proposer's order, six to a row, and &quot;Show fewer&quot; folds them back; on a
+phone the row
 wraps to two cells per line, the last-read cell first. There is no
 declined cell, because there is no declined world.</li>
 <li><strong>The hero is the lead.</strong> The big number is the leader's consensus minus
@@ -6013,7 +6017,12 @@ pressing its cell on the proposal's own page (Viktor, 2026-09-11: &quot;lets
 just shwo the different options and their impacts instead of the higher
 /lower&quot;, &quot;wehn clicked it goes to that proposal witht he correspodnign
 branch open&quot;, then &quot;it hshould show just the absolvute value isntead not
-some subtract result&quot;). A two-branch row keeps Higher and Lower.</li>
+some subtract result&quot;). A two-branch row keeps Higher and Lower.
+<strong>A row never runs past its column</strong>: with more than six options (a
+chess move offers every legal move, often thirty or more) the row
+carries the six highest priced, highest first, then one &quot;+N more&quot; chip
+that opens the proposal, and the chips wrap onto a second line rather
+than push the title aside.</li>
 <li><strong>A decided proposal with options</strong> strikes through the price of every
 option cell but the chosen one, captioned &quot;stakes refunded&quot;, and the
 ruling says which option was chosen.</li>
@@ -7413,7 +7422,7 @@ replace the snake.telarchy.com.. i dont like it being there separately&quot;;
 record in <code>notes/decisions/ui-conventions.md</code>).</p>
 <p>The setting is <code>liveFeed</code> on <code>PUT /api/workspaces/:id/settings</code>, plain
 <code>manage</code>: <code>{ kind, url }</code> or null to clear, where <code>kind</code> names the feed's
-shape from a short allow-list (today only <code>snake</code>) and <code>url</code> is the https
+shape from a short allow-list (<code>snake</code> and <code>chess</code>) and <code>url</code> is the https
 origin the feed is served from, at most 500 characters. Anything else
 (http, an unknown kind, a bare string, a missing field) is 400 and leaves
 the stored value alone. It is served on the public floor payload as
@@ -7523,6 +7532,116 @@ button or link other than the three arrows on the grid and the replay
 row's. No impact number is printed in the segment: the arrows' shading
 is the only reading of the impacts.</li>
 </ol>
+<p><strong>The chess feed</strong> (<code>kind: &quot;chess&quot;</code>, <code>ChessLive</code>) is the shape the
+telarchy-chess service publishes (its <code>docs/chess.md</code>, &quot;The feed&quot;):
+<code>/state</code> carries <code>phase</code> (<code>our-move</code>, <code>their-move</code>, <code>settling</code>,
+<code>seeking</code>), <code>game: { number, id, url, color, opponent: {name, title, rating}, fen, moves (UCI), turn, clocks, status, result }</code>, <code>open: { move, proposal: {id,number,url}, deadline, tradeable, options: [{ id (UCI), san, price, lead, marketId, reason? }] }</code> with one option per legal move, and
+<code>recentDecisions[]</code> (newest first, <code>{ game, move, chosen, san, price, kind }</code>); <code>/games</code> is <code>{ games: [{ number, id, color, opponent, result, plies }] }</code> and <code>/history?game=</code> is <code>{ game, plies: [{ ply, by: &quot;us&quot; | &quot;them&quot;, uci, san, fen, kind?, price? }] }</code>. It is drawn as the snake is,
+in the same slot and the same layers, the moves drawn on the board and
+nothing around it (Viktor 2026-09-13: &quot;ok do A make sure that it can also
+be selected by doing the move on the chessboard just like with snake
+clicking the arrow&quot;, then &quot;just visualize them on the board in the live
+visualization and no buttons around the board as that is making it just
+messy.. inputing the moves will be done on the board itself by clicking or
+going trough the proposal the official way&quot;):</p>
+<ol>
+<li><strong>The board</strong> (<code>.chess-board</code>, an svg of 64 squares in the floor's
+ground tones) seen from TelarchyBot's side: white at the bottom when
+<code>game.color</code> is white, black at the bottom otherwise. a1 is a dark
+square and h1 a light one, as on every chessboard. The pieces are
+the position in <code>game.fen</code>; the two squares of the last move
+(<code>game.moves</code>' last) are tinted. <strong>Arrows for the three highest
+prices</strong> of an open move (<code>.chess-arrow</code>), shaded as the snake's
+chevrons are (the leader at 0.9, the lowest of the three at 0.3, all at
+0.55 on a tie or fewer than two priced), each a link to
+<code>/{slug}/p/{open.proposal.number}?option={uci}</code> that opens that
+option's world in place. <strong>A move made on the board opens its option</strong>:
+pressing a piece that has legal moves (the <code>from</code> square of some
+option) selects it and marks each square it can move to with a dot;
+<strong>hovering such a piece shows the same before any press</strong>: its square
+is tinted and its target squares get their dots, so a piece that can be
+pressed reads as pressable, and moving off clears both; while a piece is
+picked up the pick is what shows, and a hovered piece that cannot move,
+or any piece while no move is open, shows nothing;
+pressing one of those squares opens that move's world exactly as its
+arrow does (a promotion opens the queen's); pressing anywhere else
+clears the selection. Pieces that cannot move, and every piece while no
+move is open, do nothing. <strong>An arrow never takes the click meant for the
+board</strong>: its pressable area starts outside the square it leaves, so a
+piece under an arrow's tail can still be picked up, and while a piece is
+picked up the arrows take no clicks at all, so the square pressed is the
+move made. A new position draws at once; nothing is ever
+painted outside the board.</li>
+<li><strong>The next move</strong> (<code>.chess-next</code>), the snake's line in the snake's
+type: &quot;Next move: O-O in 0:31&quot; (the leader's SAN, counting down to
+<code>open.deadline</code>; &quot;Next move in 0:31&quot; while no option leads), &quot;Next move: O-O, deciding&quot; once that count runs out,
+&quot;Waiting for OppBot (2171) to reply to O-O · 28:20&quot; while the opponent
+thinks (Viktor 2026-09-13: &quot;make it more clear when waiting for opponent
+move now it just says their move&quot;): the opponent by name and rating (no
+rating when Lichess has none), the move of TelarchyBot's they are
+answering when the last decision belongs to this game (otherwise &quot;to
+move&quot;), and their clock in the accent, counting down by the second from
+the feed's last read, &quot;Settling the game&quot;
+while <code>phase</code> is <code>settling</code>, &quot;Waiting for the next game&quot; between games,
+&quot;Loading&quot; before the first read and &quot;Feed unavailable&quot; after a failed
+one.
+Under it, <strong>the player's record</strong> (<code>.chess-stats</code>, Viktor 2026-09-13:
+&quot;show some stats somewhere? like rating (elo), games played, games won,
+games lost&quot;): one muted mono line, &quot;Rating 1720 · Played 12 · Won 3 ·
+Lost 8 · Drawn 1&quot;, read from the feed's <code>player</code> (Lichess's classical
+rating with &quot;?&quot; after it while provisional, and Lichess's own game counts
+for the account). The line is absent while <code>player</code> is null.</li>
+<li><strong>The proposal on screen is marked on the board</strong> (Viktor 2026-09-13:
+&quot;when im in a proposal page make sure that the move corresponding to the
+proposal is highlighted&quot;). When the page has the open move's proposal
+selected, the option on screen (its world) is drawn as a solid arrow in
+the approved green, whether or not it is among the three highest, and its
+two squares are tinted; the three highest keep their accent arrows beside
+it. A proposal that is decided, lapsed or not the open move marks nothing,
+because its move belongs to a position the board no longer shows. <strong>A move
+made on the board always opens the newest open proposal</strong>, from any page:
+pressing a piece and a target, or an arrow, on a decided proposal's page
+opens that move on the open one, and nothing when no move is open.</li>
+<li><strong>The moves, one slim column beside the board</strong> (<code>.chess-movelist</code>,
+Viktor 2026-09-13: &quot;show a sorted list of moves on the right which upon
+hovering over can be selected and also hovering them highlights the
+corresponding move.. the buttons before were too big so just make them
+small but wide.. maybe scrollable if needed.. it should just be one
+column&quot;). Only while a move is open: every legal move, highest price
+first, an unpriced one last as &quot;open&quot;, one row each (<code>.chess-moverow</code>):
+the rank, the piece and the SAN, a thin bar the length of the price
+within the list's range, and the price to one decimal, in the mono type
+at the size of the chart's labels, one line high. The leader's row is in
+the approved green, the proposal on screen's row is marked as its arrow
+is. The column is as tall as the board and scrolls inside itself; it sits
+to the right of the board when the slot fits both, under the board with
+the same height otherwise. <strong>Hovering a row, or focusing it, draws that
+move on the board</strong> (<code>.chess-arrow.is-hover</code>, in the ink, its squares
+tinted) until the pointer leaves; pressing a row opens that option's
+world, as its arrow does. <strong>The prices are on the board too</strong>: while a
+piece is picked up, each square it can reach carries that move's price
+(the leader's in the approved green, an unpriced one &quot;open&quot;).</li>
+</ol>
+<p>The replay row is the snake's (picker, scrubber, play, speed, LIVE): the
+picker lists the games newest first as &quot;Game 3 · vs OppBot · lost&quot;, the
+scrubber runs over the plies (0 is the start position), play steps one
+ply a second (ten at 10x), and the line reads &quot;Move 6: O-O, chosen at
+56.4&quot; for TelarchyBot's ply (&quot;chosen at random&quot; when its <code>kind</code> is not
+<code>market</code> or no price was recorded) and &quot;Move 6: they played Nf6&quot; for the
+opponent's. In replay the board draws the ply's <code>fen</code>, its move tinted,
+and our chosen move as one solid arrow; there is no move list. Every read
+reports the open move's option prices by proposal id for the floor's own
+cells, and a new open proposal (or none) reloads the floor, as the snake's
+step does.</p>
+<p><strong>A price on the live view is the book's own, read once a second.</strong> The
+snake's arrows and the chess arrows, target prices and next-move line take
+every option's price from the floor's one-second prices poll (<code>GET /api/marketplace/:id/prices</code>, &quot;The floor's live poll&quot;), matched by the
+option's <code>marketId</code> in the feed; the feed's own <code>price</code> stands only for a
+book the poll has not answered yet. A lead is recomputed from those prices
+(the option's price minus the best other option's), so a bet placed on
+the ticket moves its arrow and its row within a second, never on the
+operator's slower read. The feed still decides what is open and where the
+pieces stand.</p>
 <p><strong>The feed drives the floor</strong> (2026-09-11, Viktor: &quot;make sure the whole
 page is properly dynamic and reactive to the fast updating snake&quot;). A
 floor with a feed reads it every 2 seconds, and that read, not the
@@ -7838,16 +7957,25 @@ accent, &quot;DECIDING NOW&quot;, with the countdown to the decision ticking bes
 one line; one row per world, each the proposal's address on its page: for a
 proposal with options, one row per option in the proposal's order with its
 price and its impact, the leader outlined in the higher colour and marked
-&quot;leads&quot; (a tie marks no one); for an approve or decline proposal, &quot;If
+&quot;leads&quot; (a tie marks no one); with more than six options (a chess move
+offers every legal move) the block carries the six highest priced, highest
+first, then one &quot;+N more&quot; row that opens the proposal, as a board row does;
+for an approve or decline proposal, &quot;If
 approved&quot; and &quot;If declined&quot; with their prices and the impact of approving
 under them. Then one sentence: &quot;Each option is priced by what traders
 forecast it does to <metric>.&quot; On the Snake that block is always the
 current move. Beside them, on the left, the
-floor's live board when the floor's live feed is a snake game (the same
-snake board as its page, without the replay row), else the hero market's
-spark: a feed of any other kind, such as the chess floor's, is never drawn as
-a snake board, and a snake board handed a feed with no snake draws an empty
-grid rather than failing the page. At phone
+floor's live board when the floor has a live feed: the board its feed's
+<code>kind</code> names, the same one its page draws (the snake board for <code>snake</code>, the
+chess board for <code>chess</code>), without the replay row, and it looks as it does
+on the floor: the card gives a live board the width of the floor's live slot
+(45rem), so the chess moves column sits beside the board as it does there,
+and the board sits at the top of the card rather than floating in its
+middle. A kind this build cannot
+draw shows the hero market's spark instead, as a floor without a feed does;
+the card never draws one kind's board over another kind's feed, and a
+snake board handed a feed with no snake draws an empty grid rather than
+failing the page. At phone
 width the card stacks, the board or spark first. The card never says &quot;bet&quot;:
 the home page's words are forecast words.</p>
 <p>The last cell of the board is always the listing cell, and it is the only
@@ -8615,7 +8743,7 @@ template.</p>
 <li><strong>Decline</strong> (good faith) - mirror image of approve. The approved-branch markets are voided and refunded; the declined-branch markets stay live and resolve against actual metric, producing a counterfactual calibration record we can score the decision against later.</li>
 <li><strong>Withdraw / decline as spam</strong> - both branches voided, all stakes refunded. Decline as spam additionally charges the proposer the workspace's <code>spamPenalty</code>, capped at their balance, paid to the owner. <code>refund: true</code> on decline voids both branches.</li>
 </ol>
-<p><strong>Options.</strong> A proposal may carry <code>options: [{ id, label }]</code>, two to six, in place of the approve/decline pair: one conditional market per option per active leaf-metric market, <code>branch</code> set to the option id, each opening at the baseline price (less the ask where the metric burns dollars). The headline per option is its consensus minus the best other option, so the leader's number is its lead. <code>POST /api/proposals/:id/approve { option }</code> keeps the chosen option's markets and voids the rest with refund; decline, spam, withdraw, remove and lapse void them all. <code>docs/guides/proposals.md</code>, &quot;More than two options&quot;, is the contract.</p>
+<p><strong>Options.</strong> A proposal may carry <code>options: [{ id, label }]</code>, two to 218, in place of the approve/decline pair: one conditional market per option per active leaf-metric market, <code>branch</code> set to the option id, each opening at the baseline price (less the ask where the metric burns dollars). The headline per option is its consensus minus the best other option, so the leader's number is its lead. <code>POST /api/proposals/:id/approve { option }</code> keeps the chosen option's markets and voids the rest with refund; decline, spam, withdraw, remove and lapse void them all. <code>docs/guides/proposals.md</code>, &quot;More than two options&quot;, is the contract.</p>
 <p>Approve, decline and withdraw act only on a pending proposal; <code>DELETE /api/proposals/:id</code> (remove, <code>manage</code>) acts on any.</p>
 <p>A per-proposal message thread (<code>proposals/{proposalId}/messages</code>) enables proposer-admin negotiation before a decision is made.</p>
 <p>Any participant with <code>manage</code> capability can also refresh conditional markets at any time to pick up newly created base markets.</p>
@@ -9388,7 +9516,7 @@ GET /api/status?trends=1&amp;trendsLimit=5   # fewer history points, fewer token
 <p>Sells shares you hold. A closed market accepts sells and nothing else; resolved and voided markets accept nothing.</p>
 <p>A successful trade returns 201 with <code>{ tradeId, marketId, direction, shares, cost, probability, consensus }</code> (a sell reports <code>proceeds</code> instead of <code>cost</code>). If your trade crossed someone's resting limit order, the response also carries <code>limitFills</code> (each with its <code>side</code>, <code>direction</code>, <code>limitValue</code> and <code>cost</code>, and on a sell its <code>proceeds</code> and <code>shares</code>) and <code>settledConsensus</code>, the price after those fills executed.</p>
 <h3 id="docs-guides-agent-api-md--h9">A proposal with options</h3>
-<p>Some questions are not yes-or-no. A proposal can carry two to six <strong>options</strong>
+<p>Some questions are not yes-or-no. A proposal can carry two to 218 <strong>options</strong>
 with one market each (docs/guides/proposals.md, &quot;More than two options&quot;): the
 snake's every-minute question is one proposal whose options are <code>forward</code>,
 <code>left</code> and <code>right</code>. You trade one exactly as above, with that option's
@@ -12134,7 +12262,8 @@ too, so a decline paid nobody. Fixed; the behaviour above is what runs.)</em></p
 three answers, &quot;which of these four headlines do we ship&quot; has four, and
 posting each answer as its own approve-or-decline proposal spends twice the
 liquidity and asks the reader to compare numbers across pages. A proposal
-can therefore carry <strong>options</strong>: <code>POST /api/proposals { title, description, options: [{ id, label }, ...] }</code>, two to six of them, each <code>id</code> a short
+can therefore carry <strong>options</strong>: <code>POST /api/proposals { title, description, options: [{ id, label }, ...] }</code>, two to 218 of them (218 is the most legal
+moves a chess position has, so one proposal can offer every move), each <code>id</code> a short
 handle (1 to 24 of <code>a-z 0-9 -</code>, unique within the proposal, and never
 <code>approved</code> or <code>declined</code>), each <code>label</code> up to 40 characters, the words a
 reader chooses between. A proposal without <code>options</code> is the ordinary
