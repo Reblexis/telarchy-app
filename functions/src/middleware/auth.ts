@@ -9,9 +9,15 @@ import { isMasterKey } from '../lib/master-key';
 import {
   getParticipantWorkspaceMemberships,
   getUserWorkspaceMemberships as getUserWorkspaceMembershipsForParticipant,
+  joinPublicGroup,
   selectEffectiveWorkspaceId,
 } from '../lib/participants';
-import { anonymousCapabilities, resolvePublicReadWorkspace, workspaceIdForName } from '../lib/public-read';
+import {
+  anonymousCapabilities,
+  newUserAccess,
+  resolvePublicReadWorkspace,
+  workspaceIdForName,
+} from '../lib/public-read';
 import { intersectWorkspaceCaps } from '../lib/scopes';
 import type { AuthInfo, Capability, WorkspaceMemberRole } from '../types';
 import { computeCapabilities } from './capabilities';
@@ -108,6 +114,35 @@ async function resolveAgentWorkspace(
   const resolved = await workspaceIdForName(requestedWorkspaceId);
   if (!resolved) return null;
   return memberships.find(row => row.workspaceId === resolved) ?? null;
+}
+
+const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+/**
+ * A key in a workspace its participant is not a member of acts as a newly
+ * signed-up user would there (docs/guides/auth-and-keys.md, "Which workspace a
+ * call lands in"): the Public group's capabilities on a public workspace,
+ * narrowed by the key's scopes, and null on a restricted one.
+ *
+ * Its first write while holding `trade` joins it to the Public group, which is
+ * what the browser does before a new user's first trade. Without the join the
+ * bot could trade and still be missing from the participant lists and the
+ * leaderboard, which are read from group membership. A read never joins, so
+ * browsing floors does not make a bot a member of all of them.
+ */
+async function nonMemberKeyAccess(
+  agentId: string,
+  workspaceName: string,
+  keyScopes: string[],
+  method: string,
+): Promise<{ workspaceId: string; capabilities: Set<Capability> } | null> {
+  const access = await newUserAccess(workspaceName);
+  if (!access) return null;
+  const capabilities = intersectWorkspaceCaps(access.capabilities, keyScopes);
+  if (capabilities.has('trade') && !READ_METHODS.has(method)) {
+    await joinPublicGroup(access.workspaceId, agentId);
+  }
+  return { workspaceId: access.workspaceId, capabilities };
 }
 
 /**
@@ -210,7 +245,11 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
           };
           maybeBumpLastUsed(hash, keyRecord.lastUsedAt as Date | null);
         } else {
-          console.error(`[optionalAuth] agent ${agentId}: no membership for workspace ${effectiveWorkspaceId}`);
+          const access = await nonMemberKeyAccess(agentId, effectiveWorkspaceId, keyScopes, req.method);
+          if (access) {
+            req.auth = { ...access, agentId, scopes: keyScopes, keyId: keyRecord.keyId };
+            maybeBumpLastUsed(hash, keyRecord.lastUsedAt as Date | null);
+          }
         }
       } else {
         console.error(`[optionalAuth] agent ${agentId}: not found in agents table`);
@@ -309,20 +348,22 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     }
     const effectiveWorkspaceId = keyRecord.workspaceLocked ? keyWorkspaceId : (askedWorkspaceId ?? keyWorkspaceId);
     const membership = await resolveAgentWorkspace(agentId, effectiveWorkspaceId);
-    // A valid key without membership in the effective workspace still
-    // authenticates, with an EMPTY capability set. This is what lets a
-    // freshly created agent bootstrap itself via identity-only routes,
-    // most importantly POST /api/marketplace/:id/join - previously those
-    // 403'd here, making join unreachable for sub-bots created through
-    // POST /api/agents (chicken-and-egg). Every workspace-data route is
-    // capability-gated, so a non-member still cannot read or trade.
-    const fullCaps = membership
-      ? await computeCapabilities({ workspaceId: membership.workspaceId, agentId })
-      : new Set<Capability>();
+    // A valid key without membership still authenticates. On a public
+    // workspace it holds what a new user would; on a restricted one its
+    // capability set is EMPTY, and identity-only routes still answer it.
+    const access = membership
+      ? {
+          workspaceId: membership.workspaceId,
+          capabilities: intersectWorkspaceCaps(
+            await computeCapabilities({ workspaceId: membership.workspaceId, agentId }),
+            keyScopes,
+          ),
+        }
+      : await nonMemberKeyAccess(agentId, effectiveWorkspaceId, keyScopes, req.method);
     req.auth = {
-      capabilities: intersectWorkspaceCaps(fullCaps, keyScopes),
+      capabilities: access?.capabilities ?? new Set<Capability>(),
       agentId,
-      workspaceId: membership?.workspaceId ?? effectiveWorkspaceId,
+      workspaceId: access?.workspaceId ?? effectiveWorkspaceId,
       scopes: keyScopes,
       keyId: keyRecord.keyId,
     };

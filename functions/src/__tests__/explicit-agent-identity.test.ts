@@ -1,4 +1,7 @@
-jest.mock('../lib/public-read', () => ({ workspaceIdForName: async (id: string) => id }));
+jest.mock('../lib/public-read', () => ({
+  workspaceIdForName: async (id: string) => id,
+  newUserAccess: async () => null,
+}));
 jest.mock('better-auth/node', () => ({ fromNodeHeaders: (h: any) => new Headers(h) }));
 jest.mock('../auth', () => ({ auth: { api: { getSession: jest.fn(async () => ({ user: { id: 'owner' } })) } } }));
 jest.mock('../db/client', () => ({
@@ -9,6 +12,7 @@ jest.mock('../lib/participants', () => ({
   selectEffectiveWorkspaceId: jest.fn(() => null),
   getUserWorkspaceMemberships: jest.fn(async () => []),
   getParticipantWorkspaceMemberships: jest.fn(async () => []),
+  joinPublicGroup: jest.fn(async () => false),
 }));
 jest.mock('../middleware/capabilities', () => ({ computeCapabilities: jest.fn() }));
 

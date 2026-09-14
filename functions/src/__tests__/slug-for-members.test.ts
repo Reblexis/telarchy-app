@@ -15,9 +15,10 @@
  * agent against production, which registered successfully and then could not
  * read anything.
  *
- * Membership is still the gate. Resolving a NAME grants nothing: an agent that
- * is not a member gets the same empty set under either name, which is what the
- * second block asserts.
+ * Resolving a NAME grants nothing the id would not: a non-member gets the same
+ * answer under either name, which is what the second block asserts. On a
+ * public floor that answer is what a new user holds; on a restricted one it is
+ * nothing (docs/guides/auth-and-keys.md, "Which workspace a call lands in").
  */
 process.env.API_KEY = process.env.API_KEY || 'test-master-key-slug-members';
 process.env.BETTER_AUTH_SECRET = process.env.BETTER_AUTH_SECRET || 'slug-members-secret-slug-members-1';
@@ -120,9 +121,10 @@ describe('a member may use the name they were given', () => {
 });
 
 describe('resolving a name grants nothing', () => {
-  test('THE RULE: a non-member gets no capabilities under either name', async () => {
-    // Membership is the gate, and it still is. If the slug bought access, this
-    // change would have handed every key holder every public floor.
+  test('THE RULE: on a restricted floor a non-member gets no capabilities under either name', async () => {
+    // Membership is the gate on a floor that is not public. If the slug bought
+    // access, it would hand every key holder every unlisted floor.
+    await db.update(workspaces).set({ visibility: 'unlisted' }).where(eq(workspaces.id, WS_ID));
     for (const name of [SLUG, WS_ID]) {
       const res = await request(app)
         .post('/api/predictions/trade')
@@ -132,6 +134,21 @@ describe('resolving a name grants nothing', () => {
         .send({ marketId: 'x', direction: 'higher', amount: 1 });
       expect({ name, status: res.status }).toEqual({ name, status: 403 });
     }
+  });
+
+  test('on a public floor a non-member is answered the same under either name', async () => {
+    const statuses: number[] = [];
+    for (const name of [SLUG, WS_ID]) {
+      const res = await request(app)
+        .post('/api/predictions/trade')
+        .set('Origin', 'http://localhost')
+        .set('X-Agent-Key', STRANGER_KEY)
+        .set('X-Workspace-Id', name)
+        .send({ marketId: 'x', direction: 'higher', amount: 1 });
+      statuses.push(res.status);
+    }
+    expect(statuses[0]).toBe(statuses[1]);
+    expect(statuses[0]).not.toBe(403);
   });
 
   test('a slug nobody has resolves to nothing', async () => {

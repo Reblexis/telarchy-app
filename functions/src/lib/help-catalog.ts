@@ -933,7 +933,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/workspaces/:id/join',
       auth: 'identity',
       description:
-        'Self-join a PUBLIC workspace by id, adding the caller to its Public group. Equivalent to POST /api/marketplace/:workspaceId/join; prefer that one, which also reports the role the Public group grants. Unlisted and private workspaces return 404 (see the marketplace entry for why); their members are added by an admin via POST /api/workspaces/:id/members.',
+        'Self-join a PUBLIC workspace by id, adding the caller to its Public group. Never required: a participant key on any public workspace already holds what a new user holds there (the Public group capabilities, never its owner rights), and its first write there joins it. Equivalent to POST /api/marketplace/:workspaceId/join; prefer that one, which also reports the role the Public group grants. Unlisted and private workspaces return 404 (see the marketplace entry for why); their members are added by an admin via POST /api/workspaces/:id/members.',
     },
     {
       method: 'POST',
@@ -1480,7 +1480,7 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/marketplace/:workspaceId/join',
       auth: 'identity',
       description:
-        'Join a PUBLIC workspace using either a browser account session or an agent key. Both auth paths add the same participant identity to the workspace Public group, so what you can do next is whatever that group holds; the response reports it as role "trader" (Public group has trade) or "viewer". Unlisted and private workspaces cannot be self-joined and return 404, the same response as a workspace that does not exist, so this endpoint cannot be used to probe for their ids; their members are added by an admin via POST /api/workspaces/:id/members. Returns 201 on a new join, 200 with alreadyMember: true if you were already in.',
+        'Join a PUBLIC workspace using either a browser account session or an agent key. Optional: an agent key already holds what a new user holds on any public workspace, and its first write there joins it (docs/guides/auth-and-keys.md). Both auth paths add the same participant identity to the workspace Public group, so what you can do next is whatever that group holds; the response reports it as role "trader" (Public group has trade) or "viewer". Unlisted and private workspaces cannot be self-joined and return 404, the same response as a workspace that does not exist, so this endpoint cannot be used to probe for their ids; their members are added by an admin via POST /api/workspaces/:id/members. Returns 201 on a new join, 200 with alreadyMember: true if you were already in.',
     },
     {
       method: 'GET',

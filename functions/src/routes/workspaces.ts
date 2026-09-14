@@ -26,7 +26,12 @@ import {
 import { allowLedgerAdmin } from '../lib/ledger-admin';
 import { parseLiveFeed } from '../lib/live-feed';
 import { assertNotInRunningSeason } from '../lib/market-freeze';
-import { getOwnerHandles, resolveOwnerSegment, resolveWorkspaceOwnerAgentId } from '../lib/participants';
+import {
+  getOwnerHandles,
+  joinPublicGroup,
+  resolveOwnerSegment,
+  resolveWorkspaceOwnerAgentId,
+} from '../lib/participants';
 import { isPlatformAuthorized } from '../lib/platform-admin';
 import { restrictedToMembers } from '../lib/public-read';
 import { uniqueSlugForOwner } from '../lib/slug';
@@ -1203,15 +1208,7 @@ workspacesRouter.post(
       return;
     }
 
-    const currentIds = (publicGroup.memberIds as string[]) ?? [];
-    const alreadyMember = currentIds.includes(participantId);
-
-    if (!alreadyMember) {
-      await db
-        .update(permissionGroups)
-        .set({ memberIds: [...currentIds, participantId] })
-        .where(and(eq(permissionGroups.id, publicGroup.id), eq(permissionGroups.workspaceId, wsId)));
-    }
+    const alreadyMember = !(await joinPublicGroup(wsId, participantId));
 
     res.status(alreadyMember ? 200 : 201).json({ ok: true, workspaceId: wsId, role: 'member', alreadyMember });
   }),
