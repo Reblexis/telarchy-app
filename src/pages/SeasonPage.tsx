@@ -8,6 +8,7 @@ import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import { api, type PrizeSeason, type SeasonStanding } from '../lib/api';
 import { pickCurrentSeason } from '../lib/season-clock';
 import { useSeasonClock } from '../lib/useSeasonClock';
+import { startVisiblePoll } from '../lib/visible-poll';
 import { TopBar } from './TradePage';
 
 /**
@@ -68,10 +69,7 @@ export function SeasonPage() {
     loadStandings();
     // A draft season's board cannot move, so there is nothing to poll for.
     if (!season || season.status !== 'running') return;
-    const id = setInterval(() => {
-      if (!document.hidden) loadStandings();
-    }, 15_000);
-    return () => clearInterval(id);
+    return startVisiblePoll(loadStandings, 15_000);
   }, [season, loadStandings]);
 
   if (missing) {

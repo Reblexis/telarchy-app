@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { PageTopBar } from '../components/PageTopBar';
 import { useAuth } from '../hooks/useAuth';
 import { api, type PublicWorkspace } from '../lib/api';
+import { startVisiblePoll } from '../lib/visible-poll';
 
 /**
  * telarchy.com/<floor>/funding: where real money enters one floor
@@ -123,15 +124,15 @@ export function FundingPage() {
   useEffect(() => {
     if (!awaitingStripe) return;
     let tries = 0;
-    const t = setInterval(() => {
+    const stop = startVisiblePoll(() => {
       tries += 1;
       if (tries > 20) {
-        clearInterval(t);
+        stop();
         return;
       }
       load();
     }, 3000);
-    return () => clearInterval(t);
+    return stop;
   }, [awaitingStripe, load]);
 
   const dollars = choice === 'custom' ? Number(custom.replace(/[^0-9.]/g, '')) : Number(choice);

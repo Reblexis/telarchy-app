@@ -311,6 +311,10 @@ left no room for branch previews). The standing contract:
   database-load decision, pinned by a test, not a frontend tweak. Prices
   alone are polled every second, from `GET /api/marketplace/:id/prices`, which
   costs the database nothing while prices stand still (below).
+- No timed poll anywhere in the frontend reads while its tab is hidden
+  (docs/ui-conventions.md, "A hidden tab asks for nothing"), so an idle
+  background tab costs nothing; a visible one, a covered window or a headless
+  browser still polls at full cadence.
 - Price-history replays are cached 30s per market and invalidated the moment
   a trade or liquidity event lands (`lib/market-events.ts`). The floor
   payload as a whole is deliberately NOT cached: it carries ballots and

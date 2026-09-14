@@ -9,6 +9,7 @@ import {
   type SnakeState,
 } from '../../lib/api';
 import type { FeedQuotes } from '../../lib/feed-overlay';
+import { startVisiblePoll } from '../../lib/visible-poll';
 
 /**
  * The snake feed, drawn natively on the floor (docs/ui-conventions.md, "The
@@ -413,7 +414,6 @@ export function SnakeLive({
   /* Realtime: one read now, then every 2 seconds while the tab is visible. */
   useEffect(() => {
     let stopped = false;
-    let timer: number | null = null;
     const tick = async () => {
       try {
         const s = await api.getLiveState(slug);
@@ -455,29 +455,10 @@ export function SnakeLive({
         if (!stopped) setFailed(true);
       }
     };
-    const start = () => {
-      if (timer === null) timer = window.setInterval(tick, POLL_MS);
-    };
-    const stop = () => {
-      if (timer !== null) {
-        window.clearInterval(timer);
-        timer = null;
-      }
-    };
-    const onVisibility = () => {
-      if (document.visibilityState === 'hidden') stop();
-      else {
-        void tick();
-        start();
-      }
-    };
-    void tick();
-    if (document.visibilityState !== 'hidden') start();
-    document.addEventListener('visibilitychange', onVisibility);
+    const stop = startVisiblePoll(tick, POLL_MS, { immediate: true });
     return () => {
       stopped = true;
       stop();
-      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [slug]);
 

@@ -106,3 +106,65 @@ describe('useWorkspaceLog', () => {
     expect(result.current.rows.map(x => x.id)).toEqual(['a', 'z']);
   });
 });
+
+/**
+ * A HIDDEN TAB ASKS FOR NOTHING (docs/ui-conventions.md, "A hidden tab asks
+ * for nothing"): the Live column stops reading while hidden and is fresh the
+ * moment the tab is shown, rather than a quarter of a minute later.
+ */
+describe('THE LIVE COLUMN ASKS NOTHING WHILE THE TAB IS HIDDEN', () => {
+  let visibility: 'visible' | 'hidden' = 'visible';
+  const setVisibility = async (next: 'visible' | 'hidden') => {
+    visibility = next;
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+  };
+  beforeEach(() => {
+    visibility = 'visible';
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibility });
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => visibility === 'hidden' });
+  });
+  afterEach(() => {
+    visibility = 'visible';
+  });
+
+  test('hidden reads nothing; shown again reads once at once, then every 15 seconds from there', async () => {
+    vi.mocked(api.getActions).mockResolvedValue(page([row('a', '2026-09-12T20:00:00Z')]) as never);
+    renderHook(() => useWorkspaceLog('snake'));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10);
+    });
+    expect(api.getActions).toHaveBeenCalledTimes(1);
+    await setVisibility('hidden');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10 * 60_000);
+    });
+    expect(api.getActions).toHaveBeenCalledTimes(1);
+    await setVisibility('visible');
+    expect(api.getActions).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(14_000);
+    });
+    expect(api.getActions).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    expect(api.getActions).toHaveBeenCalledTimes(3);
+  });
+
+  test('unmounting stops the poll, and a later return reads nothing', async () => {
+    vi.mocked(api.getActions).mockResolvedValue(page([]) as never);
+    const { unmount } = renderHook(() => useWorkspaceLog('snake'));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10);
+    });
+    unmount();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    await setVisibility('hidden');
+    await setVisibility('visible');
+    expect(api.getActions).toHaveBeenCalledTimes(1);
+  });
+});

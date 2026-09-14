@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type NotificationItem } from '../lib/api';
+import { useVisiblePoll } from '../lib/visible-poll';
 
 /**
  * The floor's inbox (owner ask 2026-08-19): one bell in the top bar that
@@ -84,11 +85,10 @@ export function NotificationsBell() {
 
   useEffect(load, [load]);
   // Slow poll: this is news, not a feed, and the page it sits on is a
-  // trading floor that should not be spending requests on a bell.
-  useEffect(() => {
-    const t = setInterval(load, 60_000);
-    return () => clearInterval(t);
-  }, [load]);
+  // trading floor that should not be spending requests on a bell. Paused
+  // while the tab is hidden (docs/ui-conventions.md, "A hidden tab asks for
+  // nothing").
+  useVisiblePoll(load, 60_000);
 
   useEffect(() => {
     if (!open) return;

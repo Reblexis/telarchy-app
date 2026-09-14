@@ -484,3 +484,47 @@ describe('vision', () => {
     expect(await screen.findByText('The vision would not open.')).toBeInTheDocument();
   });
 });
+
+/**
+ * A HIDDEN TAB ASKS FOR NOTHING (docs/ui-conventions.md, "A hidden tab asks
+ * for nothing"): `/api/data-room/actions` was among the routes idle
+ * background tabs kept asking.
+ */
+describe('THE LOG ASKS NOTHING WHILE THE TAB IS HIDDEN', () => {
+  let visibility: 'visible' | 'hidden' = 'visible';
+  const setVisibility = async (next: 'visible' | 'hidden') => {
+    visibility = next;
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+  };
+  beforeEach(() => {
+    visibility = 'visible';
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibility });
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => visibility === 'hidden' });
+  });
+  afterEach(() => {
+    visibility = 'visible';
+  });
+
+  test('a hidden tab does not top up, and tops up once at once when shown again', async () => {
+    vi.useFakeTimers();
+    vi.mocked(api.getActions).mockResolvedValue(page([row()]) as never);
+    mount('/data-room?kinds=trade');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(screen.getByText(/bought 10 higher/)).toBeInTheDocument();
+    const opened = vi.mocked(api.getActions).mock.calls.length;
+    await setVisibility('hidden');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30 * 60_000);
+    });
+    expect(vi.mocked(api.getActions).mock.calls.length).toBe(opened);
+    await setVisibility('visible');
+    expect(vi.mocked(api.getActions).mock.calls.length).toBe(opened + 1);
+    expect(api.getActions).toHaveBeenLastCalledWith(
+      expect.objectContaining({ kinds: 'trade', after: '2026-09-10T09:05:00.000Z' }),
+    );
+  });
+});

@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import type { FloorRef } from '../lib/agent-prompt';
 import { api } from '../lib/api';
+import { useVisiblePoll } from '../lib/visible-poll';
 import { AccountDialog } from './AccountDialog';
 import { CreditsBalanceLink, formatCreditCount as fmtCr } from './CreditsBalanceLink';
 import { ThemeToggle } from './ThemeToggle';
@@ -89,10 +90,7 @@ export function AccountMenu({
   useEffect(() => {
     if (open) load();
   }, [open]);
-  useEffect(() => {
-    const t = setInterval(load, 30_000);
-    return () => clearInterval(t);
-  }, []);
+  useVisiblePoll(load, 30_000);
 
   // #account opens settings directly, and #emails opens them ON the email
   // switches. Every notification email closes with "turn it off in account

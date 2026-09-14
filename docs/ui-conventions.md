@@ -469,7 +469,8 @@ Every page, including Agents and guides, retains the shared Discord, feedback an
 is one compact two-line link to `/earn`: current credits above, **Earn +N**
 below when N is available, otherwise **Get credits**. The amount available is
 never added to the balance. A failed availability read shows no invented
-amount. Both lines remain visible on phones. There is no separate Earn credits
+amount. Both lines remain visible on phones. The balance re-reads when the account
+menu opens and every thirty seconds while the tab is visible. There is no separate Earn credits
 button in the top bar. Liquidity stays a separate, explicitly labeled wallet.
 
 Theme switching lives in the account menu. The site follows the OS until a
@@ -2172,7 +2173,8 @@ lights: the bell takes the accent, sits in a soft amber field with a
 hairline ring, and carries a mono count, still no red dot. A fresh
 arrival pulses the ring once, and only on a rise, never on a poll that
 changed nothing, because a page that twitches at rest teaches people to
-ignore it. Its panel is a ruled list, one row per event, and unread rows
+ignore it. It re-reads the inbox once a minute while the tab is visible
+("A hidden tab asks for nothing"). Its panel is a ruled list, one row per event, and unread rows
 carry an amber hairline down the left edge as the only unread marker (a
 badge per row turns twelve rows into a field of noise). Opening a row
 reads THAT row: the count drops by one, its hairline goes, and the rest
@@ -3174,7 +3176,8 @@ site answered 503 for two hours
   be hammered by its own console: after a failed poll the next one waits
   longer, doubling up to five minutes, and a successful poll resets it. A
   poll is also skipped while the previous one is still in flight, so slow
-  responses cannot stack.
+  responses cannot stack, and a hidden tab does not poll at all ("A hidden
+  tab asks for nothing").
 - **The visitor log is indexed on time.** Every read of it is a time range,
   and it grows forever between purges.
 
@@ -3341,6 +3344,32 @@ components as `/guides`) inside the room's column and palette, with the
 room's tab row above them. **Vision** renders one markdown document the
 same way an announcement body is rendered, under the tab row, with its
 "updated" date in mono.
+
+## A hidden tab asks for nothing
+
+Every page that re-reads the server on a timer does so only while its tab is
+visible (`document.visibilityState` is not `hidden`). While the tab is
+visible, each poll keeps the cadence its own section states; this rule changes
+none of them. While it is hidden, no timed read is sent, however long it stays
+hidden. The moment the tab is visible again the poll reads once, at once, and
+its cadence restarts from that read, so a returning viewer never waits a full
+period for fresh numbers and never gets two reads back to back. A visibility
+event that leaves the tab as it was starts nothing, so however often a tab
+flips there is only ever one timer per poll. A poll whose page opens in a
+hidden tab makes its first timed read when the tab is first shown. Leaving the
+page stops its polls.
+
+Visible means what the browser reports and nothing more: a window covered by
+another window, or a headless browser left running, reports visible and keeps
+polling at full cadence.
+
+Fixed-cadence polls go through one helper, `src/lib/visible-poll.ts`
+(`startVisiblePoll`, and `useVisiblePoll` for a read that lives on a
+component). The loops that schedule themselves keep their own timers and obey
+the same rule: the floor's prices poll with its back-off ("The floor's live
+poll"), the cockpit's back-off ("The cockpit may never take the site down")
+and the stale-tab guard. `polls-pause-when-hidden.test.ts` fails the build on
+a `setInterval` anywhere else under `src/` that is not a local clock.
 
 ## The frontend never speaks HTTP directly
 

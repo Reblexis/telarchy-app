@@ -83,6 +83,7 @@ import { overlayFloorPrices } from '../lib/price-overlay';
 import { isPricedOption, optionLead, worldOf } from '../lib/proposal-options';
 import { useFloorPrices } from '../lib/useFloorPrices';
 import { clockSecondsOf, countdownTo, dayOf, instantOf, pollIntervalFor, tickIntervalFor } from '../lib/viewer-time';
+import { startVisiblePoll } from '../lib/visible-poll';
 
 /**
  * telarchy.com/<slug>: the market and one action, nothing else (owner
@@ -1349,20 +1350,7 @@ export function TradePage() {
   // minutes (docs/ui-conventions.md, "The board is at most five seconds
   // behind the trades"): a one-minute window is watched at the rate it moves.
   const pollMs = pollIntervalFor(ws?.proposals ?? [], now.getTime(), { fed: !!ws?.liveFeed });
-  useEffect(() => {
-    const tick = () => {
-      if (typeof document === 'undefined' || !document.hidden) pollRef.current();
-    };
-    const interval = setInterval(tick, pollMs);
-    const onVisible = () => {
-      if (!document.hidden) pollRef.current();
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, [pollMs]);
+  useEffect(() => startVisiblePoll(() => pollRef.current(), pollMs), [pollMs]);
 
   // The stale-tab guard is app-wide now (src/components/BuildWatch.tsx): it
   // was here alone, on a five-minute timer a phone freezes while the tab is

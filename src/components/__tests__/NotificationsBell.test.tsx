@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
  * The floor's bell. What matters: the unread count is visible without
@@ -124,5 +124,51 @@ describe('reading one row', () => {
     await waitFor(() => expect(markNotificationRead).toHaveBeenCalledWith('pm-1'));
     // Two unread became one, not zero: the other row is untouched.
     expect(await screen.findByText('1')).toBeTruthy();
+  });
+});
+
+/**
+ * A HIDDEN TAB ASKS FOR NOTHING (docs/ui-conventions.md, "A hidden tab asks
+ * for nothing"; "The bell"): the bell is in every signed-in top bar, so an
+ * idle background tab polling it once a minute is a cost with nobody reading.
+ */
+describe('THE BELL ASKS NOTHING WHILE THE TAB IS HIDDEN', () => {
+  let visibility: 'visible' | 'hidden' = 'visible';
+  const setVisibility = async (next: 'visible' | 'hidden') => {
+    visibility = next;
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+  };
+  beforeEach(() => {
+    visibility = 'visible';
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibility });
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => visibility === 'hidden' });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    visibility = 'visible';
+  });
+
+  test('a hidden tab does not re-read the inbox, and reads once at once when it is shown again', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    bell();
+    expect(await screen.findByText('2')).toBeTruthy();
+    const opened = getNotifications.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(getNotifications.mock.calls.length).toBe(opened + 1);
+    await setVisibility('hidden');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30 * 60_000);
+    });
+    expect(getNotifications.mock.calls.length).toBe(opened + 1);
+    await setVisibility('visible');
+    expect(getNotifications.mock.calls.length).toBe(opened + 2);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(getNotifications.mock.calls.length).toBe(opened + 3);
   });
 });
