@@ -727,6 +727,11 @@ async function buildFloorPayload(ws: PublicWs) {
   // (PUT /api/metrics/:id needs the id; owner ask 2026-08-18).
   let heroMetricIdOut: string | null | undefined;
   let tradesThisWeek: number | undefined;
+  // Who is actually trading here: distinct participants with a trade in the
+  // trailing seven days. The home card's people fact reads this, never
+  // participantCount, which counts group members whether or not they ever
+  // traded (docs/ui-conventions.md, "The marketplace").
+  let tradersThisWeek: number | undefined;
   // Distinct bots with a trade here in the trailing seven days: the line
   // under the standings footers (docs/ui-conventions.md, "A bot says it is
   // one"). Zero draws no line.
@@ -888,6 +893,11 @@ async function buildFloorPayload(ws: PublicWs) {
       // and counting its two rows would inflate the week by a factor.
       .where(and(eq(trades.workspaceId, workspaceId), gte(trades.createdAt, weekAgo), ne(trades.kind, 'redeem')));
     tradesThisWeek = tradeCount?.n ?? 0;
+    const [traderCount] = await db
+      .select({ n: sql<number>`count(distinct ${trades.agentId})::int` })
+      .from(trades)
+      .where(and(eq(trades.workspaceId, workspaceId), gte(trades.createdAt, weekAgo), ne(trades.kind, 'redeem')));
+    tradersThisWeek = traderCount?.n ?? 0;
     const [botCount] = await db
       .select({ n: sql<number>`count(distinct ${trades.agentId})::int` })
       .from(trades)
@@ -1374,6 +1384,7 @@ async function buildFloorPayload(ws: PublicWs) {
           heroMetricDescription,
           heroMetricId: heroMetricIdOut,
           tradesThisWeek,
+          tradersThisWeek,
           marketHistory,
           marketHistoryMarketId,
           latestAnnouncement,

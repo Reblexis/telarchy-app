@@ -697,6 +697,8 @@ export interface PublicWorkspace {
   metricCount: number;
   openMarketCount: number;
   participantCount: number;
+  /** Distinct participants with a trade (not a redemption) here in the last seven days: the home card's people fact (docs/ui-conventions.md, "The marketplace"). */
+  tradersThisWeek?: number;
   /** Distinct bots with a trade here in the last seven days (docs/ui-conventions.md, "A bot says it is one"). */
   botTraders?: number;
   proposalStats: ProposalStats;

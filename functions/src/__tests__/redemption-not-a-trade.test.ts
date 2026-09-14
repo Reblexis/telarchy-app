@@ -295,3 +295,73 @@ describe('a redemption is not a trade', () => {
     expect(rows.map(r => r.id).sort()).toEqual(['legacy-redeem-higher', 'legacy-redeem-lower']);
   });
 });
+
+/**
+ * THE FLOOR'S PEOPLE COUNT IS WHO TRADED, NOT WHO IS A MEMBER.
+ *
+ * The home card showed Snake with 26 people when 16 had ever traded it: the
+ * count was the members of its permission groups, which holds the operator,
+ * probe accounts and house bots that never placed a trade, and misses anyone
+ * who trades a public floor without joining (owner report 2026-09-14). The
+ * card now reads tradersThisWeek (docs/ui-conventions.md, "The marketplace").
+ */
+describe("the floor's people count is who traded this week, not who is a member", () => {
+  const OTHER = 'agent-other-trader';
+
+  async function ledgerRow(agentId: string, kind: 'trade' | 'redeem', daysAgo: number) {
+    await db.insert(trades).values({
+      id: `row-${agentId}-${kind}-${daysAgo}`,
+      workspaceId: WS,
+      agentId,
+      marketId: MARKET,
+      direction: 'higher',
+      shares: 1,
+      cost: 1,
+      kind,
+      createdAt: new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000),
+    });
+  }
+
+  beforeEach(async () => {
+    await db.insert(agents).values({ id: OTHER, apiKeyHash: 'h-other-trader', balance: 0 });
+  });
+
+  async function floor() {
+    const res = await request(app).get(`/api/marketplace/${WS}`);
+    expect(res.status).toBe(200);
+    return res.body;
+  }
+
+  test('a member who never traded is not counted', async () => {
+    const body = await floor();
+    // The owner is a member of the floor's groups and has placed no trade.
+    expect(body.participantCount).toBeGreaterThan(0);
+    expect(body.tradersThisWeek).toBe(0);
+  });
+
+  test('a participant who trades without being a member is counted', async () => {
+    await ledgerRow(OTHER, 'trade', 0);
+    expect((await floor()).tradersThisWeek).toBe(1);
+  });
+
+  test('a trader counts once however many trades they place, and a redemption adds no one', async () => {
+    await buyThenReverse();
+    expect((await floor()).tradersThisWeek).toBe(1);
+  });
+
+  test('two traders count two', async () => {
+    await buyThenReverse();
+    await ledgerRow(OTHER, 'trade', 1);
+    expect((await floor()).tradersThisWeek).toBe(2);
+  });
+
+  test('a participant whose only rows are redemptions is not a trader', async () => {
+    await ledgerRow(OTHER, 'redeem', 0);
+    expect((await floor()).tradersThisWeek).toBe(0);
+  });
+
+  test('a trade older than seven days does not count', async () => {
+    await ledgerRow(OTHER, 'trade', 8);
+    expect((await floor()).tradersThisWeek).toBe(0);
+  });
+});
