@@ -13884,8 +13884,9 @@ would push the open one out behind the decided ones posted after it.
 Every list that stands for a floor's proposals therefore reads the
 pending ones and the decided ones as two bounded reads: the public
 ballot carries every pending proposal (up to <code>PENDING_LISTED_MAX</code>, 200)
-and the newest 40 decided; the workspace brief every pending proposal
-(up to 200) and the newest 25 others. <code>GET /api/proposals</code> without
+and the newest 40 decided; the workspace brief, which has to fit one
+tool result, 25 proposals with the pending ones taken first (it says
+<code>olderContractsOmitted</code> when more exist). <code>GET /api/proposals</code> without
 <code>status</code> lists pending proposals ahead of the rest, each part newest
 first: <code>before=&lt;number&gt;</code> continues from that proposal's place in that
 order, and <code>before=&lt;instant&gt;</code> stays a plain time filter.</li>

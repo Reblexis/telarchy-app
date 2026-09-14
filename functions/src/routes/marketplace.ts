@@ -1671,7 +1671,7 @@ marketplaceRouter.get(
       return;
     }
 
-    // The brief carries the newest 25 proposals, so on a busy floor this read
+    // The brief carries 25 proposals, pending first, so on a busy floor this read
     // is showing a window. A window a reader does not know about is a silent
     // cut, which is the failure this endpoint exists to end, so it is stated.
     // Counted up to PROPOSAL_COUNT_CAP: past it the only thing a reader needs
