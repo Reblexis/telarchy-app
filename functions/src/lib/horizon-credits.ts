@@ -69,3 +69,16 @@ export function proposalCreditsFor(
   const row = horizonCreditsFor(metric.timePreference as TimePreference | null, targetDate, base);
   return row && typeof row.proposal === 'number' ? row.proposal : 0;
 }
+
+/** The title the owner wrote for the date `targetDate` falls on, or null
+ *  (docs/guides/time-preference.md, "A title for a date"). */
+export function horizonTitleFor(
+  tp: TimePreference | null | undefined,
+  targetDate: string,
+  base = new Date(),
+): string | null {
+  const entry = horizonEntryFor(tp, targetDate, base);
+  if (entry === null) return null;
+  const title = tp?.horizonTitles?.[entry];
+  return typeof title === 'string' && title.trim() ? title.trim() : null;
+}

@@ -3,7 +3,7 @@ import { and, asc, eq, inArray } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
 import { agents, markets, metricDefinitionRevisions, metricLogs, metrics, trades, updates } from '../db/schema';
-import { isValidCalendarDate, periodEndInstant } from '../lib/date-utils';
+import { isValidCalendarDate, OWNER_SETTLED, periodEndInstant } from '../lib/date-utils';
 import { assertMetricMarketsUntraded } from '../lib/market-freeze';
 import {
   detectCircularDependency,
@@ -916,6 +916,9 @@ const MAX_HORIZON_OFFSET: Record<string, number> = {
  * pruned silently so re-saving an old config never fails.
  * Exported for unit tests.
  */
+/** A date's title is a few words that follow the metric in a question. */
+const HORIZON_TITLE_MAX = 60;
+
 export function parseTimePreference(raw: unknown): TimePreference | null | undefined | Error {
   if (raw === undefined) return undefined;
   if (raw === null) return null;
@@ -955,7 +958,10 @@ export function parseTimePreference(raw: unknown): TimePreference | null | undef
       // RELATIVE_HORIZON_RE matches digits only, so "-1d" is not relative at
       // all and falls to the format error below.
       const relative = RELATIVE_HORIZON_RE.exec(entry);
-      if (!relative) {
+      if (entry === OWNER_SETTLED) {
+        // A date with no clock (docs/guides/time-preference.md, "A date that
+        // settles when you settle it"): never pruned, since it never passes.
+      } else if (!relative) {
         if (!isValidCalendarDate(entry)) {
           return new Error(
             `invalid custom horizon "${entry}": use +Nmin / +Nh / +Nd / +Nw / +Nm / +Ny or YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD, YYYY-MM-DDTHH, YYYY-MM-DDTHH:MM (UTC)`,
@@ -1017,10 +1023,35 @@ export function parseTimePreference(raw: unknown): TimePreference | null | undef
     }
     if (Object.keys(out).length > 0) horizonCredits = out;
   }
+  // The words the floor reads for each date, keyed the same way
+  // (docs/guides/time-preference.md, "A title for a date"). Blank is no
+  // title, and a key naming no entry is dropped like a credit key.
+  let horizonTitles: Record<string, string> | undefined;
+  if (obj.horizonTitles !== undefined && obj.horizonTitles !== null) {
+    if (typeof obj.horizonTitles !== 'object' || Array.isArray(obj.horizonTitles)) {
+      return new Error('timePreference.horizonTitles must be an object keyed by customHorizons entries');
+    }
+    const kept = new Set(customHorizons ?? []);
+    const out: Record<string, string> = {};
+    for (const [rawKey, rawVal] of Object.entries(obj.horizonTitles as Record<string, unknown>)) {
+      const key = rawKey.trim();
+      if (typeof rawVal !== 'string') {
+        return new Error(`timePreference.horizonTitles["${key}"] must be a string`);
+      }
+      const title = rawVal.trim();
+      if (title.length > HORIZON_TITLE_MAX) {
+        return new Error(`timePreference.horizonTitles["${key}"] is at most ${HORIZON_TITLE_MAX} characters`);
+      }
+      if (!kept.has(key) || title === '') continue;
+      out[key] = title;
+    }
+    if (Object.keys(out).length > 0) horizonTitles = out;
+  }
   const tp: TimePreference = { enabled: obj.enabled, halfLife: (obj.halfLife as number) ?? 1 };
   if (density !== undefined) tp.density = density;
   if (customHorizons !== undefined) tp.customHorizons = customHorizons;
   if (horizonCredits !== undefined) tp.horizonCredits = horizonCredits;
+  if (horizonTitles !== undefined) tp.horizonTitles = horizonTitles;
   return tp;
 }
 

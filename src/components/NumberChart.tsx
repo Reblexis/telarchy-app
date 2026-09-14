@@ -137,7 +137,13 @@ export function windowFor(
   points: NumberPoint[],
   now: Date,
 ): [number, number] {
-  const end = Math.max(new Date(selectedResolvesOn).getTime(), now.getTime());
+  // A date with no clock stands at a far edge that names no moment
+  // (docs/ui-conventions.md, "The number chart"): the window ends at now.
+  const settle = new Date(selectedResolvesOn).getTime();
+  const end =
+    Number.isFinite(settle) && forecastDayOf(selectedResolvesOn) !== null
+      ? Math.max(settle, now.getTime())
+      : now.getTime();
   const first = points.length > 0 ? new Date(points[0].at).getTime() : now.getTime() - DAY;
   const start = span === null ? Math.min(first, now.getTime() - DAY) : now.getTime() - span;
   const pad = (end - start) * 0.03;
@@ -699,7 +705,7 @@ export function NumberChart({
           </span>
           <span>
             <i className="nchart-legend-dot nchart-legend-dot--now" />
-            market's call for {forecastDayOf(selectedResolvesOn)}
+            market's call{forecastDayOf(selectedResolvesOn) ? ` for ${forecastDayOf(selectedResolvesOn)}` : ''}
           </span>
           {markers.some(m => !m.selected) && (
             <span>

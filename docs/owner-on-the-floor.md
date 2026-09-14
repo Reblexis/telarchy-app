@@ -94,6 +94,13 @@ row says what it IS rather than when it next lands, because a repeat and
 a one-off look identical on the floor. "Manage dates", the last entry of
 the date chip's menu, opens the sheet of the metric on screen.
 
+**Every row carries a title**, a line under what the row is, edited in
+place ("title, optional", the clock's name as its placeholder). The title
+is what the floor reads for that date on its tab and in its question
+(`docs/ui-conventions.md`, "The question line"), stored as
+`timePreference.horizonTitles[entry]`, and the Save under the rows carries
+it with the numbers ("Save · the title of every week").
+
 **Two numbers on every row, in credits: "Book opens with" and "Proposal
 opens with".** The book is the metric's own market on that date; a
 proposal gets a branch of that book, one pair per row, and the pair is
@@ -126,6 +133,17 @@ markets settle on the hour. Under it, the same two numbers the rows
 carry, the book prefilled from the metric's standing number and the
 proposal at 0, and the heading says whose credits that is.
 
+**Above how often sits Settles**: "On a date", the default, or "When I
+settle it". On a date asks how often, as above, and offers an optional
+title. When I settle it takes how often and the day away and asks for the
+title instead, which it needs, because the title is the only thing that says
+when ("this attempt"): the entry stored is `until-settled`
+(`docs/market-integrity.md`, "A date with no clock"), its button reads
+"Open the book · 3,000 cr" over "It settles when you settle it, and the next
+one opens after", and a metric that already has one says so in place of the
+button. Its row reads "Until you settle it" over "settles when you settle
+it".
+
 **How long after a period the number is final** is a sentence at the foot
 of the same dialog with the number in it ("Final 3 days after each period"),
 because it belongs to the metric rather than to any one date and is changed
@@ -140,7 +158,8 @@ The two are genuinely different (`docs/market-integrity.md`, "Stopping a date
 is not destroying a market"): if people have traded it, the open market keeps
 running and settles on its own date untouched, and only the next one never
 opens; if nobody has, the market goes and its pool comes back to the wallet
-that funded it.
+that funded it. A traded `until-settled` book keeps running until the owner
+settles the metric, and the stop says that instead of "on its own date".
 
 **Removing the metric** is a link in the same footer, because it is the
 same kind of act as stopping every date. Its confirmation lists what is in
