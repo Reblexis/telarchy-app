@@ -231,13 +231,14 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h6">I2: what an owner cannot destroy</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h7">A market resolves on its reading, not on a clock</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h8">The answer can arrive before the period ends</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h9">Stopping a date is not destroying a market</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h10">There is no reset endpoint</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h11">I3: the credit ledger</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h12">What the tests enforce</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h13">I5: where a participant&#x27;s money is allowed to come from</a></li>
-<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h14">What the tests enforce</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h15">Reconstruction</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h9">A date with no clock</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h10">Stopping a date is not destroying a market</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h11">There is no reset endpoint</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h12">I3: the credit ledger</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h13">What the tests enforce</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h14">I5: where a participant&#x27;s money is allowed to come from</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-market-integrity-md--h15">What the tests enforce</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-market-integrity-md--h16">Reconstruction</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-metrics-md">docs/metrics.md</a></summary>
@@ -3336,7 +3337,20 @@ the book's summary (<code>GET /api/predictions/markets/:id</code>) carries
 (<code>manage</code>), never a trader's, and it cannot file the future: <code>asOf</code> is at
 most a minute ahead of the clock. A book that opens after the call is a
 new question and settles on its own reading.</p>
-<h3 id="docs-market-integrity-md--h9">Stopping a date is not destroying a market</h3>
+<h3 id="docs-market-integrity-md--h9">A date with no clock</h3>
+<p>Some questions have no period at all: &quot;what length will this attempt reach&quot;
+ends when the snake dies, not at a time anyone can write down. The owner
+prices one on the metric's <code>until-settled</code> date
+(<code>docs/guides/time-preference.md</code>, &quot;A date that settles when you settle
+it&quot;). Its book has no settle instant, so nothing in the resolver ever makes
+it due, voids it N/A, or gives up on it; the only way it settles is the
+owner settling the metric, above, and settling it settles every open book on
+that metric together. Nothing forces that call. A book the owner never
+settles stays open, and every holder can sell out of it at any moment, so
+what a trader risks is the price, never access to their credits. The floor
+says so where it would name the day: &quot;settled by the owner&quot;, with no date
+and no countdown, so nobody reads a clock into it.</p>
+<h3 id="docs-market-integrity-md--h10">Stopping a date is not destroying a market</h3>
 <p>An owner drops an entry from <code>timePreference.customHorizons</code> when they no
 longer want that market to come back. What happens to the one already open
 depends on whether anybody is in it (owner decision 2026-08-31):</p>
@@ -3353,7 +3367,7 @@ book that will never be read.</li>
 <p>Before 2026-08-31 both cases were deactivated instead: the market vanished
 from the floor while still settling in the background, which is the worst of
 both, and the pool stayed in it either way.</p>
-<h3 id="docs-market-integrity-md--h10">There is no reset endpoint</h3>
+<h3 id="docs-market-integrity-md--h11">There is no reset endpoint</h3>
 <p><code>POST /api/system/reset-economy</code> does not exist and is not reintroduced, guarded
 or otherwise: it zeroed every balance in a workspace, deleted every trade under
 <code>allowLedgerAdmin</code>, and reset all market AMM state behind nothing but the
@@ -3361,7 +3375,7 @@ ordinary <code>manage</code> capability, and the append-only trigger could not s
 because it opted out of the trigger on purpose. A guard has to be remembered,
 and the endpoint has no legitimate use on a live product. Starting a workspace
 over is <code>DELETE /api/workspaces/:id</code> followed by creating a new one.</p>
-<h2 id="docs-market-integrity-md--h11">I3: the credit ledger</h2>
+<h2 id="docs-market-integrity-md--h12">I3: the credit ledger</h2>
 <p><code>trades</code> and <code>liquidity_events</code> are append-only under a trigger (migration
 0055), but they are two of the ways money moves; payouts at settlement, void
 refunds, proposal stakes, proposal rewards, spam penalties, proposal payments,
@@ -3400,7 +3414,7 @@ signup grants, transfers, deposits, withdrawals, admin adjustments.</li>
 </ul>
 <p><code>agent_balance_snapshots</code> is a cache rather than the only record; if it and
 the ledger ever disagree, the ledger is right.</p>
-<h3 id="docs-market-integrity-md--h12">What the tests enforce</h3>
+<h3 id="docs-market-integrity-md--h13">What the tests enforce</h3>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -3443,7 +3457,7 @@ the ledger ever disagree, the ledger is right.</p>
 unaggregated OOM-kills the process, and <code>credit_ledger</code> grows faster than
 <code>trades</code> does. The reconciliation query sums database-side; every ledger reader
 must too.</p>
-<h2 id="docs-market-integrity-md--h13">I5: where a participant's money is allowed to come from</h2>
+<h2 id="docs-market-integrity-md--h14">I5: where a participant's money is allowed to come from</h2>
 <p>Prize money is the reason this invariant exists. Credits become settled
 profit, settled profit becomes a season rank, and a season rank becomes real
 money, so any route that creates credits from nothing is a faucet pointed at
@@ -3492,7 +3506,7 @@ faucet, and it has a name on every row.</li>
 <p>Trading is not an exception to any of this: what a market pays out was staked
 by somebody, so a winning agent is holding money that was already in the
 system.</p>
-<h3 id="docs-market-integrity-md--h14">What the tests enforce</h3>
+<h3 id="docs-market-integrity-md--h15">What the tests enforce</h3>
 <div class="tablewrap"><table>
 <thead>
 <tr>
@@ -3511,7 +3525,7 @@ system.</p>
 </tr>
 </tbody>
 </table></div>
-<h2 id="docs-market-integrity-md--h15">Reconstruction</h2>
+<h2 id="docs-market-integrity-md--h16">Reconstruction</h2>
 <p>With all three invariants holding, a workspace's money state is derivable from
 five append-only tables: <code>trades</code> (who bought what at what price),
 <code>liquidity_events</code> (who funded which pool), <code>credit_ledger</code> (every balance
@@ -4013,6 +4027,12 @@ that row's open market holds (next date, pool, traders), and a Stop. Each
 row says what it IS rather than when it next lands, because a repeat and
 a one-off look identical on the floor. &quot;Manage dates&quot;, the last entry of
 the date chip's menu, opens the sheet of the metric on screen.</p>
+<p><strong>Every row carries a title</strong>, a line under what the row is, edited in
+place (&quot;title, optional&quot;, the clock's name as its placeholder). The title
+is what the floor reads for that date on its tab and in its question
+(<code>docs/ui-conventions.md</code>, &quot;The question line&quot;), stored as
+<code>timePreference.horizonTitles[entry]</code>, and the Save under the rows carries
+it with the numbers (&quot;Save · the title of every week&quot;).</p>
 <p><strong>Two numbers on every row, in credits: &quot;Book opens with&quot; and &quot;Proposal
 opens with&quot;.</strong> The book is the metric's own market on that date; a
 proposal gets a branch of that book, one pair per row, and the pair is
@@ -4043,6 +4063,16 @@ entry stores. Once asks for a day, with an optional UTC hour, since
 markets settle on the hour. Under it, the same two numbers the rows
 carry, the book prefilled from the metric's standing number and the
 proposal at 0, and the heading says whose credits that is.</p>
+<p><strong>Above how often sits Settles</strong>: &quot;On a date&quot;, the default, or &quot;When I
+settle it&quot;. On a date asks how often, as above, and offers an optional
+title. When I settle it takes how often and the day away and asks for the
+title instead, which it needs, because the title is the only thing that says
+when (&quot;this attempt&quot;): the entry stored is <code>until-settled</code>
+(<code>docs/market-integrity.md</code>, &quot;A date with no clock&quot;), its button reads
+&quot;Open the book · 3,000 cr&quot; over &quot;It settles when you settle it, and the next
+one opens after&quot;, and a metric that already has one says so in place of the
+button. Its row reads &quot;Until you settle it&quot; over &quot;settles when you settle
+it&quot;.</p>
 <p><strong>How long after a period the number is final</strong> is a sentence at the foot
 of the same dialog with the number in it (&quot;Final 3 days after each period&quot;),
 because it belongs to the metric rather than to any one date and is changed
@@ -4056,7 +4086,8 @@ The two are genuinely different (<code>docs/market-integrity.md</code>, &quot;St
 is not destroying a market&quot;): if people have traded it, the open market keeps
 running and settles on its own date untouched, and only the next one never
 opens; if nobody has, the market goes and its pool comes back to the wallet
-that funded it.</p>
+that funded it. A traded <code>until-settled</code> book keeps running until the owner
+settles the metric, and the stop says that instead of &quot;on its own date&quot;.</p>
 <p><strong>Removing the metric</strong> is a link in the same footer, because it is the
 same kind of act as stopping every date. Its confirmation lists what is in
 the way first: a traded market blocks it and the button says so instead of
@@ -5499,7 +5530,10 @@ strips instead (see &quot;The owner's two entries&quot;).</p>
 <li>
 <p><strong>The date strip</strong> (<code>.pubws-strip--date</code>) lists the selected metric's open
 dates soonest first, each tab the clock's name (&quot;THIS WEEK&quot;, &quot;THIS MONTH&quot;;
-<code>dateSegmentOf</code>) over that date's call. The settle day it used to carry
+<code>dateSegmentOf</code>) over that date's call. A date the owner titled
+(<code>timePreference.horizonTitles</code>) shows its title in the clock's place
+(&quot;THIS ATTEMPT&quot;), and an <code>until-settled</code> date, which has no clock, sits
+last. The settle day it used to carry
 moves to the stat row's caption, which already says &quot;FOR 30 SEP · SETTLES
 IN 21D&quot; and is the only place it needs to be said. One open date draws no
 strip, for a visitor and for the owner alike (2026-09-11; the manager's
@@ -5562,6 +5596,14 @@ any other day; &quot;at 12:38&quot; for a minute cell; &quot;in the hour to 13:0
 an hour cell. A book that settles inside a minute is never titled with a
 day. The date strip's tab and the board's &quot;impact by&quot; use the same
 words (<code>dateQuestionOf</code>, <code>horizonLabel</code>).</p>
+</li>
+<li>
+<p><strong>A titled date reads as its title, verbatim, with no lead word</strong>, on
+every floor, a game's included: the owner wrote the words that follow the
+metric (&quot;this attempt&quot;, &quot;at the end of season 1&quot;), so the sentence is
+&quot;What will be Snake's reached length this attempt?&quot;. An <code>until-settled</code>
+date with no title reads &quot;until settled&quot;. The metric's own <code>marketTitle</code>
+still replaces the whole sentence when there is one (below).</p>
 </li>
 <li>
 <p><strong>A game's floor asks in the game's unit, not at a clock time</strong> (Viktor,
@@ -6124,7 +6166,10 @@ with no feed) the caption is the one every floor prints.</li>
 call&quot;, then &quot;for 30 Sep · settles in 27d&quot; (<code>.pubws-settle-in</code>: the day
 being forecast, which is the day before the settle instant, exactly as
 the date strip names it, and the countdown ticking by the minute, the
-exact instant on hover; &quot;settling&quot; once it is). A selected proposal's
+exact instant on hover; &quot;settling&quot; once it is). A book on an
+<code>until-settled</code> date has no day and no clock, so its caption reads
+&quot;market's call · settled by the owner&quot; and its hover says &quot;settles when
+the owner settles it&quot;. A selected proposal's
 impact chip sits beside the value as the bare arrow and delta
 (&quot;▲ +7.8&quot;), because the impact is the proposal's one number.</li>
 <li><strong>The call carries its own move</strong> (2026-09-09), on the plain market view
@@ -6215,7 +6260,9 @@ not offered.</li>
 <li><strong>The number chart</strong> (<code>NumberChart</code>) is the metric's own trajectory: its
 readings as an ink step line up to a &quot;now&quot; rule, and, on the future side,
 every open market of this metric as a marker at its settle instant
-carrying that market's current call. Readings are joined by straight
+carrying that market's current call. A book on an <code>until-settled</code> date
+has no instant, so it draws no marker, the window ends at now rather
+than at its far edge, and the legend's call names no day. Readings are joined by straight
 segments with a dot at each reading and a dashed hold from the last one
 to now (the value in force); a step line read as a staircase. <strong>The
 vertical axis never magnifies a wobble into a cliff</strong>: it spans at least a
@@ -12940,6 +12987,30 @@ other period: on the last reading dated inside it, or N/A after the give-up
 grace when none arrives. A reading stamped one second past the minute belongs to
 the next cell. Dates whose period has already passed are pruned on save
 rather than rejected, so re-saving an old config never fails.</p>
+<p><strong>A date that settles when you settle it</strong> is the entry <code>until-settled</code>. It
+has no clock: its book never falls due on a reading, never waits out a
+deadline, never goes N/A for want of a number, and trades until you settle
+the metric with <code>POST /api/metrics/:id/settle { value, reason }</code>. Use it for
+a question whose answer arrives at a moment only you can name, such as the
+length a game's attempt reaches or the price a launch ships at. Its book
+carries <code>targetDate: &quot;until-settled&quot;</code> and a <code>resolvesOn</code> of
+<code>9999-12-31T00:00:00Z</code>, the far edge no clock reaches, so a client tells it
+apart by the target date, never by arithmetic on the instant; the metric's
+<code>settlementLagMinutes</code> does not apply to it. Settling the metric settles every
+open book on it, dated ones included, so give a date like this a metric of
+its own or one whose dated books share the same answer. Once its book has
+settled, the next refresh opens a fresh one, so the question comes round
+again the way a rolling entry does, and stopping the entry is how it ends. A
+metric has at most one: a second copy is a duplicate and is dropped.</p>
+<p><strong>A title for a date</strong> rides on the same object, keyed by the entry:
+<code>horizonTitles: { &quot;until-settled&quot;: &quot;this attempt&quot;, &quot;2026-12&quot;: &quot;at the end of season 1&quot; }</code>.
+A title is the words the floor reads where it would otherwise name the
+clock: on the date's tab and in the question after the metric (&quot;What will be
+Snake's reached length this attempt?&quot;), so write it to follow the metric's
+name in that sentence. At most 60 characters; a blank title is no title and
+the floor names the clock again (&quot;this week&quot;, &quot;on 30 Sep&quot;), or &quot;until
+settled&quot; for an <code>until-settled</code> date. Keys that name no entry in
+<code>customHorizons</code> are dropped on save.</p>
 <p><strong>What each date opens with</strong> rides on the same object, keyed by the entry:
 <code>horizonCredits: { &quot;+0w&quot;: { &quot;book&quot;: 500, &quot;proposal&quot;: 250 } }</code>. <code>book</code> is what
 the metric's own market on that date opens with, in credits, paid by the

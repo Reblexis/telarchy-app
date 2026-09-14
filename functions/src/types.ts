@@ -13,6 +13,11 @@ export interface TimePreference {
    *  and `proposal` for a proposal's branch on that date (absent is 0: the
    *  proposer funds their own; docs/guides/proposals.md). */
   horizonCredits?: Record<string, HorizonCredits>;
+  /** The words the floor reads for each entry, on its tab and in its
+   *  question ("this attempt"), keyed like horizonCredits; at most 60
+   *  characters, blank is no title (docs/guides/time-preference.md, "A title
+   *  for a date"). */
+  horizonTitles?: Record<string, string>;
 }
 
 export interface HorizonCredits {

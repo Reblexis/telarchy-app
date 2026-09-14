@@ -18,6 +18,20 @@ const ABS_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const ABS_HOUR_RE = /^\d{4}-\d{2}-\d{2}T\d{2}$/;
 const ABS_MINUTE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
+/**
+ * The entry, and the target date of its book, of a date that settles when the
+ * owner settles it (docs/guides/time-preference.md, "A date that settles when
+ * you settle it"; docs/market-integrity.md, "A date with no clock"). It has no
+ * period: its end is the far edge no clock reaches, kept a well-formed ISO
+ * instant so every caller that does arithmetic on a period end stays total.
+ */
+export const OWNER_SETTLED = 'until-settled';
+const OWNER_SETTLED_END_MS = Date.parse('9999-12-31T00:00:00.000Z');
+
+export function isOwnerSettled(targetDate: string): boolean {
+  return targetDate === OWNER_SETTLED;
+}
+
 export function isRelativeDate(dateStr: string): boolean {
   return RELATIVE_DATE_RE.test(dateStr);
 }
@@ -181,6 +195,7 @@ export function endOfPeriod(targetDate: string): string {
  * `periodEndInstant(targetDate) <= now`.
  */
 export function periodEndInstant(targetDate: string): Date {
+  if (targetDate === OWNER_SETTLED) return new Date(OWNER_SETTLED_END_MS);
   if (ABS_MINUTE_RE.test(targetDate)) {
     const d = new Date(`${targetDate}:00.000Z`);
     d.setUTCMinutes(d.getUTCMinutes() + 1);
@@ -336,6 +351,8 @@ export function settlesOn(market: { targetDate: string; settlesAt?: Date | strin
  *  metric's lag. What `markets.settles_at` is stamped with. */
 export function settlementInstantFor(targetDate: string, lagMinutes: number): Date {
   const end = periodEndInstant(targetDate);
+  // A date with no clock has no period for a lag to follow.
+  if (targetDate === OWNER_SETTLED) return end;
   if (!Number.isFinite(lagMinutes) || lagMinutes <= 0) return end;
   return new Date(end.getTime() + lagMinutes * 60_000);
 }

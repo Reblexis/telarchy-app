@@ -188,20 +188,24 @@ export function MetricsDialog({
 interface RowDraft {
   book: string;
   proposal: string;
+  title: string;
 }
 
 /** One change a Save would write. */
 interface RowChange {
   entry: HorizonEntry;
-  kind: 'book' | 'proposal';
+  kind: 'book' | 'proposal' | 'title';
   /** null: the book goes back to the standing number. */
   value: number | null;
+  /** The new title, for a title change; '' clears it. */
+  title?: string;
 }
 
 /** "Every month" / "from this month"; "31 December 2026" / "once, 14:00 UTC".
  *  Each row says what it IS rather than when it next lands, because a
  *  repeat and a one-off look identical on the floor. */
 function rowWords(e: HorizonEntry): { label: string; sub: string } {
+  if (e.every === 'settled') return { label: e.label, sub: 'settles when you settle it' };
   if (e.every === 'once') {
     const hour = e.entry.match(/T(\d{2})$/);
     const label = e.label.replace(/, once$/, '').replace(/, \d{2}:00 UTC$/, '');
@@ -215,10 +219,21 @@ function rowWords(e: HorizonEntry): { label: string; sub: string } {
 
 /** "the daily book", "the 31 December 2026 book". */
 const bookPhrase = (e: HorizonEntry) =>
-  e.every === 'once' ? `the ${rowWords(e).label} book` : `the ${EVERY_ADJECTIVE[e.every]} book`;
+  e.every === 'settled'
+    ? 'the book you settle'
+    : e.every === 'once'
+      ? `the ${rowWords(e).label} book`
+      : `the ${EVERY_ADJECTIVE[e.every]} book`;
 /** "each weekly proposal", "each proposal on 31 December 2026". */
 const proposalPhrase = (e: HorizonEntry) =>
-  e.every === 'once' ? `each proposal on ${rowWords(e).label}` : `each ${EVERY_ADJECTIVE[e.every]} proposal`;
+  e.every === 'settled'
+    ? 'each proposal on the book you settle'
+    : e.every === 'once'
+      ? `each proposal on ${rowWords(e).label}`
+      : `each ${EVERY_ADJECTIVE[e.every]} proposal`;
+/** "every week", "until you settle it", "31 December 2026". */
+const titlePhrase = (e: HorizonEntry) =>
+  e.every === 'once' ? rowWords(e).label : `${e.label.charAt(0).toLowerCase()}${e.label.slice(1)}`;
 
 /** One metric: its words, its range with the rule under it, its dates as
  *  rows with their two numbers, how long after a period the number is
@@ -284,6 +299,7 @@ function MetricSheet({
           next[entry] = {
             book: fmtCr(typeof hc?.book === 'number' ? hc.book : fallback),
             proposal: fmtCr(hc?.proposal ?? 0),
+            title: tp?.horizonTitles?.[entry] ?? '',
           };
         }
         setDrafts(next);
@@ -313,6 +329,8 @@ function MetricSheet({
   for (const e of entries) {
     const d = drafts[e.entry];
     if (!d) continue;
+    const storedTitle = stored?.horizonTitles?.[e.entry] ?? '';
+    if (d.title.trim() !== storedTitle) changes.push({ entry: e, kind: 'title', value: null, title: d.title.trim() });
     const sb = credits[e.entry]?.book;
     const storedBook = typeof sb === 'number' ? sb : null;
     let draftBook: number | null;
@@ -338,6 +356,7 @@ function MetricSheet({
   const saveLabel = (() => {
     if (changes.length !== 1) return `Save · ${changes.length} changes`;
     const c = changes[0];
+    if (c.kind === 'title') return `Save · the title of ${titlePhrase(c.entry)}`;
     if (c.kind === 'proposal') return `Save · ${fmtCr(c.value ?? 0)} cr behind ${proposalPhrase(c.entry)}`;
     if (c.value === null) return `Save · ${bookPhrase(c.entry)} back to ${fmtCr(fallback)} cr`;
     return `Save · ${fmtCr(c.value)} cr behind ${bookPhrase(c.entry)}`;
@@ -347,12 +366,13 @@ function MetricSheet({
   const writeDates = async (
     list: string[],
     hc: Record<string, HorizonCredits>,
+    titles: Record<string, string>,
     after: (tp: TimePreference) => void,
   ) => {
     setBusy(true);
     setErr('');
     try {
-      const tp = wholeTimePreference(stored, list, hc);
+      const tp = wholeTimePreference(stored, list, hc, titles);
       await api.patchMetric(workspaceId, row.id, { timePreference: tp });
       after(tp);
     } catch (e) {
@@ -369,13 +389,20 @@ function MetricSheet({
     }
     if (changes.length === 0 || stored === undefined) return;
     const hc: Record<string, HorizonCredits> = { ...credits };
+    const titles: Record<string, string> = { ...(stored?.horizonTitles ?? {}) };
     for (const c of changes) {
+      if (c.kind === 'title') {
+        if (c.title) titles[c.entry.entry] = c.title;
+        else delete titles[c.entry.entry];
+        continue;
+      }
       const was = hc[c.entry.entry] ?? {};
       hc[c.entry.entry] = c.kind === 'book' ? { ...was, book: c.value } : { ...was, proposal: c.value ?? 0 };
     }
     void writeDates(
       entries.map(e => e.entry),
       hc,
+      titles,
       tp => setStored(tp),
     );
   };
@@ -383,9 +410,12 @@ function MetricSheet({
   const stop = (e: HorizonEntry) => {
     const hc: Record<string, HorizonCredits> = { ...credits };
     delete hc[e.entry];
+    const titles: Record<string, string> = { ...(stored?.horizonTitles ?? {}) };
+    delete titles[e.entry];
     void writeDates(
       entries.filter(x => x.entry !== e.entry).map(x => x.entry),
       hc,
+      titles,
       () => onDone(),
     );
   };
@@ -475,7 +505,9 @@ function MetricSheet({
               isTraded ? (
                 <>
                   <div className="ticket-fact">
-                    <span className="ticket-fact-k">The open one, {facts.targetDate}</span>
+                    <span className="ticket-fact-k">
+                      The open one{stopping.every === 'settled' ? '' : `, ${facts.targetDate}`}
+                    </span>
                     <span className="ticket-fact-v">keeps running</span>
                   </div>
                   <div className="ticket-fact">
@@ -515,7 +547,9 @@ function MetricSheet({
             {busy ? 'Stopping…' : isTraded ? 'Stop repeating' : 'Stop and take the pool back'}
             <span className="ticket-go-sub">
               {isTraded
-                ? 'It settles on its own date as normal, and the one after it is never opened.'
+                ? stopping.every === 'settled'
+                  ? 'It settles when you settle the metric, and the one after it is never opened.'
+                  : 'It settles on its own date as normal, and the one after it is never opened.'
                 : 'Nothing is taken from anyone: nobody was in it.'}
             </span>
           </button>
@@ -583,7 +617,7 @@ function MetricSheet({
   const hasDates = entries.length > 0;
   const formOpen = stored !== undefined && (!hasDates || adding);
   const setDraft = (entry: string, patch: Partial<RowDraft>) =>
-    setDrafts(d => ({ ...d, [entry]: { ...(d[entry] ?? { book: '', proposal: '0' }), ...patch } }));
+    setDrafts(d => ({ ...d, [entry]: { ...(d[entry] ?? { book: '', proposal: '0', title: '' }), ...patch } }));
 
   return (
     <FloorModal onClose={onClose} label="Metric">
@@ -697,7 +731,7 @@ function MetricSheet({
                   {entries.map(e => {
                     const words = rowWords(e);
                     const facts = factsFor(e);
-                    const d = drafts[e.entry] ?? { book: '', proposal: '0' };
+                    const d = drafts[e.entry] ?? { book: '', proposal: '0', title: '' };
                     const bookZero = parseCredits(d.book) === 0;
                     const proposalZero = d.proposal.trim() === '' || parseCredits(d.proposal) === 0;
                     return (
@@ -712,13 +746,24 @@ function MetricSheet({
                             <span className="dates-sub">{words.sub}</span>{' '}
                             <span className="dates-sub metrics-dates-open">
                               {facts
-                                ? `${facts.targetDate} · ${fmtCr(facts.pool)} cr · ${
+                                ? `${e.every === 'settled' ? '' : `${facts.targetDate} · `}${fmtCr(facts.pool)} cr · ${
                                     traded(facts)
                                       ? `${facts.traders} ${facts.traders === 1 ? 'trader' : 'traders'}`
                                       : 'nobody yet'
                                   }`
                                 : 'no market open on it'}
                             </span>
+                            {/* The words the floor reads for this date
+                                (docs/owner-on-the-floor.md, "Every row carries a title"). */}
+                            <input
+                              className="metrics-dates-title"
+                              value={d.title}
+                              maxLength={60}
+                              placeholder="title, optional"
+                              disabled={busy}
+                              onChange={ev => setDraft(e.entry, { title: ev.target.value })}
+                              aria-label={`Title, ${words.label}`}
+                            />
                           </span>
                         </td>
                         <td className="num">

@@ -990,6 +990,12 @@ export interface PublicWorkspaceMarket {
    *  (docs/ui-conventions.md, "The question line"); null or absent means the
    *  floor composes it. Kept on the metric, so it outlives each new book. */
   marketTitle?: string | null;
+  /** The words the owner wrote for this book's date, read on its tab and in
+   *  its question in place of the clock ("this attempt"); null or absent
+   *  means the floor names the clock (docs/guides/time-preference.md). */
+  dateTitle?: string | null;
+  /** "until-settled" for a date that settles when the owner settles it; its
+   *  resolvesOn is then 9999-12-31T00:00:00Z and names no real moment. */
   targetDate: string;
   resolvesOn: string;
   consensus: number | null;

@@ -14,7 +14,12 @@
  * them to the same answers.
  */
 
-export type Every = 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year' | 'once';
+export type Every = 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year' | 'once' | 'settled';
+
+/** The entry of a date that settles when the owner settles it
+ *  (docs/guides/time-preference.md, "A date that settles when you settle it"),
+ *  which is also its book's target date. Mirrors functions/src/lib/date-utils.ts. */
+export const OWNER_SETTLED = 'until-settled';
 
 // `min` before `m`: "+5min" is minutes, "+5m" is months.
 const RELATIVE = /^\+(\d+)(min|h|d|w|m|y)$/;
@@ -28,7 +33,7 @@ const UNIT_TO_EVERY: Record<string, Every> = {
   y: 'year',
 };
 
-const EVERY_TO_UNIT: Record<Exclude<Every, 'once'>, string> = {
+const EVERY_TO_UNIT: Record<Exclude<Every, 'once' | 'settled'>, string> = {
   minute: 'min',
   hour: 'h',
   day: 'd',
@@ -121,6 +126,7 @@ function absoluteInWords(raw: string): string {
 /** A stored entry read back as the sentence the dialog shows. */
 export function describeEntry(entry: string): HorizonEntry {
   const raw = entry.trim();
+  if (raw === OWNER_SETTLED) return { entry: raw, every: 'settled', ahead: 0, label: 'Until you settle it' };
   const m = raw.match(RELATIVE);
   if (m) {
     const every = UNIT_TO_EVERY[m[2]];
@@ -131,6 +137,7 @@ export function describeEntry(entry: string): HorizonEntry {
 
 /** The entry to store for a choice made in the dialog. */
 export function entryFor(every: Every, ahead: number, day: string, hour: string): string {
+  if (every === 'settled') return OWNER_SETTLED;
   if (every === 'once') return hour ? `${day}T${hour.slice(0, 2)}` : day;
   return `+${ahead}${EVERY_TO_UNIT[every]}`;
 }
@@ -139,5 +146,6 @@ export function entryFor(every: Every, ahead: number, day: string, hour: string)
  *  another one follows it. */
 export function repeatSentence(every: Every): string {
   if (every === 'once') return 'One market, on that date, and nothing after it.';
+  if (every === 'settled') return 'It settles when you settle it, and the next one opens after.';
   return `A new market every ${every}, each opening with the liquidity above.`;
 }

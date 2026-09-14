@@ -527,7 +527,10 @@ find out:
   strips instead (see "The owner's two entries").
 - **The date strip** (`.pubws-strip--date`) lists the selected metric's open
   dates soonest first, each tab the clock's name ("THIS WEEK", "THIS MONTH";
-  `dateSegmentOf`) over that date's call. The settle day it used to carry
+  `dateSegmentOf`) over that date's call. A date the owner titled
+  (`timePreference.horizonTitles`) shows its title in the clock's place
+  ("THIS ATTEMPT"), and an `until-settled` date, which has no clock, sits
+  last. The settle day it used to carry
   moves to the stat row's caption, which already says "FOR 30 SEP · SETTLES
   IN 21D" and is the only place it needs to be said. One open date draws no
   strip, for a visitor and for the owner alike (2026-09-11; the manager's
@@ -577,6 +580,12 @@ find out:
   an hour cell. A book that settles inside a minute is never titled with a
   day. The date strip's tab and the board's "impact by" use the same
   words (`dateQuestionOf`, `horizonLabel`).
+- **A titled date reads as its title, verbatim, with no lead word**, on
+  every floor, a game's included: the owner wrote the words that follow the
+  metric ("this attempt", "at the end of season 1"), so the sentence is
+  "What will be Snake's reached length this attempt?". An `until-settled`
+  date with no title reads "until settled". The metric's own `marketTitle`
+  still replaces the whole sentence when there is one (below).
 - **A game's floor asks in the game's unit, not at a clock time** (Viktor,
   2026-09-11, picking from the snake floor's design proposal). On a floor
   whose `liveFeed.kind` is `snake` a minute cell reads "in 60 moves"
@@ -1152,7 +1161,10 @@ the same vertical rhythm.
   call", then "for 30 Sep · settles in 27d" (`.pubws-settle-in`: the day
   being forecast, which is the day before the settle instant, exactly as
   the date strip names it, and the countdown ticking by the minute, the
-  exact instant on hover; "settling" once it is). A selected proposal's
+  exact instant on hover; "settling" once it is). A book on an
+  `until-settled` date has no day and no clock, so its caption reads
+  "market's call · settled by the owner" and its hover says "settles when
+  the owner settles it". A selected proposal's
   impact chip sits beside the value as the bare arrow and delta
   ("▲ +7.8"), because the impact is the proposal's one number.
 - **The call carries its own move** (2026-09-09), on the plain market view
@@ -1247,7 +1259,9 @@ reading by then"), because it changes what a bet is.
 - **The number chart** (`NumberChart`) is the metric's own trajectory: its
   readings as an ink step line up to a "now" rule, and, on the future side,
   every open market of this metric as a marker at its settle instant
-  carrying that market's current call. Readings are joined by straight
+  carrying that market's current call. A book on an `until-settled` date
+  has no instant, so it draws no marker, the window ends at now rather
+  than at its far edge, and the legend's call names no day. Readings are joined by straight
   segments with a dot at each reading and a dashed hold from the last one
   to now (the value in force); a step line read as a staircase. **The
   vertical axis never magnifies a wobble into a cliff**: it spans at least a

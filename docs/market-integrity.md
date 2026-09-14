@@ -256,6 +256,21 @@ the book's summary (`GET /api/predictions/markets/:id`) carries
 most a minute ahead of the clock. A book that opens after the call is a
 new question and settles on its own reading.
 
+### A date with no clock
+
+Some questions have no period at all: "what length will this attempt reach"
+ends when the snake dies, not at a time anyone can write down. The owner
+prices one on the metric's `until-settled` date
+(`docs/guides/time-preference.md`, "A date that settles when you settle
+it"). Its book has no settle instant, so nothing in the resolver ever makes
+it due, voids it N/A, or gives up on it; the only way it settles is the
+owner settling the metric, above, and settling it settles every open book on
+that metric together. Nothing forces that call. A book the owner never
+settles stays open, and every holder can sell out of it at any moment, so
+what a trader risks is the price, never access to their credits. The floor
+says so where it would name the day: "settled by the owner", with no date
+and no countdown, so nobody reads a clock into it.
+
 ### Stopping a date is not destroying a market
 
 An owner drops an entry from `timePreference.customHorizons` when they no
