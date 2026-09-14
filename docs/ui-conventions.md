@@ -2980,7 +2980,10 @@ market still draws through the middle instead of along the floor of the
 box), and a footer of the activity behind it as the market page's facts
 row (`MarketFacts`): icons and bare numbers, never a sentence. Four facts
 in this order, each a hover title that says what it counts: people =
-participants, drop = the credits actually sitting in the pools of the
+the distinct participants with a trade (not a redemption) on the floor in
+the last seven days, never the members of its permission groups (anyone
+trades a public floor without joining, and a member who never traded is
+not activity), drop = the credits actually sitting in the pools of the
 workspace's open markets (never the LMSR parameter), bars = trades this
 week, page = proposals priced now. The drop counts every open book on the
 floor: the baseline markets AND both branches of every proposal still on

@@ -49,6 +49,7 @@ const listing = {
 
 const payload = {
   participantCount: 14,
+  tradersThisWeek: 9,
   tradesThisWeek: 108,
   markets: [
     {
@@ -219,7 +220,7 @@ describe('marketplace', () => {
     // The caption's short form; the full day is the hover title.
     expect(await screen.findByText('settles 31 Aug')).toHaveAttribute('title', 'settles 31 August 2026');
     const row = await screen.findByLabelText('Market facts');
-    expect(row).toHaveTextContent(/^14\s*1,000\s*108\s*2$/);
+    expect(row).toHaveTextContent(/^9\s*1,000\s*108\s*2$/);
   });
 
   test('listing your own number is a cell of the grid, not a footnote', async () => {
@@ -509,11 +510,34 @@ describe('the facts row', () => {
     renderPage();
     const row = await screen.findByLabelText('Market facts');
     await waitFor(() => expect(row.querySelectorAll('svg').length).toBe(4));
-    expect(screen.getByTitle(/14 participants/)).toHaveTextContent('14');
+    expect(screen.getByTitle(/9 traders this week/)).toHaveTextContent('9');
     expect(screen.getByTitle(/1,000 credits in the pools/)).toHaveTextContent('1,000');
     expect(screen.getByTitle(/108 trades this week/)).toHaveTextContent('108');
     expect(screen.getByTitle(/2 proposals priced now/)).toHaveTextContent('2');
     expect(row.textContent).not.toMatch(/participants|trades|proposals|liquidity/);
+  });
+
+  // Owner report 2026-09-14: Snake's card said 26 people when 16 had traded
+  // it, because the count was the members of its permission groups.
+  test('the people fact counts who traded this week, never the members', async () => {
+    renderPage();
+    const row = await screen.findByLabelText('Market facts');
+    await waitFor(() => expect(row.querySelectorAll('svg').length).toBe(4));
+    expect(screen.queryByTitle(/participant/)).toBeNull();
+    expect(row.textContent).not.toMatch(/\b14\b/);
+    expect(screen.getByTitle('9 traders this week')).toHaveTextContent('9');
+  });
+
+  test('one trader is singular', async () => {
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({ ...payload, tradersThisWeek: 1 } as never);
+    renderPage();
+    expect(await screen.findByTitle('1 trader this week')).toHaveTextContent('1');
+  });
+
+  test('a floor nobody traded this week says 0 traders, not its member count', async () => {
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({ ...payload, tradersThisWeek: 0 } as never);
+    renderPage();
+    expect(await screen.findByTitle('0 traders this week')).toHaveTextContent('0');
   });
 
   test('shows only the facts that exist when the floor payload is missing', async () => {
@@ -685,7 +709,7 @@ describe('liquidity on the cell', () => {
   test('a workspace with no open markets says nothing about liquidity rather than zero', async () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({ ...payload, markets: [] } as never);
     renderPage();
-    await screen.findByTitle(/14 participants/);
+    await screen.findByTitle(/9 traders this week/);
     expect(screen.queryByTitle(/credits in the pools/)).toBeNull();
   });
 
@@ -944,7 +968,7 @@ describe('THE MOST TRADED FLOOR IS FEATURED ABOVE THE BOARD', () => {
       description: null,
       pendingJobs: 0,
       hero: null,
-      participants: null,
+      traders: null,
       tradesThisWeek: null,
     };
     const mine = {

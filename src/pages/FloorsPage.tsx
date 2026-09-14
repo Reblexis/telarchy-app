@@ -56,7 +56,8 @@ interface Listing {
     settles: string | null;
     history: Array<{ at: string; consensus: number | null }>;
   } | null;
-  participants: number | null;
+  /** Distinct participants with a trade here this week, never group members. */
+  traders: number | null;
   tradesThisWeek: number | null;
   /** Credits actually in the pools of the open markets and of both branches
    *  of every proposal on the ballot, summed; null until the payload lands.
@@ -260,9 +261,9 @@ function MarketSpark({
 function ActivityFacts({ r }: { r: Listing }) {
   return (
     <span className="mkt-cell-activity pubws-facts" aria-label="Market facts">
-      {r.participants !== null && (
-        <span title={`${r.participants} participant${r.participants === 1 ? '' : 's'}`}>
-          <People /> {short(r.participants)}
+      {r.traders !== null && (
+        <span title={`${r.traders} trader${r.traders === 1 ? '' : 's'} this week`}>
+          <People /> {short(r.traders)}
         </span>
       )}
       {r.liquidity !== null && (
@@ -415,7 +416,7 @@ function fromFloor(
   ws: PublicWorkspace,
 ): Pick<
   Listing,
-  'hero' | 'participants' | 'tradesThisWeek' | 'liquidity' | 'heroMarketId' | 'question' | 'live' | 'proposal'
+  'hero' | 'traders' | 'tradesThisWeek' | 'liquidity' | 'heroMarketId' | 'question' | 'live' | 'proposal'
 > {
   const m = primaryHorizonOf(buildHorizonViews(ws));
   return {
@@ -423,7 +424,7 @@ function fromFloor(
     heroMarketId: m?.marketId ?? null,
     question: m?.title ?? null,
     live: !!(ws as { liveFeed?: unknown }).liveFeed,
-    participants: ws.participantCount ?? null,
+    traders: ws.tradersThisWeek ?? null,
     tradesThisWeek: ws.tradesThisWeek ?? null,
     liquidity: poolLiquidityOf(ws),
     hero: m
@@ -446,7 +447,7 @@ function listingOf(w: HomeListing): Listing {
     description: w.description ?? null,
     pendingJobs: w.proposalStats?.pending ?? 0,
     hero: null,
-    participants: null,
+    traders: null,
     tradesThisWeek: null,
     liquidity: null,
     volumePerHour: typeof w.volumePerHour === 'number' ? w.volumePerHour : null,
@@ -667,7 +668,7 @@ export function FloorsPage() {
             description: w.description ?? null,
             pendingJobs: 0,
             hero: null,
-            participants: null,
+            traders: null,
             tradesThisWeek: null,
             liquidity: null,
             mineVisibility: w.visibility ?? 'private',
