@@ -12,12 +12,14 @@ name: Deploy backend to Cloud Run
 # to view different branches"): main lands as the `candidate`, any other
 # branch as a `br-<name>` preview, both with no traffic. A deleted branch has
 # its preview tag retired. See docs/infra/deploy.md, "Branch previews".
+#
+# Every push runs the tests. Only a push that changes an image input builds
+# and deploys: the `changes` job decides (docs/infra/deploy.md, "A push builds
+# only when the image would change"), so a push of notes or docs the image
+# does not contain spends no Cloud Build minutes and stores no image.
 on:
   push:
     branches: ['**']
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
   delete: {}
   workflow_dispatch: {}
 
@@ -45,6 +47,7 @@ concurrency:
 permissions:
   contents: read
   id-token: write   # required for Workload Identity Federation auth
+  actions: read     # the changes job reads this workflow's run history
 
 jobs:
   # Type check and the frontend suite: fast, and a type error is a clearer
@@ -93,9 +96,69 @@ jobs:
       - run: npm run test:ci -- --shard=${{ matrix.shard }}/3
         working-directory: functions
 
+  # Whether this push changes anything the image contains. The test jobs never
+  # wait on it; deploy and preview do. It compares against the last commit
+  # this workflow BUILT for the ref, not the push's previous commit: a queued
+  # run is cancelled when a newer push arrives, so that commit may never have
+  # been built.
+  changes:
+    name: Image inputs changed
+    if: github.event_name != 'delete'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      build: ${{ steps.decide.outputs.build }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # The head of the newest successful run whose deploy (main) or preview
+      # (any other branch) job succeeded; on a branch never built, the commit
+      # where it left main. Empty means the script builds.
+      - name: Find the last built commit
+        id: base
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
+          JOB: ${{ github.ref == 'refs/heads/main' && 'deploy' || 'preview' }}
+        run: |
+          set -uo pipefail
+          BASE=""
+          RUNS=$(gh api -X GET "repos/$REPO/actions/workflows/deploy-cloudrun.yml/runs" \
+            -f branch="$REF_NAME" -f status=success -f per_page=30 \
+            --jq '.workflow_runs[] | "\(.id) \(.head_sha)"' || true)
+          while read -r id sha; do
+            [ -n "$id" ] || continue
+            n=$(gh api "repos/$REPO/actions/runs/$id/jobs" \
+              --jq "[.jobs[] | select(.name == \"$JOB\" and .conclusion == \"success\")] | length" || echo 0)
+            if [ "$n" -gt 0 ]; then BASE="$sha"; break; fi
+          done <<< "$RUNS"
+          if [ -n "$BASE" ]; then
+            echo "Last built commit on $REF_NAME: $BASE"
+          elif [ "$REF_NAME" != "main" ]; then
+            BASE=$(git merge-base origin/main HEAD || true)
+            echo "No earlier build of $REF_NAME; comparing with where it left main: $BASE"
+          else
+            echo "No earlier build of main found; building"
+          fi
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
+
+      - name: Decide
+        id: decide
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ steps.base.outputs.base }}
+        run: node scripts/image-build-needed.mjs --event "$EVENT" --base "$BASE"
+
   deploy:
-    needs: [checks, backend]
-    if: github.event_name != 'delete' && github.ref == 'refs/heads/main'
+    needs: [checks, backend, changes]
+    if: github.event_name != 'delete' && github.ref == 'refs/heads/main' && needs.changes.outputs.build == 'true'
     runs-on: ubuntu-latest
     # The production environment's deployment-branch rule is main only; its
     # secrets and variables are the managed instance's, never a fork's.
@@ -336,8 +399,8 @@ jobs:
   # No GitHub environment: `production` allows main only, and everything this
   # job needs (the GCP variables, the WIF provider) is repository-level.
   preview:
-    needs: [checks, backend]
-    if: github.event_name != 'delete' && github.ref != 'refs/heads/main'
+    needs: [checks, backend, changes]
+    if: github.event_name != 'delete' && github.ref != 'refs/heads/main' && needs.changes.outputs.build == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
