@@ -50,13 +50,18 @@ type MarketRow = typeof markets.$inferSelect;
  */
 export const LAPSE_GRACE_MS = 10_000;
 
-function notPending(status: string | undefined): AppError {
-  return new AppError(
-    `Proposal is not pending: it is already ${status ?? 'gone'}`,
-    409,
-    { status: status ?? null },
-    'not_pending',
-  );
+// Each ending keeps the sentence it always answered with; the code and the
+// status sit beside it (lib/error-codes.ts: a code is ADDITIVE, the wording
+// does not change).
+const NOT_PENDING_MESSAGE = {
+  approve: 'Proposal is not pending',
+  decline: 'Can only decline pending proposals',
+  withdraw: 'Can only withdraw pending proposals',
+} as const;
+type Ending = keyof typeof NOT_PENDING_MESSAGE;
+
+function notPending(ending: Ending, status: string | undefined): AppError {
+  return new AppError(NOT_PENDING_MESSAGE[ending], 409, { status: status ?? null }, 'not_pending');
 }
 
 async function claimPending(
@@ -75,6 +80,7 @@ async function claimPending(
 
 /** Claim or throw 409 not_pending naming what the proposal already is. */
 async function claimPendingOrThrow(
+  ending: Ending,
   exec: typeof db | Tx,
   proposalId: string,
   workspaceId: string,
@@ -85,7 +91,7 @@ async function claimPendingOrThrow(
     .select({ status: proposals.status })
     .from(proposals)
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
-  throw notPending(row?.status);
+  throw notPending(ending, row?.status);
 }
 
 export async function getTradeCountMap(marketIds: string[], workspaceId: string): Promise<Map<string, number>> {
@@ -827,7 +833,7 @@ export async function approveProposal(
     .from(proposals)
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
   if (!proposal) throw new AppError('Proposal not found', 404);
-  if (proposal.status !== 'pending') throw notPending(proposal.status);
+  if (proposal.status !== 'pending') throw notPending('approve', proposal.status);
 
   // Deciding is choosing (docs/guides/proposals.md, "More than two
   // options"): a proposal with options is approved by naming one, and a
@@ -903,11 +909,14 @@ export async function approveProposal(
   const ownerAgentId = configuredReward > 0 ? await resolveWorkspaceOwnerAgentId(workspaceId) : null;
   let rewardPaid = 0;
   if (configuredReward <= 0) {
-    await claimPendingOrThrow(db, proposalId, workspaceId, { ...decided, resolvedBy: resolvedBy ?? null });
+    await claimPendingOrThrow('approve', db, proposalId, workspaceId, { ...decided, resolvedBy: resolvedBy ?? null });
   } else if (!ownerAgentId) {
     throw new AppError('Workspace has no owner participant; cannot pay proposal reward', 409);
   } else if (ownerAgentId === proposal.proposedBy) {
-    await claimPendingOrThrow(db, proposalId, workspaceId, { ...decided, resolvedBy: resolvedBy ?? ownerAgentId });
+    await claimPendingOrThrow('approve', db, proposalId, workspaceId, {
+      ...decided,
+      resolvedBy: resolvedBy ?? ownerAgentId,
+    });
   } else {
     const reward = configuredReward;
     await retryTransient(() =>
@@ -920,7 +929,7 @@ export async function approveProposal(
             409,
           );
         }
-        await claimPendingOrThrow(tx, proposalId, workspaceId, {
+        await claimPendingOrThrow('approve', tx, proposalId, workspaceId, {
           ...decided,
           rewardPaid: reward,
           resolvedBy: resolvedBy ?? ownerAgentId,
@@ -982,7 +991,7 @@ export async function declineProposal(
     .from(proposals)
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
   if (!proposal) throw new AppError('Proposal not found', 404);
-  if (proposal.status !== 'pending') throw notPending(proposal.status);
+  if (proposal.status !== 'pending') throw notPending('decline', proposal.status);
 
   // A charter is a public promise that a declined proposal gets a written
   // reason. Enforce it here rather than trusting the caller to remember: the
@@ -1007,7 +1016,7 @@ export async function declineProposal(
 
   const decidedPricing = await pairPricesNow(proposalId, workspaceId);
   // Claimed before anything is voided (a proposal is decided exactly once).
-  await claimPendingOrThrow(db, proposalId, workspaceId, {
+  await claimPendingOrThrow('decline', db, proposalId, workspaceId, {
     status: 'declined',
     decidedPricing,
     resolvedAt: new Date(),
@@ -1045,12 +1054,12 @@ export async function declineProposalAsSpam(
     .from(proposals)
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
   if (!proposal) throw new AppError('Proposal not found', 404);
-  if (proposal.status !== 'pending') throw notPending(proposal.status);
+  if (proposal.status !== 'pending') throw notPending('decline', proposal.status);
 
   const ownerAgentId = await resolveWorkspaceOwnerAgentId(workspaceId);
   // Claimed before anything is voided or charged (a proposal is decided
   // exactly once).
-  await claimPendingOrThrow(db, proposalId, workspaceId, {
+  await claimPendingOrThrow('decline', db, proposalId, workspaceId, {
     status: 'declined_spam',
     closedAt: new Date(),
     penaltyCharged: 0,
@@ -1302,11 +1311,11 @@ export async function withdrawProposal(proposalId: string, workspaceId: string, 
     .from(proposals)
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
   if (!proposal) throw new AppError('Proposal not found', 404);
-  if (proposal.status !== 'pending') throw notPending(proposal.status);
+  if (proposal.status !== 'pending') throw notPending('withdraw', proposal.status);
   if (proposal.proposedBy !== byAgentId) throw new AppError('Only the proposer may withdraw a proposal', 403);
 
   // Claimed before anything is voided (a proposal is decided exactly once).
-  await claimPendingOrThrow(db, proposalId, workspaceId, {
+  await claimPendingOrThrow('withdraw', db, proposalId, workspaceId, {
     status: 'withdrawn',
     resolvedAt: new Date(),
     resolvedBy: byAgentId,
