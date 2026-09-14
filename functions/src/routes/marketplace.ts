@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { and, asc, desc, eq, gt, gte, inArray, isNull, lte, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, inArray, isNull, lte, ne, type SQL, sql } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
 import {
@@ -533,6 +533,26 @@ export function resetHomePayloadCache(): void {
   homeInFlight = null;
 }
 
+/**
+ * Distinct traders per book, over the books `booksWhere` selects in this
+ * workspace. A semi-join on markets rather than a list of ids, so the
+ * statement stays one size however many books a page shows, and the trades
+ * read are only those books' (trades (workspace_id, market_id, created_at)).
+ */
+async function countTradersOn(workspaceId: string, booksWhere: SQL): Promise<Map<string, number>> {
+  const rows = await db
+    .select({ marketId: trades.marketId, n: sql<number>`count(distinct ${trades.agentId})::int` })
+    .from(trades)
+    .where(
+      and(
+        eq(trades.workspaceId, workspaceId),
+        sql`${trades.marketId} in (select ${markets.id} from ${markets} where ${booksWhere})`,
+      ),
+    )
+    .groupBy(trades.marketId);
+  return new Map(rows.map(r => [r.marketId, r.n]));
+}
+
 async function buildFloorPayload(ws: PublicWs) {
   const workspaceId = ws.id;
 
@@ -566,12 +586,21 @@ async function buildFloorPayload(ws: PublicWs) {
   const metricById = new Map(metricRows.map(r => [r.id, r]));
 
   // Who has traded each market, for the floor's facts row ("12 traders").
-  const traderRows = await db
-    .select({ marketId: trades.marketId, n: sql<number>`count(distinct ${trades.agentId})::int` })
-    .from(trades)
-    .where(eq(trades.workspaceId, workspaceId))
-    .groupBy(trades.marketId);
-  const tradersByMarket = new Map(traderRows.map(r => [r.marketId, r.n]));
+  // Counted over the trades of the books this payload shows and nothing else
+  // (docs/infra/deploy.md, "Reads are bounded in the size of a workspace"):
+  // grouped over the whole workspace, every build of a busy floor counted
+  // every book it ever had, 2,000 rows a poll. The baselines here, the
+  // shown proposals' branches below, both as a semi-join on markets so the
+  // statement is the same size whatever the floor's history.
+  const tradersByMarket = await countTradersOn(
+    workspaceId,
+    and(
+      eq(markets.workspaceId, workspaceId),
+      eq(markets.resolved, false),
+      eq(markets.active, true),
+      isNull(markets.proposalId),
+    )!,
+  );
 
   const marketList = wsMarkets
     .filter(m => !m.proposalId)
@@ -766,16 +795,6 @@ async function buildFloorPayload(ws: PublicWs) {
         .from(metrics)
         .where(and(eq(metrics.workspaceId, workspaceId), eq(metrics.id, heroMetricId)));
       heroMetricDescription = metricRow?.description ?? null;
-      // Up to a year of the hero metric's real values, so the floor's
-      // year chart can show the actual trajectory (not just the last few
-      // days). Cadence is at most a few pushes a day, so 500 covers it.
-      const logs = await db
-        .select({ at: metricLogs.timestamp, value: metricLogs.value })
-        .from(metricLogs)
-        .where(and(eq(metricLogs.workspaceId, workspaceId), eq(metricLogs.metricId, heroMetricId)))
-        .orderBy(desc(metricLogs.timestamp))
-        .limit(500);
-      heroHistory = logs.reverse();
     }
     // Every open horizon's own metric history, so a two-clock workspace can
     // draw one actual-vs-forecast chart per horizon instead of only the
@@ -797,6 +816,12 @@ async function buildFloorPayload(ws: PublicWs) {
         .limit(500);
       logsByMetric.set(metricId, rows.reverse());
     }
+    // Up to a year of the hero metric's real values, so the floor's year chart
+    // can show the actual trajectory. The hero is one of the open markets, so
+    // its log is the read just made: reading it a second time cost a third of
+    // every build's metric_logs reads (docs/infra/deploy.md, "Reads are
+    // bounded in the size of a workspace").
+    if (heroMetricId) heroHistory = [...(logsByMetric.get(heroMetricId) ?? [])];
     for (const m of marketList) {
       const metricId = m.metricId as string;
       const rows = logsByMetric.get(metricId) ?? [];
@@ -927,6 +952,13 @@ async function buildFloorPayload(ws: PublicWs) {
           .from(markets)
           .where(and(eq(markets.workspaceId, workspaceId), inArray(markets.proposalId, pendingIds)))
       : [];
+    if (pendingIds.length) {
+      const branchTraders = await countTradersOn(
+        workspaceId,
+        and(eq(markets.workspaceId, workspaceId), inArray(markets.proposalId, pendingIds))!,
+      );
+      for (const [id, n] of branchTraders) tradersByMarket.set(id, n);
+    }
     // Group per proposal x (metric, targetDate); the delta a visitor reads is
     // approved consensus minus declined consensus, the causal impact of saying
     // yes. tradeCount would need the trades table; presence of both branch

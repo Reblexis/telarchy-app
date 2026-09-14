@@ -13839,8 +13839,20 @@ scheduler) and the run reports <code>remaining</code>. No run therefore approach
 Cloud Run's 300 s request timeout, whatever the day's due count.</li>
 <li><strong>The bell inbox is windowed.</strong> A participant's own proposals are read
 newest-first, <code>2 x limit</code> of them; their branch markets are bounded by
-that window; the stale-reading nudge reads baseline books only, with
-the workspace in every <code>metric_logs</code> predicate.</li>
+that window and name those proposals' workspaces; the newest proposals
+of the participant's floors are read per floor, <code>2 x limit</code> from each,
+and merged; the books they traded come back once each, not once per
+trade; the stale-reading nudge reads baseline books only, with the
+workspace in every <code>metric_logs</code> predicate.</li>
+<li><strong>The floor payload reads what it shows.</strong> Trader counts are grouped
+over the trades of the books on the page (the open baselines and the
+shown proposals' branches), never over the workspace's history, and each
+open metric's log is read once per build; the hero's history is that
+same read.</li>
+<li><strong>The actions log joins a page, not a floor.</strong> A branch that names a
+book (trades, orders, liquidity, book comments) cuts itself to the page
+before it joins <code>markets</code>, so a page decorates at most <code>limit + 1</code> rows
+per branch whatever the floor holds.</li>
 <li><strong>The workspace brief reads bounded history.</strong> The metric log query is
 windowed to <code>BRIEF_HISTORY_DAYS</code>, the first reading day is a separate
 <code>min(timestamp)</code>, and the 25 proposals' markets come back in one query.</li>
@@ -13849,12 +13861,14 @@ row in <code>system_config</code> is deleted when the spawn finishes, and event
 cleanup counts deleted rows instead of returning them.</li>
 <li><strong>Every hot predicate has an index.</strong> <code>markets (workspace_id, proposal_id)</code>; the open set and the open baseline set on
 <code>(workspace_id, metric_id, target_date)</code> as partial indexes; <code>markets (resolved_at) where resolved</code>; <code>proposals (workspace_id, status, created_at)</code>, <code>(workspace_id, created_at)</code>, <code>(workspace_id, decide_by) where pending</code>, <code>(status, resolved_at)</code>, <code>(proposed_by, created_at)</code>;
-<code>liquidity_events (market_id)</code>; <code>trades (market_id)</code>. Additive, <code>IF NOT EXISTS</code>, and declared in <code>functions/src/db/schema.ts</code> so drizzle-kit
+<code>liquidity_events (market_id)</code>, <code>(workspace_id, created_at)</code>; <code>trades (market_id)</code>, <code>(agent_id, market_id)</code>; <code>limit_orders (workspace_id, created_at)</code>, <code>(workspace_id, updated_at)</code>. Additive, <code>IF NOT EXISTS</code>, and declared in <code>functions/src/db/schema.ts</code> so drizzle-kit
 keeps them. On the beta store the journal <code>when</code> has to be newer than
 the last applied migration or the store skips it.</li>
 </ul>
-<p>The record behind the rule, with the measured row counts and each read it
-found, is the telarchy umbrella's <code>notes/snake-load-audit-2026-09-10.md</code>.
+<p>The records behind the rule, with the measured row counts and each read
+they found, are the telarchy umbrella's <code>notes/snake-load-audit-2026-09-10.md</code>
+and <code>notes/gcp-cost-2026-09-13.md</code> (the statements <code>pg_stat_statements</code>
+ranked on production).
 A new read of proposals or markets that has no <code>limit</code>, no proposal id and
 no baseline predicate is a divergence from this section, whatever the size
 of the workspaces it was tested against.</p>

@@ -300,6 +300,19 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
   };
   const take = limit + 1;
 
+  /**
+   * A branch that names a book cuts itself to the page BEFORE it joins
+   * `markets` (docs/infra/deploy.md, "Reads are bounded in the size of a
+   * workspace"). Joined first, Postgres hashed every book of the floor to
+   * decorate 51 rows: the Snake's 32k books on every poll of its orders.
+   * `source` is `<table> <alias> WHERE <filters>`; the rows come back under
+   * the same alias with every column plus `log_id`, in the order and with the
+   * tie-break the branch always had (the instant, then the row's log id).
+   */
+  const pageFirst = (logId: SQL, at: SQL, source: SQL, alias: string): SQL =>
+    sql`(SELECT ${logId} AS log_id, ${sql.raw(alias)}.* FROM ${source}
+      ORDER BY ${at} DESC, ${logId} DESC LIMIT ${take}) ${sql.raw(alias)}`;
+
   const branches: SQL[] = [];
   const add = (kind: string, body: SQL) => {
     if (kinds.includes(kind)) branches.push(sql`(${body})`);
@@ -307,13 +320,17 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
 
   add(
     'trade',
-    sql`SELECT 'trade:' || t.id AS id, t.created_at AS at, 'trade' AS kind, t.workspace_id, t.agent_id AS actor_id,
+    sql`SELECT t.log_id AS id, t.created_at AS at, 'trade' AS kind, t.workspace_id, t.agent_id AS actor_id,
       jsonb_build_object('marketId', t.market_id, 'proposalId', m.proposal_id, 'metric', m.metric_name, 'date', m.target_date,
         'direction', t.direction, 'shares', t.shares, 'cost', t.cost,
         'callBefore', t.consensus_before, 'callAfter', t.consensus_after) AS payload
-      FROM trades t LEFT JOIN markets m ON m.id = t.market_id AND m.workspace_id = t.workspace_id
-      WHERE t.kind = 'trade' AND ${common(sql`t.created_at`, sql`'trade:' || t.id`, sql`t.workspace_id`, sql`t.agent_id`)}
-      ORDER BY t.created_at DESC, id DESC LIMIT ${take}`,
+      FROM ${pageFirst(
+        sql`'trade:' || t.id`,
+        sql`t.created_at`,
+        sql`trades t WHERE t.kind = 'trade' AND ${common(sql`t.created_at`, sql`'trade:' || t.id`, sql`t.workspace_id`, sql`t.agent_id`)}`,
+        't',
+      )}
+      LEFT JOIN markets m ON m.id = t.market_id AND m.workspace_id = t.workspace_id`,
   );
 
   add(
@@ -371,11 +388,15 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
   );
   add(
     'comment',
-    sql`SELECT 'comment:' || c.id AS id, c.created_at AS at, 'comment' AS kind, c.workspace_id, c."from" AS actor_id,
+    sql`SELECT c.log_id AS id, c.created_at AS at, 'comment' AS kind, c.workspace_id, c."from" AS actor_id,
       jsonb_build_object('on', 'market', 'id', c.id, 'marketId', c.market_id, 'proposalId', m.proposal_id, 'metric', m.metric_name, 'date', m.target_date, 'content', c.content) AS payload
-      FROM market_messages c LEFT JOIN markets m ON m.id = c.market_id AND m.workspace_id = c.workspace_id
-      WHERE ${common(sql`c.created_at`, sql`'comment:' || c.id`, sql`c.workspace_id`, sql`c."from"`)}
-      ORDER BY c.created_at DESC, id DESC LIMIT ${take}`,
+      FROM ${pageFirst(
+        sql`'comment:' || c.id`,
+        sql`c.created_at`,
+        sql`market_messages c WHERE ${common(sql`c.created_at`, sql`'comment:' || c.id`, sql`c.workspace_id`, sql`c."from"`)}`,
+        'c',
+      )}
+      LEFT JOIN markets m ON m.id = c.market_id AND m.workspace_id = c.workspace_id`,
   );
 
   add(
@@ -469,12 +490,16 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
 
   add(
     'liquidity',
-    sql`SELECT 'liquidity:' || l.id AS id, l.created_at AS at, 'liquidity' AS kind, l.workspace_id, l.agent_id AS actor_id,
+    sql`SELECT l.log_id AS id, l.created_at AS at, 'liquidity' AS kind, l.workspace_id, l.agent_id AS actor_id,
       jsonb_build_object('marketId', l.market_id, 'proposalId', m.proposal_id, 'metric', m.metric_name, 'date', m.target_date, 'amount', l.amount) AS payload
-      FROM liquidity_events l LEFT JOIN markets m ON m.id = l.market_id AND m.workspace_id = l.workspace_id
-      WHERE l.type = 'injection' AND l.agent_id IS NOT NULL
-        AND ${common(sql`l.created_at`, sql`'liquidity:' || l.id`, sql`l.workspace_id`, sql`l.agent_id`)}
-      ORDER BY l.created_at DESC, id DESC LIMIT ${take}`,
+      FROM ${pageFirst(
+        sql`'liquidity:' || l.id`,
+        sql`l.created_at`,
+        sql`liquidity_events l WHERE l.type = 'injection' AND l.agent_id IS NOT NULL
+          AND ${common(sql`l.created_at`, sql`'liquidity:' || l.id`, sql`l.workspace_id`, sql`l.agent_id`)}`,
+        'l',
+      )}
+      LEFT JOIN markets m ON m.id = l.market_id AND m.workspace_id = l.workspace_id`,
   );
 
   // Subsidy rows are grouped per proposal, funder and minute, and a group
@@ -509,22 +534,30 @@ export async function buildActions(query: ActionsQuery): Promise<ActionsPage> {
 
   add(
     'order',
-    sql`SELECT 'order:' || o.id AS id, o.created_at AS at, 'order' AS kind, o.workspace_id, o.agent_id AS actor_id,
+    sql`SELECT o.log_id AS id, o.created_at AS at, 'order' AS kind, o.workspace_id, o.agent_id AS actor_id,
       jsonb_build_object('event', 'placed', 'marketId', o.market_id, 'proposalId', m.proposal_id, 'metric', m.metric_name, 'date', m.target_date,
         'side', o.side, 'direction', o.direction, 'level', o.limit_value, 'budgetCredits', o.budget_credits, 'shares', o.shares) AS payload
-      FROM limit_orders o LEFT JOIN markets m ON m.id = o.market_id AND m.workspace_id = o.workspace_id
-      WHERE ${common(sql`o.created_at`, sql`'order:' || o.id`, sql`o.workspace_id`, sql`o.agent_id`)}
-      ORDER BY o.created_at DESC, id DESC LIMIT ${take}`,
+      FROM ${pageFirst(
+        sql`'order:' || o.id`,
+        sql`o.created_at`,
+        sql`limit_orders o WHERE ${common(sql`o.created_at`, sql`'order:' || o.id`, sql`o.workspace_id`, sql`o.agent_id`)}`,
+        'o',
+      )}
+      LEFT JOIN markets m ON m.id = o.market_id AND m.workspace_id = o.workspace_id`,
   );
   add(
     'order',
-    sql`SELECT 'order:' || o.id || ':' || o.status AS id, o.updated_at AS at, 'order' AS kind, o.workspace_id, o.agent_id AS actor_id,
+    sql`SELECT o.log_id AS id, o.updated_at AS at, 'order' AS kind, o.workspace_id, o.agent_id AS actor_id,
       jsonb_build_object('event', o.status, 'marketId', o.market_id, 'proposalId', m.proposal_id, 'metric', m.metric_name, 'date', m.target_date,
         'side', o.side, 'direction', o.direction, 'level', o.limit_value, 'budgetCredits', o.budget_credits, 'filledCredits', o.filled_credits,
         'shares', o.shares, 'filledShares', o.filled_shares) AS payload
-      FROM limit_orders o LEFT JOIN markets m ON m.id = o.market_id AND m.workspace_id = o.workspace_id
-      WHERE o.status <> 'open' AND ${common(sql`o.updated_at`, sql`'order:' || o.id || ':' || o.status`, sql`o.workspace_id`, sql`o.agent_id`)}
-      ORDER BY o.updated_at DESC, id DESC LIMIT ${take}`,
+      FROM ${pageFirst(
+        sql`'order:' || o.id || ':' || o.status`,
+        sql`o.updated_at`,
+        sql`limit_orders o WHERE o.status <> 'open' AND ${common(sql`o.updated_at`, sql`'order:' || o.id || ':' || o.status`, sql`o.workspace_id`, sql`o.agent_id`)}`,
+        'o',
+      )}
+      LEFT JOIN markets m ON m.id = o.market_id AND m.workspace_id = o.workspace_id`,
   );
 
   add(
