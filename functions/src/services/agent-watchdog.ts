@@ -11,7 +11,7 @@
  * but not done (the agent reports idle every cycle while its model, login
  * or membership is broken and it files nothing).
  */
-import { and, eq, inArray, lte, max } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lte, max } from 'drizzle-orm';
 import { db } from '../db/client';
 import { agentHeartbeats, marketForecasts, markets, systemConfig, workspaces } from '../db/schema';
 import { settlesOn } from '../lib/date-utils';
@@ -63,7 +63,7 @@ async function writeState(agentId: string, value: WatchState): Promise<void> {
     .onConflictDoUpdate({ target: systemConfig.key, set: { value } });
 }
 
-/** Open markets on public workspaces the agent should have forecast and has not. */
+/** Open floor books on public workspaces the agent should have forecast and has not. */
 async function dueWithoutForecast(agentId: string, now: Date) {
   const openedBefore = new Date(now.getTime() - DUE_AFTER_MS);
   const candidates = await db
@@ -80,6 +80,8 @@ async function dueWithoutForecast(agentId: string, now: Date) {
     .where(
       and(
         eq(workspaces.visibility, 'public'),
+        // Floor books only: the agent's market list leaves proposals' books out.
+        isNull(markets.proposalId),
         eq(markets.active, true),
         eq(markets.resolved, false),
         eq(markets.voided, false),

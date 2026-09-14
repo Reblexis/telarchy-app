@@ -941,8 +941,9 @@ payouts. Records: `notes/bug-hunt-2026-08-31.md`, P0-3.
     `updatedAt` is older than that (the runner reports at least every five
     minutes, so this is the machine down, the unit dead, or the network gone);
   - its last report says `status: error` (the unit exhausted its restarts);
-  - work is due and not done: an open market (active, not resolved, not
-    voided) on a public workspace, opened more than 6 hours ago, whose
+  - work is due and not done: an open floor book (active, not resolved, not
+    voided, and not a proposal's book, which the agent does not estimate) on a
+    public workspace, opened more than 6 hours ago, whose
     settlement falls at least 12 hours after it opened, carries no forecast
     from the agent (this is the failure a heartbeat cannot see: the model's
     credits run out, its login expires, a membership is lost, and every

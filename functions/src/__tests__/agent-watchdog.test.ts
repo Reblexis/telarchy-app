@@ -77,6 +77,7 @@ async function market(opts: {
   resolved?: boolean;
   voided?: boolean;
   active?: boolean;
+  proposalId?: string;
   now?: Date;
 }) {
   n += 1;
@@ -95,6 +96,8 @@ async function market(opts: {
     liquidity: 1000,
     pool: initialPool(1000),
     active: opts.active ?? true,
+    proposalId: opts.proposalId ?? null,
+    branch: opts.proposalId ? 'approved' : null,
     resolved: opts.resolved ?? false,
     voided: opts.voided ?? false,
     createdAt,
@@ -212,6 +215,14 @@ describe('what is not due work', () => {
     await market({ openedAgoMs: 7 * HOUR, lifetimeMs: 12 * HOUR });
     await runAgentWatchdog(T0);
     expect(sent).toHaveLength(1);
+  });
+
+  test("a proposal's book: the agent estimates floor books only, so 160 proposal books once read as an outage", async () => {
+    await heartbeat(1 * MIN);
+    await market({ proposalId: 'proposal-1' });
+    await market({ proposalId: 'proposal-2', openedAgoMs: 30 * 24 * HOUR });
+    await runAgentWatchdog(T0);
+    expect(sent).toEqual([]);
   });
 
   test('markets on a private workspace, resolved, voided or deactivated books', async () => {
