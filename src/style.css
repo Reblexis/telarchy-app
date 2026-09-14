@@ -3200,6 +3200,27 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
 .pubws-optchip.is-leader { color: var(--higher); border-color: var(--higher); }
 .pubws-optchip.is-leader .pubws-optchip-value { color: var(--higher); }
 .pubws-optchip:hover:not(:disabled) { background: var(--higher-soft); border-color: var(--higher); }
+/* Past six options a board row ends in "+N more", which opens the proposal
+   (docs/ui-conventions.md, "An option row names its options"). */
+.pubws-optchip-more { color: var(--text-secondary); white-space: nowrap; }
+/* Past six options the world cells end in "Show all N" / "Show fewer": a
+   quiet cell in the row, not a price. */
+.pubws-world-more {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0.9rem;
+  border: 0;
+  background: var(--bg-primary);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.pubws-world-more:hover { color: var(--text-primary); }
 
 .pubws-position {
   margin-top: 0.9rem;
@@ -7109,6 +7130,8 @@ textarea.jobform-line--desc {
   background: var(--bg-primary);
   box-shadow: var(--shadow-md);
 }
+/* A card drawing a live board gives it the floor's live-slot width, board at the top (docs/ui-conventions.md, "The marketplace"). */
+.mkt-featured--live { grid-template-columns: minmax(0, 45rem) minmax(0, 1fr); align-items: start; }
 .mkt-featured-visual { min-width: 0; }
 .mkt-featured-visual .mkt-spark { height: 180px; }
 .mkt-featured-body { display: flex; flex-direction: column; gap: 0.7rem; min-width: 0; }
@@ -7205,6 +7228,7 @@ textarea.jobform-line--desc {
 .mkt-deciding-impact.is-down { color: var(--lower); }
 .mkt-deciding-pair { margin: 0; display: flex; justify-content: flex-end; }
 .mkt-deciding-mech { margin: 0; font-size: 0.85rem; line-height: 1.5; color: var(--text-secondary); }
+.mkt-deciding-more { justify-content: flex-start; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--text-secondary); }
 
 @media (max-width: 760px) {
   .mkt-featured {
@@ -12554,6 +12578,98 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   .snake-scrub { flex-basis: 100%; order: 1; }
   .snake-games { order: 0; }
   .snake-btn { order: 2; }
+}
+
+/* The chess feed (docs/ui-conventions.md, "The chess feed"): the board in the
+   floor's ground tones seen from TelarchyBot's side, the three highest prices
+   as arrows in the accent, the snake's next-move line, and nothing around the
+   board: a picked-up piece's squares carry their moves' prices. */
+.chess-live { display: flex; flex-direction: column; gap: 0.7rem; }
+.chess-main { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.9rem 1.2rem; min-width: 0; }
+.chess-board-col { flex: 1 1 300px; max-width: 560px; display: flex; flex-direction: column; gap: 0.7rem; min-width: 0; }
+.chess-board-box { width: 100%; max-width: 100%; }
+.chess-board { display: block; width: 100%; height: auto; aspect-ratio: 1; max-width: 100%; border: 1px solid var(--border-color); border-radius: 6px; user-select: none; }
+.chess-square { cursor: default; }
+.chess-square.is-light { fill: #efe8d6; }
+.chess-square.is-dark { fill: #d6ccb2; }
+.chess-square.is-last { fill: #e6d28a; }
+.chess-square.is-dark.is-last { fill: #d2bb6a; }
+.chess-square.is-selected { fill: #b9d8c3; }
+/* A piece that can move, under the pointer: tinted so it reads as pressable (docs/ui-conventions.md, "The chess feed", item 1). */
+.chess-square.is-hover-piece { fill: #d3e6d8; cursor: pointer; }
+.chess-piece { pointer-events: none; font-family: 'DejaVu Sans', 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols 2', serif; }
+.chess-piece.is-white { fill: #fbf9f4; stroke: #17171c; stroke-width: 1.2px; paint-order: stroke; }
+.chess-piece.is-black { fill: #17171c; }
+.chess-target { fill: var(--higher); fill-opacity: 0.55; pointer-events: none; }
+.chess-coord { fill: #6b6b7a; font-family: var(--font-mono); pointer-events: none; }
+.chess-arrow { fill: none; stroke: var(--accent); }
+.chess-arrow-link { cursor: pointer; }
+.chess-arrow-link:hover .chess-arrow, .chess-arrow-link:focus-visible .chess-arrow { stroke-opacity: 1 !important; }
+.chess-next { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 1.05rem; font-weight: 600; line-height: 1.3; color: var(--text-primary); text-align: left; }
+.chess-clock { color: var(--accent); }
+/* The player's record, one muted mono line under the next move. */
+.chess-stats { margin: -0.35rem 0 0; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.02em; color: var(--text-secondary); font-variant-numeric: tabular-nums; text-align: left; }
+.chess-next.is-decided, .chess-next.is-default, .chess-next.is-replay { color: var(--text-secondary); }
+.chess-next.is-idle { color: var(--text-tertiary); font-weight: 500; }
+.chess-target-mark { pointer-events: none; }
+.chess-target-bg { fill: rgba(251, 249, 244, 0.92); stroke: #cfc7b3; stroke-width: 1px; }
+.chess-target-bg.is-leader { fill: var(--higher); stroke: var(--higher); }
+.chess-target-price { font-family: var(--font-mono); font-weight: 700; fill: #17171c; font-variant-numeric: tabular-nums; }
+.chess-target-price.is-leader { fill: #fbf9f4; }
+/* The proposal on screen: its move in the approved green, its squares tinted
+   (docs/ui-conventions.md, "The chess feed", item 3). A hovered list row: its
+   move in the ink, its squares tinted (item 4). */
+.chess-arrow.is-selected { stroke: var(--higher); }
+.chess-arrow.is-hover { stroke: var(--text-primary); }
+.chess-square.is-light.is-proposal { fill: #cfe3d4; }
+.chess-square.is-dark.is-proposal { fill: #a9cdb4; }
+.chess-square.is-light.is-hover { fill: #e4dcc6; }
+.chess-square.is-dark.is-hover { fill: #c4b893; }
+/* The moves, one slim column beside the board (item 4): rows one line high,
+   as tall as the board and scrolling inside, under the board when narrow. */
+.chess-main { align-items: stretch; }
+.chess-board-col { flex: 1 1 320px; max-width: 520px; }
+.chess-movelist {
+  flex: 1 1 220px;
+  min-width: 200px;
+  max-width: 340px;
+  max-height: min(520px, 72vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  align-self: flex-start;
+  border-top: 1px solid var(--border-color);
+  scrollbar-width: thin;
+}
+.chess-moverow {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr) 3.4rem 2.9rem;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 26px;
+  padding: 0 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  text-decoration: none;
+  cursor: pointer;
+}
+.chess-moverow:hover, .chess-moverow:focus-visible { background: var(--bg-secondary); color: var(--text-primary); outline: none; }
+.chess-moverow.is-leader { color: var(--higher); }
+.chess-moverow.is-selected { background: color-mix(in srgb, var(--higher) 14%, transparent); }
+.chess-moverow-rank { color: var(--text-tertiary); font-size: 0.66rem; }
+.chess-moverow-san { display: flex; align-items: center; gap: 0.35rem; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.chess-moverow-glyph { font-family: 'DejaVu Sans', 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols 2', serif; font-weight: 400; color: var(--text-secondary); }
+.chess-moverow-bar { display: block; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--border-color) 55%, transparent); overflow: hidden; }
+.chess-moverow-bar > span { display: block; height: 4px; background: var(--text-tertiary); }
+.chess-moverow.is-leader .chess-moverow-bar > span { background: var(--higher); }
+.chess-moverow-price { text-align: right; font-weight: 600; }
+@media (max-width: 640px) {
+  .chess-movelist { max-width: none; flex-basis: 100%; max-height: 45vh; }
 }
 
 /* ---- The live log (docs/ui-conventions.md, "The live log") ------------ */

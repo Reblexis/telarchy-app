@@ -1,7 +1,7 @@
 /**
  * Proposals with options (docs/guides/proposals.md, "More than two options").
  *
- * A proposal may carry two to six options in place of the approve/decline
+ * A proposal may carry two to 218 options in place of the approve/decline
  * pair. This file is the shape of that list and the one arithmetic every
  * reader of an option proposal shares: an option's delta is its consensus
  * minus the best of the OTHER options, so the leader's number is its lead
@@ -14,7 +14,9 @@
 import type { ProposalOption } from '../db/schema';
 
 export const MIN_OPTIONS = 2;
-export const MAX_OPTIONS = 6;
+/** 218 is the most legal moves a chess position has, so a proposal can offer
+ *  every move of a position (docs/guides/proposals.md, "More than two options"). */
+export const MAX_OPTIONS = 218;
 export const MAX_OPTION_LABEL = 40;
 /** A short handle: 1 to 24 of a-z 0-9 -, never the two branch names. */
 export const OPTION_ID_RE = /^[a-z0-9-]{1,24}$/;
@@ -24,20 +26,20 @@ export type ParsedOptions = { ok: true; options: ProposalOption[] | null } | { o
 
 /**
  * The option list as posted. Absent or null means the ordinary two-branch
- * proposal; anything else must be a list of two to six { id, label } with
+ * proposal; anything else must be a list of two to 218 { id, label } with
  * unique well-formed ids and labels of 1 to 40 characters, or the whole
  * request is refused with the sentence returned here.
  */
 export function parseProposalOptions(raw: unknown): ParsedOptions {
   if (raw === undefined || raw === null) return { ok: true, options: null };
   if (!Array.isArray(raw)) {
-    return { ok: false, error: 'options must be a list of { id, label } entries, two to six of them' };
+    return { ok: false, error: `options must be a list of { id, label } entries, two to ${MAX_OPTIONS} of them` };
   }
   if (raw.length < MIN_OPTIONS) {
     return { ok: false, error: `options needs at least two entries; one option is a proposal without options` };
   }
   if (raw.length > MAX_OPTIONS) {
-    return { ok: false, error: `options may hold at most six entries; this one has ${raw.length}` };
+    return { ok: false, error: `options may hold at most ${MAX_OPTIONS} entries; this one has ${raw.length}` };
   }
   const seen = new Set<string>();
   const options: ProposalOption[] = [];

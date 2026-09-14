@@ -985,7 +985,11 @@ counting:
   cell is underlined in the same green its chart line wears. Every priced cell is a button
   (`aria-pressed`) that puts that option on the chart and the ticket; a press sticks: nothing the page does while it settles (resolving the address to the proposal, loading its books) undoes a pick, however early it was made; an
   unpriced one says "no liquidity" and cannot be pressed, as any pair does.
-  Up to six options fit one row on the desktop floor; on a phone the row
+  Up to six options fit one row on the desktop floor; with more than six
+  the control holds the six highest priced (the selected option always
+  among them) and a "Show all N" cell that opens the rest in the
+  proposer's order, six to a row, and "Show fewer" folds them back; on a
+  phone the row
   wraps to two cells per line, the last-read cell first. There is no
   declined cell, because there is no declined world.
 - **The hero is the lead.** The big number is the leader's consensus minus
@@ -1037,6 +1041,11 @@ counting:
   /lower", "wehn clicked it goes to that proposal witht he correspodnign
   branch open", then "it hshould show just the absolvute value isntead not
   some subtract result"). A two-branch row keeps Higher and Lower.
+  **A row never runs past its column**: with more than six options (a
+  chess move offers every legal move, often thirty or more) the row
+  carries the six highest priced, highest first, then one "+N more" chip
+  that opens the proposal, and the chips wrap onto a second line rather
+  than push the title aside.
 - **A decided proposal with options** strikes through the price of every
   option cell but the chosen one, captioned "stakes refunded", and the
   ruling says which option was chosen.
@@ -2570,7 +2579,7 @@ record in `notes/decisions/ui-conventions.md`).
 
 The setting is `liveFeed` on `PUT /api/workspaces/:id/settings`, plain
 `manage`: `{ kind, url }` or null to clear, where `kind` names the feed's
-shape from a short allow-list (today only `snake`) and `url` is the https
+shape from a short allow-list (`snake` and `chess`) and `url` is the https
 origin the feed is served from, at most 500 characters. Anything else
 (http, an unknown kind, a bare string, a missing field) is 400 and leaves
 the stored value alone. It is served on the public floor payload as
@@ -2690,6 +2699,125 @@ leads), no plain line under the title, no trade, no commentary, and no
 button or link other than the three arrows on the grid and the replay
 row's. No impact number is printed in the segment: the arrows' shading
 is the only reading of the impacts.
+
+**The chess feed** (`kind: "chess"`, `ChessLive`) is the shape the
+telarchy-chess service publishes (its `docs/chess.md`, "The feed"):
+`/state` carries `phase` (`our-move`, `their-move`, `settling`,
+`seeking`), `game: { number, id, url, color, opponent: {name, title,
+rating}, fen, moves (UCI), turn, clocks, status, result }`, `open: { move,
+proposal: {id,number,url}, deadline, tradeable, options: [{ id (UCI), san,
+price, lead, marketId, reason? }] }` with one option per legal move, and
+`recentDecisions[]` (newest first, `{ game, move, chosen, san, price,
+kind }`); `/games` is `{ games: [{ number, id, color, opponent, result,
+plies }] }` and `/history?game=` is `{ game, plies: [{ ply, by: "us" |
+"them", uci, san, fen, kind?, price? }] }`. It is drawn as the snake is,
+in the same slot and the same layers, the moves drawn on the board and
+nothing around it (Viktor 2026-09-13: "ok do A make sure that it can also
+be selected by doing the move on the chessboard just like with snake
+clicking the arrow", then "just visualize them on the board in the live
+visualization and no buttons around the board as that is making it just
+messy.. inputing the moves will be done on the board itself by clicking or
+going trough the proposal the official way"):
+
+1. **The board** (`.chess-board`, an svg of 64 squares in the floor's
+   ground tones) seen from TelarchyBot's side: white at the bottom when
+   `game.color` is white, black at the bottom otherwise. a1 is a dark
+   square and h1 a light one, as on every chessboard. The pieces are
+   the position in `game.fen`; the two squares of the last move
+   (`game.moves`' last) are tinted. **Arrows for the three highest
+   prices** of an open move (`.chess-arrow`), shaded as the snake's
+   chevrons are (the leader at 0.9, the lowest of the three at 0.3, all at
+   0.55 on a tie or fewer than two priced), each a link to
+   `/{slug}/p/{open.proposal.number}?option={uci}` that opens that
+   option's world in place. **A move made on the board opens its option**:
+   pressing a piece that has legal moves (the `from` square of some
+   option) selects it and marks each square it can move to with a dot;
+   **hovering such a piece shows the same before any press**: its square
+   is tinted and its target squares get their dots, so a piece that can be
+   pressed reads as pressable, and moving off clears both; while a piece is
+   picked up the pick is what shows, and a hovered piece that cannot move,
+   or any piece while no move is open, shows nothing;
+   pressing one of those squares opens that move's world exactly as its
+   arrow does (a promotion opens the queen's); pressing anywhere else
+   clears the selection. Pieces that cannot move, and every piece while no
+   move is open, do nothing. **An arrow never takes the click meant for the
+   board**: its pressable area starts outside the square it leaves, so a
+   piece under an arrow's tail can still be picked up, and while a piece is
+   picked up the arrows take no clicks at all, so the square pressed is the
+   move made. A new position draws at once; nothing is ever
+   painted outside the board.
+2. **The next move** (`.chess-next`), the snake's line in the snake's
+   type: "Next move: O-O in 0:31" (the leader's SAN, counting down to
+   `open.deadline`; "Next move in 0:31" while no option leads), "Next move: O-O, deciding" once that count runs out,
+   "Waiting for OppBot (2171) to reply to O-O · 28:20" while the opponent
+   thinks (Viktor 2026-09-13: "make it more clear when waiting for opponent
+   move now it just says their move"): the opponent by name and rating (no
+   rating when Lichess has none), the move of TelarchyBot's they are
+   answering when the last decision belongs to this game (otherwise "to
+   move"), and their clock in the accent, counting down by the second from
+   the feed's last read, "Settling the game"
+   while `phase` is `settling`, "Waiting for the next game" between games,
+   "Loading" before the first read and "Feed unavailable" after a failed
+   one.
+   Under it, **the player's record** (`.chess-stats`, Viktor 2026-09-13:
+   "show some stats somewhere? like rating (elo), games played, games won,
+   games lost"): one muted mono line, "Rating 1720 · Played 12 · Won 3 ·
+   Lost 8 · Drawn 1", read from the feed's `player` (Lichess's classical
+   rating with "?" after it while provisional, and Lichess's own game counts
+   for the account). The line is absent while `player` is null.
+3. **The proposal on screen is marked on the board** (Viktor 2026-09-13:
+   "when im in a proposal page make sure that the move corresponding to the
+   proposal is highlighted"). When the page has the open move's proposal
+   selected, the option on screen (its world) is drawn as a solid arrow in
+   the approved green, whether or not it is among the three highest, and its
+   two squares are tinted; the three highest keep their accent arrows beside
+   it. A proposal that is decided, lapsed or not the open move marks nothing,
+   because its move belongs to a position the board no longer shows. **A move
+   made on the board always opens the newest open proposal**, from any page:
+   pressing a piece and a target, or an arrow, on a decided proposal's page
+   opens that move on the open one, and nothing when no move is open.
+4. **The moves, one slim column beside the board** (`.chess-movelist`,
+   Viktor 2026-09-13: "show a sorted list of moves on the right which upon
+   hovering over can be selected and also hovering them highlights the
+   corresponding move.. the buttons before were too big so just make them
+   small but wide.. maybe scrollable if needed.. it should just be one
+   column"). Only while a move is open: every legal move, highest price
+   first, an unpriced one last as "open", one row each (`.chess-moverow`):
+   the rank, the piece and the SAN, a thin bar the length of the price
+   within the list's range, and the price to one decimal, in the mono type
+   at the size of the chart's labels, one line high. The leader's row is in
+   the approved green, the proposal on screen's row is marked as its arrow
+   is. The column is as tall as the board and scrolls inside itself; it sits
+   to the right of the board when the slot fits both, under the board with
+   the same height otherwise. **Hovering a row, or focusing it, draws that
+   move on the board** (`.chess-arrow.is-hover`, in the ink, its squares
+   tinted) until the pointer leaves; pressing a row opens that option's
+   world, as its arrow does. **The prices are on the board too**: while a
+   piece is picked up, each square it can reach carries that move's price
+   (the leader's in the approved green, an unpriced one "open").
+
+The replay row is the snake's (picker, scrubber, play, speed, LIVE): the
+picker lists the games newest first as "Game 3 · vs OppBot · lost", the
+scrubber runs over the plies (0 is the start position), play steps one
+ply a second (ten at 10x), and the line reads "Move 6: O-O, chosen at
+56.4" for TelarchyBot's ply ("chosen at random" when its `kind` is not
+`market` or no price was recorded) and "Move 6: they played Nf6" for the
+opponent's. In replay the board draws the ply's `fen`, its move tinted,
+and our chosen move as one solid arrow; there is no move list. Every read
+reports the open move's option prices by proposal id for the floor's own
+cells, and a new open proposal (or none) reloads the floor, as the snake's
+step does.
+
+**A price on the live view is the book's own, read once a second.** The
+snake's arrows and the chess arrows, target prices and next-move line take
+every option's price from the floor's one-second prices poll (`GET
+/api/marketplace/:id/prices`, "The floor's live poll"), matched by the
+option's `marketId` in the feed; the feed's own `price` stands only for a
+book the poll has not answered yet. A lead is recomputed from those prices
+(the option's price minus the best other option's), so a bet placed on
+the ticket moves its arrow and its row within a second, never on the
+operator's slower read. The feed still decides what is open and where the
+pieces stand.
 
 **The feed drives the floor** (2026-09-11, Viktor: "make sure the whole
 page is properly dynamic and reactive to the fast updating snake"). A
@@ -3039,16 +3167,25 @@ accent, "DECIDING NOW", with the countdown to the decision ticking beside it
 one line; one row per world, each the proposal's address on its page: for a
 proposal with options, one row per option in the proposal's order with its
 price and its impact, the leader outlined in the higher colour and marked
-"leads" (a tie marks no one); for an approve or decline proposal, "If
+"leads" (a tie marks no one); with more than six options (a chess move
+offers every legal move) the block carries the six highest priced, highest
+first, then one "+N more" row that opens the proposal, as a board row does;
+for an approve or decline proposal, "If
 approved" and "If declined" with their prices and the impact of approving
 under them. Then one sentence: "Each option is priced by what traders
 forecast it does to <metric>." On the Snake that block is always the
 current move. Beside them, on the left, the
-floor's live board when the floor's live feed is a snake game (the same
-snake board as its page, without the replay row), else the hero market's
-spark: a feed of any other kind, such as the chess floor's, is never drawn as
-a snake board, and a snake board handed a feed with no snake draws an empty
-grid rather than failing the page. At phone
+floor's live board when the floor has a live feed: the board its feed's
+`kind` names, the same one its page draws (the snake board for `snake`, the
+chess board for `chess`), without the replay row, and it looks as it does
+on the floor: the card gives a live board the width of the floor's live slot
+(45rem), so the chess moves column sits beside the board as it does there,
+and the board sits at the top of the card rather than floating in its
+middle. A kind this build cannot
+draw shows the hero market's spark instead, as a floor without a feed does;
+the card never draws one kind's board over another kind's feed, and a
+snake board handed a feed with no snake draws an empty grid rather than
+failing the page. At phone
 width the card stacks, the board or spark first. The card never says "bet":
 the home page's words are forecast words.
 
