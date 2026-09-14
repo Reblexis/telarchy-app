@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import type { FeedQuotes } from '../../lib/feed-overlay';
+import { startVisiblePoll } from '../../lib/visible-poll';
 import { leadOpacities } from './SnakeLive';
 
 /**
@@ -436,9 +437,10 @@ export function ChessLive({
   onQuotesRef.current = onQuotes;
   const stepKeyRef = useRef<string | null>(null);
 
+  /* The feed read, every POLL_MS while the tab is visible and never while it is
+     hidden (docs/ui-conventions.md, "A hidden tab asks for nothing"). */
   useEffect(() => {
     let stopped = false;
-    let timer: number | null = null;
     const tick = async () => {
       try {
         const s = (await api.getLiveState(slug)) as unknown as ChessState;
@@ -460,29 +462,10 @@ export function ChessLive({
         if (!stopped) setFailed(true);
       }
     };
-    const start = () => {
-      if (timer === null) timer = window.setInterval(tick, POLL_MS);
-    };
-    const stop = () => {
-      if (timer !== null) {
-        window.clearInterval(timer);
-        timer = null;
-      }
-    };
-    const onVisibility = () => {
-      if (document.visibilityState === 'hidden') stop();
-      else {
-        void tick();
-        start();
-      }
-    };
-    void tick();
-    if (document.visibilityState !== 'hidden') start();
-    document.addEventListener('visibilitychange', onVisibility);
+    const stop = startVisiblePoll(tick, POLL_MS, { immediate: true });
     return () => {
       stopped = true;
       stop();
-      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [slug]);
 
