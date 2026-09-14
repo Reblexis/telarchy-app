@@ -22,11 +22,13 @@ jest.mock('../lib/notify', () => ({
 }));
 
 import { eq } from 'drizzle-orm';
-import { agentHeartbeats, agents, marketForecasts, markets, systemConfig, workspaces } from '../db/schema';
+import { agentHeartbeats, agents, marketForecasts, markets, proposals, systemConfig, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
 import {
   DUE_AFTER_MS,
   MIN_LIFETIME_MS,
+  PROPOSAL_DUE_AFTER_MS,
+  PROPOSAL_MIN_WINDOW_MS,
   REMIND_EVERY_MS,
   runAgentWatchdog,
   STALE_HEARTBEAT_MS,
@@ -78,6 +80,7 @@ async function market(opts: {
   voided?: boolean;
   active?: boolean;
   proposalId?: string;
+  branch?: string;
   now?: Date;
 }) {
   n += 1;
@@ -97,7 +100,7 @@ async function market(opts: {
     pool: initialPool(1000),
     active: opts.active ?? true,
     proposalId: opts.proposalId ?? null,
-    branch: opts.proposalId ? 'approved' : null,
+    branch: opts.branch ?? (opts.proposalId ? 'approved' : null),
     resolved: opts.resolved ?? false,
     voided: opts.voided ?? false,
     createdAt,
@@ -127,6 +130,8 @@ describe('what is watched and the lines it draws', () => {
     expect(DUE_AFTER_MS).toBe(6 * HOUR);
     expect(MIN_LIFETIME_MS).toBe(12 * HOUR);
     expect(REMIND_EVERY_MS).toBe(24 * HOUR);
+    expect(PROPOSAL_DUE_AFTER_MS).toBe(2 * HOUR);
+    expect(PROPOSAL_MIN_WINDOW_MS).toBe(4 * HOUR);
   });
 });
 
@@ -192,6 +197,79 @@ describe('THE RULE: the owner is emailed when the reference forecaster stops, wh
     expect(sent[0].text).toContain('boom');
     expect(sent[0].text).toMatch(/1 open market/);
     expect((await state())?.reasons).toHaveLength(3);
+  });
+});
+
+let p = 0;
+/** A proposal posted `postedAgoMs` ago deciding `windowMs` after posting, with two open books. */
+async function pendingProposal(opts: { postedAgoMs?: number; windowMs?: number; ws?: string; status?: string } = {}) {
+  p += 1;
+  const createdAt = new Date(T0.getTime() - (opts.postedAgoMs ?? 3 * HOUR));
+  const id = `prop-${p}`;
+  await db.insert(proposals).values({
+    id,
+    workspaceId: opts.ws ?? 'ws-pub',
+    proposedBy: 'someone-else',
+    title: `Raise prices ${p}`,
+    status: opts.status ?? 'pending',
+    createdAt,
+    decideBy: new Date(createdAt.getTime() + (opts.windowMs ?? 24 * HOUR)),
+  });
+  const a = await market({
+    proposalId: id,
+    branch: 'approved',
+    ws: opts.ws,
+    openedAgoMs: opts.postedAgoMs ?? 3 * HOUR,
+  });
+  const b = await market({
+    proposalId: id,
+    branch: 'declined',
+    ws: opts.ws,
+    openedAgoMs: opts.postedAgoMs ?? 3 * HOUR,
+  });
+  return { id, books: [a, b] };
+}
+
+describe("THE RULE, for proposals: a pending proposal left without the agent's forecast is work not done", () => {
+  test('a public proposal posted 3 hours ago, deciding in a day, with no forecast on any of its books', async () => {
+    await heartbeat(1 * MIN);
+    await pendingProposal();
+    await runAgentWatchdog(T0);
+    expect(sent).toHaveLength(1);
+    expect(sent[0].text).toMatch(/1 pending proposal/);
+    expect(sent[0].text).toContain('Raise prices 1');
+    expect(sent[0].text).toContain('LookPilot');
+  });
+
+  test('one forecast on any of its books is enough', async () => {
+    await heartbeat(1 * MIN);
+    const { books } = await pendingProposal();
+    await forecast(books[1]);
+    await runAgentWatchdog(T0);
+    expect(sent).toEqual([]);
+  });
+
+  test('not yet due: posted less than 2 hours ago', async () => {
+    await heartbeat(1 * MIN);
+    await pendingProposal({ postedAgoMs: 1 * HOUR + 59 * MIN });
+    await runAgentWatchdog(T0);
+    expect(sent).toEqual([]);
+  });
+
+  test("never due: a proposal deciding less than 4 hours after it was posted (the Snake's moves)", async () => {
+    await heartbeat(1 * MIN);
+    await pendingProposal({ postedAgoMs: 3 * HOUR, windowMs: 3 * HOUR + 59 * MIN });
+    await runAgentWatchdog(T0);
+    expect(sent).toEqual([]);
+  });
+
+  test('never due: a decided proposal, one past its deadline, one on a private workspace', async () => {
+    await heartbeat(1 * MIN);
+    await pendingProposal({ status: 'approved' });
+    await pendingProposal({ postedAgoMs: 30 * HOUR, windowMs: 24 * HOUR });
+    await pendingProposal({ ws: 'ws-priv' });
+    await runAgentWatchdog(T0);
+    expect(sent).toEqual([]);
   });
 });
 

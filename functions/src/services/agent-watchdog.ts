@@ -11,9 +11,9 @@
  * but not done (the agent reports idle every cycle while its model, login
  * or membership is broken and it files nothing).
  */
-import { and, eq, inArray, isNull, lte, max } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNotNull, isNull, lte, max } from 'drizzle-orm';
 import { db } from '../db/client';
-import { agentHeartbeats, marketForecasts, markets, systemConfig, workspaces } from '../db/schema';
+import { agentHeartbeats, marketForecasts, markets, proposals, systemConfig, workspaces } from '../db/schema';
 import { settlesOn } from '../lib/date-utils';
 import { sendEmail } from '../lib/notify';
 import { publicOrigin } from '../lib/origin';
@@ -27,6 +27,10 @@ export const STALE_HEARTBEAT_MS = 30 * 60_000;
 export const DUE_AFTER_MS = 6 * 60 * 60_000;
 /** Books that settle sooner than this after opening are skipped by the agent's own rule. */
 export const MIN_LIFETIME_MS = 12 * 60 * 60_000;
+/** A pending proposal this old with no forecast from the agent is work not done. */
+export const PROPOSAL_DUE_AFTER_MS = 2 * 60 * 60_000;
+/** A proposal deciding sooner than this after posting is too short for a researched estimate. */
+export const PROPOSAL_MIN_WINDOW_MS = 4 * 60 * 60_000;
 /** While an agent stays stopped, the owner is reminded this often. */
 export const REMIND_EVERY_MS = 24 * 60 * 60_000;
 
@@ -109,6 +113,65 @@ async function dueWithoutForecast(agentId: string, now: Date) {
   return longLived.filter(m => !done.has(m.id));
 }
 
+/** Pending public proposals, long enough to estimate, none of whose open books the agent has forecast. */
+async function dueProposalsWithoutForecast(agentId: string, now: Date) {
+  const postedBefore = new Date(now.getTime() - PROPOSAL_DUE_AFTER_MS);
+  const candidates = await db
+    .select({
+      id: proposals.id,
+      title: proposals.title,
+      createdAt: proposals.createdAt,
+      decideBy: proposals.decideBy,
+      workspaceName: workspaces.name,
+    })
+    .from(proposals)
+    .innerJoin(workspaces, eq(workspaces.id, proposals.workspaceId))
+    .where(
+      and(
+        eq(workspaces.visibility, 'public'),
+        eq(proposals.status, 'pending'),
+        lte(proposals.createdAt, postedBefore),
+        isNotNull(proposals.decideBy),
+        gt(proposals.decideBy, now),
+      ),
+    );
+  const long = candidates.filter(
+    p => p.decideBy && p.decideBy.getTime() - p.createdAt.getTime() >= PROPOSAL_MIN_WINDOW_MS,
+  );
+  if (long.length === 0) return [];
+  const books = await db
+    .select({ id: markets.id, proposalId: markets.proposalId })
+    .from(markets)
+    .where(
+      and(
+        inArray(
+          markets.proposalId,
+          long.map(p => p.id),
+        ),
+        eq(markets.active, true),
+        eq(markets.resolved, false),
+        eq(markets.voided, false),
+      ),
+    );
+  if (books.length === 0) return [];
+  const forecast = await db
+    .selectDistinct({ marketId: marketForecasts.marketId })
+    .from(marketForecasts)
+    .where(
+      and(
+        eq(marketForecasts.agentId, agentId),
+        inArray(
+          marketForecasts.marketId,
+          books.map(b => b.id),
+        ),
+      ),
+    );
+  const done = new Set(forecast.map(f => f.marketId));
+  const withBooks = new Set(books.map(b => b.proposalId));
+  const covered = new Set(books.filter(b => done.has(b.id)).map(b => b.proposalId));
+  return long.filter(p => withBooks.has(p.id) && !covered.has(p.id));
+}
+
 function mailText(agentId: string, s: WatchState, lastReport: string, lastForecast: string): string {
   return [
     `${agentId}, a house forecaster on ${publicOrigin()}, stopped working at ${s.since}.`,
@@ -149,6 +212,15 @@ async function watchOne(agentId: string, now: Date): Promise<WatchResult> {
     const k = due.length;
     reasons.push(
       `${k} open market${k === 1 ? '' : 's'} opened more than 6 hours ago carr${k === 1 ? 'ies' : 'y'} no forecast from it, for example ${e.metricName} ${e.targetDate} on ${e.workspaceName}`,
+    );
+  }
+
+  const dueProposals = await dueProposalsWithoutForecast(agentId, now);
+  if (dueProposals.length > 0) {
+    const e = dueProposals[0];
+    const k = dueProposals.length;
+    reasons.push(
+      `${k} pending proposal${k === 1 ? '' : 's'} posted more than 2 hours ago carr${k === 1 ? 'ies' : 'y'} no forecast from it, for example "${e.title}" on ${e.workspaceName}`,
     );
   }
 

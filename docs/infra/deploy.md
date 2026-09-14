@@ -947,7 +947,13 @@ payouts. Records: `notes/bug-hunt-2026-08-31.md`, P0-3.
     settlement falls at least 12 hours after it opened, carries no forecast
     from the agent (this is the failure a heartbeat cannot see: the model's
     credits run out, its login expires, a membership is lost, and every
-    cycle still reports idle).
+    cycle still reports idle);
+  - or a pending proposal on a public workspace, posted more than 2 hours
+    ago, whose decision deadline is still ahead and falls at least 4 hours
+    after it was posted, has open books none of which carries a forecast
+    from the agent (a proposal deciding sooner, the Snake's one-minute moves
+    for instance, is too short for a researched estimate, and a decided
+    proposal's books are not asked of it).
 
   Mail goes to `OWNER_NOTIFY_EMAIL` through Resend: one message when an agent
   goes from working to stopped, naming every reason, when it last reported,
