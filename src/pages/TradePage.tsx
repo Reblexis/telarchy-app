@@ -2959,8 +2959,8 @@ export function TradePage() {
                         <>
                           <p className="pubws-decides-p">
                             {!jobAskUsd
-                              ? `Choosing an option commits ${ws.name} to it.`
-                              : `Choosing an option pays ${selectedJob.proposedByName ?? 'the proposer'} $${jobAskUsd} and commits ${ws.name} to it.`}{' '}
+                              ? `Choosing an option commits ${selectedJob.proposedByName ?? 'the proposer'} to it.`
+                              : `Choosing an option pays ${selectedJob.proposedByName ?? 'the proposer'} $${jobAskUsd} and commits them to it.`}{' '}
                             Every number this floor prices gets one market per option for this proposal, each as if that
                             option is chosen; the gap between the leader and the next best is what the market says the
                             choice is worth.
