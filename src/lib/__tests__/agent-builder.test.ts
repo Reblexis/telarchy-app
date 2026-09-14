@@ -74,6 +74,13 @@ test('A CONNECTED BOT IS NEVER CREATED OR FUNDED AGAIN BY ITS PROMPT', () => {
   expect(text).toContain('already created and funded');
   expect(text).not.toContain('separate bot');
 });
+test("A PERSONAL KEY'S PROMPT NEVER CALLS THE ACCOUNT A BOT", () => {
+  const text = builderPrompt('https://example.test', { ...opts, identity: 'me', access: 'trade' }, 'human-id');
+  expect(text).toContain('"human-id"');
+  expect(text).toContain('my own account');
+  expect(text).not.toContain('my bot');
+  expect(text).not.toContain('funded');
+});
 test('NO WORKSPACE REQUIRED TO START WITH A PROMPT', () => {
   const text = builderPrompt('https://example.test', defaults);
   expect(text).toContain('choose a public workspace');

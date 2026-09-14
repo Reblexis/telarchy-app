@@ -199,9 +199,12 @@ test('personal keys retain runtime instructions with their actual trading access
   fireEvent.click(await screen.findByRole('button', { name: 'Run Production' }));
   fireEvent.click(screen.getByRole('button', { name: 'Set up manually' }));
   expect(screen.getByText('After the preview: allow live trading')).toBeVisible();
-  expect((screen.getByLabelText('Setup prompt') as HTMLTextAreaElement).value).toContain(
-    'Use my existing connection "human-id"',
-  );
+  const prompt = (screen.getByLabelText('Setup prompt') as HTMLTextAreaElement).value;
+  expect(prompt).toContain('"human-id"');
+  expect(prompt).toContain('my own account');
+  // The Production key carries '*', so the prompt names full access.
+  expect(prompt).toContain('full access to this identity');
+  expect(prompt).not.toContain('my bot');
 });
 
 test('bot setup without a key opens the key form without creating credentials', async () => {

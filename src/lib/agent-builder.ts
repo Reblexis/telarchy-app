@@ -42,7 +42,9 @@ export function readOptions(value: unknown): BuilderOptions {
  */
 export function builderPrompt(base: string, o: BuilderOptions, connectedAgentId?: string): string {
   const identity = connectedAgentId
-    ? `my bot ${JSON.stringify(connectedAgentId)}, already created and funded`
+    ? o.identity === 'me'
+      ? `my own account (${JSON.stringify(connectedAgentId)}), already set up, not a new participant`
+      : `my bot ${JSON.stringify(connectedAgentId)}, already created and funded`
     : o.identity === 'bot'
       ? 'a separate bot with its own balance and record, still to be created'
       : 'my own account, not a new participant';
