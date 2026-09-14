@@ -12762,7 +12762,8 @@ actually behaves when your balance runs short.</p>
 <p class="filelabel">docs/infra/deploy.md</p>
 <h1 id="docs-infra-deploy-md--h1">Backend deploy (Cloud Run, via GitHub Actions)</h1>
 <p>The backend (<code>api</code> service on Cloud Run, project <code>telarchy-e0043</code>, region
-<code>us-central1</code>) builds on every push to <code>main</code> via
+<code>us-central1</code>) builds on every push to <code>main</code> that changes an image input
+(see &quot;Branch previews&quot;, &quot;A push builds only when the image would change&quot;) via
 <code>.github/workflows/deploy-cloudrun.yml</code>, which deploys a no-traffic
 candidate revision for smoke testing; production traffic moves only when a
 human publishes that candidate (see &quot;Nothing reaches the public until you
@@ -13158,6 +13159,34 @@ revision of the same service carrying no traffic and a URL tag named after the
 branch, and <code>telarchy.com/beta</code> can show it. That is how a change is looked at
 before anyone decides to merge it: an agent pushes its branch, CI turns green,
 and the reply names <code>https://telarchy.com/beta?branch=br-&lt;name&gt;</code>.</p>
+<p><strong>A push builds only when the image would change.</strong> Before either deploy job,
+the <code>changes</code> job lists every path that differs between the pushed commit and
+the last commit this workflow built for the same branch: the head of the
+newest successful run whose <code>deploy</code> or <code>preview</code> job succeeded, or, on a
+branch that has never been built, the commit where it left <code>main</code>. It compares
+against the last build, not against the push's previous commit, because a
+queued run is cancelled when a newer push arrives, so the previous commit may
+never have been built. The build runs if any listed path is an image input. A
+path is NOT an image input only when both hold:</p>
+<ul>
+<li>no <code>COPY</code> in the <code>Dockerfile</code> (other than <code>COPY --from</code>) names it or a
+directory above it, and</li>
+<li>it is under <code>docs/</code>, <code>browse/</code>, <code>notes/</code> or <code>qa/</code>, or its name ends in <code>.md</code>.</li>
+</ul>
+<p>Everything else is an input, including any path nobody anticipated, so an
+unfamiliar file builds rather than skips. The served docs follow from the
+first condition: <code>docs/guides/</code>, <code>docs/audience-pages.md</code> and
+<code>docs/data-room/vision.md</code> are copied into the image and served by the app,
+so a change to them always builds, and a new <code>COPY</code> of a doc joins them
+without touching the rule. A push of only notes, browser specs, other docs or
+the docs mirror builds nothing: no Cloud Build, no image, no migrations, and
+the branch's existing preview, if it has one, stays as it was. The tests run
+on every push regardless. A <code>workflow_dispatch</code> always builds, since that is
+how the picker asks for one (&quot;Any branch can be built&quot;, below). The <code>main</code>
+candidate follows the same rule: a push that changes no image input would
+build the image that is already the candidate. <code>scripts/image-build-needed.mjs</code>
+is the one place the rule lives; the workflow finds the last built commit and
+calls it.</p>
 <p><strong>Main takes pull requests only.</strong> The GitHub ruleset &quot;main: branches only,
 green CI, no force push&quot; (no bypass, not even the owner) requires every
 change to main to arrive as a pull request whose <code>Type check and frontend tests</code> and three <code>Backend tests</code> checks passed, and blocks force pushes and
@@ -13428,10 +13457,12 @@ fails to load, and the boundary reloads once. That one only fires when the
 visitor navigates to a page they had not opened yet; this one fires while they
 sit still.</p>
 <h2 id="docs-infra-deploy-md--h16">What the workflow does</h2>
-<p>On <code>push</code> to any branch (or <code>workflow_dispatch</code>); pushes touching only
-<code>**/*.md</code> or <code>docs/**</code> do not trigger it. A branch <code>delete</code> event triggers
-only the <code>retire</code> job.</p>
-<ol>
+<p>On every <code>push</code> to any branch (or <code>workflow_dispatch</code>). A branch <code>delete</code>
+event triggers only the <code>retire</code> job.</p>
+<ol start="0">
+<li><code>changes</code>: decides whether the push changes an image input (&quot;Branch
+previews&quot;, &quot;A push builds only when the image would change&quot;). <code>deploy</code> and
+<code>preview</code> run only when it says so; the test jobs run either way.</li>
 <li><code>checks</code>: type check, frontend suite, production bundle (<code>npm run build</code>).</li>
 <li><code>backend</code>: the backend suite in three shards (<code>npm run test:ci --shard=N/3</code>).</li>
 <li>On <code>main</code>, <code>deploy</code> (needs both, GitHub environment <code>production</code>): auths to

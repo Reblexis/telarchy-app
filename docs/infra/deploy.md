@@ -1,7 +1,8 @@
 # Backend deploy (Cloud Run, via GitHub Actions)
 
 The backend (`api` service on Cloud Run, project `telarchy-e0043`, region
-`us-central1`) builds on every push to `main` via
+`us-central1`) builds on every push to `main` that changes an image input
+(see "Branch previews", "A push builds only when the image would change") via
 `.github/workflows/deploy-cloudrun.yml`, which deploys a no-traffic
 candidate revision for smoke testing; production traffic moves only when a
 human publishes that candidate (see "Nothing reaches the public until you
@@ -402,6 +403,35 @@ branch, and `telarchy.com/beta` can show it. That is how a change is looked at
 before anyone decides to merge it: an agent pushes its branch, CI turns green,
 and the reply names `https://telarchy.com/beta?branch=br-<name>`.
 
+**A push builds only when the image would change.** Before either deploy job,
+the `changes` job lists every path that differs between the pushed commit and
+the last commit this workflow built for the same branch: the head of the
+newest successful run whose `deploy` or `preview` job succeeded, or, on a
+branch that has never been built, the commit where it left `main`. It compares
+against the last build, not against the push's previous commit, because a
+queued run is cancelled when a newer push arrives, so the previous commit may
+never have been built. The build runs if any listed path is an image input. A
+path is NOT an image input only when both hold:
+
+- no `COPY` in the `Dockerfile` (other than `COPY --from`) names it or a
+  directory above it, and
+- it is under `docs/`, `browse/`, `notes/` or `qa/`, or its name ends in `.md`.
+
+Everything else is an input, including any path nobody anticipated, so an
+unfamiliar file builds rather than skips. The served docs follow from the
+first condition: `docs/guides/`, `docs/audience-pages.md` and
+`docs/data-room/vision.md` are copied into the image and served by the app,
+so a change to them always builds, and a new `COPY` of a doc joins them
+without touching the rule. A push of only notes, browser specs, other docs or
+the docs mirror builds nothing: no Cloud Build, no image, no migrations, and
+the branch's existing preview, if it has one, stays as it was. The tests run
+on every push regardless. A `workflow_dispatch` always builds, since that is
+how the picker asks for one ("Any branch can be built", below). The `main`
+candidate follows the same rule: a push that changes no image input would
+build the image that is already the candidate. `scripts/image-build-needed.mjs`
+is the one place the rule lives; the workflow finds the last built commit and
+calls it.
+
 **Main takes pull requests only.** The GitHub ruleset "main: branches only,
 green CI, no force push" (no bypass, not even the owner) requires every
 change to main to arrive as a pull request whose `Type check and frontend
@@ -716,10 +746,12 @@ sit still.
 
 ## What the workflow does
 
-On `push` to any branch (or `workflow_dispatch`); pushes touching only
-`**/*.md` or `docs/**` do not trigger it. A branch `delete` event triggers
-only the `retire` job.
+On every `push` to any branch (or `workflow_dispatch`). A branch `delete`
+event triggers only the `retire` job.
 
+0. `changes`: decides whether the push changes an image input ("Branch
+   previews", "A push builds only when the image would change"). `deploy` and
+   `preview` run only when it says so; the test jobs run either way.
 1. `checks`: type check, frontend suite, production bundle (`npm run build`).
 2. `backend`: the backend suite in three shards (`npm run test:ci --shard=N/3`).
 3. On `main`, `deploy` (needs both, GitHub environment `production`): auths to
