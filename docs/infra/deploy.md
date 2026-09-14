@@ -1165,8 +1165,9 @@ within weeks. The rule:
   Every list that stands for a floor's proposals therefore reads the
   pending ones and the decided ones as two bounded reads: the public
   ballot carries every pending proposal (up to `PENDING_LISTED_MAX`, 200)
-  and the newest 40 decided; the workspace brief every pending proposal
-  (up to 200) and the newest 25 others. `GET /api/proposals` without
+  and the newest 40 decided; the workspace brief, which has to fit one
+  tool result, 25 proposals with the pending ones taken first (it says
+  `olderContractsOmitted` when more exist). `GET /api/proposals` without
   `status` lists pending proposals ahead of the rest, each part newest
   first: `before=<number>` continues from that proposal's place in that
   order, and `before=<instant>` stays a plain time filter.

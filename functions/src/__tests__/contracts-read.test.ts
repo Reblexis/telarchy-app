@@ -166,7 +166,7 @@ describe('THE WHOLE FLOOR FITS IN ONE TOOL RESULT', () => {
   });
 
   test('a floor with more proposals than one read holds SAYS so, never silently', async () => {
-    // The brief carries the newest 25 proposals. A reader deciding what to
+    // The brief carries 25 proposals, pending first. A reader deciding what to
     // approve has to know when there are older ones it is not being shown,
     // because a silent cut is the failure this whole endpoint exists to end.
     for (let i = 0; i < 30; i++) {

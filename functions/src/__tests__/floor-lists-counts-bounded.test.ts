@@ -173,14 +173,15 @@ describe('THE RULE: a list never hides a live proposal', () => {
     expect(ids).not.toContain('prop-d-21');
   });
 
-  test('the workspace brief carries the open move behind 30 decided proposals, and the newest 25 others', async () => {
+  test('the workspace brief carries the open move behind 30 decided proposals, within its 25', async () => {
     await seedDecided(30);
     const ctx = await buildWorkspaceContext(WS);
     const ids = ctx!.contracts.map(c => c.id);
     expect(ids).toContain('prop-move');
-    expect(ids.filter(id => id !== 'prop-move')).toHaveLength(25);
+    expect(ids).toHaveLength(25);
     expect(ids).toContain('prop-d-31');
-    expect(ids).not.toContain('prop-d-6');
+    expect(ids).toContain('prop-d-8');
+    expect(ids).not.toContain('prop-d-7');
   });
 
   test('GET /api/proposals lists the open move first, then pages through every decided one exactly once', async () => {
