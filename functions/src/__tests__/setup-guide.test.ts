@@ -86,6 +86,11 @@ describe('the setup guide holds what the setup prompt used to', () => {
     expect(text()).toContain('POST /api/feedback');
     expect(text()).toContain('(/guides/feedback)');
     expect(text()).toContain('account:feedback');
+    expect(text()).toContain('fixed');
+  });
+
+  test('THE SETUP GUIDE ASKS FOR REPORTS, NOT FOR A REPORTER BUILT INTO THE AGENT', () => {
+    expect(text()).not.toMatch(/into the agent|reporter|reports? automatically|files one report/i);
   });
 
   test('THE SETUP GUIDE CARRIES THE RULES THE PROMPT NO LONGER DOES', () => {
