@@ -1,23 +1,34 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Ghost, LoadingStatus } from '../components/Ghosts';
-import { SnakeLive } from '../components/live/SnakeLive';
-import { Bars, Drop, Page, People, short } from '../components/MarketFacts';
-import { CreateWorkspaceDialog } from '../components/OwnerDialogs';
-import { useAuth } from '../hooks/useAuth';
-import type { HomeListing, HomePayload, PrizeSeason, PublicProposal, PublicWorkspace } from '../lib/api';
-import { api } from '../lib/api';
-import { floorHref } from '../lib/floor-hash';
-import { buildHorizonViews, priceSeriesOf, primaryHorizonOf } from '../lib/floor-horizons';
-import { dropInline, readInline } from '../lib/inline-data';
-import { optionLead, pairPool } from '../lib/proposal-options';
-import { pickCurrentSeason } from '../lib/season-clock';
-import { useSeasonClock } from '../lib/useSeasonClock';
-import { TopBar } from './TradePage';
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Ghost, LoadingStatus } from "../components/Ghosts";
+import { ChessLive } from "../components/live/ChessLive";
+import { SnakeLive } from "../components/live/SnakeLive";
+import { Bars, Drop, Page, People, short } from "../components/MarketFacts";
+import { CreateWorkspaceDialog } from "../components/OwnerDialogs";
+import { useAuth } from "../hooks/useAuth";
+import type {
+  HomeListing,
+  HomePayload,
+  PrizeSeason,
+  PublicProposal,
+  PublicWorkspace,
+} from "../lib/api";
+import { api } from "../lib/api";
+import { floorHref } from "../lib/floor-hash";
+import {
+  buildHorizonViews,
+  priceSeriesOf,
+  primaryHorizonOf,
+} from "../lib/floor-horizons";
+import { dropInline, readInline } from "../lib/inline-data";
+import { optionLead, pairPool } from "../lib/proposal-options";
+import { pickCurrentSeason } from "../lib/season-clock";
+import { useSeasonClock } from "../lib/useSeasonClock";
+import { TopBar } from "./TradePage";
 
 /** The server plants the home payload in the served HTML under this id
  *  (docs/ui-conventions.md, "While a page loads"). */
-const INLINE_HOME = 'telarchy-home';
+const INLINE_HOME = "telarchy-home";
 
 /**
  * The marketplace at /marketplace (owner direction 2026-08-14, Viktor,
@@ -73,8 +84,9 @@ interface Listing {
    *  featured card's buttons and heading. */
   heroMarketId?: string | null;
   question?: string | null;
-  /** The floor draws a live board (today the snake). */
-  live?: boolean;
+  /** The kind of the floor's live feed (`snake`, `chess`), null without one;
+   *  the featured card draws that kind's board and no other. */
+  liveKind?: string | null;
   /** The floor's most traded open proposal, for the featured card's deciding
    *  now block; null when it has none. */
   proposal?: PublicProposal | null;
@@ -96,17 +108,24 @@ function proposalVolume(p: PublicProposal): number {
 /** The featured card's deciding now proposal (docs/ui-conventions.md, "The
  *  marketplace"): the most traded open one, pending with trading not closed,
  *  ties to the newest; null when the floor has none. */
-export function pickOpenProposal(proposals: PublicProposal[] | null | undefined): PublicProposal | null {
+export function pickOpenProposal(
+  proposals: PublicProposal[] | null | undefined,
+): PublicProposal | null {
   let best: PublicProposal | null = null;
   for (const p of proposals ?? []) {
-    if ((p.status ?? 'pending') !== 'pending' || p.closedAt) continue;
+    if ((p.status ?? "pending") !== "pending" || p.closedAt) continue;
     if (best === null) {
       best = p;
       continue;
     }
     const v = proposalVolume(p);
     const bv = proposalVolume(best);
-    if (v > bv || (v === bv && Date.parse(p.createdAt ?? '') > Date.parse(best.createdAt ?? ''))) best = p;
+    if (
+      v > bv ||
+      (v === bv &&
+        Date.parse(p.createdAt ?? "") > Date.parse(best.createdAt ?? ""))
+    )
+      best = p;
   }
   return best;
 }
@@ -124,7 +143,8 @@ export function pickFeatured(listings: Listing[]): Listing | null {
     if (
       best === null ||
       v > (best.volumePerHour ?? 0) ||
-      (v === (best.volumePerHour ?? 0) && (r.liquidity ?? -1) > (best.liquidity ?? -1))
+      (v === (best.volumePerHour ?? 0) &&
+        (r.liquidity ?? -1) > (best.liquidity ?? -1))
     ) {
       best = r;
     }
@@ -151,7 +171,9 @@ function poolLiquidityOf(ws: {
   }>;
 }): number | null {
   const markets = ws.markets ?? [];
-  const onBallot = (ws.proposals ?? []).filter(p => (p.status ?? 'pending') === 'pending' && !p.closedAt);
+  const onBallot = (ws.proposals ?? []).filter(
+    (p) => (p.status ?? "pending") === "pending" && !p.closedAt,
+  );
   if (markets.length === 0 && onBallot.length === 0) return null;
   const baseline = markets.reduce((sum, m) => sum + (m.pool ?? 0), 0);
   const ballot = onBallot.reduce(
@@ -161,7 +183,11 @@ function poolLiquidityOf(ws: {
       (p.markets ?? []).reduce(
         (s, m) =>
           s +
-          pairPool({ approvedPool: m.approvedPool ?? null, declinedPool: m.declinedPool ?? null, options: m.options }),
+          pairPool({
+            approvedPool: m.approvedPool ?? null,
+            declinedPool: m.declinedPool ?? null,
+            options: m.options,
+          }),
         0,
       ),
     0,
@@ -178,12 +204,18 @@ function byLiquidity(a: Listing, b: Listing): number {
 /** "31 December 2026" -> "31 Dec", the caption's short form; the full day is
  *  the hover title. */
 function shortDay(day: string): string {
-  return day.replace(/^(\d+) ([A-Za-z]{3})[A-Za-z]* \d{4}$/, '$1 $2');
+  return day.replace(/^(\d+) ([A-Za-z]{3})[A-Za-z]* \d{4}$/, "$1 $2");
 }
 
 function fmtHero(v: number, unit: string): string {
   const decimals = Math.abs(v) >= 100 ? 0 : 1;
-  return unit + v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  return (
+    unit +
+    v.toLocaleString("en-US", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    })
+  );
 }
 
 /**
@@ -204,17 +236,23 @@ function MarketSpark({
     H = 72,
     PAD = 8;
   const pts = history
-    .filter(p => p.consensus !== null)
-    .map(p => ({ t: new Date(p.at).getTime(), v: p.consensus as number }))
-    .filter(p => Number.isFinite(p.t))
+    .filter((p) => p.consensus !== null)
+    .map((p) => ({ t: new Date(p.at).getTime(), v: p.consensus as number }))
+    .filter((p) => Number.isFinite(p.t))
     .sort((a, b) => a.t - b.t);
   // Robust y domain, the same 5th-95th percentile rule the poster chart
   // uses: one wild print (a market briefly taken to 150k) must not flatten
   // every real move into a straight line. The live call always widens the
   // domain rather than being clipped, and the padding keeps a quiet market
   // drawing through the middle instead of along the box's edge.
-  const sorted = [...pts.map(p => p.v)].sort((a, b) => a - b);
-  const quantile = (q: number) => sorted[Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * q)))];
+  const sorted = [...pts.map((p) => p.v)].sort((a, b) => a - b);
+  const quantile = (q: number) =>
+    sorted[
+      Math.min(
+        sorted.length - 1,
+        Math.max(0, Math.round((sorted.length - 1) * q)),
+      )
+    ];
   const lo = sorted.length ? Math.min(quantile(0.05), consensus) : consensus;
   const hi = sorted.length ? Math.max(quantile(0.95), consensus) : consensus;
   const pad = (hi - lo || Math.abs(hi) * 0.1 || 1) * 0.35;
@@ -226,7 +264,8 @@ function MarketSpark({
   const t0 = pts[0]?.t ?? 0;
   const t1 = Math.max(pts[pts.length - 1]?.t ?? 1, t0 + 1);
   const x = (t: number) => PAD + ((t - t0) / (t1 - t0)) * (W - PAD * 2 - 6);
-  const y = (v: number) => PAD + (1 - (clamp(v) - vMin) / spanV) * (H - PAD * 2);
+  const y = (v: number) =>
+    PAD + (1 - (clamp(v) - vMin) / spanV) * (H - PAD * 2);
   const seq =
     pts.length > 0
       ? [...pts, { t: t1, v: consensus }]
@@ -242,7 +281,12 @@ function MarketSpark({
   // weight without a second colour.
   const area = `${d} L${x(t1).toFixed(1)},${H - PAD} L${x(seq[0].t).toFixed(1)},${H - PAD} Z`;
   return (
-    <svg className="mkt-spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+    <svg
+      className="mkt-spark"
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
       <path d={area} className="mkt-spark-area" />
       <path d={d} className="mkt-spark-line" />
       <circle cx={x(t1)} cy={y(consensus)} r="3" className="mkt-spark-dot" />
@@ -260,7 +304,9 @@ function ActivityFacts({ r }: { r: Listing }) {
   return (
     <span className="mkt-cell-activity pubws-facts" aria-label="Market facts">
       {r.participants !== null && (
-        <span title={`${r.participants} participant${r.participants === 1 ? '' : 's'}`}>
+        <span
+          title={`${r.participants} participant${r.participants === 1 ? "" : "s"}`}
+        >
           <People /> {short(r.participants)}
         </span>
       )}
@@ -277,7 +323,9 @@ function ActivityFacts({ r }: { r: Listing }) {
         </span>
       )}
       {r.pendingJobs > 0 && (
-        <span title={`${r.pendingJobs} proposal${r.pendingJobs === 1 ? '' : 's'} priced now`}>
+        <span
+          title={`${r.pendingJobs} proposal${r.pendingJobs === 1 ? "" : "s"} priced now`}
+        >
           <Page /> {short(r.pendingJobs)}
         </span>
       )}
@@ -325,12 +373,20 @@ function ListYourNumberCell() {
   return (
     <div className="mkt-cell mkt-cell--new">
       <span className="mkt-new-label">Your own numbers</span>
-      <span className="mkt-new-title">See what a decision does to your numbers before you say yes.</span>
+      <span className="mkt-new-title">
+        See what a decision does to your numbers before you say yes.
+      </span>
       <span className="mkt-new-sub">
-        List your metrics. Traders, people or bots, price each proposal against them, and you decide on the price.
+        List your metrics. Traders, people or bots, price each proposal against
+        them, and you decide on the price.
       </span>
       {user || loading ? (
-        <button type="button" className="mkt-new-cta" disabled={loading} onClick={() => setCreating(true)}>
+        <button
+          type="button"
+          className="mkt-new-cta"
+          disabled={loading}
+          onClick={() => setCreating(true)}
+        >
           Create your own {arrow}
         </button>
       ) : (
@@ -338,7 +394,12 @@ function ListYourNumberCell() {
           Create your own {arrow}
         </Link>
       )}
-      {creating && <CreateWorkspaceDialog onClose={() => setCreating(false)} onCreated={path => navigate(path)} />}
+      {creating && (
+        <CreateWorkspaceDialog
+          onClose={() => setCreating(false)}
+          onCreated={(path) => navigate(path)}
+        />
+      )}
     </div>
   );
 }
@@ -367,11 +428,12 @@ function SeasonDoor({ season }: { season: PrizeSeason | null }) {
         {clock.headline}
       </p>
       <p className="mkt-season-line">
-        ${season.poolUsd.toLocaleString()} in real money, split among the traders in proportion to their profit. Free to
-        enter, no purchase, no stake.
+        ${season.poolUsd.toLocaleString()} in real money, split among the
+        traders in proportion to their profit. Free to enter, no purchase, no
+        stake.
       </p>
       <Link className="mkt-season-cta" to="/season">
-        {clock.entryOpen ? 'Enter the season' : 'See the season'}
+        {clock.entryOpen ? "Enter the season" : "See the season"}
       </Link>
     </section>
   );
@@ -384,7 +446,7 @@ function SeasonGhost() {
       <Ghost w={60} h={9} />
       <Ghost w={150} h={11} />
       <Ghost w="40%" h={10} />
-      <Ghost w={120} h={28} r={999} style={{ marginLeft: 'auto' }} />
+      <Ghost w={120} h={28} r={999} style={{ marginLeft: "auto" }} />
     </div>
   );
 }
@@ -400,7 +462,7 @@ function GhostCell() {
       <Ghost w="34%" h={30} style={{ marginTop: 6 }} />
       <Ghost w="88%" h={11} style={{ marginTop: 6 }} />
       <Ghost w="62%" h={11} />
-      <Ghost w="100%" h={44} r={6} style={{ marginTop: 'auto' }} />
+      <Ghost w="100%" h={44} r={6} style={{ marginTop: "auto" }} />
       <Ghost w="40%" h={9} />
     </div>
   );
@@ -410,18 +472,33 @@ function GhostCell() {
  *  itself does, so a cell and the page it links to never name different
  *  numbers. The furthest-resolving market is the cell's number (owner
  *  direction 2026-08-16). */
+/** The floor's live feed kind, or null when it has no feed or names no kind. */
+function liveKindOf(ws: PublicWorkspace): string | null {
+  const kind = (ws as { liveFeed?: { kind?: unknown } | null }).liveFeed?.kind;
+  return typeof kind === "string" ? kind : null;
+}
+
 function fromFloor(
   ws: PublicWorkspace,
 ): Pick<
   Listing,
-  'hero' | 'participants' | 'tradesThisWeek' | 'liquidity' | 'heroMarketId' | 'question' | 'live' | 'proposal'
+  | "hero"
+  | "participants"
+  | "tradesThisWeek"
+  | "liquidity"
+  | "heroMarketId"
+  | "question"
+  | "liveKind"
+  | "proposal"
 > {
   const m = primaryHorizonOf(buildHorizonViews(ws));
   return {
-    proposal: pickOpenProposal((ws as { proposals?: PublicProposal[] }).proposals),
+    proposal: pickOpenProposal(
+      (ws as { proposals?: PublicProposal[] }).proposals,
+    ),
     heroMarketId: m?.marketId ?? null,
     question: m?.title ?? null,
-    live: !!(ws as { liveFeed?: unknown }).liveFeed,
+    liveKind: liveKindOf(ws),
     participants: ws.participantCount ?? null,
     tradesThisWeek: ws.tradesThisWeek ?? null,
     liquidity: poolLiquidityOf(ws),
@@ -448,21 +525,23 @@ function listingOf(w: HomeListing): Listing {
     participants: null,
     tradesThisWeek: null,
     liquidity: null,
-    volumePerHour: typeof w.volumePerHour === 'number' ? w.volumePerHour : null,
+    volumePerHour: typeof w.volumePerHour === "number" ? w.volumePerHour : null,
     ...(w.floor ? fromFloor(w.floor) : {}),
   };
 }
 
 /** A signed impact as the proposal rows print it: "+3.0", "-3.0", "+$1,839". */
 function fmtImpact(d: number, unit: string): string {
-  return `${d > 0 ? '+' : d < 0 ? '-' : ''}${fmtHero(Math.abs(d), unit)}`;
+  return `${d > 0 ? "+" : d < 0 ? "-" : ""}${fmtHero(Math.abs(d), unit)}`;
 }
 
 /** Time to a decision: "0:24" under an hour, "3h 12m" under a day, then "2d 6h". */
 function fmtLeft(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));
-  if (s < 3600) return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-  if (s < 86_400) return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+  if (s < 3600)
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  if (s < 86_400)
+    return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
   return `${Math.floor(s / 86_400)}d ${Math.floor((s % 86_400) / 3600)}h`;
 }
 
@@ -476,24 +555,50 @@ function DecidingNow({ p, slug }: { p: PublicProposal; slug: string }) {
   }, []);
   const m = p.markets?.[0];
   if (!m) return null;
-  const unit = /\bUSD\b/.test(m.metricName) ? '$' : '';
-  const metricLabel = m.metricName.replace(/\s*\(.*\)\s*$/, '');
+  const unit = /\bUSD\b/.test(m.metricName) ? "$" : "";
+  const metricLabel = m.metricName.replace(/\s*\(.*\)\s*$/, "");
   const href = floorHref(slug, { proposalId: p.id });
   const decideBy = p.decideBy ? Date.parse(p.decideBy) : Number.NaN;
-  type Row = { key: string; label: string; price: number | null; impact: number | null; leads: boolean };
+  type Row = {
+    key: string;
+    label: string;
+    price: number | null;
+    impact: number | null;
+    leads: boolean;
+  };
   let rows: Row[];
   if (m.options && m.options.length > 0) {
     const leaderId = optionLead(m.options)?.leader?.id ?? null;
-    const order = p.options?.length ? p.options.map(o => o.id) : m.options.map(o => o.id);
+    const order = p.options?.length
+      ? p.options.map((o) => o.id)
+      : m.options.map((o) => o.id);
     rows = order
-      .map(id => m.options?.find(o => o.id === id))
+      .map((id) => m.options?.find((o) => o.id === id))
       .filter((o): o is NonNullable<typeof o> => !!o)
-      .map(o => ({ key: o.id, label: o.label, price: o.consensus, impact: o.delta, leads: o.id === leaderId }));
+      .map((o) => ({
+        key: o.id,
+        label: o.label,
+        price: o.consensus,
+        impact: o.delta,
+        leads: o.id === leaderId,
+      }));
   } else {
     const d = m.delta ?? 0;
     rows = [
-      { key: 'approved', label: 'If approved', price: m.approvedConsensus, impact: null, leads: d > 0 },
-      { key: 'declined', label: 'If declined', price: m.declinedConsensus, impact: null, leads: d < 0 },
+      {
+        key: "approved",
+        label: "If approved",
+        price: m.approvedConsensus,
+        impact: null,
+        leads: d > 0,
+      },
+      {
+        key: "declined",
+        label: "If declined",
+        price: m.declinedConsensus,
+        impact: null,
+        leads: d < 0,
+      },
     ];
   }
   return (
@@ -505,18 +610,27 @@ function DecidingNow({ p, slug }: { p: PublicProposal; slug: string }) {
         )}
       </p>
       <p className="mkt-deciding-title">
-        <span className="mkt-deciding-number">{`#${p.number}`}</span> <span>{p.title}</span>
+        <span className="mkt-deciding-number">{`#${p.number}`}</span>{" "}
+        <span>{p.title}</span>
       </p>
       <div className="mkt-deciding-rows">
-        {rows.map(r => (
-          <Link key={r.key} className={`mkt-deciding-row${r.leads ? ' is-leader' : ''}`} to={href}>
+        {rows.map((r) => (
+          <Link
+            key={r.key}
+            className={`mkt-deciding-row${r.leads ? " is-leader" : ""}`}
+            to={href}
+          >
             <span className="mkt-deciding-name">
               {r.label}
               {r.leads && <span className="mkt-deciding-leads">leads</span>}
             </span>
-            <span className="mkt-deciding-price">{r.price === null ? 'open' : fmtHero(r.price, unit)}</span>
+            <span className="mkt-deciding-price">
+              {r.price === null ? "open" : fmtHero(r.price, unit)}
+            </span>
             {r.impact !== null && (
-              <span className={`mkt-deciding-impact${r.impact > 0 ? ' is-up' : r.impact < 0 ? ' is-down' : ''}`}>
+              <span
+                className={`mkt-deciding-impact${r.impact > 0 ? " is-up" : r.impact < 0 ? " is-down" : ""}`}
+              >
                 {fmtImpact(r.impact, unit)}
               </span>
             )}
@@ -525,7 +639,9 @@ function DecidingNow({ p, slug }: { p: PublicProposal; slug: string }) {
       </div>
       {!m.options && m.delta !== null && (
         <p className="mkt-deciding-pair">
-          <span className={`mkt-deciding-impact${m.delta > 0 ? ' is-up' : m.delta < 0 ? ' is-down' : ''}`}>
+          <span
+            className={`mkt-deciding-impact${m.delta > 0 ? " is-up" : m.delta < 0 ? " is-down" : ""}`}
+          >
             {fmtImpact(m.delta, unit)}
           </span>
         </p>
@@ -539,12 +655,20 @@ function DecidingNow({ p, slug }: { p: PublicProposal; slug: string }) {
  *  floor, full width, between the season strip and the board. */
 function FeaturedFloor({ r }: { r: Listing }) {
   const path = `/${r.slug || `marketplace/${r.workspaceId}`}`;
-  const marketHref = r.slug && r.heroMarketId ? floorHref(r.slug, { marketId: r.heroMarketId }) : path;
+  const marketHref =
+    r.slug && r.heroMarketId
+      ? floorHref(r.slug, { marketId: r.heroMarketId })
+      : path;
   return (
-    <section className="mkt-featured pubws-rise" aria-label={`Most traded now: ${r.name}`}>
+    <section
+      className="mkt-featured pubws-rise"
+      aria-label={`Most traded now: ${r.name}`}
+    >
       <div className="mkt-featured-visual">
-        {r.live && r.slug ? (
+        {r.liveKind === "snake" && r.slug ? (
           <SnakeLive slug={r.slug} replay={false} />
+        ) : r.liveKind === "chess" && r.slug ? (
+          <ChessLive slug={r.slug} replay={false} />
         ) : r.hero?.consensus != null ? (
           <MarketSpark history={r.hero.history} consensus={r.hero.consensus} />
         ) : (
@@ -563,11 +687,16 @@ function FeaturedFloor({ r }: { r: Listing }) {
         {r.question && <p className="mkt-featured-question">{r.question}</p>}
         {r.hero && (
           <span className="mkt-cell-caption">
-            <span className="mkt-cell-metric">{r.hero.metricName.replace(/\s*\(.*\)\s*$/, '')}</span>
+            <span className="mkt-cell-metric">
+              {r.hero.metricName.replace(/\s*\(.*\)\s*$/, "")}
+            </span>
             {r.hero.settles && (
               <>
-                {' · '}
-                <span className="mkt-cell-settles" title={`settles ${r.hero.settles}`}>
+                {" · "}
+                <span
+                  className="mkt-cell-settles"
+                  title={`settles ${r.hero.settles}`}
+                >
                   settles {shortDay(r.hero.settles)}
                 </span>
               </>
@@ -575,14 +704,24 @@ function FeaturedFloor({ r }: { r: Listing }) {
           </span>
         )}
         {r.hero?.consensus != null && (
-          <span className="mkt-cell-price mkt-featured-price">{fmtHero(r.hero.consensus, r.hero.unit)}</span>
+          <span className="mkt-cell-price mkt-featured-price">
+            {fmtHero(r.hero.consensus, r.hero.unit)}
+          </span>
         )}
-        {!r.question && r.description && <span className="mkt-cell-desc">{r.description}</span>}
+        {!r.question && r.description && (
+          <span className="mkt-cell-desc">{r.description}</span>
+        )}
         <div className="mkt-featured-actions">
-          <Link className="pubws-bet-btn pubws-bet-btn--higher mkt-featured-btn" to={marketHref}>
+          <Link
+            className="pubws-bet-btn pubws-bet-btn--higher mkt-featured-btn"
+            to={marketHref}
+          >
             Higher ↑
           </Link>
-          <Link className="pubws-bet-btn pubws-bet-btn--lower mkt-featured-btn" to={marketHref}>
+          <Link
+            className="pubws-bet-btn pubws-bet-btn--lower mkt-featured-btn"
+            to={marketHref}
+          >
             Lower ↓
           </Link>
         </div>
@@ -605,8 +744,12 @@ export function FloorsPage() {
   // it); read it once, on mount, and drop it so a client-side return to
   // this page fetches instead of painting a stale copy.
   const [inline] = useState(() => readInline<HomePayload>(INLINE_HOME));
-  const [listings, setListings] = useState<Listing[] | null>(() => (inline ? inline.listings.map(listingOf) : null));
-  const [season, setSeason] = useState<PrizeSeason | null>(() => (inline ? pickCurrentSeason(inline.seasons) : null));
+  const [listings, setListings] = useState<Listing[] | null>(() =>
+    inline ? inline.listings.map(listingOf) : null,
+  );
+  const [season, setSeason] = useState<PrizeSeason | null>(() =>
+    inline ? pickCurrentSeason(inline.seasons) : null,
+  );
 
   // The page stays live (docs/ui-conventions.md, "The marketplace"): a
   // visible tab re-reads the home payload every 15 seconds, the server's own
@@ -618,29 +761,33 @@ export function FloorsPage() {
     const load = () =>
       api
         .getHome()
-        .then(home => {
+        .then((home) => {
           if (cancelled) return;
-          setListings(cur => {
+          setListings((cur) => {
             const fresh = home.listings.map(listingOf);
             // Own not-yet-public floors may already be in the grid; keep them.
-            const own = (cur ?? []).filter(r => r.mineVisibility && !fresh.some(f => f.workspaceId === r.workspaceId));
+            const own = (cur ?? []).filter(
+              (r) =>
+                r.mineVisibility &&
+                !fresh.some((f) => f.workspaceId === r.workspaceId),
+            );
             return [...own, ...fresh];
           });
           setSeason(pickCurrentSeason(home.seasons));
         })
-        .catch(e => console.error('home fetch failed:', e));
+        .catch((e) => console.error("home fetch failed:", e));
     if (!inline) void load();
     const timer = window.setInterval(() => {
-      if (document.visibilityState !== 'hidden') void load();
+      if (document.visibilityState !== "hidden") void load();
     }, HOME_REFRESH_MS);
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') void load();
+      if (document.visibilityState === "visible") void load();
     };
-    document.addEventListener('visibilitychange', onVisibility);
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
-      document.removeEventListener('visibilitychange', onVisibility);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [inline]);
 
@@ -654,7 +801,7 @@ export function FloorsPage() {
     let cancelled = false;
     api
       .listWorkspaces()
-      .then(list => {
+      .then((list) => {
         if (cancelled || !Array.isArray(list)) return;
         const mine = (
           list as Array<{
@@ -665,8 +812,8 @@ export function FloorsPage() {
             visibility?: string;
           }>
         )
-          .filter(w => w.visibility !== 'public')
-          .map(w => ({
+          .filter((w) => w.visibility !== "public")
+          .map((w) => ({
             workspaceId: w.id,
             slug: null,
             name: w.name,
@@ -676,20 +823,26 @@ export function FloorsPage() {
             participants: null,
             tradesThisWeek: null,
             liquidity: null,
-            mineVisibility: w.visibility ?? 'private',
+            mineVisibility: w.visibility ?? "private",
           }));
         if (mine.length === 0) return;
-        setListings(cur => [
-          ...mine.filter(m => !(cur ?? []).some(r => r.workspaceId === m.workspaceId)),
+        setListings((cur) => [
+          ...mine.filter(
+            (m) => !(cur ?? []).some((r) => r.workspaceId === m.workspaceId),
+          ),
           ...(cur ?? []),
         ]);
-        mine.forEach(row => {
+        mine.forEach((row) => {
           api
             .getMarketplaceWorkspace(row.workspaceId)
-            .then(ws => {
+            .then((ws) => {
               if (cancelled) return;
-              setListings(cur =>
-                (cur ?? []).map(r => (r.workspaceId === row.workspaceId ? { ...r, ...fromFloor(ws) } : r)),
+              setListings((cur) =>
+                (cur ?? []).map((r) =>
+                  r.workspaceId === row.workspaceId
+                    ? { ...r, ...fromFloor(ws) }
+                    : r,
+                ),
               );
             })
             .catch(() => {});
@@ -715,11 +868,15 @@ export function FloorsPage() {
             2026-09-04; notes/decisions/ui-conventions.md). The subject is the
             decision, not the metric, and the owner is not necessarily a
             company (Viktor, 2026-09-11). */}
-        <h1 className="mkt-thesis">Forecast a decision's impact before it's made. Get paid when you're right.</h1>
+        <h1 className="mkt-thesis">
+          Forecast a decision's impact before it's made. Get paid when you're
+          right.
+        </h1>
         <p className="mkt-lead">
-          Revenue, users, a game's score, updated by the people running them. Forecast how each open decision moves
-          them, free, human or AI. Or <Link to="/owners">put your own decision up</Link> and read the forecast before
-          you act.
+          Revenue, users, a game's score, updated by the people running them.
+          Forecast how each open decision moves them, free, human or AI. Or{" "}
+          <Link to="/owners">put your own decision up</Link> and read the
+          forecast before you act.
         </p>
 
         {busy ? <SeasonGhost /> : <SeasonDoor season={season} />}
@@ -740,7 +897,7 @@ export function FloorsPage() {
           ) : (
             <>
               {[...listings]
-                .filter(r => r !== featured)
+                .filter((r) => r !== featured)
                 .sort(byLiquidity)
                 .map((r, i) => (
                   <Link
@@ -751,15 +908,24 @@ export function FloorsPage() {
                   >
                     <span className="mkt-cell-head">
                       <span className="mkt-cell-name">{r.name}</span>
-                      {r.mineVisibility && <span className="mkt-cell-mine">Yours · not public yet</span>}
+                      {r.mineVisibility && (
+                        <span className="mkt-cell-mine">
+                          Yours · not public yet
+                        </span>
+                      )}
                     </span>
                     {r.hero && (
                       <span className="mkt-cell-caption">
-                        <span className="mkt-cell-metric">{r.hero.metricName.replace(/\s*\(.*\)\s*$/, '')}</span>
+                        <span className="mkt-cell-metric">
+                          {r.hero.metricName.replace(/\s*\(.*\)\s*$/, "")}
+                        </span>
                         {r.hero.settles && (
                           <>
-                            {' · '}
-                            <span className="mkt-cell-settles" title={`settles ${r.hero.settles}`}>
+                            {" · "}
+                            <span
+                              className="mkt-cell-settles"
+                              title={`settles ${r.hero.settles}`}
+                            >
                               settles {shortDay(r.hero.settles)}
                             </span>
                           </>
@@ -767,16 +933,28 @@ export function FloorsPage() {
                       </span>
                     )}
                     {r.hero?.consensus != null && (
-                      <span className="mkt-cell-price">{fmtHero(r.hero.consensus, r.hero.unit)}</span>
+                      <span className="mkt-cell-price">
+                        {fmtHero(r.hero.consensus, r.hero.unit)}
+                      </span>
                     )}
-                    {r.description && <span className="mkt-cell-desc">{r.description}</span>}
+                    {r.description && (
+                      <span className="mkt-cell-desc">{r.description}</span>
+                    )}
                     {/* The chart slot keeps its height either way, so nothing
                       jumps when a late number arrives. */}
                     <span className="mkt-cell-chart">
                       {r.hero?.consensus != null ? (
-                        <MarketSpark history={r.hero.history} consensus={r.hero.consensus} />
+                        <MarketSpark
+                          history={r.hero.history}
+                          consensus={r.hero.consensus}
+                        />
                       ) : (
-                        <Ghost w="100%" h={44} r={6} className="mkt-spark-ghost" />
+                        <Ghost
+                          w="100%"
+                          h={44}
+                          r={6}
+                          className="mkt-spark-ghost"
+                        />
                       )}
                     </span>
                     <span className="mkt-cell-facts">
@@ -796,14 +974,16 @@ export function FloorsPage() {
             reach them, findable from the front page without competing with
             the markets above. */}
         <footer className="pubws-foot">
-          <Link to="/forecast">Forecasters</Link> · <Link to="/for-agents">Agent builders</Link> ·{' '}
-          <Link to="/owners">Owners</Link> · <Link to="/about">About</Link> · <Link to="/contact">Contact</Link> ·{' '}
-          <Link to="/terms">Terms</Link> · <Link to="/privacy">Privacy</Link>
+          <Link to="/forecast">Forecasters</Link> ·{" "}
+          <Link to="/for-agents">Agent builders</Link> ·{" "}
+          <Link to="/owners">Owners</Link> · <Link to="/about">About</Link> ·{" "}
+          <Link to="/contact">Contact</Link> · <Link to="/terms">Terms</Link> ·{" "}
+          <Link to="/privacy">Privacy</Link>
           {/* Set VITE_PUBLIC_REPO_URL once the source is public; until then no link. */}
           {import.meta.env.VITE_PUBLIC_REPO_URL ? (
             <>
-              {' '}
-              ·{' '}
+              {" "}
+              ·{" "}
               <a href={import.meta.env.VITE_PUBLIC_REPO_URL} rel="noopener">
                 Source
               </a>
