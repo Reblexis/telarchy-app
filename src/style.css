@@ -12615,7 +12615,7 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .chess-live { display: flex; flex-direction: column; gap: 0.7rem; container: chess-live / inline-size; }
 .chess-main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 520px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
   grid-template-areas: "moves board stats";
   align-items: start;
   gap: 0.9rem 1.2rem;
@@ -12707,7 +12707,12 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .chess-moverow-bar > span { display: block; height: 4px; background: var(--text-tertiary); }
 .chess-moverow.is-leader .chess-moverow-bar > span { background: var(--higher); }
 .chess-moverow-price { text-align: right; font-weight: 600; }
-@container chess-live (max-width: 899px) {
+/* The floor's live slot is 720px, even on a wide screen. */
+@container chess-live (min-width: 660px) and (max-width: 759px) {
+  .chess-moverow { grid-template-columns: 1.1rem minmax(0, 1fr) 2.6rem; }
+  .chess-moverow-bar { display: none; }
+}
+@container chess-live (max-width: 659px) {
   .chess-main {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     grid-template-areas: "board board" "moves stats";
