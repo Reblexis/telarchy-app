@@ -139,16 +139,14 @@ describe('A BOOK THE OWNER SETTLES NAMES NO CLOCK', () => {
   test('the call caption says the owner settles it, with no day and no countdown', async () => {
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-stat--call .pubws-stat-what')).toBeTruthy());
-    expect(callCaption(container)).toBe("market's call · settled by the owner");
+    expect(callCaption(container)).toBe("market's call · settles this attempt");
     expect(callCaption(container)).not.toMatch(/settles in|for \d|9999|Dec/);
   });
 
   test('its hover says when it settles in words, never the far instant', async () => {
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-settle-in')).toBeTruthy());
-    expect(container.querySelector('.pubws-settle-in')?.getAttribute('title')).toBe(
-      'settles when the owner settles it',
-    );
+    expect(container.querySelector('.pubws-settle-in')?.getAttribute('title')).toBe('settles this attempt');
     expect(container.innerHTML).not.toContain('9999');
   });
 });
@@ -174,6 +172,7 @@ describe('A TITLED DATE READS AS ITS TITLE', () => {
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-instrument-ask')).toBeTruthy());
     expect(ask(container)).toBe("What will be Snake's reached length until settled?");
+    expect(callCaption(container)).toBe("market's call · settled by the owner");
   });
 
   test('on the date strip its tab is the title, after the dated book', async () => {
