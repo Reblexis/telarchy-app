@@ -326,6 +326,17 @@ platform recorded the call shows the price alone; a redemption moves
 nothing and shows neither. The right columns are the credits moved and how
 long ago. **Every trade row is a link to that trade on its floor** (below).
 
+**Transfers** are rows, newest first, one per credit transfer the
+participant sent or received: "Sent 15,000 cr to <handle>" or "Received
+2,000 cr from <handle>", the handle linking to the counterparty's profile,
+the sender's memo as the sub-line when there is one, the signed credits in
+the right column and how long ago. They are on the profile because they
+count in the season score (docs/seasons.md, "Credits transferred between
+participants count"), and a number that moves a public standing has to be
+readable on the public record that explains it. A bot's initial bankroll
+from its owner is a transfer and appears here. The list holds the newest
+20; deposits and platform grants are not transfers and do not appear.
+
 **Proposals** lists what the participant proposed, with the ask, the
 status and the floor, each row linking to the proposal on its floor. A
 visitor reads "proposal" (docs/ui-conventions.md "Vocabulary a visitor

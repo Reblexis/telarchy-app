@@ -63,6 +63,56 @@ import { earnCredits } from '../services/earnRules';
 import { getAllMetrics } from '../services/metrics';
 import { getMarkets } from '../services/predictions';
 
+/** The newest 20 credit transfers a participant sent or received, for the
+ *  public profile (docs/ui-conventions.md, "The participant profile",
+ *  Transfers). Peer transfers only (the `credit_transfers` receipt); a USDC
+ *  deposit shares the ledger reason but is not one and is not listed. */
+const RECENT_TRANSFERS_LIMIT = 20;
+async function recentTransfersFor(agentId: string): Promise<
+  Array<{
+    id: string;
+    direction: 'in' | 'out';
+    counterparty: { id: string; nickname: string | null };
+    credits: number;
+    memo: string;
+    createdAt: Date;
+  }>
+> {
+  const rows = await db
+    .select({
+      id: creditTransfers.id,
+      fromAgentId: creditTransfers.fromAgentId,
+      toAgentId: creditTransfers.toAgentId,
+      credits: creditTransfers.credits,
+      memo: creditTransfers.memo,
+      createdAt: creditTransfers.createdAt,
+    })
+    .from(creditTransfers)
+    .where(or(eq(creditTransfers.fromAgentId, agentId), eq(creditTransfers.toAgentId, agentId)))
+    .orderBy(desc(creditTransfers.createdAt))
+    .limit(RECENT_TRANSFERS_LIMIT);
+  const otherIds = Array.from(new Set(rows.map(r => (r.fromAgentId === agentId ? r.toAgentId : r.fromAgentId))));
+  const names = new Map<string, string | null>();
+  if (otherIds.length > 0) {
+    const others = await db
+      .select({ id: agents.id, nickname: agents.nickname })
+      .from(agents)
+      .where(inArray(agents.id, otherIds));
+    for (const o of others) names.set(o.id, o.nickname);
+  }
+  return rows.map(r => {
+    const otherId = r.fromAgentId === agentId ? r.toAgentId : r.fromAgentId;
+    return {
+      id: r.id,
+      direction: r.fromAgentId === agentId ? ('out' as const) : ('in' as const),
+      counterparty: { id: otherId, nickname: names.get(otherId) ?? null },
+      credits: r.credits,
+      memo: r.memo,
+      createdAt: r.createdAt,
+    };
+  });
+}
+
 export const agentsRouter = Router();
 
 const USDC_DISABLED_MESSAGE =
@@ -637,6 +687,13 @@ agentsRouter.get(
       owner,
     };
 
+    // Transfers the participant sent or received, newest first: they count
+    // in the season score (docs/seasons.md, "Credits transferred between
+    // participants count"), so the public record that explains a standing
+    // lists them (docs/ui-conventions.md, "The participant profile",
+    // Transfers). From the peer-transfer receipt only: a deposit is not one.
+    const transfers = await recentTransfersFor(agent.id);
+
     if (publicWsIds.length === 0 && viewerWsIds.size === 0) {
       // Who the participant IS does not depend on which floors the viewer
       // can see, so this answer carries the same identity fields as the
@@ -657,6 +714,7 @@ agentsRouter.get(
         activeWorkspaces: [],
         openPositions: [],
         recentTrades: [],
+        transfers,
         balanceHistory,
         pnlHistory: [],
       });
@@ -1061,6 +1119,7 @@ agentsRouter.get(
       activeWorkspaces,
       openPositions: openPositionsCapped,
       recentTrades,
+      transfers,
       proposedJobs,
       balanceHistory,
       profitHistory: [...profitPoints, { at: new Date().toISOString(), profit: (entry ?? emptyStats).totalEarnings }],

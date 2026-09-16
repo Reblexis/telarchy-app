@@ -145,12 +145,16 @@ export function SeasonPage() {
                 resolve, so that depth would have scored nothing. Extending
                 can only add to a score, never subtract, which is the
                 amendment clause's test. */}
-            Rule change, 2026-08-31: the season runs one day longer, to 2 October, so markets resolving on 1 October
-            score.
+            Rule change, 2026-09-16: credits another participant sent you count as profit and credits you sent count as
+            loss, at the moment of the transfer.
             <span className="seasonp-rulechanges-toggle" aria-hidden="true">
               earlier changes
             </span>
           </summary>
+          <p className="seasonp-experimental">
+            Rule change, 2026-08-31: the season runs one day longer, to 2 October, so markets resolving on 1 October
+            score.
+          </p>
           <p className="seasonp-experimental">
             {season.payoutMode === 'proportional'
               ? 'Rule change, 2026-08-28: the pool is split in proportion to settled profit instead of fixed prizes by place.'
@@ -227,7 +231,8 @@ export function SeasonPage() {
               everything else lives in the rules doc, per the 2026-08-19
               direction that this section is the formula and the link. */}
           <p className="seasonp-note">
-            open positions are marked on the board but score nothing until their market resolves
+            open positions are marked on the board but score nothing until their market resolves; credits sent to you
+            count as profit and credits you send count as loss
           </p>
           {/* The formula and the rules link are the whole section (owner
               direction 2026-08-19: the explanatory paragraphs are gone; the

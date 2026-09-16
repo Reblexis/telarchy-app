@@ -1,6 +1,6 @@
 import { and, eq, gt, inArray, isNotNull, lte, or, type SQL, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { creditLedger, liquidityEvents, markets, positions, trades } from '../db/schema';
+import { creditLedger, creditTransfers, liquidityEvents, markets, positions, trades } from '../db/schema';
 import { resolutionInstant, settlesOn } from './date-utils';
 import {
   type CalibrationStats,
@@ -280,10 +280,11 @@ export async function loadBoard(workspaceIds: string[]): Promise<Board> {
 /**
  * The season score since the 2026-08-28 amendment: settled profit per agent
  * over markets whose `resolvedAt` fell inside `(windowStart, windowEnd]`,
- * voids included (voiding stamps `resolvedAt` too), counting only trades
- * placed up to SEASON_TRADE_CUTOFF_HOURS before each market's resolve
- * instant (docs/seasons.md, "The score"; rules,
- * docs/legal/season-0-rules.md, Scoring).
+ * voids included (voiding stamps `resolvedAt` too), every trade counting
+ * (the cutoff was removed 2026-09-01), PLUS, since the 2026-09-16
+ * amendment, the credits transferred between participants inside the same
+ * window, received as profit and sent as loss (docs/seasons.md, "The
+ * score"; rules, docs/legal/season-0-rules.md, Scoring).
  *
  * The arithmetic is `computeSettledWindowProfit` (lib/leaderboard.ts, pure);
  * this is its SQL side, aggregated in the database for the same OOM reason
@@ -383,7 +384,42 @@ export async function loadSeasonSettled(
   windowEnd: Date,
 ): Promise<Map<string, number>> {
   if (workspaceIds.length === 0) return new Map();
+  const out = await loadSeasonSettledTrading(workspaceIds, windowStart, windowEnd);
+  // CREDITS TRANSFERRED BETWEEN PARTICIPANTS COUNT (docs/seasons.md, rules
+  // amended 2026-09-16): received is profit, sent is loss, at the transfer
+  // instant, same window shape as resolutions. Read from the peer-transfer
+  // receipt, never from the ledger reason: a USDC deposit is written as
+  // `transfer_in` with no receipt and no counterparty, and must not score.
+  const transfers = await db
+    .select({
+      agentId: sql<string>`x.agent_id`,
+      net: sql<number>`sum(x.delta)::float`,
+    })
+    .from(
+      sql`(
+        select ${creditTransfers.toAgentId} as agent_id, ${creditTransfers.credits} as delta
+          from ${creditTransfers}
+          where ${creditTransfers.createdAt} > ${windowStart} and ${creditTransfers.createdAt} <= ${windowEnd}
+        union all
+        select ${creditTransfers.fromAgentId}, -${creditTransfers.credits}
+          from ${creditTransfers}
+          where ${creditTransfers.createdAt} > ${windowStart} and ${creditTransfers.createdAt} <= ${windowEnd}
+      ) as x`,
+    )
+    .groupBy(sql`x.agent_id`);
+  for (const t of transfers) {
+    out.set(t.agentId, Math.round(((out.get(t.agentId) ?? 0) + Number(t.net)) * 100) / 100);
+  }
+  return out;
+}
 
+/** The trading half of the settled score: resolution payouts and refunds
+ *  minus net cash on the markets that resolved inside the window. */
+async function loadSeasonSettledTrading(
+  workspaceIds: string[],
+  windowStart: Date,
+  windowEnd: Date,
+): Promise<Map<string, number>> {
   const inWindow = and(
     inArray(markets.workspaceId, workspaceIds),
     // Traded books only, in the shape the partial index `markets (resolved_at)

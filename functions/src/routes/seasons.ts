@@ -624,8 +624,9 @@ seasonsRouter.post(
  *
  * The score is SETTLED profit over the season window (rules amended
  * 2026-08-28, docs/seasons.md "The score"): what markets resolving inside
- * the window paid, minus the net cash paid on them, trades inside each
- * market's final 6 hours not counting. Nothing marked enters a final.
+ * the window paid, minus the net cash paid on them, plus credits other
+ * participants transferred in minus credits transferred out (amended
+ * 2026-09-16). Nothing marked enters a final.
  * Computed fresh, never from a display cache, and every final is written
  * inside one transaction.
  */
