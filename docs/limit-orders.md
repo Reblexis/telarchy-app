@@ -212,6 +212,16 @@ is optional and hidden until wanted:
   confirm that restates the instruction: **"Sell 166.4 at $80,000"**. A limit the market has already passed warns and fills at once, as on Buy.
 - The ticket never states when an order is released. That it rests until it
   fills, is cancelled, or its book closes is understood without saying.
+- Successful buys, sells, limit placements and cancellations preserve the
+  selected Buy/Sell tab, Quick/Limit mode and price draft. A refresh never
+  returns the ticket to Quick Buy. Only an explicit tab or mode choice
+  changes those selections. A full sale removes the exhausted position
+  without changing the selected tab or mode.
+- Pending orders appear before held shares. Their only action is Cancel;
+  selling is offered only for shares already bought, including the filled
+  portion of a partially filled order. Cancelling the remainder does not
+  sell the filled portion. Placement acknowledgement says "Order placed",
+  since a crossed limit may already have filled.
 - Resting buy and sell orders remain visible and cancellable on both tabs,
   from the initial floor load and after choosing either bet direction, even
   with no held position. Changing tabs never hides an order.

@@ -171,3 +171,19 @@ and execution checks. Never place or cancel production orders for QA.
   handful this will crowd; no cap is implemented yet.
 - Anonymous visitors see the price question in the demo ticket, but the
   confirm routes to signup, so there is no anonymous limit-order path to test.
+
+
+### T10. Actions keep the selected tab and order type
+
+1. Place an unfilled buy in Limit mode. Expect Buy and Limit to remain
+   selected, the entered price to remain, and "Order placed" acknowledgement.
+2. On Sell, verify pending orders come first and offer only Cancel; held
+   shares appear separately after them. Cancel a partially filled buy's
+   remainder. Its held shares remain and the selected tab and mode do not change.
+3. Place a sell limit. Expect Sell and Limit and the price draft to remain.
+   Fill the whole position via the isolated test backend. Sell and Limit
+   stay selected, while the now-empty holdings show no sell submission.
+4. Sell part of a position in Quick mode. Expect Sell and Quick to remain,
+   with the remaining shares still available in the open sell composer.
+5. After each action, allow the floor refresh to complete and repeat the
+   selection assertions. Refreshing data never resets the ticket to Quick Buy.

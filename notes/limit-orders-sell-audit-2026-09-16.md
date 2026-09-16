@@ -61,3 +61,30 @@ reported as merged, published, or completely green on that basis.
 Final frontend run on Node 22: all 169 suites and 2,036 tests pass. The
 existing empty-state assertion was updated to the new wording. Branch:
 `fix-sell-order-visibility`.
+
+
+## Follow-up: keep the ticket selection
+
+Viktor reported that successful actions reset the ticket to Quick Buy and
+clarified that pending orders are cancelled, while only bought shares are
+sold. The governing doc now puts pending orders first and preserves tab,
+mode, and limit-price draft after actions and refreshes.
+
+Four new regressions failed before implementation: buy-limit placement
+reset the mode, sell-limit placement reset the mode and price, quick sale
+collapsed the remaining-share composer, and pending orders lacked a separate
+region before holdings. All 138 tests across the ticket, guard, open-ticket,
+and floor integration suites now pass. Browser verification on the actual
+local floor with an isolated HTTP fixture confirms Buy Limit after placing,
+Sell Limit after placing and cancelling, and Sell Quick after a full sale
+and the zero-position refresh. Pending orders have Cancel only and precede
+held shares. The production build passes.
+
+The original commit's complete hosted CI passed, including all three backend
+shards and frontend/type checks:
+https://github.com/Reblexis/telarchy-app/actions/runs/35148722642
+Its branch preview deployed successfully. This clears the earlier local
+full-backend verification gap for that commit; no backend behavior changes
+in this follow-up.
+
+The follow-up full frontend run passes all 169 suites and 2,040 tests.

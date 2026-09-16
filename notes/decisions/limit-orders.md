@@ -149,3 +149,11 @@ The once-per-pass rule it replaced left the pair alternating slowly across sweep
 
 Viktor reported hidden orders and a sale that appeared to move the market
 without buying first. [Investigation and verification](../limit-orders-sell-audit-2026-09-16.md).
+
+
+## 2026-09-16: keep the ticket where the trader left it
+
+Viktor: "for limit orders it makes sense more to just cancel the limit orders.. hteres nothing to sell.. only then the actual bought stuff" and "after i place alimit order or do a sell or any action in that dialog it shouldnt reset to buying quick".
+
+Pending orders precede the held shares and offer Cancel only. Successful
+orders and trades preserve the selected tab, order type and limit price.
