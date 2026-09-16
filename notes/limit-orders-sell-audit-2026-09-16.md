@@ -88,3 +88,15 @@ full-backend verification gap for that commit; no backend behavior changes
 in this follow-up.
 
 The follow-up full frontend run passes all 169 suites and 2,040 tests.
+
+
+Deployed follow-up: commit `5b48badf` passed the complete hosted CI, including
+all three backend shards and frontend/type checks, and its preview deployed:
+https://github.com/Reblexis/telarchy-app/actions/runs/35149948605
+
+Verified through the authenticated public beta proxy at
+`https://telarchy.com/beta/lookpilot?branch=br-fix-sell-order-visibility`:
+HTTP 200, served bundle `/beta/assets/index-20mGk9TP.js` contains the new
+Open orders and Your shares regions and the Order placed acknowledgement,
+and no longer contains Order resting. This is the updated preview, not the
+published site. The branch is not merged and no production publish occurred.
