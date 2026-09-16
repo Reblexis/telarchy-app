@@ -509,10 +509,11 @@ export function JobsBoard({
   };
   const decided = proposals.filter(p => !isPending(p) && !held.has(p.id)).sort(byDecision);
 
-  // A board with nothing pending has no ballot to bury, so the decided ones
-  // ARE the list and there is no fold; a board with nothing decided has
-  // nothing to fold away.
-  const foldable = pending.length > 0 && decided.length > 0;
+  // Decided proposals are hidden by default whenever there are any (owner
+  // 2026-09-16: "i dont want any shown by default even if there arent any
+  // undecided"): a board with nothing pending shows the fold row alone. A
+  // board with nothing decided has nothing to fold away.
+  const foldable = decided.length > 0;
   // A `#proposal=<id>` link from a notification can point the page at a
   // decided proposal, and the fold must never hide the row the view is
   // pointed at.

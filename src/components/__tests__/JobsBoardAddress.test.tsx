@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
@@ -123,9 +123,10 @@ describe('the proposer sees their own proposal', () => {
   test('a decided proposal by the viewer does not print "yours": the mark is for the live ballot', () => {
     board({
       viewerId: 'odoacre',
-      // Nothing pending, so the decided ones are the list and no fold hides them.
       proposals: [proposal('p-9', 9, 'Old idea', 'odoacre', 'approved')],
     });
+    // Decided proposals are folded away by default; open the fold.
+    fireEvent.click(screen.getByText('Show'));
     expect((screen.getByTitle('Old idea').closest('.pubws-prow') as HTMLElement).textContent).not.toMatch(/yours/);
   });
 });

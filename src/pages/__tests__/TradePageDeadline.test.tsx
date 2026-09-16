@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -140,6 +140,14 @@ function renderFloor() {
   );
 }
 async function selectContract() {
+  // A decided proposal is folded away by default; open the fold if it is there.
+  await screen.findByText('Proposals');
+  await waitFor(() => {
+    if (!screen.queryByTitle('rewrite the store page') && !screen.queryByText('Show'))
+      throw new Error('board not loaded');
+  });
+  const fold = screen.queryByText('Show');
+  if (fold) fireEvent.click(fold);
   fireEvent.click(await screen.findByTitle('rewrite the store page'));
 }
 async function withProposal(overrides: Record<string, unknown>) {

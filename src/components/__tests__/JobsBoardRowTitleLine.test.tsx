@@ -133,6 +133,9 @@ function row(props: Record<string, unknown>, p: never) {
       <JobsBoard {...base} {...props} proposals={[p]} />
     </MemoryRouter>,
   );
+  // A decided proposal is folded away by default; open the fold to read its row.
+  const fold = container.querySelector('.pubws-ballot-fold') as HTMLElement | null;
+  if (fold) fireEvent.click(fold);
   return container.querySelector('.pubws-prow') as HTMLElement;
 }
 

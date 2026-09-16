@@ -171,6 +171,7 @@ describe('THE RULING BAND READS "Chose <label>"', () => {
     const { container } = renderBoard({
       proposals: [proposal({ status: 'approved', decidedOption: 'left', resolvedAt: '2026-09-11T17:00:00Z' })],
     });
+    fireEvent.click(screen.getByText('Show'));
     const pill = container.querySelector('.pubws-ballot-status') as HTMLElement;
     expect(words(pill)).toMatch(/^Chose Turn left$/i);
     expect(pill.classList.contains('is-approved')).toBe(true);
@@ -180,6 +181,7 @@ describe('THE RULING BAND READS "Chose <label>"', () => {
     const { container } = renderBoard({
       proposals: [proposal({ status: 'declined', resolvedAt: '2026-09-11T17:00:00Z', declineReason: 'no' })],
     });
+    fireEvent.click(screen.getByText('Show'));
     expect(words(container.querySelector('.pubws-ballot-status'))).toBe('declined');
   });
 });
