@@ -1079,3 +1079,103 @@ describe('decimal stakes', () => {
     await waitFor(() => expect(onPlaceLimit).toHaveBeenCalledWith('higher', 40000, 2.5));
   });
 });
+
+describe('the trade dialog keeps my selections after an action', () => {
+  const position = { direction: 'higher' as const, shares: 40.5, totalCost: 18 };
+  const order = {
+    id: 'pending',
+    marketId: 'm1',
+    agentId: 'a1',
+    side: 'buy' as const,
+    direction: 'higher' as const,
+    limitValue: 40000,
+    budgetCredits: 50,
+    filledCredits: 10,
+    remainingCredits: 40,
+    status: 'open' as const,
+    expiresAt: null,
+    createdAt: '2026-09-16T18:27:00Z',
+  };
+  const selected = (name: string) =>
+    expect(
+      within(screen.getByRole('group', { name: 'Buy or sell' }))
+        .getByRole('button', { name, exact: true })
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
+
+  test('placing a buy limit does not reset the dialog to buying Quick', async () => {
+    const submit = vi.fn(async () => {});
+    render(<TradeTicket {...base} onPlaceLimit={submit} />);
+    pick('Higher');
+    fireEvent.click(screen.getByText('Limit'));
+    fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '40000' } });
+    fireEvent.click(screen.getByText('Buy Higher under $40,000'));
+    await waitFor(() => expect(submit).toHaveBeenCalled());
+    await waitFor(() => selected('Limit'));
+    selected('Buy');
+    expect((screen.getByLabelText('Limit price in $') as HTMLInputElement).value).toBe('40,000');
+    expect(screen.getByText('✓ Order placed')).toBeTruthy();
+  });
+
+  test('placing a sell limit stays on Sell Limit after the held shares refresh to zero', async () => {
+    const submit = vi.fn(async () => {});
+    const props = { ...base, positions: [position], onPlaceLimit: async () => {}, onPlaceSellLimit: submit };
+    const { rerender } = render(<TradeTicket {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sell', exact: true }));
+    fireEvent.click(screen.getByText('Limit'));
+    fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '80000' } });
+    fireEvent.click(screen.getByText('Sell 40.5 at $80,000'));
+    await waitFor(() => expect(submit).toHaveBeenCalled());
+    await waitFor(() => selected('Limit'));
+    expect((screen.getByLabelText('Limit price in $') as HTMLInputElement).value).toBe('80,000');
+    rerender(<TradeTicket {...props} positions={[]} />);
+    selected('Sell');
+    selected('Limit');
+    expect(screen.queryByRole('button', { name: /^Sell .* at/ })).toBeNull();
+  });
+
+  test('a quick sale stays on Sell with the remaining shares ready to sell', async () => {
+    const submit = vi.fn(async () => {});
+    const props = { ...base, positions: [position], onSell: submit, onPlaceSellLimit: async () => {} };
+    const { rerender } = render(<TradeTicket {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sell', exact: true }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Sell', exact: true })[1]);
+    fireEvent.click(screen.getByRole('button', { name: /^Sell all for/ }));
+    await waitFor(() => expect(submit).toHaveBeenCalled());
+    rerender(<TradeTicket {...props} positions={[{ ...position, shares: 10 }]} />);
+    selected('Sell');
+    selected('Quick');
+    expect(screen.getByRole('button', { name: /^Sell all for/ })).toBeTruthy();
+  });
+
+  test('pending orders offer only Cancel before the actually bought shares', async () => {
+    const cancel = vi.fn(async () => {});
+    const sell = vi.fn(async () => {});
+    render(
+      <TradeTicket
+        {...base}
+        positions={[position]}
+        orders={[order]}
+        onCancelLimit={cancel}
+        onSell={sell}
+        onPlaceSellLimit={async () => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Sell', exact: true }));
+    fireEvent.click(screen.getByText('Limit'));
+    const orders = screen.getByRole('region', { name: 'Open orders' });
+    const shares = screen.getByRole('region', { name: 'Your shares' });
+    expect(orders.compareDocumentPosition(shares) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      within(orders)
+        .getAllByRole('button')
+        .map(b => b.textContent),
+    ).toEqual(['Cancel']);
+    fireEvent.click(within(orders).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(cancel).toHaveBeenCalledWith('pending'));
+    expect(sell).not.toHaveBeenCalled();
+    selected('Sell');
+    selected('Limit');
+    expect(screen.getByRole('region', { name: 'Your shares' })).toBeTruthy();
+  });
+});

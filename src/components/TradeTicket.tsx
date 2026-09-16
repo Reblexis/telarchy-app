@@ -442,8 +442,6 @@ export function TradeTicket({
       if (isLimit && onPlaceLimit && limitNum !== null) {
         // A resting order is not guarded: its price is the order.
         await onPlaceLimit(dir, limitNum, amountNum);
-        setLimit('');
-        setMode('quick');
       } else if (target !== null && onTradeTarget) {
         // Composed by typing a value: place the server's targetValue mode,
         // which lands ON the typed value (budget permitting) instead of
@@ -479,7 +477,6 @@ export function TradeTicket({
     try {
       const after = previewSellPrice(probability, liquidity, p.direction, shares);
       const result = asResult(await onSell(p, shares, limitFor(after, pushesCallUp('sell', p.direction))));
-      setSellDir(null);
       if (result && result.limited) {
         const sold = result.sharesSold ?? 0;
         setNote({
@@ -502,9 +499,6 @@ export function TradeTicket({
     try {
       // A resting sale is not guarded either: its price is the order.
       await onPlaceSellLimit(p.direction, limitNum, shares);
-      setLimit('');
-      setMode('quick');
-      setSellDir(null);
     } catch (e) {
       setError((e as Error).message || 'Order failed');
     } finally {
@@ -582,7 +576,7 @@ export function TradeTicket({
   const sideWord = dir === 'higher' ? 'Higher' : 'Lower';
   const confirmLabel = () => {
     if (busy === 'place') return isLimit ? 'Placing order…' : 'Placing…';
-    if (placed) return isLimit ? '✓ Order resting' : '✓ Placed';
+    if (placed) return isLimit ? '✓ Order placed' : '✓ Placed';
     if (onRequireSignup) return 'Sign up to bet';
     if (isLimit) {
       if (limitNum === null || limitError) return `Set a price for ${sideWord}`;
@@ -732,6 +726,30 @@ export function TradeTicket({
         )}
       </div>
 
+      {/* Resting orders read in the same register as a held position: what
+          you told the market to do while you were away. */}
+      {orders.length > 0 && (
+        <section className="ticket-pos" aria-label="Open orders">
+          {orders.map(o => (
+            <div key={o.id} className="ticket-pos-row">
+              <div className="ticket-pos-head">
+                <span className={`ticket-pos-dir ticket-pos-dir--${o.direction}`}>
+                  {o.direction === 'higher' ? '▲' : '▼'} {o.direction}
+                </span>
+                <span className="ticket-pos-detail">
+                  {o.side === 'sell'
+                    ? `sell at ${unit}${fmtValue(o.limitValue)} · ${fmtShares(o.remainingShares ?? o.shares ?? 0)} sh`
+                    : `buy ${o.direction === 'higher' ? 'under' : 'over'} ${unit}${fmtValue(o.limitValue)} · ${fmt(o.remainingCredits)} cr`}
+                </span>
+                <button className="ticket-sell" disabled={busy !== null} onClick={() => void cancelOrder(o.id)}>
+                  {busy === `cancel-${o.id}` ? 'Cancelling…' : 'Cancel'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
       {/* The held-position rows and their Sell affordance are the SELL tab
         (owner ask 2026-09-09, reversing 2026-08-28: selling was the position
         panel's job). The positions PROP still arrives in both tabs, because
@@ -742,11 +760,11 @@ export function TradeTicket({
       {tab === 'sell' && positions.length === 0 && (
         <p className="ticket-invite">
           You have no shares to sell. Unfilled buy orders are not holdings.
-          {orders.length > 0 && ' You can cancel your open orders below.'}
+          {orders.length > 0 && ' You can cancel your open orders above.'}
         </p>
       )}
       {tab === 'sell' && positions.length > 0 && (
-        <div className="ticket-pos">
+        <section className="ticket-pos" aria-label="Your shares">
           {positions.map(p => {
             // Live worth: what the position would fetch right now vs what
             // it cost. This moving number is the reason to come back.
@@ -938,31 +956,7 @@ export function TradeTicket({
               </div>
             );
           })}
-        </div>
-      )}
-
-      {/* Resting orders read in the same register as a held position: what
-          you told the market to do while you were away. */}
-      {orders.length > 0 && (
-        <div className="ticket-pos">
-          {orders.map(o => (
-            <div key={o.id} className="ticket-pos-row">
-              <div className="ticket-pos-head">
-                <span className={`ticket-pos-dir ticket-pos-dir--${o.direction}`}>
-                  {o.direction === 'higher' ? '▲' : '▼'} {o.direction}
-                </span>
-                <span className="ticket-pos-detail">
-                  {o.side === 'sell'
-                    ? `sell at ${unit}${fmtValue(o.limitValue)} · ${fmtShares(o.remainingShares ?? o.shares ?? 0)} sh`
-                    : `buy ${o.direction === 'higher' ? 'under' : 'over'} ${unit}${fmtValue(o.limitValue)} · ${fmt(o.remainingCredits)} cr`}
-                </span>
-                <button className="ticket-sell" disabled={busy !== null} onClick={() => void cancelOrder(o.id)}>
-                  {busy === `cancel-${o.id}` ? 'Cancelling…' : 'Cancel'}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+        </section>
       )}
 
       {/* What a share has to beat, drawn rather than said. The track's own
