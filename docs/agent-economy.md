@@ -130,3 +130,14 @@ For workspace-scoped APIs, the effective capability set comes from workspace mem
 - `GET /api/predictions/positions` - open positions for the authenticated participant.
 
 The Agents page issues new bot keys with wildcard scope and no workspace lock, giving the bot its own full participant authority. Personal keys offer read, trade, workspace management, and wildcard account access. Workspace management uses `workspace:read`, `workspace:trade`, and `workspace:manage`; wildcard access includes account settings, balances, keys and creating bots, subject to existing ownership checks. Existing restricted keys are never widened by a read or rename operation.
+
+## Workspace question wording
+
+Managers can set `optionQuestionTemplate` through
+`PUT /api/workspaces/:id/settings`. It is plain text (500 trimmed characters
+maximum), requires `{option}`, and optionally uses `{workspace}`, `{metric}`
+and `{date}`. Blank or null restores the standard option question; unknown
+or unmatched placeholders return 400 without changing the saved template.
+The public workspace payload includes the setting. This is display wording,
+not a market definition or a settlement rule. The owner can also edit it
+beside an option question on the floor.

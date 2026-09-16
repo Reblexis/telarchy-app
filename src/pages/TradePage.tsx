@@ -40,6 +40,7 @@ import { NotificationsBell } from '../components/NotificationsBell';
 import { granularityOf, NumberChart, type NumberSeries } from '../components/NumberChart';
 import { AddDateDialog, InjectLiquidityDialog, NewMetricDialog, ReportValueDialog } from '../components/OwnerDialogs';
 import { PositionSummary } from '../components/PositionSummary';
+import { DEFAULT_OPTION_QUESTION, formatOptionQuestion, QuestionWording } from '../components/QuestionWording';
 import { SubjectAbout } from '../components/SubjectAbout';
 import { TopBarShortcuts } from '../components/TopBarShortcuts';
 import { type TicketPosition, type TicketTradeResult, TradeTicket } from '../components/TradeTicket';
@@ -2447,22 +2448,35 @@ export function TradePage() {
                         conditional sentence this restores was removed for
                         putting all of it in one clause ahead of any number. */}
                       <p className="pubws-proposal-q">
-                        {jobOptioned
-                          ? liveFeed?.kind === 'chess'
-                            ? `If the move ${worldLabel} is made`
-                            : `With ${worldLabel}`
-                          : `If ${branch}`}
-                        , what will {ws.name}'s{' '}
-                        {liveFeed?.kind === 'chess' &&
-                        captionLabel(metricLabel, ws.name).toLowerCase() === 'game score' ? (
-                          'final game score be?'
+                        {jobOptioned ? (
+                          formatOptionQuestion(ws.optionQuestionTemplate ?? DEFAULT_OPTION_QUESTION, {
+                            option: worldLabel ?? branch,
+                            workspace: ws.name,
+                            metric: sentenceCase(captionLabel(metricLabel, ws.name)),
+                            date: `${dateQuestionOf(hero).lead}${dateQuestionOf(hero).word}`,
+                          })
                         ) : (
                           <>
-                            {sentenceCase(captionLabel(metricLabel, ws.name))} be {dateQuestionOf(hero).lead}
+                            If {branch}, what will {ws.name}'s {sentenceCase(captionLabel(metricLabel, ws.name))} be{' '}
+                            {dateQuestionOf(hero).lead}
                             {dateQuestionOf(hero).word}?
                           </>
                         )}
                       </p>
+                      {jobOptioned && (
+                        <QuestionWording
+                          workspaceId={ws.workspaceId}
+                          canManage={canManage}
+                          value={ws.optionQuestionTemplate}
+                          onSaved={reload}
+                          values={{
+                            option: worldLabel ?? branch,
+                            workspace: ws.name,
+                            metric: sentenceCase(captionLabel(metricLabel, ws.name)),
+                            date: `${dateQuestionOf(hero).lead}${dateQuestionOf(hero).word}`,
+                          }}
+                        />
+                      )}
                     </>
                   ) : (
                     <div className="pubws-stats">

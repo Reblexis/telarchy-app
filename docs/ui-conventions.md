@@ -500,10 +500,16 @@ javascript: vector in an img src.
 
 ### The question line: the pickers, and the sentence
 
-On a chess feed, a move's game-score question reads "If the move Kb2 is
-made, what will Chess's final game score be?" (using the selected move and workspace name).
-It asks for the final result, without a clock time. Other metrics and feeds
-keep their existing dated questions.
+Workspaces may set `optionQuestionTemplate` for questions on proposals with
+options. The template is plain text with `{option}`, `{workspace}`, `{metric}`
+and `{date}` placeholders. `{option}` is required; the other placeholders are
+optional. `{metric}` uses the displayed metric name and `{date}` uses the
+custom date title or normal date words. Rendering substitutes once and never
+interprets HTML. With no template, every workspace uses the normal "With
+<option>, what will <workspace>'s <metric> be <date>?" question. No feed kind
+or workspace name selects special wording. Chess configures "If the move
+{option} is made, what will {workspace}'s final {metric} be?" in its workspace
+settings. The termination title remains a separate date setting.
 
 The floor prices a SET of metrics, and every one of them is one number read
 on several dates. The horizon list is therefore a grid, metrics x dates.
@@ -1040,9 +1046,6 @@ counting:
   leader's green, and the board row prints "tied" where it prints
   "<leader> +lead". The page opens on the leader's world, else the first
   priced option's, else the first option's.
-- On a chess feed, the condition reads "If the move <label> is made",
-  using the selected move's notation. The date title does not control
-  this condition.
 - **The question names the option**: "With <label>, what will <floor>'s
   <metric> be on <settle day>?", switching with the selected cell. "With",
   not "If": a label is a noun phrase the proposer wrote ("Turn left",

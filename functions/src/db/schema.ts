@@ -104,6 +104,9 @@ export const workspaces = pgTable('workspaces', {
    *  (the "What is <name>?" section): free text, the owner's own words plus
    *  sources. Null = the floor shows its built-in default copy. */
   subjectAbout: text('subject_about'),
+  /** Workspace-owned option-question wording, so integrations configure copy
+   *  without frontend special cases. Null uses the standard question. */
+  optionQuestionTemplate: text('option_question_template'),
   /** The owner's own picture of the thing the market steers, embedded on the
    *  public floor as a sandboxed iframe directly above "What is <name>?"
    *  (docs/ui-conventions.md, "The live view"; owner ask 2026-09-10 for the

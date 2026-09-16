@@ -26,6 +26,7 @@ import {
 import { allowLedgerAdmin } from '../lib/ledger-admin';
 import { parseLiveFeed } from '../lib/live-feed';
 import { assertNotInRunningSeason } from '../lib/market-freeze';
+import { parseOptionQuestionTemplate } from '../lib/option-question-template';
 import {
   getOwnerHandles,
   joinPublicGroup,
@@ -440,6 +441,8 @@ workspacesRouter.put(
       maxPendingProposalsPerParticipant,
     } = req.body;
     const update: Partial<typeof workspaces.$inferInsert> = {};
+    const questionTemplate = parseOptionQuestionTemplate(req.body.optionQuestionTemplate);
+    if (questionTemplate !== undefined) update.optionQuestionTemplate = questionTemplate;
 
     // description (one-liner) and charter (the owner's public commitment about
     // what they will do with the number) are the public identity of a workspace.
