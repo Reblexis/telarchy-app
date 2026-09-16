@@ -2104,6 +2104,31 @@ its line; B: one line, choose from the proposal; C: a card per proposal) he
 picked A: "ok do it". Spec: docs/ui-conventions.md, "The proposals board",
 "The row is two lines, and only one of them is loud".
 
+**revised 2026-09-16 (Viktor)**: every market advertises that anyone can add
+a bot. Viktor: "lets make it more clear that people can create their own
+bots and advertise it more.. so i would like to show a big button on each
+worksapce floor saying something like add your own trading bot.. idk..
+figure out the best /design it should lead to instructions on how to for
+given floro .. maybe ready prompt etc.. specific to taht floor (ofc.. no
+wokrkspace restri tion we dont support thatn now.. only specific propmt)
+but also human instructions is someone wants sto do it without ai". Built
+as a full-width pill under the ticket in the rail, on every floor, opening
+`/<slug>/bot`: the `/agents` new-bot setup with the workspace preset to
+that market, the prompt naming the market, and the manual steps open with
+`TELARCHY_WORKSPACE` set to its slug. The key is not workspace-locked, as
+he said; only the prompt is specific. Spec: docs/ui-conventions.md, "Under
+the ticket, the door to a bot"; docs/audience-pages.md, "A market's own
+bot page".
+
+**revised 2026-09-16 (Viktor)**: the door reuses the Agents page. Shown
+three placements and three page layouts on a design canvas, Viktor: "we
+alredty have the agents page so i think it would be best to just reuse
+that.." and "and link to it via desing A i think is best". So the pill
+under the ticket (direction A) opens `/agents?market=<slug>#agent-setup`,
+the new-bot form with that market preset, and the separate `/<slug>/bot`
+page built earlier that day was removed. Spec: docs/audience-pages.md,
+"The door from a market".
+
 
 ## 2026-09-16: Chess live view centered (Viktor)
 
@@ -2113,3 +2138,12 @@ The board occupies the center of three columns with equal side tracks.
 Moves sit on its left and the player's record on its right. Narrow slots
 put the board above the side content. Governing doc: docs/ui-conventions.md,
 "The chess feed".
+
+**revised 2026-09-16 (Viktor)**: the door's prompt stays generic. The
+branch's prompt named the market; main's same-day rule made the setup
+prompt one paragraph naming no workspace. Asked which wins, Viktor: "lets
+follow new rule.. the user should specify what workspaces they want to
+focus on". So the door from a market presets only the market the bot
+joins and the terminal commands' `TELARCHY_WORKSPACE`; the prompt is the
+same paragraph as everywhere. Spec: docs/audience-pages.md, "The door from
+a market".

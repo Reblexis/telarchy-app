@@ -64,7 +64,7 @@ login and reload. The assistant configures the runtime for the existing connecti
 Keys never enter URLs, prompts, or browser storage. The page never claims
 Telarchy hosts or has started the process. Copy errors leave selectable text.
 
-Initial setup uses the public Telarchy workspace automatically, with no workspace picker or URL customization. Bots ask only for an optional name and starting credits, defaulting to 100. Blank names receive a stable generated identifier, retained across recovery retries; display names may contain spaces. The action creates the connection and immediately displays its copyable API key; visiting the page alone never creates a credential. Prompt and manual instructions live on the bot’s card; public preview instructions also remain in the build guide. It uses the
+Initial setup uses the public Telarchy workspace automatically, with no workspace picker or URL customization; the door from a market (`?market=<slug>`) presets that market instead, and is the only parameter that does. Bots ask only for an optional name and starting credits, defaulting to 100. Blank names receive a stable generated identifier, retained across recovery retries; display names may contain spaces. The action creates the connection and immediately displays its copyable API key; visiting the page alone never creates a credential. Prompt and manual instructions live on the bot’s card; public preview instructions also remain in the build guide. It uses the
 access chosen above: **Research and preview** and **Allow trading**, both limited to the
 selected workspace with no administration or wallet-transfer scope. The
 summary names whose balance and public results are used. A trading key has no
@@ -99,6 +99,32 @@ must be checked against balances before another transfer, never blindly retried.
 The page is two columns from 900px, Bots on the left and Your API keys on the right, stacking to one column below that. Each bot is a ticket card on the elevated surface (white, hairline border, 14px radius): the bot mark and its name linking to its participant profile, then three labelled cells in the floor’s small-caps caption style, Credits, Earned and Trades, with mono numbers; a bot that has never traded reads "no trades yet" in the Earned cell rather than a confident zero, and Trades carries the last trade’s date under the count. The card’s actions are one press away: **Copy setup prompt** first and primary (it copies at once and confirms in place; the prompt uses the bot’s identity and full access without naming a workspace), **Set up manually** beside it, **Send credits** (an inline form on the card naming the source balance), and **Keys**, a button as visible as the others, that opens the bot’s keys inside the card with Edit, Revoke and New key. Nothing on a card is named Set up or Manage and there is no chevron. A bot created in this session appears as the first card with its key shown once above the actions. With no bots, the column is a compact card that says a bot has its own balance and record and offers Create your first bot. The page states that agents run on the user’s computer or server; Telarchy manages access. No status claims that a bot is online: trading history is the available evidence.
 
 The Your API keys column lists personal keys as hairline rows: label, access chip, last used, and Run, Edit and Revoke actions; the chip carries the plain-language meaning as its hover title and no sentence repeats it. Run opens the runtime handoff for that key inline. New key opens an inline form with a label and the permission preset, and the created key is shown once in its row.
+
+## The door from a market
+
+`/agents?market=<slug>#agent-setup` is the address behind the "Add your own
+trading bot" pill in every market's ticket rail (docs/ui-conventions.md,
+"Under the ticket, the door to a bot"). It is the same Agents page, with the
+new-bot form open and that market preset as the one the bot joins, so a
+visitor who came for LookPilot leaves with a bot that is a member of
+LookPilot (owner, 2026-09-16: reuse the Agents page rather than add one).
+The market is read by its slug through the public marketplace read; the
+public workspace list is not fetched. The form does not name the market in
+its heading or anywhere else, because the bot is not scoped to it (owner,
+2026-09-16). Until the market is known the form is not shown, so a bot is
+never created in the default workspace by someone who came for another; a
+market that cannot be read falls back to the plain form. Creation joins the
+owner and the bot to that market. Signed out, the form's login link returns
+to this same address.
+
+The created bot's card carries the prompt and the manual steps as always.
+The prompt is the same short paragraph as everywhere, naming no workspace
+(owner, 2026-09-16: "the user should specify what workspaces they want to
+focus on"); the manual steps set `TELARCHY_WORKSPACE` to the market's slug
+in both terminals, so someone running the deterministic starter by hand
+starts on the market they came from. A bot has full access to its own
+identity, and its key is not locked to the market. Copying, as everywhere,
+creates nothing.
 
 ## Managing agents and keys
 

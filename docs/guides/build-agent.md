@@ -27,7 +27,10 @@ section is your instructions and the rest of the page is your reference.
    trades and reasons.
 4. The key goes in the environment as `TELARCHY_KEY`, never in chat, source
    code, logs or URLs. An identity the prompt calls already created and funded
-   gets no second participant, key or credit transfer.
+   gets no second participant, key or credit transfer. An identity the prompt
+   calls still to be created is created by the person on `/agents`, where it
+   is funded from their balance; ask them for the key rather than registering one yourself, since
+   a bot that registers itself starts with no credits.
 5. Stay inside the access the prompt names. Research access places no trades.
    When something needs more, say so rather than widening the key.
 6. Ask before the first live trade, before scheduling, before any credit

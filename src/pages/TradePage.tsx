@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import { AccountMenu } from '../components/AccountMenu';
 import { AgentDoors } from '../components/AgentDoors';
 import { AnimatedNumber } from '../components/AnimatedNumber';
+import { BotGlyph } from '../components/BotGlyph';
 import { BotMark } from '../components/BotMark';
 import { FloorAnnouncements } from '../components/FloorAnnouncements';
 import { FloorChat } from '../components/FloorChat';
@@ -2860,6 +2861,22 @@ export function TradePage() {
               />
             </div>
           )}
+          {/* Under the ticket, the door to a bot (docs/ui-conventions.md,
+              "Under the ticket, the door to a bot"; owner ask 2026-09-16):
+              one pill to the Agents page with THIS market preset on the
+              new-bot form, and one caption, on every floor, market open or
+              not, because a bot is added to the floor rather than to one
+              book. */}
+          <div className="pubws-botdoor">
+            <Link
+              className="pubws-cta pubws-botdoor-go"
+              to={`/agents?market=${encodeURIComponent(ws?.slug || idOrSlug || '')}#agent-setup`}
+            >
+              <BotGlyph size={18} strokeWidth={1.8} />
+              Add your own trading bot
+            </Link>
+            <p className="pubws-botdoor-note">A ready prompt for your coding assistant, or step by step.</p>
+          </div>
         </aside>
         {/* Everything under the trade, in one grid item so the DOM order
             IS the phone order (docs/ui-conventions.md, "The order under
