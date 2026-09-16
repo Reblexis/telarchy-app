@@ -104,6 +104,16 @@
     "agent": 403,
     "master": 400
   },
+  "GET /api/admin/outreach/learnings": {
+    "anon": 401,
+    "agent": 403,
+    "master": 200
+  },
+  "PUT /api/admin/outreach/learnings": {
+    "anon": 401,
+    "agent": 403,
+    "master": 200
+  },
   "GET /api/admin/outreach/lessons": {
     "anon": 401,
     "agent": 403,
@@ -114,10 +124,20 @@
     "agent": 403,
     "master": 200
   },
+  "PATCH /api/admin/outreach/messages/:id": {
+    "anon": 401,
+    "agent": 403,
+    "master": 404
+  },
   "POST /api/admin/outreach/prospects/:id/draft": {
     "anon": 401,
     "agent": 403,
     "master": 404
+  },
+  "POST /api/admin/outreach/prospects/:id/messages": {
+    "anon": 401,
+    "agent": 403,
+    "master": 400
   },
   "DELETE /api/admin/outreach/prospects/:id": {
     "anon": 401,
