@@ -2482,7 +2482,13 @@ reload; `/leaderboard` ranks the same way in its own tables.
   platform repaying what its own fault cost a holder on one market counts as
   money back on that market, settled, so the board shows the result the
   holder would have had without the fault. An apology or any other grant
-  stays out. **No account is excluded.**
+  stays out. Credits transferred between participants count (received as
+  profit, sent as loss, settled), and an owner's row folds in the accounts
+  they own (`docs/seasons.md`, "Your score includes the accounts you
+  own"), so the footer draws a row for anyone with a trade OR a number:
+  an owner whose bots traded is on it without a trade of their own; a name
+  with no trades and nothing earned is noise and stays off. **No account
+  is excluded.**
   Anyone who has ever traded in a public workspace is on the board. **A
   cancelled market is valued at its refund, not skipped**: a void pays
   back the net cash you still had in it, floored at zero (see

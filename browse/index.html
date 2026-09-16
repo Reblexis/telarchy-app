@@ -7545,7 +7545,13 @@ platform handed an account never enter it. The one exception is a
 platform repaying what its own fault cost a holder on one market counts as
 money back on that market, settled, so the board shows the result the
 holder would have had without the fault. An apology or any other grant
-stays out. <strong>No account is excluded.</strong>
+stays out. Credits transferred between participants count (received as
+profit, sent as loss, settled), and an owner's row folds in the accounts
+they own (<code>docs/seasons.md</code>, &quot;Your score includes the accounts you
+own&quot;), so the footer draws a row for anyone with a trade OR a number:
+an owner whose bots traded is on it without a trade of their own; a name
+with no trades and nothing earned is noise and stays off. <strong>No account
+is excluded.</strong>
 Anyone who has ever traded in a public workspace is on the board. <strong>A
 cancelled market is valued at its refund, not skipped</strong>: a void pays
 back the net cash you still had in it, floored at zero (see
