@@ -147,8 +147,9 @@ describe('the board opens on the live ballot', () => {
     ]);
   });
 
-  test('a board with nothing pending lists the decided ones newest decision first', () => {
+  test('a board with nothing pending lists the decided ones newest decision first once shown', () => {
     board({ proposals: DECIDED });
+    fireEvent.click(screen.getByText('Show'));
     const shown = titles().filter(t => /credits|advice|A market/.test(t));
     expect(shown[0]).toContain('A market on Manifold');
     expect(shown[1]).toContain('Trade 100 credits');
@@ -170,12 +171,31 @@ describe('the board opens on the live ballot', () => {
     expect(screen.getByText('Publish a LessWrong post')).toBeTruthy();
   });
 
-  test('a board with nothing pending has no ballot to bury: the decided ones ARE the list', () => {
+  test('decided proposals are hidden by default even when nothing is pending', () => {
+    /* Owner 2026-09-16: "decided proposals should always be hidden by
+       default". An empty ballot shows the fold row alone, nothing above it;
+       the archive never stands in for the ballot. */
     board({ proposals: DECIDED });
+    expect(screen.queryByText('Trade 100 credits every week')).toBeNull();
+    expect(screen.queryByText('A market on Manifold')).toBeNull();
+    expect(screen.getByText('Show')).toBeTruthy();
+    expect(screen.getByText('3 decided')).toBeTruthy();
+    expect(screen.queryByText(/Nothing on the ballot yet/)).toBeNull();
+    expect(document.querySelectorAll('.pubws-ballot > li').length).toBe(1);
+  });
+
+  test('with nothing pending, Show reveals the decided ones and Hide folds them back', () => {
+    board({ proposals: DECIDED });
+    fireEvent.click(screen.getByText('Show'));
     expect(screen.getByText('Trade 100 credits every week')).toBeTruthy();
-    expect(screen.getByText('A market on Manifold')).toBeTruthy();
-    expect(screen.queryByText('Show')).toBeNull();
-    expect(screen.queryByText('3 decided')).toBeNull();
+    fireEvent.click(screen.getByText('Hide'));
+    expect(screen.queryByText('Trade 100 credits every week')).toBeNull();
+  });
+
+  test('with nothing pending, a selected decided proposal still forces the fold open', () => {
+    board({ proposals: DECIDED, selectedId: 'd2' });
+    expect(screen.getByText('Trade 100 credits every week')).toBeTruthy();
+    expect(screen.getByText('Hide')).toBeTruthy();
   });
 
   test('a board with no proposals at all still shows the empty line, not a fold', () => {

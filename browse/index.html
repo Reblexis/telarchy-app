@@ -6993,10 +6993,11 @@ newest decision first: the decided list is a record of what the owner
 did, and a record reads in the order it happened, so the proposal decided
 most recently is at the top and impact, which ordered them while they
 were live, no longer orders them. A proposal whose decision time is
-missing sorts last, and impact breaks a tie. The row is only there when there is something on both
-sides of it to separate: a board with nothing decided has no fold, and a
-board with nothing pending has no ballot to bury, so it shows the decided
-proposals as the list and no fold either. Two rules protect the
+missing sorts last, and impact breaks a tie. The decided proposals are
+hidden by default whenever there are any: a board with nothing pending
+shows the fold row alone, &quot;7 decided&quot; and SHOW, and nothing above it,
+because an empty ballot is still a ballot and the archive never stands in
+for it. A board with nothing decided has no fold. Two rules protect the
 selection, which is what the page's one market view is pointed at: a
 selected decided proposal forces the fold open, because a
 <code>#proposal=&lt;id&gt;</code> link from a notification must never land on a row the

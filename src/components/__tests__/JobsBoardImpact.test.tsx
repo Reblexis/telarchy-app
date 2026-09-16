@@ -161,6 +161,7 @@ describe('the deadline on the row', () => {
         <JobsBoard {...base} proposals={[j] as never} horizonDate="2026-W35" horizonMetricId="rev" />
       </MemoryRouter>,
     );
+    fireEvent.click(screen.getByText('Show'));
     expect(screen.getByText('lapsed')).toBeTruthy();
     expect(screen.queryByText('declined')).toBeNull();
   });
@@ -206,6 +207,7 @@ describe('the deadline on the row', () => {
         <JobsBoard {...base} proposals={[j] as never} horizonDate="2026-W35" horizonMetricId="rev" />
       </MemoryRouter>,
     );
+    fireEvent.click(screen.getByText('Show'));
     expect(screen.getByText('lapsed')).toBeTruthy();
     expect(container.querySelector('.pubws-ballot-status.is-lapsed')).toBeTruthy();
     expect(container.querySelector('.pubws-ballot-status.is-declined')).toBeNull();

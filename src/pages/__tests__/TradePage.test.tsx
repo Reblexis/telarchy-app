@@ -459,6 +459,8 @@ describe('the activity panel under a selected proposal', () => {
     vi.mocked(api.getFloorComments).mockClear();
 
     renderFloor();
+    // Decided proposals are folded away by default; open the fold first.
+    fireEvent.click(await screen.findByText('Show'));
     fireEvent.click(await screen.findByTitle('rewrite the store page'));
 
     await waitFor(() =>
