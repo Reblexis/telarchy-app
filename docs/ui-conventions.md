@@ -497,6 +497,11 @@ javascript: vector in an img src.
 
 ### The question line: the pickers, and the sentence
 
+On a chess feed, a move's game-score question reads "With b4, what will
+Chess's final game score be?" (using the selected move and workspace name).
+It asks for the final result, without a clock time. Other metrics and feeds
+keep their existing dated questions.
+
 The floor prices a SET of metrics, and every one of them is one number read
 on several dates. The horizon list is therefore a grid, metrics x dates.
 **Both axes of that grid are strips** (revised 2026-09-09, replacing the two

@@ -2447,8 +2447,15 @@ export function TradePage() {
                         putting all of it in one clause ahead of any number. */}
                       <p className="pubws-proposal-q">
                         {jobOptioned ? `With ${worldLabel}` : `If ${branch}`}, what will {ws.name}'s{' '}
-                        {sentenceCase(captionLabel(metricLabel, ws.name))} be {dateQuestionOf(hero).lead}
-                        {dateQuestionOf(hero).word}?
+                        {liveFeed?.kind === 'chess' &&
+                        captionLabel(metricLabel, ws.name).toLowerCase() === 'game score' ? (
+                          'final game score be?'
+                        ) : (
+                          <>
+                            {sentenceCase(captionLabel(metricLabel, ws.name))} be {dateQuestionOf(hero).lead}
+                            {dateQuestionOf(hero).word}?
+                          </>
+                        )}
                       </p>
                     </>
                   ) : (
