@@ -1184,6 +1184,8 @@ the same vertical rhythm.
   the date strip names it, and the countdown ticking by the minute, the
   exact instant on hover; "settling" once it is). A book on an
   `until-settled` date has no day and no clock, so its caption reads
+  "market's call · settles {date title}" when a custom title exists, such as
+  "settles when the game ends". Without a title it reads
   "market's call · settled by the owner" and its hover says "settles when
   the owner settles it". A selected proposal's
   impact chip sits beside the value as the bare arrow and delta

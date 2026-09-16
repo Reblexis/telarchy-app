@@ -917,8 +917,11 @@ export function TradePage() {
   const settleNote = hero?.settlesByOwner ? (
     // A date with no clock names who settles it, never a day or a countdown
     // (docs/ui-conventions.md, "The stat row").
-    <span className="pubws-settle-in" title="settles when the owner settles it">
-      settled by the owner
+    <span
+      className="pubws-settle-in"
+      title={hero.dateTitle ? `settles ${hero.dateTitle}` : 'settles when the owner settles it'}
+    >
+      {hero.dateTitle ? `settles ${hero.dateTitle}` : 'settled by the owner'}
     </span>
   ) : hero ? (
     <span className="pubws-settle-in" title={hero.resolvesOn ? `settles ${settleInstant(hero.resolvesOn)}` : undefined}>
