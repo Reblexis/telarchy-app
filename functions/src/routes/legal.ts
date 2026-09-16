@@ -188,6 +188,18 @@ removed. Where the law requires withholding on a prize (Czech law does,
 above CZK 50,000), we withhold the required amount and pay the rest. Both
 changes only increase what can be paid; nobody's share shrinks._
 
+_Amended 2026-09-16, mid-season: **credits transferred between participants
+count in the season score.** Credits another participant sent you inside
+the season count as profit, and credits you sent count as loss, at the
+moment of the transfer. This closes a loop a trader reported on 2026-09-16:
+an account could lose to another on purpose, be refunded by transfer, and
+repeat, because transfers were not scored. It applies to every transfer
+since the season started, so it can move a score in either direction: when
+it took effect it moved two related accounts (a person and the bot they
+fund) by 15,000 credits in opposite directions and nobody else. Deposits
+and platform grants are not transfers and never count. Announced on the
+season page; the Scoring section below has the sentence._
+
 **Season 0 is the first one, and the platform is still being launched.** Expect
 rough edges, apologies in advance. If something looks wrong, tell us through
 the feedback channel in the app; where a bug affects standings we say so
@@ -259,6 +271,10 @@ later does not.
   position in a market is what you actually held when it resolved: sell out
   beforehand and the sale counts too, so it cancels what the purchase would
   have earned.
+- **Transfers count.** Credits another participant sent you count as
+  profit and credits you sent count as loss, at the moment of the transfer,
+  for every transfer inside the season window. Funding a bot you own is a
+  transfer. Deposits and platform grants are not.
 - **Entering late changes nothing**: the score counts what resolved inside
   the window, whenever you opted in.
 - **The boards keep showing your open positions at their marked value.** The
