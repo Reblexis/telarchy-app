@@ -442,24 +442,34 @@ export async function addThreadMessage(prospectId: string, input: ThreadMessageI
       .returning();
     return row;
   }
-  await db
-    .insert(outreachMessages)
-    .values({ id: randomUUID(), ...values, status: 'received' })
-    .onConflictDoNothing();
+  // Looked up before and after the insert: before, so a store whose index
+  // predates the whitespace rule still records a reply once; after, so two
+  // readers racing past the first look both return the row the index kept.
+  const sameReply = () =>
+    db
+      .select()
+      .from(outreachMessages)
+      .where(
+        and(
+          eq(outreachMessages.prospectId, prospectId),
+          eq(outreachMessages.direction, 'in'),
+          sql`md5(regexp_replace(btrim(${outreachMessages.text}), '\\s+', ' ', 'g')) = md5(regexp_replace(btrim(${text}::text), '\\s+', ' ', 'g'))`,
+        ),
+      )
+      .orderBy(asc(outreachMessages.createdAt))
+      .limit(1);
+  const [existing] = await sameReply();
+  if (!existing) {
+    await db
+      .insert(outreachMessages)
+      .values({ id: randomUUID(), ...values, status: 'received' })
+      .onConflictDoNothing();
+  }
   await db
     .update(outreachProspects)
     .set({ status: 'replied', updatedAt: new Date() })
     .where(and(eq(outreachProspects.id, prospectId), eq(outreachProspects.status, 'sent')));
-  const [row] = await db
-    .select()
-    .from(outreachMessages)
-    .where(
-      and(
-        eq(outreachMessages.prospectId, prospectId),
-        eq(outreachMessages.direction, 'in'),
-        sql`md5(regexp_replace(btrim(${outreachMessages.text}), '\\s+', ' ', 'g')) = md5(regexp_replace(btrim(${text}::text), '\\s+', ' ', 'g'))`,
-      ),
-    );
+  const [row] = existing ? [existing] : await sameReply();
   return row;
 }
 
