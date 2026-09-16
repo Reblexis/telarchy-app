@@ -530,20 +530,26 @@ describe('the moves, one slim column beside the board', () => {
     expect(marked[0].textContent).toContain('Ng5');
   });
 
-  test('a host that lists the moves itself asks for the view without the moves column: board and stats stay, the list and its column go', async () => {
-    const { container } = renderLive({ movelist: false });
+  test('the card form: no moves column, the board and the next-move line stay, the record is one line under it', async () => {
+    const { container } = renderLive({ card: true });
     await waitFor(() => expect(container.querySelectorAll('.chess-square')).toHaveLength(64));
     await waitFor(() => expect(container.querySelector('.chess-stats')).not.toBeNull());
     expect(container.querySelector('.chess-movelist')).toBeNull();
     expect(container.querySelector('.chess-moves-col')).toBeNull();
-    expect(container.querySelector('.chess-live')).toHaveClass('chess-live--no-moves');
+    expect(container.querySelector('.chess-stats-col')).toBeNull();
+    expect(container.querySelector('.chess-stat')).toBeNull();
+    expect(container.querySelector('.chess-stats')).toHaveClass('chess-stats--line');
+    expect(container.querySelector('.chess-stats')?.textContent).toBe('Rating 1500?');
+    expect(container.querySelector('.chess-next')).not.toBeNull();
+    expect(container.querySelector('.chess-live')).toHaveClass('chess-live--card');
   });
 
-  test('by default the moves column is drawn and the view is not marked as without it', async () => {
+  test('by default the moves column and the record column are drawn and the view is not in card form', async () => {
     const { container } = renderLive();
     await waitFor(() => expect(rows(container)).toHaveLength(25));
     expect(container.querySelector('.chess-moves-col')).not.toBeNull();
-    expect(container.querySelector('.chess-live')).not.toHaveClass('chess-live--no-moves');
+    expect(container.querySelector('.chess-stats-col')).not.toBeNull();
+    expect(container.querySelector('.chess-live')).not.toHaveClass('chess-live--card');
   });
 
   test('no list while no move is open', async () => {
