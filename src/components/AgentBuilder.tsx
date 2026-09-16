@@ -20,14 +20,27 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** Human setup first; machine instructions and account access are separate.
  * No credential is persisted or added to the copied setup instructions. */
+/** The market a bot is being added from (docs/audience-pages.md, "The door from a market"). */
+export interface BuilderFloor {
+  workspaceId: string;
+  slug: string;
+  name: string;
+}
+
 export function AgentBuilder({
   onConnected,
   creationOnly = false,
   freshSetup = false,
+  floor,
 }: {
   onConnected?: (result: CreatedConnection) => void;
   creationOnly?: boolean;
   freshSetup?: boolean;
+  /** Set when the form was opened from a market's own door
+   * (docs/audience-pages.md, "The door from a market"): the bot joins that
+   * market, the manual commands name it, and the public workspace list is
+   * never fetched. The prompt does not change. */
+  floor?: BuilderFloor;
 }) {
   const { user, loading } = useAuth();
   const [options, setOptions] = useState<BuilderOptions>(() => {
@@ -39,11 +52,13 @@ export function AgentBuilder({
     }
     if (freshSetup) saved = { ...saved, botName: '', credits: '100' };
     // The form creates bots only; personal keys are minted in the keys section.
-    return { ...saved, identity: 'bot', workspace: '' };
+    return { ...saved, identity: 'bot', workspace: floor?.workspaceId ?? '' };
   });
-  const [workspaces, setWorkspaces] = useState<Awaited<ReturnType<typeof api.getPublicWorkspaces>>>([]);
+  const [workspaces, setWorkspaces] = useState<Awaited<ReturnType<typeof api.getPublicWorkspaces>>>(() =>
+    floor ? [{ workspaceId: floor.workspaceId, name: floor.name, slug: floor.slug, visibility: 'public' }] : [],
+  );
   const [listError, setListError] = useState('');
-  const [listLoading, setListLoading] = useState(true);
+  const [listLoading, setListLoading] = useState(!floor);
   const [retry, setRetry] = useState(0);
   const [agents, setAgents] = useState<MyAgent[] | null>(null);
   const [balanceError, setBalanceError] = useState('');
@@ -77,6 +92,8 @@ export function AgentBuilder({
     setCopied('');
   }, [options.identity, options.access, options.botName, options.credits]);
   useEffect(() => {
+    // This market is the workspace; there is no list to choose from.
+    if (floor) return;
     let current = true;
     setListLoading(true);
     setListError('');
@@ -99,7 +116,7 @@ export function AgentBuilder({
     return () => {
       current = false;
     };
-  }, [retry]);
+  }, [retry, floor]);
   useEffect(() => {
     let current = true;
     setConnection(null);
@@ -130,11 +147,12 @@ export function AgentBuilder({
   const fundsValid =
     options.credits.trim() !== '' && Number.isFinite(amount) && amount >= 0 && !!own && amount <= own.balance;
   const nameValid = options.botName.trim().length <= 64;
-  const prompt = builderPrompt(`${window.location.origin}${withBase('')}`, {
-    ...options,
-    access,
-    workspace: options.workspace || 'telarchy',
-  });
+  // Once a bot exists the prompt names it as already created and funded, so
+  // the assistant creates no second one and moves no credits. It never
+  // names a workspace, door or no door (docs/audience-pages.md, "The door
+  // from a market").
+  const prompt = builderPrompt(`${window.location.origin}${withBase('')}`, { ...options, access }, done?.agentId);
+  const loginNext = floor ? `/agents?market=${encodeURIComponent(floor.slug)}#agent-setup` : '/agents#agent-setup';
   const change = (key: keyof BuilderOptions, value: string) => setOptions(o => ({ ...o, [key]: value }));
   const copy = async (value: string, kind: string) => {
     setCopied('');
@@ -169,8 +187,14 @@ export function AgentBuilder({
       await connectBuilder({ ...options }, access, c, current);
       if (current()) {
         setConnection({ ...c, userId: user!.id });
+        // The card's manual commands name the market by its slug, which is
+        // what a person types; the id was only for the calls above.
         onConnected?.({
-          options: { ...options, access: c.access || options.access },
+          options: {
+            ...options,
+            access: c.access || options.access,
+            workspace: floor ? floor.slug : options.workspace,
+          },
           connection: { ...c },
           userId: user!.id,
         });
@@ -277,7 +301,7 @@ export function AgentBuilder({
                 </p>
               )}
               {!user ? (
-                <Link className="doors-pill" to={`/login?next=${encodeURIComponent(withBase('/agents#agent-setup'))}`}>
+                <Link className="doors-pill" to={`/login?next=${encodeURIComponent(withBase(loginNext))}`}>
                   Log in to connect
                 </Link>
               ) : (
@@ -405,6 +429,9 @@ export function AgentBuilder({
   return (
     <section id="agent-setup" className="agent-builder" aria-label="Build your agent">
       <div className="builder-heading">
+        {/* No market in the heading: the bot is not scoped to one (owner,
+            2026-09-16, "it shouldnt be lookpilot scoped"); only the prompt
+            and the commands point at the market it came from. */}
         <h2>New bot</h2>
       </div>
       {connectionForm}
@@ -455,7 +482,7 @@ export function AgentBuilder({
           </details>
           {manual ? (
             <AgentManualSetup
-              workspace={options.workspace}
+              workspace={floor ? floor.slug : options.workspace}
               access={access}
               identity={options.identity}
               connected={!!done}

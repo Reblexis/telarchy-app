@@ -4378,6 +4378,34 @@ textarea.jobform-line--desc {
   .pubws-ticket-inline { animation: none; }
 }
 
+/* Under the ticket, the door to a bot (docs/ui-conventions.md, "Under the
+   ticket, the door to a bot"): the rail's one pill, full width, and one
+   mono caption. It is the only thing in the rail besides the ticket. */
+.pubws-botdoor {
+  margin: 1.1rem auto 0;
+  width: 100%;
+  text-align: left;
+}
+.pubws-botdoor-go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.85rem 1.2rem;
+  font-size: 0.98rem;
+}
+.pubws-botdoor-note {
+  margin: 0.55rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.01em;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
 .pubws-bet-btn {
   flex: 1;
   padding: 0.85rem 1rem;
