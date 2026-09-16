@@ -7136,7 +7136,10 @@ textarea.jobform-line--desc {
 /* A chess card: the text column sets the height, the board fills it (the view is out of flow, so it adds no height of its own). */
 @media (min-width: 761px) {
   .mkt-featured--live:has(.chess-live--card) { align-items: stretch; }
-  .mkt-featured--live:has(.chess-live--card) .mkt-featured-visual { position: relative; min-height: 26rem; }
+  /* Never shorter than the slot is wide: the board keeps its playing size between games. */
+  .mkt-featured--live:has(.chess-live--card) .mkt-featured-visual { position: relative; min-height: 45rem; }
+  /* A text column shorter than the board sits centred beside it. */
+  .mkt-featured--live:has(.chess-live--card) .mkt-featured-body { justify-content: center; }
 }
 .mkt-featured-visual .mkt-spark { height: 180px; }
 .mkt-featured-body { display: flex; flex-direction: column; gap: 0.7rem; min-width: 0; }
@@ -12729,8 +12732,15 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .chess-live--card .chess-stats--line { margin: -0.35rem 0 0; }
 @media (min-width: 761px) {
   .chess-live--card { position: absolute; inset: 0; }
-  .chess-live--card .chess-board-box { flex: 1 1 auto; min-height: 0; container-type: size; }
-  .chess-live--card .chess-board { width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); }
+  /* The board column is the size container; the board is the smaller of its
+     width and its height less the two lines under it (--chess-card-lines),
+     so the lines sit directly under the board and the slack is below them. */
+  .chess-live--card .chess-board-col { --chess-card-lines: 4.2rem; container-type: size; }
+  .chess-live--card .chess-board-box { flex: 0 0 auto; min-height: 0; }
+  .chess-live--card .chess-board {
+    width: min(100cqw, 100cqh - var(--chess-card-lines));
+    height: min(100cqw, 100cqh - var(--chess-card-lines));
+  }
 }
 /* The floor's live slot is 720px, even on a wide screen. */
 @container chess-live (min-width: 660px) and (max-width: 759px) {

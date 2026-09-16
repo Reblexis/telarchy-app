@@ -3250,9 +3250,14 @@ the same line whatever the number of options beside it (Viktor 2026-09-16:
 "due to many potential proposals the right side is taller by a lot.. make
 sure its same height somehow"). The text column sets the card's height; the
 board is a square of whatever is left above the next-move line, never
-wider than the slot, so a proposal with more options gives a bigger board,
-and a card with two options still gets a board at least 26rem tall. At
-phone width the card stacks and the board is as wide as the card. A kind this build cannot
+wider than the slot, so a proposal with more options gives a bigger board.
+The card is never shorter than its slot is wide (45rem), so the board keeps
+its playing size between games and on a two-option move, when the text
+column is short (no question or deciding block yet): the card does not
+change size as the game's state flips, and a text column shorter than the
+board sits centred beside it. The next-move line and the record sit
+directly under the board, and any slack is below them. At phone width the
+card stacks and the board is as wide as the card. A kind this build cannot
 draw shows the hero market's spark instead, as a floor without a feed does;
 the card never draws one kind's board over another kind's feed, and a
 snake board handed a feed with no snake draws an empty grid rather than
