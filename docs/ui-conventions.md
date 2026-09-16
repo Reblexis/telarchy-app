@@ -2833,7 +2833,13 @@ horizontal overflow. The available slot controls this, including home cards.
    because its move belongs to a position the board no longer shows. **A move
    made on the board always opens the newest open proposal**, from any page:
    pressing a piece and a target, or an arrow, on a decided proposal's page
-   opens that move on the open one, and nothing when no move is open.
+   opens that move on the open one, and nothing when no move is open. Away
+   from the floor, where no page handles the pick (the home page's featured
+   card), a move made on the board **goes to that option's address**
+   (`/<slug>/p/<number>?option=<uci>`, the address an arrow links to), so a
+   click on the card lands on the right proposal with that move selected
+   (Viktor 2026-09-16: "make sure that clicking (moving by clicking) in the
+   visualization works.. by going to the correct proposal").
 4. **The moves, one slim column left of the board** (`.chess-movelist`).
    Only while a move is open: every legal move, highest price
    first, an unpriced one last as "open", one row each (`.chess-moverow`):

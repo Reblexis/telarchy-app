@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import type { FeedQuotes } from '../../lib/feed-overlay';
 import { startVisiblePoll } from '../../lib/visible-poll';
@@ -643,9 +644,14 @@ export function ChessLive({
     };
   });
 
+  /* A move made where no page handles the pick (the home card) goes to that
+     option's address, as an arrow's link does (docs/ui-conventions.md, "The
+     chess feed", item 3). */
+  const navigate = useNavigate();
   const pick = (option: string) => {
     if (!open) return;
-    onPickProposal?.(open.proposal.number, option);
+    if (onPickProposal) onPickProposal(open.proposal.number, option);
+    else navigate(optionHref(option));
   };
 
   const onSquare = (sq: string) => {
