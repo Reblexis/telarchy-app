@@ -1462,12 +1462,12 @@ export function TradePage() {
       ...(limit !== undefined ? { limit } : {}),
     });
   };
-  // A resting order changes no price today, so it refreshes the money but
-  // does not touch the chart's history.
+  // A crossed limit can fill immediately, so refresh its price and standings
+  // as well as its reservations and positions.
   const placeLimit = async (direction: 'higher' | 'lower', limitValue: number, budgetCredits: number) => {
     if (!activeMarketId || !ws) return;
     await api.placeLimitOrder({ marketId: activeMarketId, direction, limitValue, budgetCredits }, ws.workspaceId);
-    refreshMoney();
+    pollRef.current();
   };
   const placeSellLimit = async (direction: 'higher' | 'lower', limitValue: number, shares: number) => {
     if (!activeMarketId || !ws) return;
@@ -1475,7 +1475,7 @@ export function TradePage() {
       { marketId: activeMarketId, side: 'sell', direction, limitValue, shares },
       ws.workspaceId,
     );
-    refreshMoney();
+    pollRef.current();
   };
   const cancelLimit = async (id: string) => {
     if (!ws) return;
@@ -2895,7 +2895,7 @@ export function TradePage() {
                 consensus={consensus}
                 rangeMin={active.rangeMin}
                 rangeMax={active.rangeMax}
-                orders={trading && betModal === 'manage' ? orders : []}
+                orders={trading ? orders : []}
                 onPlaceLimit={trading ? placeLimit : async () => {}}
                 onCancelLimit={trading ? cancelLimit : undefined}
                 onPlaceSellLimit={trading ? placeSellLimit : undefined}

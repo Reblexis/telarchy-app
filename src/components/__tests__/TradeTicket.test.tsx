@@ -258,10 +258,13 @@ describe('selling at a price', () => {
     expect(within(orderType() as HTMLElement).getByText('Limit')).toBeTruthy();
   });
 
-  test('the Sell tab offers no Limit with nothing to sell', () => {
+  test('Quick and Limit do not disappear from Sell when there is nothing to sell', () => {
     render(<TradeTicket {...base} positions={[]} onPlaceLimit={async () => {}} onPlaceSellLimit={async () => {}} />);
     sellTab();
-    expect(orderType()).toBeNull();
+    expect(orderType()).toBeTruthy();
+    fireEvent.click(screen.getByText('Limit'));
+    expect(screen.getByText(/Unfilled buy orders are not holdings/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Sell .* at/ })).toBeNull();
   });
 
   test('a sell limit restates the whole instruction', () => {

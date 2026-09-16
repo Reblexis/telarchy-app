@@ -143,3 +143,9 @@ change meaning). The fill pass now detects two orders repeating an identical rou
 and books all the whole rounds both can afford at once, one trade per order at what
 those rounds cost, so the pass ends exactly where the back and forth would have.
 The once-per-pass rule it replaced left the pair alternating slowly across sweeps.
+
+
+## 2026-09-16: missing Sell controls and orders
+
+Viktor reported hidden orders and a sale that appeared to move the market
+without buying first. [Investigation and verification](../limit-orders-sell-audit-2026-09-16.md).
