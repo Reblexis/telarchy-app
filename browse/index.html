@@ -3798,7 +3798,8 @@ change (an edit to a sent message is refused).</li>
 <li><code>at</code>: when it was received or sent, as the channel shows it.</li>
 </ul>
 <p>Recording what came back is idempotent: an <code>in</code> message with the same text on
-the same prospect is the same message, and posting it again returns the
+the same prospect (compared trimmed, with runs of whitespace collapsed, so a
+reply read twice off a screen is one reply) is the same message, and posting it again returns the
 existing one, so an agent that reads a thread twice records the reply once.
 The first <code>in</code> message on a prospect whose status is <code>sent</code> moves it to
 <code>replied</code>; any later status the owner set is left alone.</p>
@@ -3807,8 +3808,9 @@ The first <code>in</code> message on a prospect whose status is <code>sent</code
 <li>Picks a prospect. Sees the evidence and the message side by side.</li>
 <li>Gets a draft, or a fresh one. The draft is in his voice, hooks on the
 decision the evidence says they have open, quotes only the evidence, is
-under 75 words, asks one thing, carries his name and the one link
-(<code>telarchy.com/lookpilot</code>, his own number run the same way).</li>
+under 75 words, asks one thing, carries his name and at most one link,
+<code>telarchy.com</code>: never a public floor, which reads as publishing their
+number.</li>
 <li>Argues with it (&quot;shorter&quot;, &quot;don't mention the sale&quot;, &quot;why lead with the
 API cost?&quot;). Every turn comes back as the revised message and what it
 says to him; both stay on screen.</li>
@@ -3926,6 +3928,15 @@ skills repository); what it may do here is this:</p>
 and waits in &quot;Waiting for you&quot;.</li>
 <li>It sends only what is <code>approved</code>, with the two checks in &quot;Who actually
 sends&quot;, and records <code>sent</code> the moment a send is confirmed.</li>
+<li>It follows up. After an answer it drafts the reply to it (the price only
+answers a yes or a question about cost). A person who has not answered
+gets at most three follow-ups, each drafted no sooner than 3, 7 and 12 days
+after the last message that went out, each adding something the last one
+did not; after the third, nothing more.</li>
+<li>It sets an answer status (<code>replied</code>, <code>call</code>, <code>workspace</code>, <code>activated</code>,
+<code>no</code>) only on a prospect whose first message went out: landing any of them
+on an unsent row stamps <code>sentAt</code>, which would record a message that never
+went.</li>
 <li>Its learnings are its own text, <strong>agent learnings</strong>, kept apart from the
 owner's lessons and never written into them. It rewrites them from the
 record: which variants were answered, what the answers said, what it will
@@ -3947,7 +3958,7 @@ try next and why.</li>
 </tr>
 <tr>
 <td><code>POST /api/admin/outreach/prospects</code></td>
-<td>create one <code>{ name, company?, segment?, channel, handle?, evidence?, message?, day? }</code></td>
+<td>create one <code>{ name, company?, segment?, channel, handle?, evidence?, message?, status? (never approved), day?, variant?, reasoning?, source? }</code> -&gt; <code>{ prospect }</code></td>
 </tr>
 <tr>
 <td><code>POST /api/admin/outreach/prospects/import</code></td>
@@ -3975,15 +3986,15 @@ try next and why.</li>
 </tr>
 <tr>
 <td><code>POST /api/admin/outreach/prospects/:id/messages</code></td>
-<td>add a thread message <code>{ direction, text, variant?, reasoning?, at? }</code>; <code>out</code> is always created <code>draft</code>, <code>in</code> is <code>received</code> and idempotent on its text</td>
+<td>add a thread message <code>{ direction, text, variant?, reasoning?, at? }</code> -&gt; <code>{ message }</code>; <code>out</code> is always created <code>draft</code>, <code>in</code> is <code>received</code> and idempotent on its text</td>
 </tr>
 <tr>
 <td><code>PATCH /api/admin/outreach/messages/:id</code></td>
-<td><code>{ text?, status?, variant?, reasoning? }</code>; <code>sent</code> stamps <code>sentAt</code> once; text is refused after <code>sent</code></td>
+<td><code>{ text?, status?, variant?, reasoning? }</code> -&gt; <code>{ message }</code>; <code>sent</code> stamps <code>sentAt</code> once; text is refused (409) after <code>sent</code></td>
 </tr>
 <tr>
 <td><code>GET/PUT /api/admin/outreach/learnings</code></td>
-<td>the agent learnings text</td>
+<td>the agent learnings text: <code>{ learnings }</code> both ways</td>
 </tr>
 </tbody>
 </table></div>

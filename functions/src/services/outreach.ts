@@ -413,7 +413,9 @@ const when = (v: unknown): Date | null => {
  * Add a message to a prospect's thread (docs/outreach-workbench.md,
  * "Threads"). An `out` message is created `draft` whatever the request asks:
  * only the owner approves. An `in` message is their words, recorded once:
- * the same text on the same prospect returns the existing row, enforced by a
+ * the same text on the same prospect (trimmed, whitespace runs collapsed, so
+ * a reply read twice off a screen is still one reply) returns the existing
+ * row, enforced by a
  * unique index so two readers of one thread cannot record it twice. The
  * first reply moves a `sent` prospect to `replied`.
  */
@@ -455,7 +457,7 @@ export async function addThreadMessage(prospectId: string, input: ThreadMessageI
       and(
         eq(outreachMessages.prospectId, prospectId),
         eq(outreachMessages.direction, 'in'),
-        sql`md5(${outreachMessages.text}) = md5(${text})`,
+        sql`md5(regexp_replace(btrim(${outreachMessages.text}), '\\s+', ' ', 'g')) = md5(regexp_replace(btrim(${text}::text), '\\s+', ' ', 'g'))`,
       ),
     );
   return row;
@@ -543,7 +545,7 @@ Rules for the message:
 - Under 75 words. One ask, at the end, that a yes or no answers.
 - His name in the first line ("Viktor here"), and one line of who he is only if the evidence says what he can claim.
 - The hook is the decision the evidence says they have open, in their own numbers and words. Quote only the evidence. A fact not in the evidence is not a fact: never invent a number, a date, a product, or an outcome.
-- Do not explain the mechanism; the link (telarchy.com/lookpilot, his own number run the same way) does that. Say the number stays private (a private floor, only forecasters they invite see it, no Stripe keys, they type the number in) and that he sets it up himself.
+- Do not explain the mechanism. At most one link, telarchy.com, and never a public floor: a public floor reads as publishing their number. Say the number stays private (a private floor, only forecasters they invite see it, no Stripe keys, they type the number in) and that he sets it up himself.
 - Never call it free and never name a price. The offer is a paid four-week pilot on one decision, and its price belongs to his answer to a yes, not to a first message.
 - Answer first, flat numbers, no flattery, no "love what you're doing", no preamble. Short declaratives that stop rather than resolve. No rhetorical polish, no closing summary. No em-dashes.
 - Plain text, the way he would write to a friend. Avoid the words bet, odds and alignment.
