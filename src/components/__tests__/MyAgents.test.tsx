@@ -243,6 +243,8 @@ test('A CARD PER BOT: prompt, credits and keys are one press away, nothing is na
   const prompt = vi.mocked(navigator.clipboard.writeText).mock.calls[0][0] as string;
   expect(prompt).toContain('"bot-one"');
   expect(prompt).toContain('full access to this identity');
+  expect(prompt).not.toContain('Workspace:');
+  expect(prompt.split('\n')).toHaveLength(1);
   expect(createAgent).not.toHaveBeenCalled();
 });
 

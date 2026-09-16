@@ -68,7 +68,7 @@ async function connect(identity = 'bot') {
 }
 test('ANONYMOUS COPY DOES NOT CREATE AN ACCOUNT, KEY, MEMBERSHIP OR TRANSFER', async () => {
   mount();
-  await waitFor(() => expect((screen.getByLabelText('Setup prompt') as HTMLTextAreaElement).value).toContain('ws-one'));
+  await waitFor(() => expect(api.getPublicWorkspaces).toHaveBeenCalled());
   fireEvent.click(screen.getByRole('button', { name: 'Copy setup prompt' }));
   await screen.findByText('Prompt copied');
   for (const name of [
@@ -79,7 +79,7 @@ test('ANONYMOUS COPY DOES NOT CREATE AN ACCOUNT, KEY, MEMBERSHIP OR TRANSFER', a
     'transferCredits',
   ] as const)
     expect(api[name]).not.toHaveBeenCalled();
-  expect(copy.mock.calls[0][0]).toContain('ws-one');
+  expect(copy.mock.calls[0][0]).not.toContain('ws-one');
   expect(screen.getByRole('link', { name: 'Log in to connect' })).toHaveAttribute(
     'href',
     expect.stringContaining('next='),
@@ -120,16 +120,16 @@ test('FAILED PUBLIC LIST CAN BE RETRIED', async () => {
   await screen.findByText('Offline');
   expect(screen.getByRole('button', { name: 'Copy setup prompt' })).toBeEnabled();
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-  await waitFor(() => expect((screen.getByLabelText('Setup prompt') as HTMLTextAreaElement).value).toContain('ws-one'));
+  await waitFor(() => expect(api.getPublicWorkspaces).toHaveBeenCalled());
 });
 test('FAILED COPY LEAVES SELECTABLE PROMPT AND NO FALSE SUCCESS', async () => {
   copy.mockRejectedValueOnce(new Error('Clipboard blocked'));
   mount();
-  await waitFor(() => expect((screen.getByLabelText('Setup prompt') as HTMLTextAreaElement).value).toContain('ws-one'));
+  await waitFor(() => expect(api.getPublicWorkspaces).toHaveBeenCalled());
   fireEvent.click(screen.getByRole('button', { name: 'Copy setup prompt' }));
   await screen.findByText(/Select the prompt below/);
   expect(screen.queryByText('Prompt copied')).toBeNull();
-  expect((screen.getByLabelText('Setup prompt') as HTMLTextAreaElement).value).toContain('ws-one');
+  expect((screen.getByLabelText('Setup prompt') as HTMLTextAreaElement).value).not.toContain('ws-one');
 });
 test('EXPLICIT NEW BOT CREATION SHOWS KEY SEPARATELY AND KEEPS IT OUT OF STORAGE', async () => {
   await connect();

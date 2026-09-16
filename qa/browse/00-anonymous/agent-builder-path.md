@@ -64,3 +64,14 @@ The supplied frontend URL can include `/beta`; links must stay within its base.
 - Fund an isolated bot and refresh its balance. A failed response blocks repeat
   funding until balances are checked. Finishing setup adds the bot to this list.
 - Sign out or change accounts with a key panel open: prior rows and secrets disappear.
+
+### Workspace-independent setup prompt
+
+- Copy setup instructions from a bot card and from a personal key. Each is
+  one short paragraph linking to the build guide, identifying the existing
+  participant and describing its actual access, with no workspace ID, slug
+  or workspace-selection instruction.
+- A newly created bot is described as already created and funded. Research
+  access still forbids trades. Trading access stays within the key's permissions.
+- Copying does not create credentials, join workspaces or transfer credits.
+- Changing saved or URL workspace preferences does not change the prompt.
