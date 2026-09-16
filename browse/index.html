@@ -337,6 +337,7 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h17">F6. The house on its own board</a></li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h18">F7. Void and correction risk</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-seasons-md--h19">Deferred to Season 1</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-seasons-md--h20">Season 1: the season wallet</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-ui-conventions-md">docs/ui-conventions.md</a></summary>
@@ -5097,8 +5098,44 @@ voiding markets during a running season except to correct a declared error.</p>
 <td>the live public set, same as scoring</td>
 <td>the pinned set</td>
 </tr>
+<tr>
+<td>Score base</td>
+<td>the season wallet: burn credits to enter, only trading moves it, score = wallet at the end minus the stake (below)</td>
+<td>the account: settled trading plus transfers</td>
+</tr>
 </tbody>
 </table></div>
+<h3 id="docs-seasons-md--h20">Season 1: the season wallet</h3>
+<p>Decided 2026-09-16 (owner; record in notes/decisions/seasons.md, options in
+notes/season-score-holes-2026-09-16.md, option E). Not built; this section
+is the specification for when it is.</p>
+<p>Entering Season 1 means moving credits of your own into a <strong>season
+wallet</strong>. The credits leave your balance for good: they are burned, not
+held. The season is scored on the wallet alone.</p>
+<ul>
+<li><strong>Only trading moves the wallet.</strong> While the season runs, an entrant's
+trades on scored markets pay from and into the wallet: buys and pool
+contributions leave it, sells, redemptions, payouts, refunds and leftover
+return to it. Nothing else can enter or leave it: no transfer, reward,
+penalty, grant or deposit, in either direction. There is no top-up after
+entry.</li>
+<li><strong>Score = wallet at the end minus the stake.</strong> Cash accounting: a credit
+that left the wallet is a loss the moment it left, whether or not the
+book it went into has resolved. A position still open at the end is
+worth zero to the season; its later payout goes to the entrant's main
+balance. This is what closes every leg in the channel table: nothing can
+be sent into a wallet, and cash parked on a far-dated book is not hidden.</li>
+<li><strong>Credits are reset at the start of the season</strong> (owner, 2026-09-16:
+&quot;we will also have to reset credits at the beginning of the season
+then&quot;). The exact form (what a balance is set to, whose balances, and
+whether the stake is the reset) is not yet decided and is the one open
+question before this can be built.</li>
+<li>The residual is unchanged from every option: a second account can lose
+its own credits to your wallet by trading. It is bounded by what that
+account holds, visible in the ledger, and the disqualification clause.</li>
+<li>Rules freeze at the start instant (the row above), so this lands in the
+Season 1 rules before Season 1 starts, never mid-season.</li>
+</ul>
 <p>Two rows retired 2026-08-28 by the settled-scoring amendment: &quot;settlement
 and baseline mark&quot; (there is no settlement mark to time-average, and the
 baseline is a record now) and &quot;mid-season resolution&quot; (F4, resolved by the

@@ -478,3 +478,15 @@ so the public profile lists transfers as rows (docs/ui-conventions.md,
 docs/legal/season-0-rules.md; announced on the season page. The other
 legs stay open pending the owner's pick for Season 1 (option E, the
 burned-credit season wallet, is the owner's own idea from the same day).
+
+## 2026-09-16: Season 1 scores a burned season wallet (owner decision)
+
+**DONE 2026-09-16 (Viktor, verbatim):** "yes burned sesason wallet for
+option E but we will also have to reset credits at the beginning of the
+season then.. but for now lets go witht hta", then "dont implement it just
+document". Option E of notes/season-score-holes-2026-09-16.md is the
+Season 1 rule: entering burns credits into a season wallet that only
+trading can move, and the score is the wallet at the end minus the stake.
+The credit reset at the season start is his stated intent; its exact form
+is the open question. Specification: docs/seasons.md, "Season 1: the
+season wallet". Nothing built.
