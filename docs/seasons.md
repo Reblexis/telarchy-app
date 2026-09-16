@@ -545,6 +545,40 @@ voiding markets during a running season except to correct a declared error.
 | Auto top-up on impact | a single trade moving a market's consensus by more than 10% of its range tops the book back up to the season `b` after the trade | not built; the ramp script and the cap do the work |
 | Rules immutability | frozen at the start instant | may change if announced first |
 | Deletion freeze set | the live public set, same as scoring | the pinned set |
+| Score base | the season wallet: burn credits to enter, only trading moves it, score = wallet at the end minus the stake (below) | the account: settled trading plus transfers |
+
+### Season 1: the season wallet
+
+Decided 2026-09-16 (owner; record in notes/decisions/seasons.md, options in
+notes/season-score-holes-2026-09-16.md, option E). Not built; this section
+is the specification for when it is.
+
+Entering Season 1 means moving credits of your own into a **season
+wallet**. The credits leave your balance for good: they are burned, not
+held. The season is scored on the wallet alone.
+
+- **Only trading moves the wallet.** While the season runs, an entrant's
+  trades on scored markets pay from and into the wallet: buys and pool
+  contributions leave it, sells, redemptions, payouts, refunds and leftover
+  return to it. Nothing else can enter or leave it: no transfer, reward,
+  penalty, grant or deposit, in either direction. There is no top-up after
+  entry.
+- **Score = wallet at the end minus the stake.** Cash accounting: a credit
+  that left the wallet is a loss the moment it left, whether or not the
+  book it went into has resolved. A position still open at the end is
+  worth zero to the season; its later payout goes to the entrant's main
+  balance. This is what closes every leg in the channel table: nothing can
+  be sent into a wallet, and cash parked on a far-dated book is not hidden.
+- **Credits are reset at the start of the season** (owner, 2026-09-16:
+  "we will also have to reset credits at the beginning of the season
+  then"). The exact form (what a balance is set to, whose balances, and
+  whether the stake is the reset) is not yet decided and is the one open
+  question before this can be built.
+- The residual is unchanged from every option: a second account can lose
+  its own credits to your wallet by trading. It is bounded by what that
+  account holds, visible in the ledger, and the disqualification clause.
+- Rules freeze at the start instant (the row above), so this lands in the
+  Season 1 rules before Season 1 starts, never mid-season.
 
 Two rows retired 2026-08-28 by the settled-scoring amendment: "settlement
 and baseline mark" (there is no settlement mark to time-average, and the
