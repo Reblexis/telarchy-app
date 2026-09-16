@@ -438,7 +438,10 @@ describe('THE QUESTION NAMES THE OPTION, AND THE WORLD RIDES THE VERB', () => {
     'chess says if the move %s is made instead of the terse With label',
     async move => {
       withFloor(ws => {
-        Object.assign(ws, { name: 'Chess', liveFeed: { kind: 'chess', url: 'https://chess.example.com' } });
+        Object.assign(ws, {
+          name: 'Chess',
+          optionQuestionTemplate: "If the move {option} is made, what will {workspace}'s final {metric} be?",
+        });
         ws.markets[0].metricName = 'Game score';
         ws.proposals[0].markets[0].options[1].label = move;
         ws.proposals[0].markets[0].options[0].label = 'Nc3';
@@ -454,6 +457,16 @@ describe('THE QUESTION NAMES THE OPTION, AND THE WORLD RIDES THE VERB', () => {
       await waitFor(() => expect(q()).toBe("If the move Nc3 is made, what will Chess's final game score be?"));
     },
   );
+
+  test('an unconfigured chess workspace uses the same question as any other workspace', async () => {
+    withFloor(ws => Object.assign(ws, { liveFeed: { kind: 'chess', url: 'https://chess.example.com' } }));
+    sessionStorage.setItem('floorChartMode', 'value');
+    const { container } = renderFloor();
+    await opened(container);
+    expect(words(container.querySelector('.pubws-proposal-q'))).toMatch(
+      /^With Turn left, what will Snake's reached length be/,
+    );
+  });
 
   test('"With <label>, what will …", switching with the selected cell', async () => {
     const { container } = renderFloor();

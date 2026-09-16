@@ -1346,6 +1346,7 @@ async function buildFloorPayload(ws: PublicWs) {
     // offers the propose line to nobody else (docs/guides/proposals.md,
     // "Closing the floor to outside proposals").
     externalProposalsDisabled: ws.externalProposalsDisabled ?? false,
+    optionQuestionTemplate: ws.optionQuestionTemplate ?? null,
     // The moment the floor's year chart marks, when the owner named one.
     telarchyStartedOn: ws.telarchyStartedOn ?? null,
     visibility: ws.visibility,

@@ -377,3 +377,18 @@ been writing (owner direction 2026-08-23, `services/setup-handoff.ts`).
   the floor, because a floor nobody can trade on is not a setting, it is the
   thing standing between an owner and their first forecaster.
 - **Bulk anything.** One floor, one owner, one change at a time.
+
+## Workspace question wording
+
+A manager can edit the workspace's option-question wording beside the
+question on any proposal with options, using "Edit question wording".
+The editor is labelled "Workspace question wording", previews the current
+option, and lists `{option}`, `{workspace}`, `{metric}` and `{date}`. Save
+uses `PUT /api/workspaces/:id/settings { optionQuestionTemplate }` with the
+same manage permission as the workspace's descriptive text. A blank value
+or null restores the default. Text is trimmed, at most 500 characters,
+requires `{option}`, and rejects unknown or unmatched placeholders without
+changing the saved setting. Cancel leaves it unchanged; failures keep the
+editor and draft open. The setting applies to all option proposals in the
+workspace and appears in the public workspace payload. It changes wording
+only, never market definitions, settlement, positions, or binary proposals.

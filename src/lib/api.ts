@@ -703,6 +703,8 @@ export interface PublicWorkspace {
   /** Owner-authored "What is <name>?" blurb for the floor (free text; null =
    *  the floor's built-in default copy is shown). Owner-editable. */
   subjectAbout?: string | null;
+  /** Plain-text question template for option proposals; null uses the default. */
+  optionQuestionTemplate?: string | null;
   /** The owner's live picture of what the market steers, framed on the floor
    *  above "What is <name>?" as a sandboxed iframe; null = no box. */
   liveViewUrl?: string | null;
@@ -2995,6 +2997,8 @@ export const api = {
       description?: string | null;
       charter?: string | null;
       subjectAbout?: string | null;
+      /** Plain-text question template for option proposals; null uses the default. */
+      optionQuestionTemplate?: string | null;
       /** Deprecated: https only, <=500 chars, null clears; hidden once liveFeed is set. */
       liveViewUrl?: string | null;
       /** { kind, url } from the allow-list, https only; null clears (docs/ui-conventions.md,

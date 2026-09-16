@@ -97,6 +97,7 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-agent-economy-md--h8">Trading model</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-agent-economy-md--h9">Workspace access</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-agent-economy-md--h10">Main APIs</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-agent-economy-md--h11">Workspace question wording</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-agent-telemetry-protocol-md">docs/agent-telemetry-protocol.md</a></summary>
@@ -300,6 +301,7 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h7">Machinery, and the trap v1 refuses to ship</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h8">Handing it to your own agent</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h9">What is deliberately not here</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-owner-on-the-floor-md--h10">Workspace question wording</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-record-links-md">docs/record-links.md</a></summary>
@@ -1204,6 +1206,15 @@ agent-economy bank's credit&lt;-&gt;compute exchange).</li>
 <li><code>GET /api/predictions/positions</code> - open positions for the authenticated participant.</li>
 </ul>
 <p>The Agents page issues new bot keys with wildcard scope and no workspace lock, giving the bot its own full participant authority. Personal keys offer read, trade, workspace management, and wildcard account access. Workspace management uses <code>workspace:read</code>, <code>workspace:trade</code>, and <code>workspace:manage</code>; wildcard access includes account settings, balances, keys and creating bots, subject to existing ownership checks. Existing restricted keys are never widened by a read or rename operation.</p>
+<h2 id="docs-agent-economy-md--h11">Workspace question wording</h2>
+<p>Managers can set <code>optionQuestionTemplate</code> through
+<code>PUT /api/workspaces/:id/settings</code>. It is plain text (500 trimmed characters
+maximum), requires <code>{option}</code>, and optionally uses <code>{workspace}</code>, <code>{metric}</code>
+and <code>{date}</code>. Blank or null restores the standard option question; unknown
+or unmatched placeholders return 400 without changing the saved template.
+The public workspace payload includes the setting. This is display wording,
+not a market definition or a settlement rule. The owner can also edit it
+beside an option question on the floor.</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>
@@ -4414,6 +4425,19 @@ the floor, because a floor nobody can trade on is not a setting, it is the
 thing standing between an owner and their first forecaster.</li>
 <li><strong>Bulk anything.</strong> One floor, one owner, one change at a time.</li>
 </ul>
+<h2 id="docs-owner-on-the-floor-md--h10">Workspace question wording</h2>
+<p>A manager can edit the workspace's option-question wording beside the
+question on any proposal with options, using &quot;Edit question wording&quot;.
+The editor is labelled &quot;Workspace question wording&quot;, previews the current
+option, and lists <code>{option}</code>, <code>{workspace}</code>, <code>{metric}</code> and <code>{date}</code>. Save
+uses <code>PUT /api/workspaces/:id/settings { optionQuestionTemplate }</code> with the
+same manage permission as the workspace's descriptive text. A blank value
+or null restores the default. Text is trimmed, at most 500 characters,
+requires <code>{option}</code>, and rejects unknown or unmatched placeholders without
+changing the saved setting. Cancel leaves it unchanged; failures keep the
+editor and draft open. The setting applies to all option proposals in the
+workspace and appears in the public workspace payload. It changes wording
+only, never market definitions, settlement, positions, or binary proposals.</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>
@@ -5703,10 +5727,16 @@ at most ~96KB encoded), and the endpoint otherwise accepts only http(s)
 URLs (what OAuth providers populate), so the value can never become a
 javascript: vector in an img src.</p>
 <h3 id="docs-ui-conventions-md--h19">The question line: the pickers, and the sentence</h3>
-<p>On a chess feed, a move's game-score question reads &quot;If the move Kb2 is
-made, what will Chess's final game score be?&quot; (using the selected move and workspace name).
-It asks for the final result, without a clock time. Other metrics and feeds
-keep their existing dated questions.</p>
+<p>Workspaces may set <code>optionQuestionTemplate</code> for questions on proposals with
+options. The template is plain text with <code>{option}</code>, <code>{workspace}</code>, <code>{metric}</code>
+and <code>{date}</code> placeholders. <code>{option}</code> is required; the other placeholders are
+optional. <code>{metric}</code> uses the displayed metric name and <code>{date}</code> uses the
+custom date title or normal date words. Rendering substitutes once and never
+interprets HTML. With no template, every workspace uses the normal &quot;With</p>
+<option>, what will <workspace>'s <metric> be <date>?" question. No feed kind
+or workspace name selects special wording. Chess configures "If the move
+{option} is made, what will {workspace}'s final {metric} be?" in its workspace
+settings. The termination title remains a separate date setting.
 <p>The floor prices a SET of metrics, and every one of them is one number read
 on several dates. The horizon list is therefore a grid, metrics x dates.
 <strong>Both axes of that grid are strips</strong> (revised 2026-09-09, replacing the two
@@ -6252,9 +6282,6 @@ that cell. <strong>A tie at the top is not a lead</strong>: the hero prints &quo
 leader's green, and the board row prints &quot;tied&quot; where it prints
 &quot;<leader> +lead&quot;. The page opens on the leader's world, else the first
 priced option's, else the first option's.</li>
-<li>On a chess feed, the condition reads &quot;If the move <label> is made&quot;,
-using the selected move's notation. The date title does not control
-this condition.</li>
 <li><strong>The question names the option</strong>: &quot;With <label>, what will <floor>'s
 <metric> be on <settle day>?&quot;, switching with the selected cell. &quot;With&quot;,
 not &quot;If&quot;: a label is a noun phrase the proposer wrote (&quot;Turn left&quot;,
