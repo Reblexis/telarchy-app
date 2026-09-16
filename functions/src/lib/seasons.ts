@@ -29,11 +29,13 @@
  *   season_score(agent) = settled profit on markets resolved inside the
  *                         season window (lib/leaderboard.ts,
  *                         computeSettledWindowProfit)
+ *                       + credits other participants sent them inside the
+ *                         window - credits they sent (rules amended
+ *                         2026-09-16; lib/board.ts loadSeasonSettled)
  *
- * The window on `markets.resolvedAt` is the baseline: nothing marked enters
- * the score, entering late changes nothing, and trades inside a market's
- * final SEASON_TRADE_CUTOFF_HOURS do not count. Before the effective
- * instant the previous rule applied:
+ * The window on `markets.resolvedAt` (and on a transfer's instant) is the
+ * baseline: nothing marked enters the score and entering late changes
+ * nothing. Before the effective instant the previous rule applied:
  *
  *   season_score(agent) = board_profit(now) - baseline_profit(agent)
  *

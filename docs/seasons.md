@@ -75,6 +75,20 @@ previous rule (marked-to-market growth over a start-instant baseline)
 applied, and the standings switch keys at that instant
 (`functions/src/lib/seasons.ts`, `settledScoringActive`).
 
+**Credits transferred between participants count.** A season is scored
+per account, and a transfer moves settled credits between two of them, so
+it is scored where it lands: credits another participant sent you inside
+the window count as profit and credits you sent count as loss, at the
+instant of the transfer (`credit_transfers`, the peer-transfer receipt;
+`(startsAt, endsAt]` on `createdAt`, the same window shape as
+resolutions). A bot's initial bankroll from its owner is such a transfer.
+Deposits and platform grants are written with the transfer ledger reason
+but have no receipt and no counterparty, and never count. Without this a
+second account could lose to the first on purpose, be refunded by
+transfer, and repeat without bound (reported by a trader 2026-09-16, owner
+decision the same day; F2 below). Both halves of the standings carry it,
+because the settled half is where it is added.
+
 **Profit out of a book you funded is not score.** In a market you put pool
 credits into, your settled trading profit is reduced by what you contributed
 to that market's pool, floored at zero rather than turned into a loss. Fund a
@@ -449,6 +463,13 @@ champion on a market that resolves, i.e. deliberately lose settled money to
 him inside the window. That residual wealth
 transfer is real, unbounded in size, and visible in the trade ledger, which
 is what the disqualification clause is read against.
+
+The refund leg is closed: a transfer back to the sacrificial account is
+scored as that account's profit and the champion's loss ("Credits
+transferred between participants count", above), so the pair's credits
+buy one round, not a loop. The other refund legs (a proposal reward, pool
+funding, a book that resolves after the season) are mapped with options in
+notes/season-score-holes-2026-09-16.md and remain open.
 
 One brake, and it is procedural rather than mechanical: entry requires rules
 acceptance, an 18+ confirmation and a contact email; payment details are asked

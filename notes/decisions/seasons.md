@@ -462,3 +462,19 @@ put the owner at -14,025, so the agent stopped and wrote up every unscored
 channel with four options and a recommendation:
 `notes/season-score-holes-2026-09-16.md`. The rule text follows the owner's
 pick, in `docs/seasons.md` and `docs/legal/season-0-rules.md` first.
+
+## 2026-09-16: transfers count in the season score (owner decision)
+
+**DONE 2026-09-16 (Viktor, verbatim):** "ok for now can you close the holes
+with money transfers by c ounting them into profit", after being shown
+that the literal rule hands the bot bobalobascrob +15,000 and its owner
+-14,025 and that four other options existed
+(`notes/season-score-holes-2026-09-16.md`). Received is profit, sent is
+loss, at the transfer instant, over the whole window; peer transfers only
+(the `credit_transfers` receipt), never deposits or grants. Also, verbatim:
+"make sure to show them in personal logs as well the transfers on profile",
+so the public profile lists transfers as rows (docs/ui-conventions.md,
+"Transfers"). Rule text in docs/seasons.md and
+docs/legal/season-0-rules.md; announced on the season page. The other
+legs stay open pending the owner's pick for Season 1 (option E, the
+burned-credit season wallet, is the owner's own idea from the same day).

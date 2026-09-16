@@ -10,6 +10,7 @@ import {
   type PublicParticipantProfile,
   type PublicProfilePosition,
   type PublicProfileTrade,
+  type PublicProfileTransfer,
 } from '../lib/api';
 import { floorHref } from '../lib/floor-hash';
 
@@ -184,6 +185,32 @@ function TradeRow({ t }: { t: PublicProfileTrade }) {
         </span>
         <span className="prof-row-time">{timeAgo(t.createdAt)}</span>
       </Link>
+    </li>
+  );
+}
+
+/** One credit transfer, in plain words (docs/ui-conventions.md, "The
+ *  participant profile", Transfers): who it went to or came from, the
+ *  sender's memo, the signed credits. The handle links to the counterparty. */
+function TransferRow({ x }: { x: PublicProfileTransfer }) {
+  const out = x.direction === 'out';
+  const handle = x.counterparty.nickname ?? x.counterparty.id;
+  return (
+    <li>
+      <div className="prof-row">
+        <span className="prof-row-main">
+          <span className="prof-row-title">
+            {out ? 'Sent' : 'Received'} {fmtNum(x.credits)} cr {out ? 'to' : 'from'}{' '}
+            <Link to={`/participants/${encodeURIComponent(x.counterparty.id)}`}>{handle}</Link>
+          </span>
+          {x.memo && <span className="prof-row-sub">{x.memo}</span>}
+        </span>
+        <span className="prof-row-val">
+          {out ? '-' : '+'}
+          {fmtNum(x.credits)} cr
+        </span>
+        <span className="prof-row-time">{timeAgo(x.createdAt)}</span>
+      </div>
     </li>
   );
 }
@@ -407,6 +434,12 @@ export function ParticipantProfilePage() {
             <Section title="Trades" empty={profile.recentTrades.length === 0}>
               {profile.recentTrades.map(t => (
                 <TradeRow key={t.id} t={t} />
+              ))}
+            </Section>
+
+            <Section title="Transfers" empty={(profile.transfers ?? []).length === 0}>
+              {(profile.transfers ?? []).map(x => (
+                <TransferRow key={x.id} x={x} />
               ))}
             </Section>
 

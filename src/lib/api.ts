@@ -414,6 +414,17 @@ export interface PublicProfilePosition {
   actualValue: number | null;
 }
 
+export interface PublicProfileTransfer {
+  id: string;
+  /** 'in' when this participant received the credits, 'out' when they sent them. */
+  direction: 'in' | 'out';
+  counterparty: { id: string; nickname: string | null };
+  credits: number;
+  /** The sender's freeform note, empty when none. */
+  memo: string;
+  createdAt: string;
+}
+
 export interface PublicProfileTrade {
   id: string;
   workspaceId: string;
@@ -498,6 +509,10 @@ export interface PublicParticipantProfile {
   activeWorkspaces: Array<{ id: string; name: string }>;
   openPositions: PublicProfilePosition[];
   recentTrades: PublicProfileTrade[];
+  /** The newest 20 credit transfers this participant sent or received. They
+   *  count in the season score, so the public record lists them. Absent on
+   *  an older payload. */
+  transfers?: PublicProfileTransfer[];
   /** Jobs this participant proposed on public boards, newest first. */
   proposedJobs: ProfileProposedJob[];
   /** Daily balance snapshots (credits) plus a live "now" point. Snapshots are
