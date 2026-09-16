@@ -68,7 +68,8 @@ on that prospect, oldest first:
 - `at`: when it was received or sent, as the channel shows it.
 
 Recording what came back is idempotent: an `in` message with the same text on
-the same prospect is the same message, and posting it again returns the
+the same prospect (compared trimmed, with runs of whitespace collapsed, so a
+reply read twice off a screen is one reply) is the same message, and posting it again returns the
 existing one, so an agent that reads a thread twice records the reply once.
 The first `in` message on a prospect whose status is `sent` moves it to
 `replied`; any later status the owner set is left alone.
@@ -78,8 +79,9 @@ The first `in` message on a prospect whose status is `sent` moves it to
 1. Picks a prospect. Sees the evidence and the message side by side.
 2. Gets a draft, or a fresh one. The draft is in his voice, hooks on the
    decision the evidence says they have open, quotes only the evidence, is
-   under 75 words, asks one thing, carries his name and the one link
-   (`telarchy.com/lookpilot`, his own number run the same way).
+   under 75 words, asks one thing, carries his name and at most one link,
+   `telarchy.com`: never a public floor, which reads as publishing their
+   number.
 3. Argues with it ("shorter", "don't mention the sale", "why lead with the
    API cost?"). Every turn comes back as the revised message and what it
    says to him; both stay on screen.
@@ -212,6 +214,15 @@ skills repository); what it may do here is this:
   and waits in "Waiting for you".
 - It sends only what is `approved`, with the two checks in "Who actually
   sends", and records `sent` the moment a send is confirmed.
+- It follows up. After an answer it drafts the reply to it (the price only
+  answers a yes or a question about cost). A person who has not answered
+  gets at most three follow-ups, each drafted no sooner than 3, 7 and 12 days
+  after the last message that went out, each adding something the last one
+  did not; after the third, nothing more.
+- It sets an answer status (`replied`, `call`, `workspace`, `activated`,
+  `no`) only on a prospect whose first message went out: landing any of them
+  on an unsent row stamps `sentAt`, which would record a message that never
+  went.
 - Its learnings are its own text, **agent learnings**, kept apart from the
   owner's lessons and never written into them. It rewrites them from the
   record: which variants were answered, what the answers said, what it will
@@ -224,16 +235,16 @@ All platform admin. Documented in `/api/help` like every other route.
 | Endpoint | Effect |
 |---|---|
 | `GET /api/admin/outreach/prospects` | every prospect, the summary, whether drafting is configured |
-| `POST /api/admin/outreach/prospects` | create one `{ name, company?, segment?, channel, handle?, evidence?, message?, day? }` |
+| `POST /api/admin/outreach/prospects` | create one `{ name, company?, segment?, channel, handle?, evidence?, message?, status? (never approved), day?, variant?, reasoning?, source? }` -> `{ prospect }` |
 | `POST /api/admin/outreach/prospects/import` | `{ prospects: [...] }`, the same shape, many at once; returns the count |
 | `PATCH /api/admin/outreach/prospects/:id` | edit any field; `{ status: 'sent' }` freezes `sentText` and stamps `sentAt` |
 | `DELETE /api/admin/outreach/prospects/:id` | remove one |
 | `POST /api/admin/outreach/prospects/:id/draft` | `{ messages[] }` -> `{ draft: { message, answer } }`, the conversation carried in `messages` |
 | `POST /api/admin/outreach/ask` | `{ messages[] }` -> `{ answer }` |
 | `GET/PUT /api/admin/outreach/lessons` | the lessons text |
-| `POST /api/admin/outreach/prospects/:id/messages` | add a thread message `{ direction, text, variant?, reasoning?, at? }`; `out` is always created `draft`, `in` is `received` and idempotent on its text |
-| `PATCH /api/admin/outreach/messages/:id` | `{ text?, status?, variant?, reasoning? }`; `sent` stamps `sentAt` once; text is refused after `sent` |
-| `GET/PUT /api/admin/outreach/learnings` | the agent learnings text |
+| `POST /api/admin/outreach/prospects/:id/messages` | add a thread message `{ direction, text, variant?, reasoning?, at? }` -> `{ message }`; `out` is always created `draft`, `in` is `received` and idempotent on its text |
+| `PATCH /api/admin/outreach/messages/:id` | `{ text?, status?, variant?, reasoning? }` -> `{ message }`; `sent` stamps `sentAt` once; text is refused (409) after `sent` |
+| `GET/PUT /api/admin/outreach/learnings` | the agent learnings text: `{ learnings }` both ways |
 
 `GET /api/admin/outreach/prospects` carries each prospect's `thread`, oldest
 first, and the summary's `byVariant`.

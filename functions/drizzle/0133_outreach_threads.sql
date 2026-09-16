@@ -6,7 +6,8 @@
 -- `outreach_messages` holds everything after the first message: what they
 -- wrote back (`in`) and the follow-ups (`out`). A reply is recorded once
 -- however often a thread is read, which the unique index on the reply's text
--- enforces even when two readers arrive together. The agent learnings are a
+-- (trimmed, whitespace runs collapsed) enforces even when two readers arrive
+-- together. The agent learnings are a
 -- second `outreach_lessons` row, id 'agent', so they need no table.
 ALTER TABLE "outreach_prospects" ADD COLUMN IF NOT EXISTS "variant" text;--> statement-breakpoint
 ALTER TABLE "outreach_prospects" ADD COLUMN IF NOT EXISTS "reasoning" text;--> statement-breakpoint
@@ -26,4 +27,4 @@ CREATE TABLE IF NOT EXISTS "outreach_messages" (
 );
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "outreach_messages_prospect_idx" ON "outreach_messages" ("prospect_id");--> statement-breakpoint
-CREATE UNIQUE INDEX IF NOT EXISTS "outreach_messages_reply_once_idx" ON "outreach_messages" ("prospect_id", md5("text")) WHERE "direction" = 'in';
+CREATE UNIQUE INDEX IF NOT EXISTS "outreach_messages_reply_once_idx" ON "outreach_messages" ("prospect_id", md5(regexp_replace(btrim("text"), '\s+', ' ', 'g'))) WHERE "direction" = 'in';

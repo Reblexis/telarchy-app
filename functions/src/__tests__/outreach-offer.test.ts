@@ -24,6 +24,11 @@ describe('a first message sells a paid pilot without naming its price', () => {
     expect(DRAFT_RULES).toMatch(/no Stripe keys/i);
   });
 
+  test('a first message links telarchy.com at most, never a public floor that reads as publishing their number', () => {
+    expect(DRAFT_RULES).not.toMatch(/telarchy\.com\/lookpilot/i);
+    expect(DRAFT_RULES).toMatch(/telarchy\.com/);
+  });
+
   test('a first message says he sets it up himself', () => {
     expect(DRAFT_RULES).toMatch(/sets it up himself/i);
   });

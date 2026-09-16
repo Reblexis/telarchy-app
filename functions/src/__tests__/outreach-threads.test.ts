@@ -128,6 +128,21 @@ describe('a reply is recorded once, however often the thread is read', () => {
     expect(prospects[0].thread).toHaveLength(1);
   });
 
+  test('a reply read twice with different spacing is recorded once', async () => {
+    const p = await sentProspect();
+    const first = await addThreadMessage(p.id, { direction: 'in', text: 'yes, how much?' });
+    const again = await addThreadMessage(p.id, { direction: 'in', text: '  yes,  how\nmuch? ' });
+    expect(again.id).toBe(first.id);
+    expect((await listProspects()).prospects[0].thread).toHaveLength(1);
+  });
+
+  test('different words from the same person are two replies', async () => {
+    const p = await sentProspect();
+    await addThreadMessage(p.id, { direction: 'in', text: 'yes' });
+    await addThreadMessage(p.id, { direction: 'in', text: 'yes please' });
+    expect((await listProspects()).prospects[0].thread).toHaveLength(2);
+  });
+
   test('two callers recording the same reply at once still leave one message', async () => {
     const p = await sentProspect();
     const [a, b] = await Promise.all([
