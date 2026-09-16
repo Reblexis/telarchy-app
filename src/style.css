@@ -12707,6 +12707,14 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .chess-moverow-bar > span { display: block; height: 4px; background: var(--text-tertiary); }
 .chess-moverow.is-leader .chess-moverow-bar > span { background: var(--higher); }
 .chess-moverow-price { text-align: right; font-weight: 600; }
+/* Without the moves column (the home card, whose deciding now block is the
+   list): the board and the record in two columns, the board first and at its
+   full width. */
+.chess-live--no-moves .chess-main {
+  grid-template-columns: minmax(0, 520px) minmax(0, 1fr);
+  grid-template-areas: "board stats";
+}
+.chess-live--no-moves .chess-board-col { justify-self: start; }
 /* The floor's live slot is 720px, even on a wide screen. */
 @container chess-live (min-width: 660px) and (max-width: 759px) {
   .chess-moverow { grid-template-columns: 1.1rem minmax(0, 1fr) 2.6rem; }
@@ -12717,6 +12725,11 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     grid-template-areas: "board board" "moves stats";
   }
+  .chess-live--no-moves .chess-main {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "board" "stats";
+  }
+  .chess-live--no-moves .chess-stats-col { max-width: none; }
   .chess-movelist { max-height: 45vh; }
 }
 @container chess-live (max-width: 559px) {
@@ -12724,6 +12737,7 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "board" "stats" "moves";
   }
+  .chess-live--no-moves .chess-main { grid-template-areas: "board" "stats"; }
   .chess-moves-col, .chess-stats-col { max-width: none; }
 }
 

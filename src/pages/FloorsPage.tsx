@@ -580,7 +580,8 @@ function FeaturedFloor({ r }: { r: Listing }) {
         {r.liveKind === 'snake' && r.slug ? (
           <SnakeLive slug={r.slug} replay={false} />
         ) : r.liveKind === 'chess' && r.slug ? (
-          <ChessLive slug={r.slug} replay={false} />
+          /* The deciding now block beside it is the move list (docs/ui-conventions.md, "The marketplace"). */
+          <ChessLive slug={r.slug} replay={false} movelist={false} />
         ) : r.hero?.consensus != null ? (
           <MarketSpark history={r.hero.history} consensus={r.hero.consensus} />
         ) : (

@@ -401,8 +401,11 @@ export function ChessLive({
   books,
   selectedProposal,
   replay: showReplay = true,
+  movelist = true,
 }: {
   slug: string;
+  /** False when the host lists the moves itself (the home card's deciding now block): board and stats only (docs/ui-conventions.md, "The chess feed"). */
+  movelist?: boolean;
   /** The proposal the page has open and the option on screen, for marking its move. */
   selectedProposal?: { number: number; option: string | null } | null;
   /** The floor's open books by market id, polled once a second. */
@@ -717,54 +720,60 @@ export function ChessLive({
   const scrubValue = replay ? Math.min(replay.entry, scrubMax) : scrubMax;
 
   return (
-    <div className="chess-live">
+    <div className={`chess-live${movelist ? '' : ' chess-live--no-moves'}`}>
       <div className="chess-main">
-        <div className="chess-moves-col">
-          {open && openOptions.length > 0 && (
-            /* The moves, one slim column beside the board (docs/ui-conventions.md, "The chess feed", item 4). */
-            <div className="chess-movelist" role="list" aria-label="Moves, highest price first">
-              {(() => {
-                const list = ranked(openOptions);
-                const pricedList = list.filter(priced);
-                const lo = pricedList.length ? Math.min(...pricedList.map(o => o.price as number)) : 0;
-                const hi = pricedList.length ? Math.max(...pricedList.map(o => o.price as number)) : 0;
-                const board = piecesOf(game?.fen ?? null);
-                return list.map((o, i) => {
-                  const piece = board.get(o.id.slice(0, 2));
-                  const width = priced(o) ? (hi > lo ? 6 + 94 * (((o.price as number) - lo) / (hi - lo)) : 100) : 0;
-                  const cls = `chess-moverow${boardLeader?.id === o.id ? ' is-leader' : ''}${proposalMove === o.id ? ' is-selected' : ''}`;
-                  return (
-                    <a
-                      key={o.id}
-                      role="listitem"
-                      className={cls}
-                      href={optionHref(o.id)}
-                      onClick={e => {
-                        if (!onPickProposal) return;
-                        e.preventDefault();
-                        pick(o.id);
-                      }}
-                      onMouseEnter={() => setHoverState({ id: openId, move: o.id })}
-                      onMouseLeave={() => setHoverState(h => (h.move === o.id ? { id: null, move: null } : h))}
-                      onFocus={() => setHoverState({ id: openId, move: o.id })}
-                      onBlur={() => setHoverState(h => (h.move === o.id ? { id: null, move: null } : h))}
-                    >
-                      <span className="chess-moverow-rank">{i + 1}</span>
-                      <span className="chess-moverow-san">
-                        {piece && <span className="chess-moverow-glyph">{`${GLYPH[piece.toLowerCase()]}\uFE0E`}</span>}
-                        {o.san}
-                      </span>
-                      <span className="chess-moverow-bar">
-                        <span style={{ width: `${width}%` }} />
-                      </span>
-                      <span className="chess-moverow-price">{priced(o) ? (o.price as number).toFixed(1) : 'open'}</span>
-                    </a>
-                  );
-                });
-              })()}
-            </div>
-          )}
-        </div>
+        {movelist && (
+          <div className="chess-moves-col">
+            {open && openOptions.length > 0 && (
+              /* The moves, one slim column beside the board (docs/ui-conventions.md, "The chess feed", item 4). */
+              <div className="chess-movelist" role="list" aria-label="Moves, highest price first">
+                {(() => {
+                  const list = ranked(openOptions);
+                  const pricedList = list.filter(priced);
+                  const lo = pricedList.length ? Math.min(...pricedList.map(o => o.price as number)) : 0;
+                  const hi = pricedList.length ? Math.max(...pricedList.map(o => o.price as number)) : 0;
+                  const board = piecesOf(game?.fen ?? null);
+                  return list.map((o, i) => {
+                    const piece = board.get(o.id.slice(0, 2));
+                    const width = priced(o) ? (hi > lo ? 6 + 94 * (((o.price as number) - lo) / (hi - lo)) : 100) : 0;
+                    const cls = `chess-moverow${boardLeader?.id === o.id ? ' is-leader' : ''}${proposalMove === o.id ? ' is-selected' : ''}`;
+                    return (
+                      <a
+                        key={o.id}
+                        role="listitem"
+                        className={cls}
+                        href={optionHref(o.id)}
+                        onClick={e => {
+                          if (!onPickProposal) return;
+                          e.preventDefault();
+                          pick(o.id);
+                        }}
+                        onMouseEnter={() => setHoverState({ id: openId, move: o.id })}
+                        onMouseLeave={() => setHoverState(h => (h.move === o.id ? { id: null, move: null } : h))}
+                        onFocus={() => setHoverState({ id: openId, move: o.id })}
+                        onBlur={() => setHoverState(h => (h.move === o.id ? { id: null, move: null } : h))}
+                      >
+                        <span className="chess-moverow-rank">{i + 1}</span>
+                        <span className="chess-moverow-san">
+                          {piece && (
+                            <span className="chess-moverow-glyph">{`${GLYPH[piece.toLowerCase()]}\uFE0E`}</span>
+                          )}
+                          {o.san}
+                        </span>
+                        <span className="chess-moverow-bar">
+                          <span style={{ width: `${width}%` }} />
+                        </span>
+                        <span className="chess-moverow-price">
+                          {priced(o) ? (o.price as number).toFixed(1) : 'open'}
+                        </span>
+                      </a>
+                    );
+                  });
+                })()}
+              </div>
+            )}
+          </div>
+        )}
         <div className="chess-board-col">
           <div className="chess-board-box">
             <Board
