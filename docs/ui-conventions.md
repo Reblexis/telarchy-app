@@ -2757,6 +2757,16 @@ visualization and no buttons around the board as that is making it just
 messy.. inputing the moves will be done on the board itself by clicking or
 going trough the proposal the official way"):
 
+The live view has three columns: moves on the left, a centered board,
+and player statistics on the right. The two side columns have equal width,
+so neither missing moves nor missing stats shifts the board. The board is
+at most 520px wide, with its next-move line below it and replay below the
+whole view. Stats are a labeled list of rating and game counts.
+Below 900px of available live-view width, the board is centered above the
+moves and stats; below 560px those sections stack below the board, stats
+then moves. The list scrolls within its own height and no column causes
+horizontal overflow. The available slot controls this, including home cards.
+
 1. **The board** (`.chess-board`, an svg of 64 squares in the floor's
    ground tones) seen from TelarchyBot's side: white at the bottom when
    `game.color` is white, black at the bottom otherwise. a1 is a dark
@@ -2797,12 +2807,11 @@ going trough the proposal the official way"):
    while `phase` is `settling`, "Waiting for the next game" between games,
    "Loading" before the first read and "Feed unavailable" after a failed
    one.
-   Under it, **the player's record** (`.chess-stats`, Viktor 2026-09-13:
-   "show some stats somewhere? like rating (elo), games played, games won,
-   games lost"): one muted mono line, "Rating 1720 · Played 12 · Won 3 ·
-   Lost 8 · Drawn 1", read from the feed's `player` (Lichess's classical
-   rating with "?" after it while provisional, and Lichess's own game counts
-   for the account). The line is absent while `player` is null.
+   **The player's record** (`.chess-stats`) is in the right column:
+   Rating, Played, Won, Lost and Drawn, each on its own labeled row, read
+   from the feed's `player`. The rating is Lichess's classical rating, with
+   "?" while provisional. Game counts are Lichess's own for the account.
+   The record is absent while `player` is null.
 3. **The proposal on screen is marked on the board** (Viktor 2026-09-13:
    "when im in a proposal page make sure that the move corresponding to the
    proposal is highlighted"). When the page has the open move's proposal
@@ -2814,20 +2823,16 @@ going trough the proposal the official way"):
    made on the board always opens the newest open proposal**, from any page:
    pressing a piece and a target, or an arrow, on a decided proposal's page
    opens that move on the open one, and nothing when no move is open.
-4. **The moves, one slim column beside the board** (`.chess-movelist`,
-   Viktor 2026-09-13: "show a sorted list of moves on the right which upon
-   hovering over can be selected and also hovering them highlights the
-   corresponding move.. the buttons before were too big so just make them
-   small but wide.. maybe scrollable if needed.. it should just be one
-   column"). Only while a move is open: every legal move, highest price
+4. **The moves, one slim column left of the board** (`.chess-movelist`).
+   Only while a move is open: every legal move, highest price
    first, an unpriced one last as "open", one row each (`.chess-moverow`):
    the rank, the piece and the SAN, a thin bar the length of the price
    within the list's range, and the price to one decimal, in the mono type
    at the size of the chart's labels, one line high. The leader's row is in
    the approved green, the proposal on screen's row is marked as its arrow
    is. The column is as tall as the board and scrolls inside itself; it sits
-   to the right of the board when the slot fits both, under the board with
-   the same height otherwise. **Hovering a row, or focusing it, draws that
+   to the left of the board in the three-column layout and below it in
+   narrow slots. **Hovering a row, or focusing it, draws that
    move on the board** (`.chess-arrow.is-hover`, in the ink, its squares
    tinted) until the pointer leaves; pressing a row opens that option's
    world, as its arrow does. **The prices are on the board too**: while a

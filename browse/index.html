@@ -7761,6 +7761,15 @@ clicking the arrow&quot;, then &quot;just visualize them on the board in the liv
 visualization and no buttons around the board as that is making it just
 messy.. inputing the moves will be done on the board itself by clicking or
 going trough the proposal the official way&quot;):</p>
+<p>The live view has three columns: moves on the left, a centered board,
+and player statistics on the right. The two side columns have equal width,
+so neither missing moves nor missing stats shifts the board. The board is
+at most 520px wide, with its next-move line below it and replay below the
+whole view. Stats are a labeled list of rating and game counts.
+Below 900px of available live-view width, the board is centered above the
+moves and stats; below 560px those sections stack below the board, stats
+then moves. The list scrolls within its own height and no column causes
+horizontal overflow. The available slot controls this, including home cards.</p>
 <ol>
 <li><strong>The board</strong> (<code>.chess-board</code>, an svg of 64 squares in the floor's
 ground tones) seen from TelarchyBot's side: white at the bottom when
@@ -7802,12 +7811,11 @@ the feed's last read, &quot;Settling the game&quot;
 while <code>phase</code> is <code>settling</code>, &quot;Waiting for the next game&quot; between games,
 &quot;Loading&quot; before the first read and &quot;Feed unavailable&quot; after a failed
 one.
-Under it, <strong>the player's record</strong> (<code>.chess-stats</code>, Viktor 2026-09-13:
-&quot;show some stats somewhere? like rating (elo), games played, games won,
-games lost&quot;): one muted mono line, &quot;Rating 1720 · Played 12 · Won 3 ·
-Lost 8 · Drawn 1&quot;, read from the feed's <code>player</code> (Lichess's classical
-rating with &quot;?&quot; after it while provisional, and Lichess's own game counts
-for the account). The line is absent while <code>player</code> is null.</li>
+<strong>The player's record</strong> (<code>.chess-stats</code>) is in the right column:
+Rating, Played, Won, Lost and Drawn, each on its own labeled row, read
+from the feed's <code>player</code>. The rating is Lichess's classical rating, with
+&quot;?&quot; while provisional. Game counts are Lichess's own for the account.
+The record is absent while <code>player</code> is null.</li>
 <li><strong>The proposal on screen is marked on the board</strong> (Viktor 2026-09-13:
 &quot;when im in a proposal page make sure that the move corresponding to the
 proposal is highlighted&quot;). When the page has the open move's proposal
@@ -7819,20 +7827,16 @@ because its move belongs to a position the board no longer shows. <strong>A move
 made on the board always opens the newest open proposal</strong>, from any page:
 pressing a piece and a target, or an arrow, on a decided proposal's page
 opens that move on the open one, and nothing when no move is open.</li>
-<li><strong>The moves, one slim column beside the board</strong> (<code>.chess-movelist</code>,
-Viktor 2026-09-13: &quot;show a sorted list of moves on the right which upon
-hovering over can be selected and also hovering them highlights the
-corresponding move.. the buttons before were too big so just make them
-small but wide.. maybe scrollable if needed.. it should just be one
-column&quot;). Only while a move is open: every legal move, highest price
+<li><strong>The moves, one slim column left of the board</strong> (<code>.chess-movelist</code>).
+Only while a move is open: every legal move, highest price
 first, an unpriced one last as &quot;open&quot;, one row each (<code>.chess-moverow</code>):
 the rank, the piece and the SAN, a thin bar the length of the price
 within the list's range, and the price to one decimal, in the mono type
 at the size of the chart's labels, one line high. The leader's row is in
 the approved green, the proposal on screen's row is marked as its arrow
 is. The column is as tall as the board and scrolls inside itself; it sits
-to the right of the board when the slot fits both, under the board with
-the same height otherwise. <strong>Hovering a row, or focusing it, draws that
+to the left of the board in the three-column layout and below it in
+narrow slots. <strong>Hovering a row, or focusing it, draws that
 move on the board</strong> (<code>.chess-arrow.is-hover</code>, in the ink, its squares
 tinted) until the pointer leaves; pressing a row opens that option's
 world, as its arrow does. <strong>The prices are on the board too</strong>: while a

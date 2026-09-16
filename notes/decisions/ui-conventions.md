@@ -2103,3 +2103,13 @@ still so clipped". Of three directions on the design canvas (A: title owns
 its line; B: one line, choose from the proposal; C: a card per proposal) he
 picked A: "ok do it". Spec: docs/ui-conventions.md, "The proposals board",
 "The row is two lines, and only one of them is loud".
+
+
+## 2026-09-16: Chess live view centered (Viktor)
+
+"also could you make the game centered int eh vlive view and the moves on the left of it and stats on the right of it?"
+
+The board occupies the center of three columns with equal side tracks.
+Moves sit on its left and the player's record on its right. Narrow slots
+put the board above the side content. Governing doc: docs/ui-conventions.md,
+"The chess feed".

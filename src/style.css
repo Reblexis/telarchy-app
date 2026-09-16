@@ -12610,11 +12610,20 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 
 /* The chess feed (docs/ui-conventions.md, "The chess feed"): the board in the
    floor's ground tones seen from TelarchyBot's side, the three highest prices
-   as arrows in the accent, the snake's next-move line, and nothing around the
-   board: a picked-up piece's squares carry their moves' prices. */
-.chess-live { display: flex; flex-direction: column; gap: 0.7rem; }
-.chess-main { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.9rem 1.2rem; min-width: 0; }
-.chess-board-col { flex: 1 1 300px; max-width: 560px; display: flex; flex-direction: column; gap: 0.7rem; min-width: 0; }
+   as arrows in the accent, moves on the left, stats on the right, and a
+   centered board: a picked-up piece's squares carry their moves' prices. */
+.chess-live { display: flex; flex-direction: column; gap: 0.7rem; container: chess-live / inline-size; }
+.chess-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 520px) minmax(0, 1fr);
+  grid-template-areas: "moves board stats";
+  align-items: start;
+  gap: 0.9rem 1.2rem;
+  min-width: 0;
+}
+.chess-moves-col { grid-area: moves; min-width: 0; width: 100%; max-width: 340px; justify-self: end; }
+.chess-stats-col { grid-area: stats; min-width: 0; width: 100%; max-width: 240px; }
+.chess-board-col { grid-area: board; width: 100%; max-width: 520px; justify-self: center; display: flex; flex-direction: column; gap: 0.7rem; min-width: 0; }
 .chess-board-box { width: 100%; max-width: 100%; }
 .chess-board { display: block; width: 100%; height: auto; aspect-ratio: 1; max-width: 100%; border: 1px solid var(--border-color); border-radius: 6px; user-select: none; }
 .chess-square { cursor: default; }
@@ -12635,8 +12644,13 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .chess-arrow-link:hover .chess-arrow, .chess-arrow-link:focus-visible .chess-arrow { stroke-opacity: 1 !important; }
 .chess-next { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 1.05rem; font-weight: 600; line-height: 1.3; color: var(--text-primary); text-align: left; }
 .chess-clock { color: var(--accent); }
-/* The player's record, one muted mono line under the next move. */
-.chess-stats { margin: -0.35rem 0 0; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.02em; color: var(--text-secondary); font-variant-numeric: tabular-nums; text-align: left; }
+/* The player's record in the right column, one labeled value per row. */
+.chess-stats { margin: 0; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.02em; color: var(--text-secondary); font-variant-numeric: tabular-nums; text-align: left; }
+.chess-stat { display: flex; justify-content: space-between; gap: 0.75rem; padding: 0.45rem 0; border-bottom: 1px solid var(--border-color); }
+.chess-stat:first-child { border-top: 1px solid var(--border-color); }
+.chess-stat dt, .chess-stat dd { margin: 0; }
+.chess-stat dd { color: var(--text-primary); font-weight: 600; }
+.chess-next { overflow-wrap: anywhere; }
 .chess-next.is-decided, .chess-next.is-default, .chess-next.is-replay { color: var(--text-secondary); }
 .chess-next.is-idle { color: var(--text-tertiary); font-weight: 500; }
 .chess-target-mark { pointer-events: none; }
@@ -12655,12 +12669,9 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .chess-square.is-dark.is-hover { fill: #c4b893; }
 /* The moves, one slim column beside the board (item 4): rows one line high,
    as tall as the board and scrolling inside, under the board when narrow. */
-.chess-main { align-items: stretch; }
-.chess-board-col { flex: 1 1 320px; max-width: 520px; }
 .chess-movelist {
-  flex: 1 1 220px;
-  min-width: 200px;
-  max-width: 340px;
+  width: 100%;
+  min-width: 0;
   max-height: min(520px, 72vh);
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -12672,7 +12683,7 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 }
 .chess-moverow {
   display: grid;
-  grid-template-columns: 1.5rem minmax(0, 1fr) 3.4rem 2.9rem;
+  grid-template-columns: 1.1rem minmax(0, 1fr) minmax(1rem, 2rem) 2.6rem;
   align-items: center;
   gap: 0.45rem;
   min-height: 26px;
@@ -12696,8 +12707,19 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .chess-moverow-bar > span { display: block; height: 4px; background: var(--text-tertiary); }
 .chess-moverow.is-leader .chess-moverow-bar > span { background: var(--higher); }
 .chess-moverow-price { text-align: right; font-weight: 600; }
-@media (max-width: 640px) {
-  .chess-movelist { max-width: none; flex-basis: 100%; max-height: 45vh; }
+@container chess-live (max-width: 899px) {
+  .chess-main {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "board board" "moves stats";
+  }
+  .chess-movelist { max-height: 45vh; }
+}
+@container chess-live (max-width: 559px) {
+  .chess-main {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "board" "stats" "moves";
+  }
+  .chess-moves-col, .chess-stats-col { max-width: none; }
 }
 
 /* ---- The live log (docs/ui-conventions.md, "The live log") ------------ */
