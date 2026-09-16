@@ -445,3 +445,20 @@ which means withholding must actually be set up with an accountant before
 any season where a single prize can exceed about $2,100. Third mid-season
 amendment of the day, announced on the rules page before the PATCH; both
 changes only increase what can be paid.
+
+## 2026-09-16: credit transfers and the season score (owner ask, pending)
+
+Discord, 2026-09-16, a trader on the season (verbatim): "i dont think this
+should be allowed though, it allows u to get infinite profit", and on the
+objection that one person gets one account, "U can transfer cr". Owner,
+same thread, verbatim: "good point :D, I'll make it count into profit". To
+the agent, verbatim: "can you make credit transfers in telarchy count into
+season profit/loss?" and then "or lets make sure that there are nt any
+holes make sure its not easy to cheat".
+
+No rule changed yet. The literal reading (received transfers are profit)
+would hand a bot 15,000 of score for its owner's own bankroll transfers and
+put the owner at -14,025, so the agent stopped and wrote up every unscored
+channel with four options and a recommendation:
+`notes/season-score-holes-2026-09-16.md`. The rule text follows the owner's
+pick, in `docs/seasons.md` and `docs/legal/season-0-rules.md` first.
