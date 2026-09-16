@@ -498,3 +498,12 @@ describe('the address and the sentence read right for a stranger', () => {
     expect(words(container.querySelector('.pubws-impact-what'))).toMatch(/^active traders/i);
   });
 });
+
+test('an old chess move does not say decides now after its deadline', async () => {
+  const floor = h.grid();
+  floor.proposals[0].decideBy = '2020-01-01T00:00:00Z';
+  vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(floor as never);
+  const { container } = renderFloor();
+  await openProposal(container);
+  expect(words(container.querySelector('.pubws-chip--deadline'))).toBe('Decision overdue');
+});

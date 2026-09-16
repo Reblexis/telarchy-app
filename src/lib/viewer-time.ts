@@ -68,7 +68,7 @@ export function instantOf(iso: string | Date | null | undefined, zone?: string):
 }
 
 /**
- * "6d", "5h", "5:31", "0:09", "now": how long until the owner has to decide
+ * "6d", "5h", "5:31", "0:09", "overdue": how long until the owner has to decide
  * (docs/ui-conventions.md, "The deadline is said ONCE"). Days and hours are
  * rounded up (with six days to go it says 6d until the sixth day is over);
  * under an hour it is minutes and seconds, rounded down, so it never reads a
@@ -76,7 +76,7 @@ export function instantOf(iso: string | Date | null | undefined, zone?: string):
  */
 export function countdownTo(iso: string, now = Date.now()): { label: string; urgent: boolean } {
   const ms = new Date(iso).getTime() - now;
-  if (ms <= 0) return { label: 'now', urgent: true };
+  if (ms <= 0) return { label: 'overdue', urgent: true };
   const hours = ms / 3_600_000;
   if (hours >= 24) return { label: `${Math.ceil(hours / 24)}d`, urgent: false };
   if (hours >= 1) return { label: `${Math.ceil(hours)}h`, urgent: true };

@@ -36,12 +36,12 @@ describe('the deadline counts down by the second under an hour', () => {
     expect(countdownTo(at(3599), now)).toEqual({ label: '59:59', urgent: true });
     expect(countdownTo(at(9), now)).toEqual({ label: '0:09', urgent: true });
   });
-  test('hours under a day, days above, "now" at and after the instant', () => {
+  test('hours under a day, days above, "overdue" at and after the instant', () => {
     expect(countdownTo(at(3600), now)).toEqual({ label: '1h', urgent: true });
     expect(countdownTo(at(5 * 3600), now)).toEqual({ label: '5h', urgent: true });
     expect(countdownTo(at(6 * 24 * 3600 - 1), now)).toEqual({ label: '6d', urgent: false });
-    expect(countdownTo(at(0), now)).toEqual({ label: 'now', urgent: true });
-    expect(countdownTo(at(-5), now)).toEqual({ label: 'now', urgent: true });
+    expect(countdownTo(at(0), now)).toEqual({ label: 'overdue', urgent: true });
+    expect(countdownTo(at(-5), now)).toEqual({ label: 'overdue', urgent: true });
   });
   test('seconds never round up to the next minute', () => {
     expect(countdownTo(at(60), now).label).toBe('1:00');

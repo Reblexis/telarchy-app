@@ -41,3 +41,19 @@ describe('a URL in prose is a link', () => {
     expect(container.textContent).toBe('one\ntwo');
   });
 });
+
+test('bot instructions are one named documentation link', () => {
+  const { container } = render(
+    <Linkified text="[How to trade with a bot](https://github.com/Reblexis/telarchy-chess/blob/main/docs/trading.md)" />,
+  );
+  const links = container.querySelectorAll('a');
+  expect(links).toHaveLength(1);
+  expect(links[0].textContent).toBe('How to trade with a bot');
+  expect(links[0].getAttribute('href')).toBe('https://github.com/Reblexis/telarchy-chess/blob/main/docs/trading.md');
+  expect(container.textContent).toBe('How to trade with a bot');
+});
+
+test('named links never turn a script or HTML into executable content', () => {
+  const { container } = render(<Linkified text={'[bad](javascript:alert(1)) <img src=x onerror=alert(1)>'} />);
+  expect(container.querySelector('a, img, script')).toBeNull();
+});

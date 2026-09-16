@@ -747,6 +747,11 @@ of the floor, so its times are the viewer's.
 
 ### Links in prose are links
 
+A named Markdown link (`[label](https://example.com/guide)`) renders as
+one link with that label. Only HTTP and HTTPS addresses become links;
+HTML and other schemes remain plain text.
+
+
 A URL typed into a proposal's description, the workspace's one-line
 description, the owner's "What is <name>?" text or a metric's definition
 renders as a link (new tab, no referrer), never as inert text (Viktor,
@@ -884,6 +889,11 @@ deadline, an ask, and a price, and it reads in that order:
   at its deadline. That is the engine's actual behaviour
   (`voidProposalBranch`, `lapseOverdueProposals`), not a simplification of
   it.
+
+A pending proposal at or past its deadline says "Decision overdue" in
+the proposal facts and owner bar, and "overdue" on the board. The hover
+keeps the original deadline. It never promises a decision "now" indefinitely,
+and the display never invents a verdict before the saved status changes.
 
 **The deadline is said ONCE, in the facts row under the title** (a clock
 glyph and the date, in the accent: "decides 14 Sep"; "decided 12 Sep" after

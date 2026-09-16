@@ -5740,6 +5740,9 @@ are UTC&quot; over its rows, on the data room and on a workspace's own
 <code>/&lt;slug&gt;/log</code>. The floor's Live column (below) shows the same rows as part
 of the floor, so its times are the viewer's.</p>
 <h3 id="docs-ui-conventions-md--h21">Links in prose are links</h3>
+<p>A named Markdown link (<code>[label](https://example.com/guide)</code>) renders as
+one link with that label. Only HTTP and HTTPS addresses become links;
+HTML and other schemes remain plain text.</p>
 <p>A URL typed into a proposal's description, the workspace's one-line
 description, the owner's &quot;What is <name>?&quot; text or a metric's definition
 renders as a link (new tab, no referrer), never as inert text (Viktor,
@@ -5873,6 +5876,10 @@ at its deadline. That is the engine's actual behaviour
 (<code>voidProposalBranch</code>, <code>lapseOverdueProposals</code>), not a simplification of
 it.</li>
 </ul>
+<p>A pending proposal at or past its deadline says &quot;Decision overdue&quot; in
+the proposal facts and owner bar, and &quot;overdue&quot; on the board. The hover
+keeps the original deadline. It never promises a decision &quot;now&quot; indefinitely,
+and the display never invents a verdict before the saved status changes.</p>
 <p><strong>The deadline is said ONCE, in the facts row under the title</strong> (a clock
 glyph and the date, in the accent: &quot;decides 14 Sep&quot;; &quot;decided 12 Sep&quot; after
 the ruling). Under a day it counts down instead (&quot;decides in 4h&quot;), red
