@@ -530,6 +530,22 @@ describe('the moves, one slim column beside the board', () => {
     expect(marked[0].textContent).toContain('Ng5');
   });
 
+  test('a host that lists the moves itself asks for the view without the moves column: board and stats stay, the list and its column go', async () => {
+    const { container } = renderLive({ movelist: false });
+    await waitFor(() => expect(container.querySelectorAll('.chess-square')).toHaveLength(64));
+    await waitFor(() => expect(container.querySelector('.chess-stats')).not.toBeNull());
+    expect(container.querySelector('.chess-movelist')).toBeNull();
+    expect(container.querySelector('.chess-moves-col')).toBeNull();
+    expect(container.querySelector('.chess-live')).toHaveClass('chess-live--no-moves');
+  });
+
+  test('by default the moves column is drawn and the view is not marked as without it', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(rows(container)).toHaveLength(25));
+    expect(container.querySelector('.chess-moves-col')).not.toBeNull();
+    expect(container.querySelector('.chess-live')).not.toHaveClass('chess-live--no-moves');
+  });
+
   test('no list while no move is open', async () => {
     vi.mocked(api.getLiveState).mockImplementation(async () => h.state({ phase: 'their-move', open: null }) as never);
     const { container } = renderLive();

@@ -2764,7 +2764,12 @@ going trough the proposal the official way"):
 
 The live view has three columns: moves on the left, a centered board,
 and player statistics on the right. The two side columns have equal width,
-so neither missing moves nor missing stats shifts the board. The board is
+so neither missing moves nor missing stats shifts the board. A host that
+lists the moves itself (the home page's featured card, whose deciding now
+block is the move list) asks for the view without the moves column
+(`movelist={false}`, `.chess-live--no-moves`): the board and the stats
+alone, in two columns, the board first and at its full width, and the
+narrow layouts below keep working without the moves area. The board is
 at most 520px wide, with its next-move line below it and replay below the
 whole view. Stats are a labeled list of rating and game counts.
 Below 660px of available live-view width, the board is centered above the
@@ -3227,9 +3232,12 @@ floor's live board when the floor has a live feed: the board its feed's
 `kind` names, the same one its page draws (the snake board for `snake`, the
 chess board for `chess`), without the replay row, and it looks as it does
 on the floor: the card gives a live board the width of the floor's live slot
-(45rem), so the chess moves column sits beside the board as it does there,
-and the board sits at the top of the card rather than floating in its
-middle. A kind this build cannot
+(45rem), and the board sits at the top of the card rather than floating in
+its middle. The chess board on the card is drawn **without its moves
+column**: the deciding now block beside it is that list (the six highest
+priced moves and "+N more"), so the card never shows the moves twice, and
+the board and the player's record share the slot in two columns, the board
+at its full width. A kind this build cannot
 draw shows the hero market's spark instead, as a floor without a feed does;
 the card never draws one kind's board over another kind's feed, and a
 snake board handed a feed with no snake draws an empty grid rather than

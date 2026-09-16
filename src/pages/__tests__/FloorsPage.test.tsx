@@ -32,8 +32,8 @@ vi.mock('../../components/live/SnakeLive', () => ({
   ),
 }));
 vi.mock('../../components/live/ChessLive', () => ({
-  ChessLive: ({ slug, replay }: { slug: string; replay?: boolean }) => (
-    <div data-testid="chess-live" data-slug={slug} data-replay={String(replay)} />
+  ChessLive: ({ slug, replay, movelist }: { slug: string; replay?: boolean; movelist?: boolean }) => (
+    <div data-testid="chess-live" data-slug={slug} data-replay={String(replay)} data-movelist={String(movelist)} />
   ),
 }));
 
@@ -939,6 +939,21 @@ describe('THE MOST TRADED FLOOR IS FEATURED ABOVE THE BOARD', () => {
     expect(live).toHaveAttribute('data-slug', 'chess');
     expect(live).toHaveAttribute('data-replay', 'false');
     expect(within(card).queryByTestId('snake-live')).toBeNull();
+  });
+
+  test('the chess card squeezed three columns into the slot (2026-09-16): the card draws the chess board without its moves column, the deciding now block is that list', async () => {
+    const chessRow = { ...snakeRow, workspaceId: 'ws-chess', slug: 'chess', name: 'Chess' };
+    withRows(
+      [
+        { ...listing, volumePerHour: 1 },
+        { ...chessRow, volumePerHour: 9_000 },
+      ],
+      { chess: { ...snakeFloor, liveFeed: { kind: 'chess', url: 'https://chess.example' } } },
+    );
+    renderPage();
+    const card = await screen.findByRole('region', { name: /most traded now/i });
+    const live = await within(card).findByTestId('chess-live');
+    expect(live).toHaveAttribute('data-movelist', 'false');
   });
 
   test('a snake feed draws the snake board and never the chess board', async () => {
