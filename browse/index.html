@@ -7836,7 +7836,13 @@ it. A proposal that is decided, lapsed or not the open move marks nothing,
 because its move belongs to a position the board no longer shows. <strong>A move
 made on the board always opens the newest open proposal</strong>, from any page:
 pressing a piece and a target, or an arrow, on a decided proposal's page
-opens that move on the open one, and nothing when no move is open.</li>
+opens that move on the open one, and nothing when no move is open. Away
+from the floor, where no page handles the pick (the home page's featured
+card), a move made on the board <strong>goes to that option's address</strong>
+(<code>/&lt;slug&gt;/p/&lt;number&gt;?option=&lt;uci&gt;</code>, the address an arrow links to), so a
+click on the card lands on the right proposal with that move selected
+(Viktor 2026-09-16: &quot;make sure that clicking (moving by clicking) in the
+visualization works.. by going to the correct proposal&quot;).</li>
 <li><strong>The moves, one slim column left of the board</strong> (<code>.chess-movelist</code>).
 Only while a move is open: every legal move, highest price
 first, an unpriced one last as &quot;open&quot;, one row each (<code>.chess-moverow</code>):

@@ -1,5 +1,5 @@
 import { fireEvent, render, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 /**
@@ -275,6 +275,32 @@ describe('a move made on the board opens its option', () => {
     fireEvent.click(sq(container, 'g1'));
     expect(onPickProposal).toHaveBeenCalledWith(412, 'e1g1');
     expect(dots(container)).toEqual([]);
+  });
+
+  test("with no page handling the pick (the home card), a piece and a target go to that option's address", async () => {
+    let where = '';
+    function Where() {
+      const loc = useLocation();
+      where = loc.pathname + loc.search;
+      return null;
+    }
+    const { container } = render(
+      <MemoryRouter initialEntries={['/']}>
+        <ChessLive slug="chess" card />
+        <Where />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    fireEvent.click(sq(container, 'e1'));
+    fireEvent.click(sq(container, 'g1'));
+    expect(where).toBe('/chess/p/412?option=e1g1');
+  });
+
+  test('with no page handling the pick, an arrow is a plain link to its option', async () => {
+    const { container } = renderLive({ card: true });
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    const link = arrows(container)[0].closest('a') as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toMatch(/^\/chess\/p\/412\?option=/);
   });
 
   test('pressing a square that is not a target clears the selection and opens nothing', async () => {
