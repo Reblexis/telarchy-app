@@ -2762,7 +2762,7 @@ and player statistics on the right. The two side columns have equal width,
 so neither missing moves nor missing stats shifts the board. The board is
 at most 520px wide, with its next-move line below it and replay below the
 whole view. Stats are a labeled list of rating and game counts.
-Below 900px of available live-view width, the board is centered above the
+Below 660px of available live-view width, the board is centered above the
 moves and stats; below 560px those sections stack below the board, stats
 then moves. The list scrolls within its own height and no column causes
 horizontal overflow. The available slot controls this, including home cards.
