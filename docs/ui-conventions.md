@@ -3149,7 +3149,16 @@ board says what it is about without the tab row. The floor list is the
 public marketplace list (`GET /api/marketplace/workspaces/public`), the
 same list the page already reads for the contractors, so there is no
 second vocabulary of floors to keep in step. The row scrolls sideways
-rather than wrapping when the floors outgrow a phone.
+rather than wrapping when the floors outgrow a phone, and the current tab
+is scrolled into view, so the choice is never off-screen.
+
+**The all-time board shows everyone the API ranks**, with the API's
+ranks: since an owner's row folds in their bots, an owner who never
+traded themselves can hold a rank, and dropping such rows on the client
+left gaps in the numbering. On a phone the season table keeps the prize
+column and drops "Would pay" (a projection of a projection) with the
+share-of-pool column, so five numeric columns never push it past the
+screen.
 
 **The picker scopes the season board too, as a view.** A season is a
 platform-wide contest scored over every public floor, and the prize is

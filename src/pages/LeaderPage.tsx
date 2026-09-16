@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { BotMark } from '../components/BotMark';
 import { AllTimeTable, initialOf, SeasonTable } from '../components/LeaderTables';
@@ -103,7 +103,11 @@ export function LeaderPage() {
       api
         .getLeaderboard(200, scope || undefined)
         .then(r => {
-          if (!cancelled) setTraders((r.participants ?? []).filter(e => e.totalTrades > 0));
+          // Everyone the board ranks, with the board's own ranks: since the
+          // household fold an owner whose bots traded is on the board with
+          // no trades of their own, and hiding such rows here left gaps in
+          // the numbering.
+          if (!cancelled) setTraders(r.participants ?? []);
         })
         .catch(e => {
           console.error('leaderboard fetch failed:', e);
@@ -192,6 +196,13 @@ export function LeaderPage() {
    *  word when the list does not carry it. */
   const floorName = scope ? (floors?.find(w => addressOf(w) === scope)?.name ?? scope) : null;
 
+  // The row scrolls sideways on a phone, so the current tab is brought
+  // into view: a choice the reader cannot see is a hidden filter.
+  const scopeRow = useRef<HTMLElement>(null);
+  useEffect(() => {
+    scopeRow.current?.querySelector('.is-current')?.scrollIntoView?.({ inline: 'center', block: 'nearest' });
+  }, [scope, floors]);
+
   return (
     <div className="pubws">
       <TopBar user={!!user} ready={!authLoading} />
@@ -206,7 +217,7 @@ export function LeaderPage() {
             current tab is the URL's (docs/ui-conventions.md, "The
             leaderboard (/leaderboard)"). It stands on its own rule above
             all three boards because it governs all three. */}
-        <nav className="lbp-scope" aria-label="Floor">
+        <nav className="lbp-scope" aria-label="Floor" ref={scopeRow}>
           <Link
             className={`lbp-tab${scope ? '' : ' is-current'}`}
             to="/leaderboard"
