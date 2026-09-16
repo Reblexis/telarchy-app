@@ -43,6 +43,7 @@ describe("only the model reads a season's dates", () => {
     MODEL,
     'lib/api.ts', // the PrizeSeason type declaration
     'lib/useSeasonClock.ts', // the hook, which only passes `now` through
+    'components/OutreachWorkbench.tsx', // sorts outreach follow-ups in draft, never a season
   ]);
 
   test('nothing else touches startsAt or endsAt', () => {

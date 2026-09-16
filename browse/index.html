@@ -275,13 +275,16 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <ul>
 <li><a href="#docs-outreach-workbench-md--h1">The outreach workbench</a></li>
 <li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h2">The prospect</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h3">What the owner does</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h4">Who actually sends, and how it cannot send twice</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h5">Drafting</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h6">What it learns</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h7">Endpoints</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h8">Storage</a></li>
-<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h9">What it is not</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h3">Threads</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h4">What the owner does</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h5">Who actually sends, and how it cannot send twice</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h6">Drafting</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h7">What it learns</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h8">Waiting for you</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h9">The overnight agent</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h10">Endpoints</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h11">Storage</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-outreach-workbench-md--h12">What it is not</a></li>
 </ul></details>
 </li>
 <li><details><summary><a class="file" href="#file--docs-owner-on-the-floor-md">docs/owner-on-the-floor.md</a></summary>
@@ -3763,14 +3766,43 @@ what is here; a fact not in the evidence is not a fact.</li>
 <li><strong>The message</strong>: the current draft, editable by hand at any time.</li>
 <li><strong>The conversation</strong>: the turns of the argument about the draft, kept so
 &quot;shorter&quot; means shorter than the last one.</li>
+<li><strong>Why, and what it tests</strong>: <code>reasoning</code>, why this person and why this
+message, in the words of whoever wrote the draft; <code>variant</code>, a short label
+for the angle the first message takes (<code>decision-hook</code>, <code>privacy-first</code>,
+<code>question-only</code>, anything), so reply rates can be compared by angle; and
+<code>source</code>, <code>owner</code> or <code>agent</code>, who put the row here.</li>
 <li><strong>Status and outcome</strong>: <code>draft</code>, <code>ready</code>, <code>approved</code>, <code>sent</code>, <code>replied</code>,
-<code>call</code>, <code>workspace</code>, <code>activated</code>, <code>no</code>; the planned send day; when it was sent and
+<code>call</code>, <code>workspace</code>, <code>activated</code>, <code>no</code>, <code>skipped</code> (the owner decided not to
+write to this person; nothing went out); the planned send day; when it was sent and
 the exact text that went out (frozen at that moment); a note on what came
 back (their words, or &quot;no answer&quot;).</li>
 </ul>
 <p>Prospects arrive one at a time through the form, or many at once through an
-import of the same shape (that is how a researched list becomes rows).</p>
-<h2 id="docs-outreach-workbench-md--h3">What the owner does</h2>
+import of the same shape (that is how a researched list becomes rows). A
+prospect never arrives <code>approved</code>: creating or importing one with that status
+is refused, because approval is something the owner does to a row that
+already exists and that he has read.</p>
+<h2 id="docs-outreach-workbench-md--h3">Threads</h2>
+<p>The first message lives on the prospect. Everything after it (what they
+wrote back, the follow-up to that, their next answer) is a <strong>thread message</strong>
+on that prospect, oldest first:</p>
+<ul>
+<li><code>direction</code>: <code>in</code> (they wrote it) or <code>out</code> (it goes, or went, to them).</li>
+<li><code>text</code>: for <code>in</code>, their words exactly as received; for <code>out</code>, the message.</li>
+<li><code>status</code>: an <code>in</code> message is <code>received</code>. An <code>out</code> message is <code>draft</code>,
+<code>approved</code>, <code>sent</code> or <code>skipped</code>, and the same rules as a first message hold:
+it is created <code>draft</code> whatever the request says, only the owner moves it to
+<code>approved</code>, <code>sent</code> stamps <code>sentAt</code> once, and after that its text can never
+change (an edit to a sent message is refused).</li>
+<li><code>variant</code> and <code>reasoning</code>, as on the prospect.</li>
+<li><code>at</code>: when it was received or sent, as the channel shows it.</li>
+</ul>
+<p>Recording what came back is idempotent: an <code>in</code> message with the same text on
+the same prospect is the same message, and posting it again returns the
+existing one, so an agent that reads a thread twice records the reply once.
+The first <code>in</code> message on a prospect whose status is <code>sent</code> moves it to
+<code>replied</code>; any later status the owner set is left alone.</p>
+<h2 id="docs-outreach-workbench-md--h4">What the owner does</h2>
 <ol>
 <li>Picks a prospect. Sees the evidence and the message side by side.</li>
 <li>Gets a draft, or a fresh one. The draft is in his voice, hooks on the
@@ -3803,7 +3835,7 @@ per person, so the traders who priced the promise can count.</li>
 <p>Nothing here sends. The workbench drafts, links and remembers; the owner
 sends. Copy under his name is the one thing he must approve, and a DM
 tool that sends is the fastest way to lose an account.</p>
-<h2 id="docs-outreach-workbench-md--h4">Who actually sends, and how it cannot send twice</h2>
+<h2 id="docs-outreach-workbench-md--h5">Who actually sends, and how it cannot send twice</h2>
 <p>Nothing in this surface sends anything. The owner sends, or an agent sends
 on his behalf, and in both cases the workbench is the record that decides
 what may go out.</p>
@@ -3832,7 +3864,7 @@ messages, email, LinkedIn or a public reply is a property of the rows, which
 carry the channel and the handle. An agent that can drive those surfaces can
 run any outreach the owner approves, and a new strategy is new rows rather
 than new code.</p>
-<h2 id="docs-outreach-workbench-md--h5">Drafting</h2>
+<h2 id="docs-outreach-workbench-md--h6">Drafting</h2>
 <p>Same model, same effort, same fallback and the same no-dashes rule as the X
 workbench (<code>X_DRAFT_MODEL</code>, <code>X_DRAFT_EFFORT</code>, <code>X_DRAFT_FALLBACK</code>; docs/x-workbench.md,
 &quot;Drafting&quot;). The system prompt carries, in this order:</p>
@@ -3860,16 +3892,46 @@ written to twice with the same words is spam.</li>
 </ul>
 <p>The user turn is the prospect: name, segment, channel, the evidence, and the
 current message if there is one; then the argument so far.</p>
-<h2 id="docs-outreach-workbench-md--h6">What it learns</h2>
+<h2 id="docs-outreach-workbench-md--h7">What it learns</h2>
 <p>The log shows each prospect with its channel, segment, sent date and
 outcome, plus a summary: how many sent, how many answered, the reply rate by
 segment and by channel, and which of three tracked features (under 75
 words, names a number, names their decision) is associated with a reply.
 With fewer than ten sent it says so instead of pretending to a pattern.</p>
+<p>The summary also compares first messages by <code>variant</code> (sent and answered per
+angle), under the same ten-sent rule, which is how an agent writing different
+kinds of message finds out which kind works.</p>
 <p>&quot;Ask&quot; answers a question about the outreach (which segment to push, why a
 message got nothing, what to try next) from the record and the lessons,
 says which it rests on, and says when neither answers.</p>
-<h2 id="docs-outreach-workbench-md--h7">Endpoints</h2>
+<h2 id="docs-outreach-workbench-md--h8">Waiting for you</h2>
+<p>The Outreach tab opens on what is waiting for the owner, above everything
+else: every prospect in <code>ready</code> with a message, and every <code>out</code> thread message
+in <code>draft</code>, oldest first, one card each. A card shows the person (name,
+company, a link to where they read), the variant, the message in an editable
+box with its word count, the reasoning, and the evidence folded under it; for
+a follow-up, the thread so far above the message. Two buttons: <strong>Approve</strong>
+(saves any edit, then <code>approved</code>) and <strong>Skip</strong> (<code>skipped</code>). An empty list says
+nothing is waiting.</p>
+<h2 id="docs-outreach-workbench-md--h9">The overnight agent</h2>
+<p>An agent may do the owner's legwork on this surface, through the same
+endpoints, while he is away: find people, read their profiles, write the
+evidence and a first message, try different variants on purpose, read the
+channel for replies and record them, draft the follow-up, and keep its own
+learnings. The procedure is its skill (<code>x-outreach-loop</code>, in the owner's
+skills repository); what it may do here is this:</p>
+<ul>
+<li>It proposes. Everything it writes lands as <code>ready</code> (a prospect) or <code>draft</code>
+(a thread message), with <code>source: agent</code>, a <code>variant</code> and its <code>reasoning</code>,
+and waits in &quot;Waiting for you&quot;.</li>
+<li>It sends only what is <code>approved</code>, with the two checks in &quot;Who actually
+sends&quot;, and records <code>sent</code> the moment a send is confirmed.</li>
+<li>Its learnings are its own text, <strong>agent learnings</strong>, kept apart from the
+owner's lessons and never written into them. It rewrites them from the
+record: which variants were answered, what the answers said, what it will
+try next and why.</li>
+</ul>
+<h2 id="docs-outreach-workbench-md--h10">Endpoints</h2>
 <p>All platform admin. Documented in <code>/api/help</code> like every other route.</p>
 <div class="tablewrap"><table>
 <thead>
@@ -3911,17 +3973,33 @@ says which it rests on, and says when neither answers.</p>
 <td><code>GET/PUT /api/admin/outreach/lessons</code></td>
 <td>the lessons text</td>
 </tr>
+<tr>
+<td><code>POST /api/admin/outreach/prospects/:id/messages</code></td>
+<td>add a thread message <code>{ direction, text, variant?, reasoning?, at? }</code>; <code>out</code> is always created <code>draft</code>, <code>in</code> is <code>received</code> and idempotent on its text</td>
+</tr>
+<tr>
+<td><code>PATCH /api/admin/outreach/messages/:id</code></td>
+<td><code>{ text?, status?, variant?, reasoning? }</code>; <code>sent</code> stamps <code>sentAt</code> once; text is refused after <code>sent</code></td>
+</tr>
+<tr>
+<td><code>GET/PUT /api/admin/outreach/learnings</code></td>
+<td>the agent learnings text</td>
+</tr>
 </tbody>
 </table></div>
-<h2 id="docs-outreach-workbench-md--h8">Storage</h2>
-<p><code>outreach_prospects</code>: one row per person with the fields above; the
+<p><code>GET /api/admin/outreach/prospects</code> carries each prospect's <code>thread</code>, oldest
+first, and the summary's <code>byVariant</code>.</p>
+<h2 id="docs-outreach-workbench-md--h11">Storage</h2>
+<p><code>outreach_messages</code>: one row per thread message, keyed to its prospect and
+removed with it. <code>outreach_lessons</code> holds a second row, id <code>agent</code>, for the
+agent learnings. <code>outreach_prospects</code>: one row per person with the fields above; the
 conversation as JSON; <code>sent_text</code> and <code>sent_at</code> set once when the status
 first becomes <code>sent</code> and never changed after. <code>approved</code> is a status like any
 other and stamps nothing: it is a permission, not an event. <code>outreach_lessons</code>: one row of
 text with an updated-at, like <code>x_voice_profile</code>. Evidence, messages and
 notes are personal (names, handles, what strangers wrote back) and live in
 the database, never in this repository.</p>
-<h2 id="docs-outreach-workbench-md--h9">What it is not</h2>
+<h2 id="docs-outreach-workbench-md--h12">What it is not</h2>
 <p>Not a sender, not a sequencer, not a CRM for a sales team. It holds the
 thirty to a few hundred people one founder writes to himself, and it makes
 each next message better than the last because the last one is on record.</p>

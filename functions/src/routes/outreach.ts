@@ -11,17 +11,21 @@ import { AppError } from '../lib/errors';
 import { isPlatformAuthorized } from '../lib/platform-admin';
 import { wrap } from '../lib/wrap';
 import {
+  addThreadMessage,
   askOutreach,
   channelLink,
   createProspect,
   deleteProspect,
   draftMessage,
+  getLearnings,
   getLessons,
   importProspects,
   listProspects,
   logLine,
+  setLearnings,
   setLessons,
   updateProspect,
+  updateThreadMessage,
 } from '../services/outreach';
 import { type DraftTurn, draftingConfigured } from '../services/x-workbench';
 
@@ -128,6 +132,44 @@ outreachRouter.put(
   wrap(async (req, res) => {
     await requireOwner(req);
     await setLessons(String(req.body?.lessons ?? ''));
+    res.json({ ok: true });
+  }),
+);
+
+/** Add a message to a prospect's thread (docs/outreach-workbench.md,
+ *  "Threads"): an `out` message always starts draft, an `in` message is
+ *  recorded once per text. */
+outreachRouter.post(
+  '/prospects/:id/messages',
+  wrap(async (req, res) => {
+    await requireOwner(req);
+    res.status(201).json({ message: await addThreadMessage(String(req.params.id), req.body ?? {}) });
+  }),
+);
+
+/** Edit a thread message or move its status; what went out is never edited. */
+outreachRouter.patch(
+  '/messages/:id',
+  wrap(async (req, res) => {
+    await requireOwner(req);
+    res.json({ message: await updateThreadMessage(String(req.params.id), req.body ?? {}) });
+  }),
+);
+
+/** The agent learnings, apart from the owner's lessons. */
+outreachRouter.get(
+  '/learnings',
+  wrap(async (req, res) => {
+    await requireOwner(req);
+    res.json({ learnings: await getLearnings() });
+  }),
+);
+
+outreachRouter.put(
+  '/learnings',
+  wrap(async (req, res) => {
+    await requireOwner(req);
+    await setLearnings(String(req.body?.learnings ?? ''));
     res.json({ ok: true });
   }),
 );

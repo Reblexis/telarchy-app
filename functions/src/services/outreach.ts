@@ -9,9 +9,9 @@
  * the same samples and cost the same to run.
  */
 import { randomUUID } from 'crypto';
-import { asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { type OutreachTurn, outreachLessons, outreachProspects } from '../db/schema';
+import { type OutreachTurn, outreachLessons, outreachMessages, outreachProspects } from '../db/schema';
 import { AppError } from '../lib/errors';
 import {
   callProposal,
@@ -42,8 +42,12 @@ export const STATUSES = [
   'workspace',
   'activated',
   'no',
+  'skipped',
 ] as const;
 export type Status = (typeof STATUSES)[number];
+
+/** Who put a row here (docs/outreach-workbench.md, "The prospect"). */
+export const SOURCES = ['owner', 'agent'] as const;
 
 /** Every status from `sent` onwards means the message went out. `approved`
  *  is deliberately absent: permission is not delivery. */
@@ -136,7 +140,7 @@ export function logLine(
 
 // --- the summary -------------------------------------------------------------
 
-type Tally = { key: string; sent: number; replied: number };
+export type Tally = { key: string; sent: number; replied: number };
 
 function tally(rows: { key: string; replied: boolean }[]): Tally[] {
   const m = new Map<string, Tally>();
@@ -157,6 +161,9 @@ export type OutreachSummary =
       replied: number;
       bySegment: Tally[];
       byChannel: Tally[];
+      /** First messages by the angle they took, so an agent trying
+       *  different kinds of message learns which kind is answered. */
+      byVariant: Tally[];
       /** Reply rate with and without each feature. */
       features: { label: string; on: number; off: number }[];
     };
@@ -166,7 +173,7 @@ export type OutreachSummary =
  * ten sent it says so; a reply rate from three messages is superstition.
  */
 export function summariseOutreach(
-  rows: { segment: string | null; channel: string; status: string; sentText: string | null }[],
+  rows: { segment: string | null; channel: string; status: string; sentText: string | null; variant?: string | null }[],
 ): OutreachSummary {
   const out = rows.filter(r => WENT_OUT.has(r.status));
   const sent = out.length;
@@ -192,6 +199,7 @@ export function summariseOutreach(
     replied,
     bySegment: tally(out.map(r => ({ key: r.segment ?? '?', replied: ANSWERED.has(r.status) }))),
     byChannel: tally(out.map(r => ({ key: r.channel, replied: ANSWERED.has(r.status) }))),
+    byVariant: tally(out.map(r => ({ key: r.variant ?? '?', replied: ANSWERED.has(r.status) }))),
     features: [
       feature('under 75 words', r => f(r).short),
       feature('names a number', r => f(r).hasNumber),
@@ -214,6 +222,9 @@ export interface ProspectInput {
   day?: unknown;
   outcome?: unknown;
   position?: unknown;
+  variant?: unknown;
+  reasoning?: unknown;
+  source?: unknown;
 }
 
 const str = (v: unknown): string | null => {
@@ -223,8 +234,12 @@ const str = (v: unknown): string | null => {
 };
 
 /** What the form and the import accept: a name, a known channel, a known
- *  status; strings trimmed, empty ones null. Refuses rather than guesses. */
-export function normaliseProspect(input: ProspectInput) {
+ *  status, a known source; strings trimmed, empty ones null. Refuses rather
+ *  than guesses. A row being created can never be `approved`
+ *  (docs/outreach-workbench.md, "The prospect"): approval is the owner acting
+ *  on a row that exists and that he has read, so nothing, an agent's import
+ *  included, can arrive already authorised to send. */
+export function normaliseProspect(input: ProspectInput, { creating = false }: { creating?: boolean } = {}) {
   const name = str(input.name);
   if (!name) throw new AppError('A prospect needs a name.', 400);
   const channel = str(input.channel) ?? 'other';
@@ -234,6 +249,13 @@ export function normaliseProspect(input: ProspectInput) {
   const status = str(input.status) ?? 'draft';
   if (!(STATUSES as readonly string[]).includes(status)) {
     throw new AppError(`Unknown status "${status}". One of: ${STATUSES.join(', ')}.`, 400);
+  }
+  if (creating && status === 'approved') {
+    throw new AppError('A prospect cannot arrive approved: approve it once it exists and you have read it.', 400);
+  }
+  const source = str(input.source) ?? 'owner';
+  if (!(SOURCES as readonly string[]).includes(source)) {
+    throw new AppError(`Unknown source "${source}". One of: ${SOURCES.join(', ')}.`, 400);
   }
   return {
     name,
@@ -247,6 +269,9 @@ export function normaliseProspect(input: ProspectInput) {
     day: str(input.day),
     outcome: str(input.outcome),
     position: typeof input.position === 'number' && Number.isFinite(input.position) ? Math.trunc(input.position) : null,
+    variant: str(input.variant),
+    reasoning: str(input.reasoning),
+    source,
   };
 }
 
@@ -260,7 +285,7 @@ async function nextPosition(): Promise<number> {
 }
 
 export async function createProspect(input: ProspectInput): Promise<Prospect> {
-  const p = normaliseProspect(input);
+  const p = normaliseProspect(input, { creating: true });
   const [row] = await db
     .insert(outreachProspects)
     .values({
@@ -275,7 +300,7 @@ export async function createProspect(input: ProspectInput): Promise<Prospect> {
 /** Many at once, all or none: a bad row in a pasted list is a list to fix,
  *  not a list half in. */
 export async function importProspects(inputs: ProspectInput[]): Promise<number> {
-  const rows = inputs.map(normaliseProspect);
+  const rows = inputs.map(i => normaliseProspect(i, { creating: true }));
   if (!rows.length) return 0;
   const start = await nextPosition();
   await db.transaction(async tx => {
@@ -290,12 +315,29 @@ export async function importProspects(inputs: ProspectInput[]): Promise<number> 
   return rows.length;
 }
 
-export async function listProspects(): Promise<{ prospects: Prospect[]; summary: OutreachSummary }> {
-  const prospects = await db
-    .select()
-    .from(outreachProspects)
-    .orderBy(asc(outreachProspects.position), asc(outreachProspects.createdAt));
-  return { prospects, summary: summariseOutreach(prospects) };
+export type ThreadMessage = typeof outreachMessages.$inferSelect;
+export type ProspectWithThread = Prospect & { thread: ThreadMessage[] };
+
+/** Every prospect with its thread, oldest first by when it happened
+ *  (docs/outreach-workbench.md, "Threads"). */
+export async function listProspects(): Promise<{ prospects: ProspectWithThread[]; summary: OutreachSummary }> {
+  const [prospects, messages] = await Promise.all([
+    db.select().from(outreachProspects).orderBy(asc(outreachProspects.position), asc(outreachProspects.createdAt)),
+    db
+      .select()
+      .from(outreachMessages)
+      .orderBy(sql`coalesce(${outreachMessages.at}, ${outreachMessages.createdAt})`, asc(outreachMessages.createdAt)),
+  ]);
+  const threads = new Map<string, ThreadMessage[]>();
+  for (const m of messages) {
+    const t = threads.get(m.prospectId) ?? [];
+    t.push(m);
+    threads.set(m.prospectId, t);
+  }
+  return {
+    prospects: prospects.map(p => ({ ...p, thread: threads.get(p.id) ?? [] })),
+    summary: summariseOutreach(prospects),
+  };
 }
 
 async function getProspect(id: string): Promise<Prospect> {
@@ -323,6 +365,9 @@ export async function updateProspect(id: string, input: ProspectInput): Promise<
     day: 'day' in input ? input.day : current.day,
     outcome: 'outcome' in input ? input.outcome : current.outcome,
     position: 'position' in input ? input.position : current.position,
+    variant: 'variant' in input ? input.variant : current.variant,
+    reasoning: 'reasoning' in input ? input.reasoning : current.reasoning,
+    source: input.source ?? current.source,
   });
   const freeze = !current.sentAt && WENT_OUT.has(merged.status);
   if (freeze && !merged.message) throw new AppError('There is no message to have sent.', 400);
@@ -335,6 +380,123 @@ export async function updateProspect(id: string, input: ProspectInput): Promise<
       updatedAt: new Date(),
     })
     .where(eq(outreachProspects.id, id))
+    .returning();
+  return row;
+}
+
+// --- threads -----------------------------------------------------------------
+
+export const DIRECTIONS = ['in', 'out'] as const;
+/** What each direction's messages can be. An `in` message is only ever
+ *  received; `received` is never an `out` status. */
+const THREAD_STATUSES: Record<string, readonly string[]> = {
+  in: ['received'],
+  out: ['draft', 'approved', 'sent', 'skipped'],
+};
+
+export interface ThreadMessageInput {
+  direction?: unknown;
+  text?: unknown;
+  status?: unknown;
+  variant?: unknown;
+  reasoning?: unknown;
+  at?: unknown;
+}
+
+const when = (v: unknown): Date | null => {
+  if (typeof v !== 'string' || !v.trim()) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+/**
+ * Add a message to a prospect's thread (docs/outreach-workbench.md,
+ * "Threads"). An `out` message is created `draft` whatever the request asks:
+ * only the owner approves. An `in` message is their words, recorded once:
+ * the same text on the same prospect returns the existing row, enforced by a
+ * unique index so two readers of one thread cannot record it twice. The
+ * first reply moves a `sent` prospect to `replied`.
+ */
+export async function addThreadMessage(prospectId: string, input: ThreadMessageInput): Promise<ThreadMessage> {
+  const direction = str(input.direction);
+  if (direction !== 'in' && direction !== 'out') {
+    throw new AppError('A thread message needs a direction: in or out.', 400);
+  }
+  const text = str(input.text);
+  if (!text) throw new AppError('A thread message needs text.', 400);
+  await getProspect(prospectId);
+  const values = {
+    prospectId,
+    direction,
+    text,
+    variant: str(input.variant),
+    reasoning: str(input.reasoning),
+    at: when(input.at),
+  };
+  if (direction === 'out') {
+    const [row] = await db
+      .insert(outreachMessages)
+      .values({ id: randomUUID(), ...values, status: 'draft' })
+      .returning();
+    return row;
+  }
+  await db
+    .insert(outreachMessages)
+    .values({ id: randomUUID(), ...values, status: 'received' })
+    .onConflictDoNothing();
+  await db
+    .update(outreachProspects)
+    .set({ status: 'replied', updatedAt: new Date() })
+    .where(and(eq(outreachProspects.id, prospectId), eq(outreachProspects.status, 'sent')));
+  const [row] = await db
+    .select()
+    .from(outreachMessages)
+    .where(
+      and(
+        eq(outreachMessages.prospectId, prospectId),
+        eq(outreachMessages.direction, 'in'),
+        sql`md5(${outreachMessages.text}) = md5(${text})`,
+      ),
+    );
+  return row;
+}
+
+/**
+ * Edit a thread message or move its status. `sent` stamps `sentAt` once
+ * (coalesce, so a second `sent` never restamps), and the text of a message
+ * that has gone is refused: the record is what the person received.
+ */
+export async function updateThreadMessage(id: string, input: ThreadMessageInput): Promise<ThreadMessage> {
+  const [current] = await db.select().from(outreachMessages).where(eq(outreachMessages.id, id));
+  if (!current) throw new AppError('No such message', 404);
+  const status = str(input.status) ?? current.status;
+  const allowed = THREAD_STATUSES[current.direction] ?? [];
+  if (!allowed.includes(status)) {
+    throw new AppError(
+      `Unknown status "${status}" for an ${current.direction} message. One of: ${allowed.join(', ')}.`,
+      400,
+    );
+  }
+  let text = current.text;
+  if ('text' in input) {
+    const next = str(input.text);
+    if (!next) throw new AppError('A thread message needs text.', 400);
+    if (current.sentAt && next !== current.text) {
+      throw new AppError('This message was sent; what went out cannot be edited.', 409);
+    }
+    text = next;
+  }
+  const [row] = await db
+    .update(outreachMessages)
+    .set({
+      text,
+      status,
+      variant: 'variant' in input ? str(input.variant) : current.variant,
+      reasoning: 'reasoning' in input ? str(input.reasoning) : current.reasoning,
+      ...(status === 'sent' ? { sentAt: sql`coalesce(${outreachMessages.sentAt}, now())` } : {}),
+      updatedAt: new Date(),
+    })
+    .where(eq(outreachMessages.id, id))
     .returning();
   return row;
 }
@@ -356,6 +518,20 @@ export async function setLessons(lessons: string): Promise<void> {
     .insert(outreachLessons)
     .values({ id: 'default', lessons, updatedAt: new Date() })
     .onConflictDoUpdate({ target: outreachLessons.id, set: { lessons, updatedAt: new Date() } });
+}
+
+/** The agent's own learnings (docs/outreach-workbench.md, "The overnight
+ *  agent"): a second row, id 'agent', never the owner's lessons. */
+export async function getLearnings(): Promise<string> {
+  const [row] = await db.select().from(outreachLessons).where(eq(outreachLessons.id, 'agent'));
+  return row?.lessons ?? '';
+}
+
+export async function setLearnings(learnings: string): Promise<void> {
+  await db
+    .insert(outreachLessons)
+    .values({ id: 'agent', lessons: learnings, updatedAt: new Date() })
+    .onConflictDoUpdate({ target: outreachLessons.id, set: { lessons: learnings, updatedAt: new Date() } });
 }
 
 // --- drafting ----------------------------------------------------------------

@@ -34,13 +34,44 @@ is allowed to say:
 - **The message**: the current draft, editable by hand at any time.
 - **The conversation**: the turns of the argument about the draft, kept so
   "shorter" means shorter than the last one.
+- **Why, and what it tests**: `reasoning`, why this person and why this
+  message, in the words of whoever wrote the draft; `variant`, a short label
+  for the angle the first message takes (`decision-hook`, `privacy-first`,
+  `question-only`, anything), so reply rates can be compared by angle; and
+  `source`, `owner` or `agent`, who put the row here.
 - **Status and outcome**: `draft`, `ready`, `approved`, `sent`, `replied`,
-  `call`, `workspace`, `activated`, `no`; the planned send day; when it was sent and
+  `call`, `workspace`, `activated`, `no`, `skipped` (the owner decided not to
+  write to this person; nothing went out); the planned send day; when it was sent and
   the exact text that went out (frozen at that moment); a note on what came
   back (their words, or "no answer").
 
 Prospects arrive one at a time through the form, or many at once through an
-import of the same shape (that is how a researched list becomes rows).
+import of the same shape (that is how a researched list becomes rows). A
+prospect never arrives `approved`: creating or importing one with that status
+is refused, because approval is something the owner does to a row that
+already exists and that he has read.
+
+## Threads
+
+The first message lives on the prospect. Everything after it (what they
+wrote back, the follow-up to that, their next answer) is a **thread message**
+on that prospect, oldest first:
+
+- `direction`: `in` (they wrote it) or `out` (it goes, or went, to them).
+- `text`: for `in`, their words exactly as received; for `out`, the message.
+- `status`: an `in` message is `received`. An `out` message is `draft`,
+  `approved`, `sent` or `skipped`, and the same rules as a first message hold:
+  it is created `draft` whatever the request says, only the owner moves it to
+  `approved`, `sent` stamps `sentAt` once, and after that its text can never
+  change (an edit to a sent message is refused).
+- `variant` and `reasoning`, as on the prospect.
+- `at`: when it was received or sent, as the channel shows it.
+
+Recording what came back is idempotent: an `in` message with the same text on
+the same prospect is the same message, and posting it again returns the
+existing one, so an agent that reads a thread twice records the reply once.
+The first `in` message on a prospect whose status is `sent` moves it to
+`replied`; any later status the owner set is left alone.
 
 ## What the owner does
 
@@ -148,9 +179,43 @@ segment and by channel, and which of three tracked features (under 75
 words, names a number, names their decision) is associated with a reply.
 With fewer than ten sent it says so instead of pretending to a pattern.
 
+The summary also compares first messages by `variant` (sent and answered per
+angle), under the same ten-sent rule, which is how an agent writing different
+kinds of message finds out which kind works.
+
 "Ask" answers a question about the outreach (which segment to push, why a
 message got nothing, what to try next) from the record and the lessons,
 says which it rests on, and says when neither answers.
+
+## Waiting for you
+
+The Outreach tab opens on what is waiting for the owner, above everything
+else: every prospect in `ready` with a message, and every `out` thread message
+in `draft`, oldest first, one card each. A card shows the person (name,
+company, a link to where they read), the variant, the message in an editable
+box with its word count, the reasoning, and the evidence folded under it; for
+a follow-up, the thread so far above the message. Two buttons: **Approve**
+(saves any edit, then `approved`) and **Skip** (`skipped`). An empty list says
+nothing is waiting.
+
+## The overnight agent
+
+An agent may do the owner's legwork on this surface, through the same
+endpoints, while he is away: find people, read their profiles, write the
+evidence and a first message, try different variants on purpose, read the
+channel for replies and record them, draft the follow-up, and keep its own
+learnings. The procedure is its skill (`x-outreach-loop`, in the owner's
+skills repository); what it may do here is this:
+
+- It proposes. Everything it writes lands as `ready` (a prospect) or `draft`
+  (a thread message), with `source: agent`, a `variant` and its `reasoning`,
+  and waits in "Waiting for you".
+- It sends only what is `approved`, with the two checks in "Who actually
+  sends", and records `sent` the moment a send is confirmed.
+- Its learnings are its own text, **agent learnings**, kept apart from the
+  owner's lessons and never written into them. It rewrites them from the
+  record: which variants were answered, what the answers said, what it will
+  try next and why.
 
 ## Endpoints
 
@@ -166,10 +231,18 @@ All platform admin. Documented in `/api/help` like every other route.
 | `POST /api/admin/outreach/prospects/:id/draft` | `{ messages[] }` -> `{ draft: { message, answer } }`, the conversation carried in `messages` |
 | `POST /api/admin/outreach/ask` | `{ messages[] }` -> `{ answer }` |
 | `GET/PUT /api/admin/outreach/lessons` | the lessons text |
+| `POST /api/admin/outreach/prospects/:id/messages` | add a thread message `{ direction, text, variant?, reasoning?, at? }`; `out` is always created `draft`, `in` is `received` and idempotent on its text |
+| `PATCH /api/admin/outreach/messages/:id` | `{ text?, status?, variant?, reasoning? }`; `sent` stamps `sentAt` once; text is refused after `sent` |
+| `GET/PUT /api/admin/outreach/learnings` | the agent learnings text |
+
+`GET /api/admin/outreach/prospects` carries each prospect's `thread`, oldest
+first, and the summary's `byVariant`.
 
 ## Storage
 
-`outreach_prospects`: one row per person with the fields above; the
+`outreach_messages`: one row per thread message, keyed to its prospect and
+removed with it. `outreach_lessons` holds a second row, id `agent`, for the
+agent learnings. `outreach_prospects`: one row per person with the fields above; the
 conversation as JSON; `sent_text` and `sent_at` set once when the status
 first becomes `sent` and never changed after. `approved` is a status like any
 other and stamps nothing: it is a permission, not an event. `outreach_lessons`: one row of

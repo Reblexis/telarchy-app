@@ -10836,6 +10836,17 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 
 .ow-approved { color: var(--accent); font-size: 0.85rem; }
 
+/* Waiting for you (docs/outreach-workbench.md): one card per item, the
+   message given the room, the thread above a follow-up, reasoning under it. */
+.ow-waiting { margin: 0.5rem 0 1.5rem; }
+.ow-card { border-top: 1px solid var(--border-color); padding: 0.75rem 0; }
+.ow-card .adm-report-head { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: baseline; }
+.ow-variant { font-family: var(--font-mono, monospace); font-size: 0.75rem; border: 1px solid var(--border-color); padding: 0 0.35rem; border-radius: 2px; }
+.ow-reasoning { font-size: 0.85rem; color: var(--text-secondary, inherit); margin: 0.4rem 0; white-space: pre-wrap; }
+.ow-thread { list-style: none; margin: 0.5rem 0; padding: 0; font-size: 0.85rem; }
+.ow-thread li { padding: 0.25rem 0 0.25rem 0.75rem; border-left: 2px solid var(--border-color); white-space: pre-wrap; }
+.ow-thread .ow-in { border-left-color: var(--accent); }
+
 /* The cockpit's tabs (docs/ui-conventions.md, "The cockpit is tabbed"). */
 .adm-tabs { display: flex; gap: 0.25rem; flex-wrap: wrap; border-bottom: 1px solid var(--border-color); margin: 0.5rem 0 1.5rem; }
 .adm-tab { background: none; border: 0; border-bottom: 2px solid transparent; padding: 0.5rem 0.75rem; font: inherit; color: var(--text-secondary, inherit); cursor: pointer; }

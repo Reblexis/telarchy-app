@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { api, type OutreachProspect, type OutreachSummary } from '../lib/api';
+import { api, type OutreachProspect, type OutreachSummary, type OutreachThreadMessage } from '../lib/api';
 
 type Turn = { role: 'user' | 'assistant'; content: string };
 
 const CHANNELS = ['x', 'email', 'linkedin', 'bluesky', 'hn', 'discord', 'other'];
-const STATUSES = ['draft', 'ready', 'approved', 'sent', 'replied', 'call', 'workspace', 'activated', 'no'];
+const STATUSES = ['draft', 'ready', 'approved', 'sent', 'replied', 'call', 'workspace', 'activated', 'no', 'skipped'];
 
 /** What it said to him on an assistant turn, kept inside the turn so the
  *  model remembers what it said and the screen can show it. */
@@ -25,6 +25,117 @@ function copy(text: string) {
   } catch {
     return Promise.resolve();
   }
+}
+
+/** One item waiting for the owner: a first message in `ready`, or a
+ *  follow-up in `draft` with the thread before it. */
+type Waiting =
+  | { kind: 'first'; key: string; at: string; prospect: OutreachProspect }
+  | { kind: 'follow'; key: string; at: string; prospect: OutreachProspect; message: OutreachThreadMessage };
+
+/** Everything waiting for the owner, oldest first (docs/outreach-workbench.md,
+ *  "Waiting for you"). */
+export function waitingFor(prospects: OutreachProspect[]): Waiting[] {
+  const items: Waiting[] = [];
+  for (const p of prospects) {
+    if (p.status === 'ready' && (p.message ?? '').trim()) {
+      items.push({ kind: 'first', key: p.id, at: p.createdAt, prospect: p });
+    }
+    for (const m of p.thread ?? []) {
+      if (m.direction === 'out' && m.status === 'draft') {
+        items.push({ kind: 'follow', key: m.id, at: m.createdAt, prospect: p, message: m });
+      }
+    }
+  }
+  return items.sort((a, b) => a.at.localeCompare(b.at));
+}
+
+/** One card: who, where they read, the variant, the message to edit, the
+ *  reasoning, the evidence folded; Approve saves the edit and approves, Skip
+ *  skips. Neither sends. */
+function WaitingCard({ item, onDone }: { item: Waiting; onDone: () => void }) {
+  const p = item.prospect;
+  const original = item.kind === 'first' ? (p.message ?? '') : item.message.text;
+  const [text, setText] = useState(original);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const variant = item.kind === 'first' ? p.variant : item.message.variant;
+  const reasoning = item.kind === 'first' ? p.reasoning : item.message.reasoning;
+  const before = item.kind === 'follow' ? (p.thread ?? []).filter(m => m.createdAt < item.message.createdAt) : [];
+
+  const act = (status: 'approved' | 'skipped') => {
+    setBusy(true);
+    setErr('');
+    const call =
+      item.kind === 'first'
+        ? api.outreachUpdate(p.id, status === 'approved' ? { message: text, status } : { status })
+        : api.outreachUpdateMessage(item.message.id, status === 'approved' ? { text, status } : { status });
+    call
+      .then(() => onDone())
+      .catch(e => setErr((e as Error).message))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <article className="ow-card">
+      <div className="adm-report-head">
+        <strong>
+          {p.name}
+          {p.company ? `, ${p.company}` : ''}
+        </strong>
+        <span className="adm-sub">
+          {item.kind === 'first' ? 'first message' : 'follow-up'}
+          {p.segment ? ` · segment ${p.segment}` : ''}
+          {' · '}
+          {p.link ? (
+            <a href={p.link} target="_blank" rel="noreferrer">
+              {p.handle ?? p.channel}
+            </a>
+          ) : (
+            (p.handle ?? p.channel)
+          )}
+        </span>
+        {variant ? <span className="ow-variant">{variant}</span> : null}
+      </div>
+      {before.length ? (
+        <ul className="ow-thread">
+          {[{ direction: 'out', text: p.sentText ?? p.message ?? '', id: 'first', status: 'sent' }, ...before].map(
+            m => (
+              <li key={m.id} className={m.direction === 'in' ? 'ow-in' : 'ow-out'}>
+                {m.direction === 'in' ? 'them: ' : 'you: '}
+                {m.text}
+              </li>
+            ),
+          )}
+        </ul>
+      ) : null}
+      <textarea
+        className="ow-message"
+        value={text}
+        onChange={e => setText(e.target.value)}
+        aria-label={`Message to ${p.name}`}
+      />
+      <span className="ow-words" data-over={words(text) > 75}>
+        {words(text)} words
+      </span>
+      {reasoning ? <p className="ow-reasoning">{reasoning}</p> : null}
+      {p.evidence ? (
+        <details>
+          <summary className="adm-sub">Evidence</summary>
+          <p className="ow-evidence">{p.evidence}</p>
+        </details>
+      ) : null}
+      <div className="xw-actions">
+        <button className="adm-paygo" onClick={() => act('approved')} disabled={busy || !text.trim()}>
+          Approve
+        </button>
+        <button className="adm-linkbtn" onClick={() => act('skipped')} disabled={busy}>
+          Skip
+        </button>
+        {err ? <span className="adm-err">{err}</span> : null}
+      </div>
+    </article>
+  );
 }
 
 /**
@@ -61,6 +172,8 @@ export function OutreachWorkbench() {
   const [askTurns, setAskTurns] = useState<Turn[]>([]);
   const [question, setQuestion] = useState('');
   const [askOpen, setAskOpen] = useState(false);
+  const [learnings, setLearnings] = useState<string | null>(null);
+  const [learningsOpen, setLearningsOpen] = useState(false);
 
   const refresh = () =>
     api
@@ -169,6 +282,18 @@ export function OutreachWorkbench() {
 
   const n = words(edited);
   const sent = open ? Boolean(open.sentAt) : false;
+  const waiting = prospects ? waitingFor(prospects) : [];
+
+  const toggleLearnings = () => {
+    const next = !learningsOpen;
+    setLearningsOpen(next);
+    if (next) {
+      api
+        .outreachGetLearnings()
+        .then(r => setLearnings(r.learnings))
+        .catch(e => setErr((e as Error).message));
+    }
+  };
 
   return (
     <section className="adm-block">
@@ -178,6 +303,17 @@ export function OutreachWorkbench() {
         draft, send it where they read, record what came back. Nothing here sends anything.
         {!configured ? ' Drafting is off: no drafting key is set.' : ''}
       </p>
+
+      {prospects ? (
+        <section className="ow-waiting" aria-label="Waiting for you">
+          <h3 className="xw-h3">Waiting for you ({waiting.length})</h3>
+          {waiting.length ? (
+            waiting.map(item => <WaitingCard key={item.key} item={item} onDone={refresh} />)
+          ) : (
+            <p className="adm-sub">Nothing is waiting for you.</p>
+          )}
+        </section>
+      ) : null}
 
       {summary ? (
         <div className="ow-summary adm-sub">
@@ -199,6 +335,14 @@ export function OutreachWorkbench() {
                   {summary.byChannel.map(t => (
                     <tr key={`c-${t.key}`}>
                       <th>{t.key}</th>
+                      <td>
+                        {t.replied} of {t.sent}
+                      </td>
+                    </tr>
+                  ))}
+                  {(summary.byVariant ?? []).map(t => (
+                    <tr key={`v-${t.key}`}>
+                      <th>variant {t.key}</th>
                       <td>
                         {t.replied} of {t.sent}
                       </td>
@@ -231,7 +375,17 @@ export function OutreachWorkbench() {
         <button className="adm-linkbtn" onClick={() => setAskOpen(o => !o)}>
           {askOpen ? 'Hide ask' : 'Ask it'}
         </button>
+        <button className="adm-linkbtn" onClick={toggleLearnings} aria-expanded={learningsOpen}>
+          Agent learnings
+        </button>
       </div>
+
+      {learningsOpen ? (
+        <section className="xw-profile" aria-label="Agent learnings">
+          <p className="adm-sub">What the overnight agent has learned from the record. It writes this, not you.</p>
+          <p className="ow-evidence">{learnings === null ? 'Loading.' : learnings || 'Nothing learned yet.'}</p>
+        </section>
+      ) : null}
 
       {adding ? (
         <form
@@ -496,6 +650,17 @@ export function OutreachWorkbench() {
                 </button>
               </form>
             </div>
+
+            {open.thread?.length ? (
+              <ul className="ow-thread" aria-label="Thread">
+                {open.thread.map(m => (
+                  <li key={m.id} className={m.direction === 'in' ? 'ow-in' : 'ow-out'}>
+                    {m.direction === 'in' ? 'them: ' : `you, ${m.status}: `}
+                    {m.text}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
 
             <div className="ow-fields">
               <select className="ow-field" value={status} onChange={e => setStatus(e.target.value)} aria-label="Status">
