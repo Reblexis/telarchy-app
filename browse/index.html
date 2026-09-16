@@ -5679,8 +5679,8 @@ at most ~96KB encoded), and the endpoint otherwise accepts only http(s)
 URLs (what OAuth providers populate), so the value can never become a
 javascript: vector in an img src.</p>
 <h3 id="docs-ui-conventions-md--h19">The question line: the pickers, and the sentence</h3>
-<p>On a chess feed, a move's game-score question reads &quot;With b4, what will
-Chess's final game score be?&quot; (using the selected move and workspace name).
+<p>On a chess feed, a move's game-score question reads &quot;If the move Kb2 is
+made, what will Chess's final game score be?&quot; (using the selected move and workspace name).
 It asks for the final result, without a clock time. Other metrics and feeds
 keep their existing dated questions.</p>
 <p>The floor prices a SET of metrics, and every one of them is one number read
@@ -6228,6 +6228,9 @@ that cell. <strong>A tie at the top is not a lead</strong>: the hero prints &quo
 leader's green, and the board row prints &quot;tied&quot; where it prints
 &quot;<leader> +lead&quot;. The page opens on the leader's world, else the first
 priced option's, else the first option's.</li>
+<li>On a chess feed, the condition reads &quot;If the move <label> is made&quot;,
+using the selected move's notation. The date title does not control
+this condition.</li>
 <li><strong>The question names the option</strong>: &quot;With <label>, what will <floor>'s
 <metric> be on <settle day>?&quot;, switching with the selected cell. &quot;With&quot;,
 not &quot;If&quot;: a label is a noun phrase the proposer wrote (&quot;Turn left&quot;,

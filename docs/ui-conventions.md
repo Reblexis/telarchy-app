@@ -500,8 +500,8 @@ javascript: vector in an img src.
 
 ### The question line: the pickers, and the sentence
 
-On a chess feed, a move's game-score question reads "With b4, what will
-Chess's final game score be?" (using the selected move and workspace name).
+On a chess feed, a move's game-score question reads "If the move Kb2 is
+made, what will Chess's final game score be?" (using the selected move and workspace name).
 It asks for the final result, without a clock time. Other metrics and feeds
 keep their existing dated questions.
 
@@ -1040,6 +1040,9 @@ counting:
   leader's green, and the board row prints "tied" where it prints
   "<leader> +lead". The page opens on the leader's world, else the first
   priced option's, else the first option's.
+- On a chess feed, the condition reads "If the move <label> is made",
+  using the selected move's notation. The date title does not control
+  this condition.
 - **The question names the option**: "With <label>, what will <floor>'s
   <metric> be on <settle day>?", switching with the selected cell. "With",
   not "If": a label is a noun phrase the proposer wrote ("Turn left",

@@ -2446,7 +2446,12 @@ export function TradePage() {
                         conditional sentence this restores was removed for
                         putting all of it in one clause ahead of any number. */}
                       <p className="pubws-proposal-q">
-                        {jobOptioned ? `With ${worldLabel}` : `If ${branch}`}, what will {ws.name}'s{' '}
+                        {jobOptioned
+                          ? liveFeed?.kind === 'chess'
+                            ? `If the move ${worldLabel} is made`
+                            : `With ${worldLabel}`
+                          : `If ${branch}`}
+                        , what will {ws.name}'s{' '}
                         {liveFeed?.kind === 'chess' &&
                         captionLabel(metricLabel, ws.name).toLowerCase() === 'game score' ? (
                           'final game score be?'

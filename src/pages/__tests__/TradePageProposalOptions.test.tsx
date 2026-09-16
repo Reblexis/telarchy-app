@@ -434,21 +434,26 @@ describe('THE HERO IS THE LEAD', () => {
 });
 
 describe('THE QUESTION NAMES THE OPTION, AND THE WORLD RIDES THE VERB', () => {
-  test('chess asks for the final game score instead of a clock time for every selected move', async () => {
-    withFloor(ws => {
-      Object.assign(ws, { name: 'Chess', liveFeed: { kind: 'chess', url: 'https://chess.example.com' } });
-      ws.markets[0].metricName = 'Game score';
-      ws.proposals[0].markets[0].options[1].label = 'b4';
-      ws.proposals[0].options[1].label = 'b4';
-    });
-    sessionStorage.setItem('floorChartMode', 'value');
-    const { container } = renderFloor();
-    await opened(container);
-    const q = () => words(container.querySelector('.pubws-proposal-q'));
-    expect(q()).toBe("With b4, what will Chess's final game score be?");
-    fireEvent.click(cellsOf(container)[1]);
-    await waitFor(() => expect(q()).toBe("With Continue, what will Chess's final game score be?"));
-  });
+  test.each(['Kb2', 'O-O', 'e8=Q+'])(
+    'chess says if the move %s is made instead of the terse With label',
+    async move => {
+      withFloor(ws => {
+        Object.assign(ws, { name: 'Chess', liveFeed: { kind: 'chess', url: 'https://chess.example.com' } });
+        ws.markets[0].metricName = 'Game score';
+        ws.proposals[0].markets[0].options[1].label = move;
+        ws.proposals[0].markets[0].options[0].label = 'Nc3';
+        ws.proposals[0].options[1].label = move;
+        ws.proposals[0].options[0].label = 'Nc3';
+      });
+      sessionStorage.setItem('floorChartMode', 'value');
+      const { container } = renderFloor();
+      await opened(container);
+      const q = () => words(container.querySelector('.pubws-proposal-q'));
+      expect(q()).toBe(`If the move ${move} is made, what will Chess's final game score be?`);
+      fireEvent.click(cellsOf(container)[1]);
+      await waitFor(() => expect(q()).toBe("If the move Nc3 is made, what will Chess's final game score be?"));
+    },
+  );
 
   test('"With <label>, what will …", switching with the selected cell', async () => {
     const { container } = renderFloor();
