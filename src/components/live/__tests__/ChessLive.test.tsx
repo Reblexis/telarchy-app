@@ -679,7 +679,11 @@ describe('the next move and the floor', () => {
     const { container } = renderLive();
     await waitFor(() => expect(container.querySelector('.chess-stats')).toBeTruthy());
     const text = (container.querySelector('.chess-stats')?.textContent ?? '').replace(/\s+/g, ' ').trim();
-    expect(text).toBe('Rating 1720 · Played 12 · Won 3 · Lost 8 · Drawn 1');
+    expect(text).toBe('Rating 1720 Played 12 Won 3 Lost 8 Drawn 1');
+    const stats = container.querySelector('[role="region"][aria-label="Player statistics"]');
+    expect(stats).toBeTruthy();
+    expect(stats?.querySelectorAll('dt')).toHaveLength(5);
+    expect(stats?.querySelectorAll('dd')).toHaveLength(5);
   });
 
   test('a provisional rating carries a question mark', async () => {

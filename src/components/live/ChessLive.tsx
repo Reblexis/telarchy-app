@@ -719,6 +719,52 @@ export function ChessLive({
   return (
     <div className="chess-live">
       <div className="chess-main">
+        <div className="chess-moves-col">
+          {open && openOptions.length > 0 && (
+            /* The moves, one slim column beside the board (docs/ui-conventions.md, "The chess feed", item 4). */
+            <div className="chess-movelist" role="list" aria-label="Moves, highest price first">
+              {(() => {
+                const list = ranked(openOptions);
+                const pricedList = list.filter(priced);
+                const lo = pricedList.length ? Math.min(...pricedList.map(o => o.price as number)) : 0;
+                const hi = pricedList.length ? Math.max(...pricedList.map(o => o.price as number)) : 0;
+                const board = piecesOf(game?.fen ?? null);
+                return list.map((o, i) => {
+                  const piece = board.get(o.id.slice(0, 2));
+                  const width = priced(o) ? (hi > lo ? 6 + 94 * (((o.price as number) - lo) / (hi - lo)) : 100) : 0;
+                  const cls = `chess-moverow${boardLeader?.id === o.id ? ' is-leader' : ''}${proposalMove === o.id ? ' is-selected' : ''}`;
+                  return (
+                    <a
+                      key={o.id}
+                      role="listitem"
+                      className={cls}
+                      href={optionHref(o.id)}
+                      onClick={e => {
+                        if (!onPickProposal) return;
+                        e.preventDefault();
+                        pick(o.id);
+                      }}
+                      onMouseEnter={() => setHoverState({ id: openId, move: o.id })}
+                      onMouseLeave={() => setHoverState(h => (h.move === o.id ? { id: null, move: null } : h))}
+                      onFocus={() => setHoverState({ id: openId, move: o.id })}
+                      onBlur={() => setHoverState(h => (h.move === o.id ? { id: null, move: null } : h))}
+                    >
+                      <span className="chess-moverow-rank">{i + 1}</span>
+                      <span className="chess-moverow-san">
+                        {piece && <span className="chess-moverow-glyph">{`${GLYPH[piece.toLowerCase()]}\uFE0E`}</span>}
+                        {o.san}
+                      </span>
+                      <span className="chess-moverow-bar">
+                        <span style={{ width: `${width}%` }} />
+                      </span>
+                      <span className="chess-moverow-price">{priced(o) ? (o.price as number).toFixed(1) : 'open'}</span>
+                    </a>
+                  );
+                });
+              })()}
+            </div>
+          )}
+        </div>
         <div className="chess-board-col">
           <div className="chess-board-box">
             <Board
@@ -740,67 +786,30 @@ export function ChessLive({
             {line.text}
             {line.clock !== undefined && <span className="chess-clock">{line.clock}</span>}
           </p>
+        </div>
+        <div className="chess-stats-col">
           {state?.player && (
-            /* The player's record (docs/ui-conventions.md, "The chess feed"). */
-            <p className="chess-stats">
-              {[
-                `Rating ${state.player.rating}${state.player.provisional ? '?' : ''}`,
-                ...(state.player.games
-                  ? [
-                      `Played ${state.player.games.played}`,
-                      `Won ${state.player.games.won}`,
-                      `Lost ${state.player.games.lost}`,
-                      `Drawn ${state.player.games.drawn}`,
-                    ]
-                  : []),
-              ].join(' · ')}
-            </p>
+            <section role="region" aria-label="Player statistics">
+              <dl className="chess-stats">
+                {[
+                  ['Rating', `${state.player.rating}${state.player.provisional ? '?' : ''}`],
+                  ...(state.player.games
+                    ? [
+                        ['Played', state.player.games.played],
+                        ['Won', state.player.games.won],
+                        ['Lost', state.player.games.lost],
+                        ['Drawn', state.player.games.drawn],
+                      ]
+                    : []),
+                ].map(([label, value]) => (
+                  <div className="chess-stat" key={label}>
+                    <dt>{label}</dt> <dd>{value}</dd>{' '}
+                  </div>
+                ))}
+              </dl>
+            </section>
           )}
         </div>
-        {open && openOptions.length > 0 && (
-          /* The moves, one slim column beside the board (docs/ui-conventions.md, "The chess feed", item 4). */
-          <div className="chess-movelist" role="list" aria-label="Moves, highest price first">
-            {(() => {
-              const list = ranked(openOptions);
-              const pricedList = list.filter(priced);
-              const lo = pricedList.length ? Math.min(...pricedList.map(o => o.price as number)) : 0;
-              const hi = pricedList.length ? Math.max(...pricedList.map(o => o.price as number)) : 0;
-              const board = piecesOf(game?.fen ?? null);
-              return list.map((o, i) => {
-                const piece = board.get(o.id.slice(0, 2));
-                const width = priced(o) ? (hi > lo ? 6 + 94 * (((o.price as number) - lo) / (hi - lo)) : 100) : 0;
-                const cls = `chess-moverow${boardLeader?.id === o.id ? ' is-leader' : ''}${proposalMove === o.id ? ' is-selected' : ''}`;
-                return (
-                  <a
-                    key={o.id}
-                    role="listitem"
-                    className={cls}
-                    href={optionHref(o.id)}
-                    onClick={e => {
-                      if (!onPickProposal) return;
-                      e.preventDefault();
-                      pick(o.id);
-                    }}
-                    onMouseEnter={() => setHoverState({ id: openId, move: o.id })}
-                    onMouseLeave={() => setHoverState(h => (h.move === o.id ? { id: null, move: null } : h))}
-                    onFocus={() => setHoverState({ id: openId, move: o.id })}
-                    onBlur={() => setHoverState(h => (h.move === o.id ? { id: null, move: null } : h))}
-                  >
-                    <span className="chess-moverow-rank">{i + 1}</span>
-                    <span className="chess-moverow-san">
-                      {piece && <span className="chess-moverow-glyph">{`${GLYPH[piece.toLowerCase()]}\uFE0E`}</span>}
-                      {o.san}
-                    </span>
-                    <span className="chess-moverow-bar">
-                      <span style={{ width: `${width}%` }} />
-                    </span>
-                    <span className="chess-moverow-price">{priced(o) ? (o.price as number).toFixed(1) : 'open'}</span>
-                  </a>
-                );
-              });
-            })()}
-          </div>
-        )}
       </div>
       {showReplay && (
         <div className="snake-replay chess-replay" role="group" aria-label="Replay">
