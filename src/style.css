@@ -7133,6 +7133,11 @@ textarea.jobform-line--desc {
 /* A card drawing a live board gives it the floor's live-slot width, board at the top (docs/ui-conventions.md, "The marketplace"). */
 .mkt-featured--live { grid-template-columns: minmax(0, 45rem) minmax(0, 1fr); align-items: start; }
 .mkt-featured-visual { min-width: 0; }
+/* A chess card: the text column sets the height, the board fills it (the view is out of flow, so it adds no height of its own). */
+@media (min-width: 761px) {
+  .mkt-featured--live:has(.chess-live--card) { align-items: stretch; }
+  .mkt-featured--live:has(.chess-live--card) .mkt-featured-visual { position: relative; min-height: 26rem; }
+}
 .mkt-featured-visual .mkt-spark { height: 180px; }
 .mkt-featured-body { display: flex; flex-direction: column; gap: 0.7rem; min-width: 0; }
 .mkt-featured-kicker {
@@ -12707,14 +12712,25 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .chess-moverow-bar > span { display: block; height: 4px; background: var(--text-tertiary); }
 .chess-moverow.is-leader .chess-moverow-bar > span { background: var(--higher); }
 .chess-moverow-price { text-align: right; font-weight: 600; }
-/* Without the moves column (the home card, whose deciding now block is the
-   list): the board and the record in two columns, the board first and at its
-   full width. */
-.chess-live--no-moves .chess-main {
-  grid-template-columns: minmax(0, 520px) minmax(0, 1fr);
-  grid-template-areas: "board stats";
+/* The card form (the home card): no moves column, the record one line under
+   the next move, and the board a square of the height the host gives it, so
+   the card's two halves end on the same line (docs/ui-conventions.md, "The
+   marketplace"). The host stretches the view over its own height; the
+   board box is a size container and the board the smaller of its two
+   sides. Where the card stacks (phone width) the view is in flow again and
+   the board as wide as the card. */
+.chess-live--card .chess-main {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
 }
-.chess-live--no-moves .chess-board-col { justify-self: start; }
+.chess-live--card .chess-board-col { max-width: none; flex: 1 1 auto; min-height: 0; justify-self: stretch; }
+.chess-live--card .chess-stats--line { margin: -0.35rem 0 0; }
+@media (min-width: 761px) {
+  .chess-live--card { position: absolute; inset: 0; }
+  .chess-live--card .chess-board-box { flex: 1 1 auto; min-height: 0; container-type: size; }
+  .chess-live--card .chess-board { width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); }
+}
 /* The floor's live slot is 720px, even on a wide screen. */
 @container chess-live (min-width: 660px) and (max-width: 759px) {
   .chess-moverow { grid-template-columns: 1.1rem minmax(0, 1fr) 2.6rem; }
@@ -12725,11 +12741,6 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     grid-template-areas: "board board" "moves stats";
   }
-  .chess-live--no-moves .chess-main {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "board" "stats";
-  }
-  .chess-live--no-moves .chess-stats-col { max-width: none; }
   .chess-movelist { max-height: 45vh; }
 }
 @container chess-live (max-width: 559px) {
@@ -12737,7 +12748,6 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "board" "stats" "moves";
   }
-  .chess-live--no-moves .chess-main { grid-template-areas: "board" "stats"; }
   .chess-moves-col, .chess-stats-col { max-width: none; }
 }
 

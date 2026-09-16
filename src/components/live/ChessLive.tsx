@@ -401,11 +401,11 @@ export function ChessLive({
   books,
   selectedProposal,
   replay: showReplay = true,
-  movelist = true,
+  card = false,
 }: {
   slug: string;
-  /** False when the host lists the moves itself (the home card's deciding now block): board and stats only (docs/ui-conventions.md, "The chess feed"). */
-  movelist?: boolean;
+  /** The card form (docs/ui-conventions.md, "The chess feed"): no moves column, the board fills the host's height, the record one line under the next-move line. */
+  card?: boolean;
   /** The proposal the page has open and the option on screen, for marking its move. */
   selectedProposal?: { number: number; option: string | null } | null;
   /** The floor's open books by market id, polled once a second. */
@@ -719,10 +719,25 @@ export function ChessLive({
   const scrubMax = scrubTotal ?? 0;
   const scrubValue = replay ? Math.min(replay.entry, scrubMax) : scrubMax;
 
+  /* The player's record (docs/ui-conventions.md, "The chess feed", item 2): label and value rows. */
+  const record: [string, string | number][] = state?.player
+    ? [
+        ['Rating', `${state.player.rating}${state.player.provisional ? '?' : ''}`],
+        ...(state.player.games
+          ? ([
+              ['Played', state.player.games.played],
+              ['Won', state.player.games.won],
+              ['Lost', state.player.games.lost],
+              ['Drawn', state.player.games.drawn],
+            ] as [string, number][])
+          : []),
+      ]
+    : [];
+
   return (
-    <div className={`chess-live${movelist ? '' : ' chess-live--no-moves'}`}>
+    <div className={`chess-live${card ? ' chess-live--card' : ''}`}>
       <div className="chess-main">
-        {movelist && (
+        {!card && (
           <div className="chess-moves-col">
             {open && openOptions.length > 0 && (
               /* The moves, one slim column beside the board (docs/ui-conventions.md, "The chess feed", item 4). */
@@ -795,30 +810,28 @@ export function ChessLive({
             {line.text}
             {line.clock !== undefined && <span className="chess-clock">{line.clock}</span>}
           </p>
-        </div>
-        <div className="chess-stats-col">
-          {state?.player && (
-            <section role="region" aria-label="Player statistics">
-              <dl className="chess-stats">
-                {[
-                  ['Rating', `${state.player.rating}${state.player.provisional ? '?' : ''}`],
-                  ...(state.player.games
-                    ? [
-                        ['Played', state.player.games.played],
-                        ['Won', state.player.games.won],
-                        ['Lost', state.player.games.lost],
-                        ['Drawn', state.player.games.drawn],
-                      ]
-                    : []),
-                ].map(([label, value]) => (
-                  <div className="chess-stat" key={label}>
-                    <dt>{label}</dt> <dd>{value}</dd>{' '}
-                  </div>
-                ))}
-              </dl>
-            </section>
+          {card && state?.player && (
+            /* The card form's record: one muted line under the next move (docs/ui-conventions.md, "The chess feed"). */
+            <p className="chess-stats chess-stats--line">
+              {record.map(([label, value]) => `${label} ${value}`).join(' · ')}
+            </p>
           )}
         </div>
+        {!card && (
+          <div className="chess-stats-col">
+            {state?.player && (
+              <section role="region" aria-label="Player statistics">
+                <dl className="chess-stats">
+                  {record.map(([label, value]) => (
+                    <div className="chess-stat" key={label}>
+                      <dt>{label}</dt> <dd>{value}</dd>{' '}
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            )}
+          </div>
+        )}
       </div>
       {showReplay && (
         <div className="snake-replay chess-replay" role="group" aria-label="Replay">

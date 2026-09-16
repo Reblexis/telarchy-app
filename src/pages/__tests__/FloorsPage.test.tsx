@@ -32,8 +32,8 @@ vi.mock('../../components/live/SnakeLive', () => ({
   ),
 }));
 vi.mock('../../components/live/ChessLive', () => ({
-  ChessLive: ({ slug, replay, movelist }: { slug: string; replay?: boolean; movelist?: boolean }) => (
-    <div data-testid="chess-live" data-slug={slug} data-replay={String(replay)} data-movelist={String(movelist)} />
+  ChessLive: ({ slug, replay, card }: { slug: string; replay?: boolean; card?: boolean }) => (
+    <div data-testid="chess-live" data-slug={slug} data-replay={String(replay)} data-card={String(card)} />
   ),
 }));
 
@@ -941,7 +941,7 @@ describe('THE MOST TRADED FLOOR IS FEATURED ABOVE THE BOARD', () => {
     expect(within(card).queryByTestId('snake-live')).toBeNull();
   });
 
-  test('the chess card squeezed three columns into the slot (2026-09-16): the card draws the chess board without its moves column, the deciding now block is that list', async () => {
+  test('the chess card squeezed three columns into the slot (2026-09-16): the card draws the chess board in its card form, the deciding now block is the move list', async () => {
     const chessRow = { ...snakeRow, workspaceId: 'ws-chess', slug: 'chess', name: 'Chess' };
     withRows(
       [
@@ -953,7 +953,7 @@ describe('THE MOST TRADED FLOOR IS FEATURED ABOVE THE BOARD', () => {
     renderPage();
     const card = await screen.findByRole('region', { name: /most traded now/i });
     const live = await within(card).findByTestId('chess-live');
-    expect(live).toHaveAttribute('data-movelist', 'false');
+    expect(live).toHaveAttribute('data-card', 'true');
   });
 
   test('a snake feed draws the snake board and never the chess board', async () => {

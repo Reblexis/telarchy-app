@@ -2765,11 +2765,12 @@ going trough the proposal the official way"):
 The live view has three columns: moves on the left, a centered board,
 and player statistics on the right. The two side columns have equal width,
 so neither missing moves nor missing stats shifts the board. A host that
-lists the moves itself (the home page's featured card, whose deciding now
-block is the move list) asks for the view without the moves column
-(`movelist={false}`, `.chess-live--no-moves`): the board and the stats
-alone, in two columns, the board first and at its full width, and the
-narrow layouts below keep working without the moves area. The board is
+lists the moves itself and sets the height (the home page's featured card,
+whose deciding now block is the move list) asks for the **card form**
+(`card`, `.chess-live--card`): no moves column, the board a square that
+fills the height the host gives it, the next-move line under the board and
+the player's record as one muted mono line under that ("Rating 1720 ·
+Played 12 · Won 3 · Lost 8 · Drawn 1"). The board is
 at most 520px wide, with its next-move line below it and replay below the
 whole view. Stats are a labeled list of rating and game counts.
 Below 660px of available live-view width, the board is centered above the
@@ -3233,11 +3234,19 @@ floor's live board when the floor has a live feed: the board its feed's
 chess board for `chess`), without the replay row, and it looks as it does
 on the floor: the card gives a live board the width of the floor's live slot
 (45rem), and the board sits at the top of the card rather than floating in
-its middle. The chess board on the card is drawn **without its moves
-column**: the deciding now block beside it is that list (the six highest
-priced moves and "+N more"), so the card never shows the moves twice, and
-the board and the player's record share the slot in two columns, the board
-at its full width. A kind this build cannot
+its middle. The chess board on the card is drawn in the chess feed's **card
+form** (`card`, `.chess-live--card`): without its moves column, because the
+deciding now block beside it is that list (the six highest priced moves and
+"+N more"), so the card never shows the moves twice; with the player's
+record as one muted line under the next-move line rather than a column; and
+**as tall as the text column**, so the two halves of the card always end on
+the same line whatever the number of options beside it (Viktor 2026-09-16:
+"due to many potential proposals the right side is taller by a lot.. make
+sure its same height somehow"). The text column sets the card's height; the
+board is a square of whatever is left above the next-move line, never
+wider than the slot, so a proposal with more options gives a bigger board,
+and a card with two options still gets a board at least 26rem tall. At
+phone width the card stacks and the board is as wide as the card. A kind this build cannot
 draw shows the hero market's spark instead, as a floor without a feed does;
 the card never draws one kind's board over another kind's feed, and a
 snake board handed a feed with no snake draws an empty grid rather than
