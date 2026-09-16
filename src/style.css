@@ -12721,6 +12721,7 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
    the board as wide as the card. */
 .chess-live--card .chess-main {
   display: flex;
+  align-items: stretch;
   flex: 1 1 auto;
   min-height: 0;
 }
