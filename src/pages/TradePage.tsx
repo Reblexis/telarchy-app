@@ -2170,7 +2170,9 @@ export function TradePage() {
                           {/* A date is no use when the answer is due this
                             afternoon: under a day this counts down, red
                             inside the last hour (whenOf). */}
-                          decides {whenOf(selectedJob.decideBy)}
+                          {Date.parse(selectedJob.decideBy) <= Date.now()
+                            ? 'Decision overdue'
+                            : `decides ${whenOf(selectedJob.decideBy)}`}
                         </span>
                       )
                     )}
@@ -3095,7 +3097,9 @@ export function TradePage() {
                                   className={`pubws-ownerbar-note${deadlineUrgent ? ' is-urgent' : ''}`}
                                   title={`Deadline ${instantOf(selectedJob.decideBy)}`}
                                 >
-                                  declines itself {whenOf(selectedJob.decideBy)}
+                                  {Date.parse(selectedJob.decideBy) <= Date.now()
+                                    ? 'Decision overdue'
+                                    : `declines itself ${whenOf(selectedJob.decideBy)}`}
                                 </span>
                               )}
                             </>

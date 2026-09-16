@@ -100,3 +100,18 @@ describe('the row clock under an hour', () => {
     expect(meta).not.toContain('UTC');
   });
 });
+
+test('an old move says overdue instead of decides now while its status remains pending', () => {
+  const { container } = board([
+    proposal(new Date(NOW - 2 * 86400_000).toISOString(), { number: 469, title: 'Game 45, move 7' }),
+  ]);
+  expect(container.querySelector('.pubws-ballot-clock')?.textContent).toBe('overdue');
+});
+
+test('a pending countdown becomes overdue at the deadline without inventing a decision', () => {
+  const { container } = board([proposal(new Date(NOW + 1000).toISOString())]);
+  act(() => {
+    vi.advanceTimersByTime(1000);
+  });
+  expect(container.querySelector('.pubws-ballot-clock')?.textContent).toBe('overdue');
+});

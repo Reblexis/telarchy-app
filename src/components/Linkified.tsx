@@ -7,6 +7,24 @@ import type { ReactNode } from 'react';
  * when the address opened one. Line breaks are the caller's (white-space).
  */
 export function linkify(text: string): ReactNode[] {
+  // Named HTTP links keep documentation doors short without interpreting HTML.
+  const named = /\[([^\]\n]+)\]\((https?:\/\/[^\s<>"()]+)\)/g;
+  const out: ReactNode[] = [];
+  let start = 0;
+  for (const match of text.matchAll(named)) {
+    out.push(<span key={`text-${match.index}`}>{linkifyUrls(text.slice(start, match.index))}</span>);
+    out.push(
+      <a key={`link-${match.index}`} href={match[2]} target="_blank" rel="noreferrer">
+        {match[1]}
+      </a>,
+    );
+    start = match.index! + match[0].length;
+  }
+  out.push(<span key="rest">{linkifyUrls(text.slice(start))}</span>);
+  return out;
+}
+
+function linkifyUrls(text: string): ReactNode[] {
   return text.split(/(https?:\/\/[^\s<>"]+)/g).map((part, i) => {
     if (!/^https?:\/\//.test(part)) return <span key={i}>{part}</span>;
     let url = part;
