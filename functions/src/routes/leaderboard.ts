@@ -3,7 +3,13 @@ import { Router } from 'express';
 import { db } from '../db/client';
 import { agents, authUser, prizeSeasons, recordLinks, seasonEntries, workspaces } from '../db/schema';
 import { afterCommit } from '../lib/after-commit';
-import { loadBoard, loadSeasonMarked, loadSeasonSettled } from '../lib/board';
+import {
+  loadBoard,
+  loadOwnerOf,
+  loadSeasonMarkedSplit,
+  loadSeasonSettledSplit,
+  type SeasonScoreSplit,
+} from '../lib/board';
 import { onPricesChanged } from '../lib/market-events';
 import {
   botIds,
@@ -150,8 +156,13 @@ const settledCache = ttlCache({
   // written anywhere is on the board by the next poll (owner report
   // 2026-08-21, leaderboard-freshness.test.ts).
   serveStale: false,
-  keyOf: (seasonId: string, _workspaceIds: string[], _from: Date, _to: Date) => seasonId,
-  load: (_seasonId: string, workspaceIds: string[], from: Date, to: Date) => loadSeasonSettled(workspaceIds, from, to),
+  // Keyed by the season AND the scope: the standings scoped to one floor
+  // are a different number (that floor's trading, no transfers) and must
+  // never be served as the score.
+  keyOf: (seasonId: string, workspaceIds: string[], _from: Date, _to: Date, scoped: boolean) =>
+    scoped ? `${seasonId}|${[...workspaceIds].sort().join(',')}` : seasonId,
+  load: (_seasonId: string, workspaceIds: string[], from: Date, to: Date, scoped: boolean) =>
+    loadSeasonSettledSplit(workspaceIds, from, to, { transfers: !scoped }),
 });
 
 /**
@@ -166,8 +177,10 @@ const markedCache = ttlCache({
   // written anywhere is on the board by the next poll (owner report
   // 2026-08-21, leaderboard-freshness.test.ts).
   serveStale: false,
-  keyOf: (seasonId: string, _workspaceIds: string[], _from: Date, _to: Date) => seasonId,
-  load: (_seasonId: string, workspaceIds: string[], from: Date, to: Date) => loadSeasonMarked(workspaceIds, from, to),
+  keyOf: (seasonId: string, workspaceIds: string[], _from: Date, _to: Date, scoped: boolean) =>
+    scoped ? `${seasonId}|${[...workspaceIds].sort().join(',')}` : seasonId,
+  load: (_seasonId: string, workspaceIds: string[], from: Date, to: Date, scoped: boolean) =>
+    loadSeasonMarkedSplit(workspaceIds, from, to, { transfers: !scoped }),
 });
 
 /** The mark reads to the season's END, not to now: a market resolving next
@@ -179,8 +192,9 @@ function cachedSeasonMarked(
   workspaceIds: string[],
   startsAt: Date,
   endsAt: Date,
-): Promise<Map<string, number>> {
-  return markedCache.get(seasonId, workspaceIds, startsAt, endsAt);
+  scoped = false,
+): Promise<SeasonScoreSplit> {
+  return markedCache.get(seasonId, workspaceIds, startsAt, endsAt, scoped);
 }
 
 /** The season's settled-scoring window as standings read it live: from the
@@ -191,9 +205,36 @@ function cachedSeasonSettled(
   workspaceIds: string[],
   startsAt: Date,
   endsAt: Date,
-): Promise<Map<string, number>> {
+  scoped = false,
+): Promise<SeasonScoreSplit> {
   const to = new Date(Math.min(Date.now(), endsAt.getTime()));
-  return settledCache.get(seasonId, workspaceIds, startsAt, to);
+  return settledCache.get(seasonId, workspaceIds, startsAt, to, scoped);
+}
+
+/**
+ * The pool pays once per person (docs/seasons.md, "Your score includes the
+ * accounts you own"): an entrant whose owner, or owner's owner, is also an
+ * entrant is paid through that entrant. Nearest entered ancestor wins; a
+ * cycle in the ownership record stops the climb.
+ */
+export function paidViaOf(entrantIds: Iterable<string>, ownerOf: Map<string, string>): Map<string, string | null> {
+  const entrants = new Set(entrantIds);
+  const out = new Map<string, string | null>();
+  for (const id of entrants) {
+    let via: string | null = null;
+    const seen = new Set<string>([id]);
+    let cur = ownerOf.get(id);
+    while (cur && !seen.has(cur)) {
+      if (entrants.has(cur)) {
+        via = cur;
+        break;
+      }
+      seen.add(cur);
+      cur = ownerOf.get(cur);
+    }
+    out.set(id, via);
+  }
+  return out;
 }
 
 /** Nickname, avatar and Manifold handle for a set of agents. Pure presentation;
@@ -246,13 +287,6 @@ leaderboardRouter.get(
       return Math.min(raw, 500);
     })();
 
-    const seasonId = typeof req.query.seasonId === 'string' ? req.query.seasonId.trim() : '';
-    if (seasonId) {
-      const out = await seasonStandingsPayload(seasonId, limit);
-      res.status(out.status).json(out.body);
-      return;
-    }
-
     // Optional scope: one public workspace, by id or slug. The floor's own
     // rail asks for this (owner report 2026-08-15: "why are the contractors
     // per workspace and traders globally sorted? it should all be per
@@ -264,6 +298,13 @@ leaderboardRouter.get(
         : typeof req.query.workspace === 'string'
           ? req.query.workspace.trim()
           : '';
+
+    const seasonId = typeof req.query.seasonId === 'string' ? req.query.seasonId.trim() : '';
+    if (seasonId) {
+      const out = await seasonStandingsPayload(seasonId, limit, scope || undefined);
+      res.status(out.status).json(out.body);
+      return;
+    }
 
     const publicWs = await db
       .select({ id: workspaces.id, slug: workspaces.slug })
@@ -300,6 +341,11 @@ leaderboardRouter.get(
         totalEarnings: board.profitById.get(id) ?? 0,
         settledEarnings: board.breakdownById.get(id)?.settled ?? 0,
         openEarnings: board.breakdownById.get(id)?.open ?? 0,
+        // The household fold made visible (docs/seasons.md, "Your score
+        // includes the accounts you own"): this account alone, and how
+        // many owned accounts the row folds in.
+        ownEarnings: board.ownProfitById.get(id) ?? 0,
+        botsCounted: board.householdById.get(id)?.length ?? 0,
         resolvedMarkets: quality?.resolvedMarkets ?? 0,
         totalTrades: activity?.totalTrades ?? 0,
         lastTradeAt: activity?.lastTradeAt ?? null,
@@ -383,7 +429,7 @@ async function currentSeasonPrizes(): Promise<{
   // prize column and seasonStandings must flip together, which they do by
   // both asking the same function.
   const settled = settledScoringActive()
-    ? await cachedSeasonSettled(season.id, publicIds, new Date(season.startsAt), new Date(season.endsAt))
+    ? (await cachedSeasonSettled(season.id, publicIds, new Date(season.startsAt), new Date(season.endsAt))).byId
     : null;
   const board = settled ? null : await cachedBoard(publicIds);
 
@@ -391,6 +437,7 @@ async function currentSeasonPrizes(): Promise<{
   const house = await platformOperatedIds(entrantIds);
   const operators = await publicWorkspaceOperatorIds(entrantIds);
   const handles = await payoutHandlesById(entrantIds);
+  const paidVia = paidViaOf(entrantIds, await loadOwnerOf());
   const projection = settleSeason(
     entries.map(e => ({
       agentId: e.agentId,
@@ -400,6 +447,7 @@ async function currentSeasonPrizes(): Promise<{
       platformOperated: house.has(e.agentId),
       workspaceOperator: operators.has(e.agentId),
       payoutHandle: handles.get(e.agentId) ?? null,
+      paidVia: paidVia.get(e.agentId) ?? null,
     })),
     (season.ladder ?? []) as LadderRung[],
     season.poolUsd,
@@ -438,6 +486,12 @@ async function currentSeasonPrizes(): Promise<{
 export async function seasonStandingsPayload(
   seasonId: string,
   limit: number,
+  /** One public floor, by id or slug: the standings as a VIEW of that
+   *  floor (docs/ui-conventions.md, "The picker scopes the season board
+   *  too"): each entrant's trading there alone, transfers left out, the
+   *  prize columns still from the whole field. A draft or settled season
+   *  ignores it. */
+  scope?: string,
 ): Promise<{ status: number; body: unknown }> {
   const [season] = await db.select().from(prizeSeasons).where(eq(prizeSeasons.id, seasonId)).limit(1);
   // 404 rather than falling through to the global board: a typo'd season id
@@ -490,7 +544,7 @@ export async function seasonStandingsPayload(
         markedProjectedPrizeUsd: null,
         enteredAt: e.enteredAt,
       }));
-    return { status: 200, body: { season: meta, participants: rows } };
+    return { status: 200, body: { season: meta, participants: rows, scope: null } };
   }
 
   const entries = await db
@@ -498,7 +552,7 @@ export async function seasonStandingsPayload(
     .from(seasonEntries)
     .where(and(eq(seasonEntries.seasonId, seasonId), eq(seasonEntries.optedIn, true)));
   if (entries.length === 0) {
-    return { status: 200, body: { season: meta, participants: [] } };
+    return { status: 200, body: { season: meta, participants: [], scope: null } };
   }
 
   const dress = await decorate(entries.map(e => e.agentId));
@@ -521,7 +575,9 @@ export async function seasonStandingsPayload(
         prizeUsd: e.prizeUsd ?? 0,
         claimState: e.prizeUsd && e.prizeUsd > 0 ? e.claimState : null,
       }));
-    return { status: 200, body: { season: meta, participants: rows } };
+    // The finals are stored and never recomputed, so a scope has nothing
+    // to show: the section says it is showing the final standings.
+    return { status: 200, body: { season: meta, participants: rows, scope: null } };
   }
 
   // Running: live board over every workspace that is public RIGHT NOW, not
@@ -532,33 +588,62 @@ export async function seasonStandingsPayload(
   // stops contributing simply because it is no longer public, and
   // workspacesDropped still reports that.
   const pinned = (season.workspaceIds ?? []) as string[];
-  const publicNow = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.visibility, 'public'));
+  const publicNow = await db
+    .select({ id: workspaces.id, name: workspaces.name, slug: workspaces.slug })
+    .from(workspaces)
+    .where(eq(workspaces.visibility, 'public'));
   const publicIds = new Set(publicNow.map(w => w.id));
   const scoring = publicNow.map(w => w.id);
+
+  // The scoped VIEW: one public floor, by id or slug. A scope naming no
+  // public floor answers an empty board, as the all-time board does, rather
+  // than silently widening to every floor.
+  const scopedFloor = scope
+    ? (publicNow.find(w => w.id === scope || (w.slug ?? '').toLowerCase() === scope.toLowerCase()) ?? null)
+    : null;
+  if (scope && !scopedFloor) {
+    return { status: 200, body: { season: meta, participants: [], scope: null } };
+  }
+  const viewIds = scopedFloor ? [scopedFloor.id] : scoring;
+  const scoped = !!scopedFloor;
 
   // The scoring key (rules amended 2026-08-28): SETTLED profit over the
   // season window from the effective instant, the previous marked-growth
   // rule before it. Same switch as currentSeasonPrizes, so the prize column
   // on the all-time board and these standings can never disagree.
-  const settled = settledScoringActive()
+  const settledAll = settledScoringActive()
     ? await cachedSeasonSettled(season.id, scoring, new Date(season.startsAt), new Date(season.endsAt))
     : null;
-  const board = settled ? null : await cachedBoard(scoring);
+  const settled = !settledAll
+    ? null
+    : scoped
+      ? await cachedSeasonSettled(season.id, viewIds, new Date(season.startsAt), new Date(season.endsAt), true)
+      : settledAll;
+  const board = settledAll ? null : await cachedBoard(viewIds);
   // The display column beside the score: the same arithmetic with open
   // markets that still resolve inside the season valued at their current
   // call (docs/seasons.md, "The standings show the mark beside the score").
   // Only under settled scoring, because before it the score IS a mark and a
   // second copy of the same number would be noise.
   const marked = settled
-    ? await cachedSeasonMarked(season.id, scoring, new Date(season.startsAt), new Date(season.endsAt))
+    ? await cachedSeasonMarked(season.id, viewIds, new Date(season.startsAt), new Date(season.endsAt), scoped)
     : null;
   const rows = entries.map(e => ({
     id: e.agentId,
     ...dress(e.agentId),
     score: settled
-      ? (settled.get(e.agentId) ?? 0)
+      ? (settled.byId.get(e.agentId) ?? 0)
       : seasonScore(board?.profitById.get(e.agentId) ?? 0, e.baselineProfit),
-    markedScore: marked ? (marked.get(e.agentId) ?? 0) : null,
+    // The household fold made visible (docs/seasons.md, "Your score
+    // includes the accounts you own"): this account alone, and how many
+    // owned accounts the row folds in.
+    ownScore: settled
+      ? (settled.ownById.get(e.agentId) ?? 0)
+      : seasonScore(board?.ownProfitById.get(e.agentId) ?? 0, e.baselineProfit),
+    botsCounted: settled
+      ? (settled.householdById.get(e.agentId)?.length ?? 0)
+      : (board?.householdById.get(e.agentId)?.length ?? 0),
+    markedScore: marked ? (marked.byId.get(e.agentId) ?? 0) : null,
     enteredAt: e.enteredAt,
   }));
   rows.sort((a, b) => {
@@ -578,17 +663,25 @@ export async function seasonStandingsPayload(
   const house = await platformOperatedIds(rowIds);
   const operators = await publicWorkspaceOperatorIds(rowIds);
   const handles = await payoutHandlesById(rowIds);
+  // The pool pays once per person: a bot whose owner is an entrant is paid
+  // through the owner (docs/seasons.md, "Your score includes the accounts
+  // you own").
+  const paidVia = paidViaOf(rowIds, await loadOwnerOf());
+  // The prize is decided on the WHOLE field, whatever the view shows: a
+  // scoped row keeps the prize its entrant would actually be paid.
+  const wholeScore = (r: (typeof rows)[number]) => (scoped && settledAll ? (settledAll.byId.get(r.id) ?? 0) : r.score);
   const projection = settleSeason(
     rows.map(r => ({
       agentId: r.id,
       baselineProfit: 0,
       // Scores are already computed above; settleSeason subtracts baseline
       // from current, so feeding score against a zero baseline reproduces it.
-      currentProfit: r.score,
+      currentProfit: wholeScore(r),
       enteredAt: r.enteredAt ? new Date(r.enteredAt) : new Date(0),
       platformOperated: house.has(r.id),
       workspaceOperator: operators.has(r.id),
       payoutHandle: handles.get(r.id) ?? null,
+      paidVia: paidVia.get(r.id) ?? null,
     })),
     ladder,
     season.poolUsd,
@@ -606,16 +699,20 @@ export async function seasonStandingsPayload(
   // payout might not keep. Eligibility, the payout mode and the minimum are
   // the season's own, so an entrant who cannot be paid reads a dash in both
   // columns rather than money in one of them.
+  const markedWhole = scoped
+    ? await cachedSeasonMarked(season.id, scoring, new Date(season.startsAt), new Date(season.endsAt))
+    : marked;
   const markedProjection = marked
     ? settleSeason(
         rows.map(r => ({
           agentId: r.id,
           baselineProfit: 0,
-          currentProfit: r.markedScore ?? 0,
+          currentProfit: markedWhole?.byId.get(r.id) ?? 0,
           enteredAt: r.enteredAt ? new Date(r.enteredAt) : new Date(0),
           platformOperated: house.has(r.id),
           workspaceOperator: operators.has(r.id),
           payoutHandle: handles.get(r.id) ?? null,
+          paidVia: paidVia.get(r.id) ?? null,
         })),
         ladder,
         season.poolUsd,
@@ -635,9 +732,11 @@ export async function seasonStandingsPayload(
       participants: rows.slice(0, limit).map((r, i) => ({
         ...r,
         rank: i + 1,
+        paidVia: paidVia.get(r.id) ?? null,
         projectedPrizeUsd: projectedById.get(r.id) ?? 0,
         markedProjectedPrizeUsd: marked ? (markedPrizeById.get(r.id) ?? 0) : null,
       })),
+      scope: scopedFloor ? { workspaceId: scopedFloor.id, name: scopedFloor.name, slug: scopedFloor.slug } : null,
     },
   };
 }

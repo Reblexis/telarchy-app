@@ -22,8 +22,9 @@ import { TopBar } from './TradePage';
  * boards to it. The choice lives in the URL as ?workspace=<slug>, the data
  * room's rule, so the page holds no filter the URL does not show, the back
  * button walks the choices and a link to one floor's board is shareable.
- * The season board is never scoped: a season is scored over every public
- * floor, so a scoped season standing would pay nobody.
+ * The season board is scoped too, as a VIEW: a chosen floor shows each
+ * entrant's score on that floor alone, with the prize columns still read
+ * from the whole field, since a season is scored over every public floor.
  *
  * Since 2026-08-28 the boards are TABLES with labeled columns
  * (components/LeaderTables.tsx, owner ask: "more like a table showing the
@@ -57,6 +58,10 @@ export function LeaderPage() {
   // the all-time board while the season runs and after it settles. Null
   // until a fetch answers; a draft season has no scores to show.
   const [seasonBoard, setSeasonBoard] = useState<SeasonStanding[] | null>(null);
+  /** The floor the season section is a view of, as the API named it; null
+   *  for the whole field (docs/ui-conventions.md, "The picker scopes the
+   *  season board too"). */
+  const [seasonScope, setSeasonScope] = useState<{ workspaceId: string; name: string } | null>(null);
   const clock = useSeasonClock(season);
   const meId = useMyParticipantId(!!user);
   const [entered, setEntered] = useState(false);
@@ -82,10 +87,14 @@ export function LeaderPage() {
           setSeason(s);
           // Scores exist once the season runs; a draft has only entries.
           if (s && s.status !== 'draft') {
+            // The picker scopes the season board too, as a view of one
+            // floor; the prize columns keep reading the whole field.
             api
-              .getSeasonStandings(s.id, 100)
+              .getSeasonStandings(s.id, 100, scope || undefined)
               .then(b => {
-                if (!cancelled) setSeasonBoard(b.participants ?? []);
+                if (cancelled) return;
+                setSeasonBoard(b.participants ?? []);
+                setSeasonScope(b.scope ? { workspaceId: b.scope.workspaceId, name: b.scope.name } : null);
               })
               .catch(e => console.error('season standings fetch failed:', e));
           }
@@ -237,6 +246,13 @@ export function LeaderPage() {
           <section className="lbp-section" aria-label="Season standings">
             <h2 className="pubws-h2">{season.name} standings</h2>
             <p className="lbp-note">
+              {seasonScope && season.status !== 'settled' ? (
+                <>
+                  Scored on <strong>{seasonScope.name}</strong> alone: settled trading profit there inside the season,
+                  transfers left out. <strong>Prizes are decided on every floor</strong>, and the dollar columns say
+                  what each entrant would actually be paid.{' '}
+                </>
+              ) : null}
               {season.payoutMode === 'proportional' ? (
                 <>
                   The <strong>${season.poolUsd.toLocaleString()} pool</strong>, split in proportion to positive{' '}
