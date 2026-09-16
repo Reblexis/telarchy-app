@@ -43,7 +43,7 @@ beforeEach(() => {
 });
 const ACCESS_PHRASE = {
   read: 'research only, no trades',
-  trade: 'read and trade in that workspace only',
+  trade: 'read and trade where my key permits',
   manage: 'read, trade and manage',
   full: 'full access to this identity',
 } as const;
@@ -61,7 +61,9 @@ for (const identity of ['bot', 'me'] as const)
     test(`THE PROMPT ONLY POINTS AT THE SETUP GUIDE AND NAMES THIS SETUP: ${identity}/${access}`, () => {
       const text = builderPrompt('https://example.test/beta', { ...opts, identity, access });
       expect(text).toContain('https://example.test/beta/guides/build-agent');
-      expect(text).toContain('"ws-one"');
+      expect(text).not.toContain('ws-one');
+      expect(text).not.toContain('Workspace:');
+      expect(text.split('\n')).toHaveLength(1);
       expect(text).toContain(identity === 'bot' ? 'separate bot' : 'my own account');
       expect(text).toContain(ACCESS_PHRASE[access]);
       for (const rule of GUIDE_RULES) expect(text).not.toContain(rule);
@@ -83,7 +85,8 @@ test("A PERSONAL KEY'S PROMPT NEVER CALLS THE ACCOUNT A BOT", () => {
 });
 test('NO WORKSPACE REQUIRED TO START WITH A PROMPT', () => {
   const text = builderPrompt('https://example.test', defaults);
-  expect(text).toContain('choose a public workspace');
+  expect(text).not.toContain('Workspace:');
+  expect(text).toBe(builderPrompt('https://example.test', { ...defaults, workspace: 'ignored' }));
   expect(text).not.toContain('""');
 });
 test('STORAGE IS AN ALLOWLIST, NEVER A KEY STORE', () => {

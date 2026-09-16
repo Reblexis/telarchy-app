@@ -50,17 +50,11 @@ export function builderPrompt(base: string, o: BuilderOptions, connectedAgentId?
       : 'my own account, not a new participant';
   const access = {
     read: 'research only, no trades and no changes',
-    trade: 'read and trade in that workspace only',
+    trade: 'read and trade where my key permits',
     manage: 'read, trade and manage my workspaces',
     full: 'full access to this identity',
   }[o.access];
-  return [
-    `Set up a Telarchy trading agent for me by following the setup guide at ${base}/guides/build-agent.`,
-    '',
-    `- Identity: ${identity}.`,
-    `- Workspace: ${o.workspace ? JSON.stringify(o.workspace) : 'help me choose a public workspace'}.`,
-    `- Access: ${access}.`,
-  ].join('\n');
+  return `Set up a Telarchy agent using ${base}/guides/build-agent. Use ${identity}, with ${access}.`;
 }
 
 export type Access = 'read' | 'trade' | 'manage' | 'full';
