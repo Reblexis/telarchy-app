@@ -81,7 +81,10 @@ const renderPage = (entry = '/leaderboard') =>
   );
 
 const where = () => screen.getByTestId('where').textContent;
-const picker = () => screen.getByLabelText('Floor') as HTMLSelectElement;
+/** The tab row: one link per floor, the current one marked. */
+const picker = () => screen.getByRole('navigation', { name: 'Floor' });
+const tabs = () => within(picker()).getAllByRole('link');
+const current = () => tabs().find(t => t.getAttribute('aria-current') === 'page')?.textContent ?? null;
 
 // /leaderboard is the all-time global board (the season standings live on
 // /season and behind "Show full leaderboard" on a workspace floor). The season
@@ -234,12 +237,16 @@ describe('the floor picker', () => {
     mockBoard([trader({})]);
   });
 
-  test('it lists every public floor, with "Every floor" first and selected', async () => {
+  test('it lists every public floor as a tab, with "Every floor" first and current', async () => {
     renderPage();
-    await waitFor(() => expect(within(picker()).getAllByRole('option').length).toBe(3));
-    expect([...picker().options].map(o => o.textContent)).toEqual(['Every floor', 'Acme', 'Beta Co']);
-    expect([...picker().options].map(o => o.value)).toEqual(['', 'acme', 'beta']);
-    expect(picker().value).toBe('');
+    await waitFor(() => expect(tabs().length).toBe(3));
+    expect(tabs().map(t => t.textContent)).toEqual(['Every floor', 'Acme', 'Beta Co']);
+    expect(tabs().map(t => t.getAttribute('href'))).toEqual([
+      '/leaderboard',
+      '/leaderboard?workspace=acme',
+      '/leaderboard?workspace=beta',
+    ]);
+    expect(current()).toBe('Every floor');
   });
 
   test('the default is every floor: the board is asked for without a scope', async () => {
@@ -250,18 +257,21 @@ describe('the floor picker', () => {
 
   test('PICKING A FLOOR WRITES IT TO THE URL AND RESCOPES THE BOARDS', async () => {
     renderPage();
-    await waitFor(() => expect(picker().options.length).toBe(3));
-    fireEvent.change(picker(), { target: { value: 'acme' } });
+    await waitFor(() => expect(tabs().length).toBe(3));
+    fireEvent.click(tabs()[1]);
     expect(where()).toBe('?workspace=acme');
     await waitFor(() => expect(vi.mocked(api.getLeaderboard)).toHaveBeenCalledWith(200, 'acme'));
-    expect(picker().value).toBe('acme');
+    expect(current()).toBe('Acme');
+    // Every section heading names the floor, so one board alone says what it is about.
+    expect(await screen.findByText('All-time · Acme')).toBeInTheDocument();
+    expect(screen.getByText('Contractors · Acme')).toBeInTheDocument();
   });
 
   test('the query on first load selects that floor and scopes the boards to it', async () => {
     renderPage('/leaderboard?workspace=beta');
     await waitFor(() => expect(vi.mocked(api.getLeaderboard)).toHaveBeenCalledWith(200, 'beta'));
     expect(vi.mocked(api.getLeaderboard)).not.toHaveBeenCalledWith(200, undefined);
-    await waitFor(() => expect(picker().value).toBe('beta'));
+    await waitFor(() => expect(current()).toBe('Beta Co'));
     // The contractors board reads that one floor, not the union of them all.
     await waitFor(() => expect(screen.getByText('poster-beta')).toBeInTheDocument());
     expect(screen.queryByText('poster-acme')).toBeNull();
@@ -277,8 +287,8 @@ describe('the floor picker', () => {
 
   test('choosing "Every floor" again clears the query rather than leaving a stale one', async () => {
     renderPage('/leaderboard?workspace=acme');
-    await waitFor(() => expect(picker().value).toBe('acme'));
-    fireEvent.change(picker(), { target: { value: '' } });
+    await waitFor(() => expect(current()).toBe('Acme'));
+    fireEvent.click(tabs()[0]);
     expect(where()).toBe('');
     await waitFor(() => expect(vi.mocked(api.getLeaderboard)).toHaveBeenCalledWith(200, undefined));
   });
@@ -291,8 +301,8 @@ describe('the floor picker', () => {
     await waitFor(() => expect(vi.mocked(api.getLeaderboard)).toHaveBeenCalledWith(200, 'ghost'));
     expect(vi.mocked(api.getLeaderboard)).not.toHaveBeenCalledWith(200, undefined);
     expect(await screen.findByText('Nobody has traded yet.')).toBeInTheDocument();
-    // And the picker still shows what the URL says, so no filter is hidden.
-    await waitFor(() => expect(picker().value).toBe('ghost'));
+    // And the tab row still shows what the URL says, so no filter is hidden.
+    await waitFor(() => expect(current()).toBe('ghost'));
   });
 
   test('THE PICKER SCOPES THE SEASON BOARD TOO, AS A VIEW: the standings are asked for that floor', async () => {
@@ -303,10 +313,10 @@ describe('the floor picker', () => {
       scope: { workspaceId: 'ws-acme', name: 'Acme', slug: 'acme' },
     } as never);
     renderPage('/leaderboard?workspace=acme');
-    expect(await screen.findByText('Season 0 standings')).toBeInTheDocument();
+    expect(await screen.findByText('Season 0 standings · Acme')).toBeInTheDocument();
     expect(vi.mocked(api.getSeasonStandings)).toHaveBeenCalledWith('s0', 100, 'acme');
     // The section says what it is showing and that the prize is not decided here.
-    const note = screen.getByText('Season 0 standings').nextElementSibling as HTMLElement;
+    const note = screen.getByText('Season 0 standings · Acme').nextElementSibling as HTMLElement;
     expect(note.textContent).toContain('Scored on Acme');
     expect(note.textContent).toContain('Prizes are decided on every floor');
   });

@@ -7504,38 +7504,34 @@ textarea.jobform-line--desc {
 }
 
 /* Which floor the boards are about (docs/ui-conventions.md, "The
-   leaderboard (/leaderboard)"): one control, set left above the boards, in
-   the mono label voice the rest of the site uses for a filter. */
+   leaderboard (/leaderboard)"): one row of tabs in the data room's tab
+   language, on its own hairline above all three boards, because it governs
+   all three. Scrolls sideways rather than wrapping when the floors outgrow
+   a phone. */
 .lbp-scope {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
+  display: flex;
+  gap: 1.6rem;
   margin-bottom: clamp(1.6rem, 4vh, 2.4rem);
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--border-color);
+}
+.lbp-tab {
+  flex: none;
+  padding: 0.75rem 0 0.6rem;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.62rem;
-  text-transform: uppercase;
+  font-size: 0.66rem;
   letter-spacing: 0.1em;
-  color: var(--text-secondary);
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-decoration: none;
+  color: var(--text-tertiary);
 }
-.lbp-scope-select {
-  font: inherit;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
-  text-transform: none;
-  letter-spacing: 0;
-  padding: 0.28rem 1.6rem 0.28rem 0.6rem;
-  border: 1px solid var(--border-color);
-  border-radius: 999px;
-  background: transparent
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23888' stroke-width='1.5'/%3E%3C/svg%3E")
-    no-repeat right 0.6rem center;
-  color: var(--text-primary);
-  appearance: none;
-  cursor: pointer;
-}
-.lbp-scope-select:hover { border-color: var(--text-tertiary); }
-.lbp-scope-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.lbp-scope-select option { background: var(--bg-secondary); color: var(--text-primary); }
+.lbp-tab:hover { color: var(--text-primary); }
+.lbp-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lbp-tab.is-current { color: var(--text-primary); border-bottom-color: var(--accent); }
 
 .lbp-section { margin-bottom: 3rem; }
 

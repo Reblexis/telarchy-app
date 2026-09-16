@@ -43,7 +43,7 @@ const addressOf = (w: PublicFloor) => w.slug || w.workspaceId;
 
 export function LeaderPage() {
   const { user, loading: authLoading } = useAuth();
-  const [search, setSearch] = useSearchParams();
+  const [search] = useSearchParams();
   // The one filter on this page, and it lives in the URL.
   const scope = search.get('workspace') ?? '';
   const [floors, setFloors] = useState<PublicFloor[] | null>(null);
@@ -188,13 +188,9 @@ export function LeaderPage() {
   // typo) still shows in the picker: the page may hold no filter the URL
   // does not show, and the boards are already answering that query.
   const unlisted = scope && floors !== null && !floors.some(w => addressOf(w) === scope) ? scope : null;
-
-  const pick = (value: string) => {
-    const next = new URLSearchParams(search);
-    if (value) next.set('workspace', value);
-    else next.delete('workspace');
-    setSearch(next);
-  };
+  /** The chosen floor's name for the section headings; the query's own
+   *  word when the list does not carry it. */
+  const floorName = scope ? (floors?.find(w => addressOf(w) === scope)?.name ?? scope) : null;
 
   return (
     <div className="pubws">
@@ -206,21 +202,42 @@ export function LeaderPage() {
           open positions included.
         </p>
 
-        {/* Which floor these boards are about. One control, and its value is
-            the URL's (docs/ui-conventions.md, "The leaderboard
-            (/leaderboard)"). */}
-        <label className="lbp-scope">
-          <span className="lbp-scope-label">Floor</span>
-          <select className="lbp-scope-select" value={scope} onChange={e => pick(e.target.value)}>
-            <option value="">Every floor</option>
-            {(floors ?? []).map(w => (
-              <option key={w.workspaceId} value={addressOf(w)}>
+        {/* Which floor these boards are about: one row of tabs, and its
+            current tab is the URL's (docs/ui-conventions.md, "The
+            leaderboard (/leaderboard)"). It stands on its own rule above
+            all three boards because it governs all three. */}
+        <nav className="lbp-scope" aria-label="Floor">
+          <Link
+            className={`lbp-tab${scope ? '' : ' is-current'}`}
+            to="/leaderboard"
+            aria-current={scope ? undefined : 'page'}
+          >
+            Every floor
+          </Link>
+          {(floors ?? []).map(w => {
+            const address = addressOf(w);
+            const on = scope === address;
+            return (
+              <Link
+                key={w.workspaceId}
+                className={`lbp-tab${on ? ' is-current' : ''}`}
+                to={`/leaderboard?workspace=${encodeURIComponent(address)}`}
+                aria-current={on ? 'page' : undefined}
+              >
                 {w.name}
-              </option>
-            ))}
-            {unlisted && <option value={unlisted}>{unlisted}</option>}
-          </select>
-        </label>
+              </Link>
+            );
+          })}
+          {unlisted && (
+            <Link
+              className="lbp-tab is-current"
+              to={`/leaderboard?workspace=${encodeURIComponent(unlisted)}`}
+              aria-current="page"
+            >
+              {unlisted}
+            </Link>
+          )}
+        </nav>
 
         {/* One line and a link. The pool, the rules and the entry flow live on
             /season (owner direction 2026-08-19); this page is the boards, and
@@ -244,7 +261,9 @@ export function LeaderPage() {
             which is what the reverted season-mode tried. */}
         {seasonLive && seasonBoard && seasonBoard.length > 0 && (
           <section className="lbp-section" aria-label="Season standings">
-            <h2 className="pubws-h2">{season.name} standings</h2>
+            <h2 className="pubws-h2">
+              {season.name} standings{seasonScope && season.status !== 'settled' ? ` · ${seasonScope.name}` : ''}
+            </h2>
             <p className="lbp-note">
               {seasonScope && season.status !== 'settled' ? (
                 <>
@@ -278,7 +297,7 @@ export function LeaderPage() {
         )}
 
         <section className="lbp-section" aria-label="Traders">
-          <h2 className="pubws-h2">All-time</h2>
+          <h2 className="pubws-h2">All-time{floorName ? ` · ${floorName}` : ''}</h2>
           <p className="lbp-note">
             Every trader, ranked on <strong>total profit</strong>: settled bets plus what open positions are worth now.
           </p>
@@ -294,7 +313,7 @@ export function LeaderPage() {
         </section>
 
         <section className="lbp-section" aria-label="Contractors">
-          <h2 className="pubws-h2">Contractors</h2>
+          <h2 className="pubws-h2">Contractors{floorName ? ` · ${floorName}` : ''}</h2>
           <p className="lbp-note">What each poster's live proposals are worth: approving minus declining, summed.</p>
           {contractors === null ? null : contractors.length === 0 ? (
             <p className="lbp-empty">

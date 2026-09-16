@@ -3134,16 +3134,22 @@ after it settles, then All-time, then Contractors. The floor shows ten
 traders and nothing else; this page is where the whole field, the split
 between settled and open, and the people posting proposals are read.
 
-**One picker says which floor.** Above the boards sits a single select
-(`.lbp-scope`) listing every public floor by name, with "Every floor" as
-its first and default option. Choosing a floor scopes the all-time board
-and the contractors board to it: the traders board passes
-`?workspaceId=<slug>` to `/api/leaderboard`, and the contractors board
-reads that one floor's marketplace payload instead of the union of them
-all. The floor list is the public marketplace list
-(`GET /api/marketplace/workspaces/public`), the same list the page already
-reads for the contractors, so there is no second vocabulary of floors to
-keep in step.
+**One row of tabs says which floor.** Above the boards sits a tab row
+(`.lbp-scope`, the data room's tab language: mono caps on a hairline, the
+current one underlined in the accent) listing "Every floor" first and
+then every public floor by name; it is the one control on the page and
+it governs all three boards below it, which is why it stands on its own
+rule above them rather than beside a label. Choosing a floor scopes the
+season board (as a view, below), the all-time board and the contractors
+board to it: the traders board passes `?workspaceId=<slug>` to
+`/api/leaderboard`, and the contractors board reads that one floor's
+marketplace payload instead of the union of them all. Each section
+heading then names the floor ("All-time · Snake"), so a screenshot of one
+board says what it is about without the tab row. The floor list is the
+public marketplace list (`GET /api/marketplace/workspaces/public`), the
+same list the page already reads for the contractors, so there is no
+second vocabulary of floors to keep in step. The row scrolls sideways
+rather than wrapping when the floors outgrow a phone.
 
 **The picker scopes the season board too, as a view.** A season is a
 platform-wide contest scored over every public floor, and the prize is
@@ -3172,7 +3178,8 @@ no filter the URL does not show (the data room's rule). So the back button
 walks the choices, a link to one floor's board is shareable, and the first
 load reads the query rather than defaulting to everything. A query naming
 a floor that is not public answers the way the API does, with an empty
-board, never by widening back to every floor.
+board, never by widening back to every floor; the tab row still shows
+that name as the current tab, so no filter is hidden.
 
 **The page polls on the floor's own fifteen-second cadence** while the tab
 is visible and refreshes on tab return. Changing the picker refetches at
