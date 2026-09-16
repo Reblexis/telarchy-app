@@ -87,6 +87,32 @@ post-season positions: vire 11,244, Quroe 6,798, the-big-boss 6,566, an-on
 5,250, jack 4,394, philipp-gl 4,308), which the Season 0 amendment clause
 does not allow mid-season.
 
+**E. A season wallet: burn credits to enter, score the wallet (owner
+idea, 2026-09-16, verbatim: "you would have ot put credits you own into a
+pool and they would get burned .. but cnosidered into the seaason.." and
+"notr eal money").** Entering means moving X of your own credits into a
+season wallet; the stake leaves your balance for good. While the season
+runs, an entrant's trades on scored markets pay from and into that wallet.
+Score = wallet at the end minus X. Nothing but trading can move the wallet:
+no transfers, rewards or pool funding in or out. So every agreement-based
+leg is closed, the transfer pump is closed (nothing can be sent INTO a
+wallet), and the far-dated-book leg is closed too, because cash spent on
+any book has left the wallet whether or not the book resolves (this is D's
+cash accounting, walled). No real money, so the legal position is exactly
+today's (`notes/paid-pool-season-2026-09-01.md` stays true).
+
+Costs: a second purse per entrant per season in the trade path (the trade,
+payout, void and limit-order paths pick the purse; positions bought from
+the wallet and still open at the end are worth zero to the season and
+their later payouts go to the main balance, or to next season's wallet if
+carried). A position still open at the end counts as the cash it took,
+so long-horizon trades during a season lose in that season. Entry costs
+credits, which are free, so it is not a barrier but it stops zero-effort
+entries. Residual: a second account can still lose its grant credits to
+your wallet by trading, bounded by those grants and legible in the ledger,
+the same residual as every option. Season 1 only: it changes what is
+scored, so it cannot start mid-season.
+
 ## Recommendation
 
 C now, with B for cross-household flows, announced on the season page and
@@ -94,8 +120,8 @@ applied to the whole window like the 2026-08-28 amendment. It closes the
 reported loop for the case that actually exists (a human and their bot),
 changes no honest entrant's score, and adds no pump.
 
-D for Season 1, decided before it starts (rules freeze at the start
-instant). The far-dated-book leg is the residual under C: two accounts, a
+E for Season 1, decided before it starts (rules freeze at the start
+instant); it is D with a wall around it, and closes the pump D leaves open. The far-dated-book leg is the residual under C: two accounts, a
 2027 book, and a growing worthless position on A, visible to anyone who
 pairs counterparties, but with no mechanical brake.
 
