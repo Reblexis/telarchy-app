@@ -140,3 +140,40 @@ describe('the pool pays once per person (settleSeason paidVia)', () => {
     expect(byId.get('bot')?.eligible).toBe(true);
   });
 });
+
+describe('the pool goes to the nearest ancestor in the season (owner, 2026-09-16)', () => {
+  // "if there is an ancestor in the hierarchy that is registered in season
+  // as well then the pool goes towards them"
+  const { paidViaOf } = require('../routes/leaderboard') as typeof import('../routes/leaderboard');
+  const ownerOf = new Map([
+    ['subbot', 'bot'],
+    ['bot', 'owner'],
+  ]);
+
+  test('a sub-bot whose bot did not enter is paid through the owner, a generation up', () => {
+    expect(paidViaOf(['subbot', 'owner'], ownerOf).get('subbot')).toBe('owner');
+  });
+
+  test('the nearest entered ancestor wins when both entered', () => {
+    const via = paidViaOf(['subbot', 'bot', 'owner'], ownerOf);
+    expect(via.get('subbot')).toBe('bot');
+    expect(via.get('bot')).toBe('owner');
+    expect(via.get('owner')).toBeNull();
+  });
+
+  test('no entered ancestor: paid on its own score', () => {
+    expect(paidViaOf(['subbot'], ownerOf).get('subbot')).toBeNull();
+  });
+
+  test('a cycle in the ownership record stops the climb', () => {
+    expect(
+      paidViaOf(
+        ['a'],
+        new Map([
+          ['a', 'b'],
+          ['b', 'a'],
+        ]),
+      ).get('a'),
+    ).toBeNull();
+  });
+});

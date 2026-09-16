@@ -519,3 +519,8 @@ scoping the season standings as a view (that floor's trading, transfers
 left out, prizes from the whole field); the picker as a tab row with the
 floor named in every section heading. Rule text in docs/seasons.md,
 docs/ui-conventions.md, docs/legal/season-0-rules.md.
+
+**Confirmed 2026-09-16 (Viktor, verbatim):** "ofc. if there is an ancestor
+in the hierarchy that is registered i n season as well then the pool goes
+towards them". The pay-once-per-person rule stands as built: the prize
+climbs to the nearest ancestor who entered (`paidViaOf`).
