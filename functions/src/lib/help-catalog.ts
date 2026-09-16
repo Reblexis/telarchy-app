@@ -1335,14 +1335,14 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/admin/outreach/prospects',
       auth: 'admin',
       description:
-        'Every person the owner has decided to write to himself, in position order, with the current message, the argument about it, the status and what came back (platform admin; docs/outreach-workbench.md). Each row carries { link } (where the person reads: an X, Bluesky, LinkedIn or HN profile, a mailto with the message prefilled) and { logLine }, the one-line record shape promised on the proposal it was announced on. Also { summary } (sent, answered; below ten sent an honest note, from ten a reply rate by segment and channel and for each of three features: under 75 words, names a number, names their decision) and { draftingConfigured }. Nothing here sends anything.',
+        'Every person the owner has decided to write to himself, in position order, with the current message, the argument about it, the status and what came back (platform admin; docs/outreach-workbench.md). Each row carries { link } (where the person reads: an X, Bluesky, LinkedIn or HN profile, a mailto with the message prefilled) and { logLine }, the one-line record shape promised on the proposal it was announced on, and { thread }, the messages after the first, oldest first. Each row also carries { variant, reasoning, source }. Also { summary } (sent, answered; below ten sent an honest note, from ten a reply rate by segment, channel and variant and for each of three features: under 75 words, names a number, names their decision) and { draftingConfigured }. Nothing here sends anything.',
     },
     {
       method: 'POST',
       path: '/api/admin/outreach/prospects',
       auth: 'admin',
       description:
-        "Add one prospect (platform admin). Body: { name (required), company?, segment?, channel? ('x'|'email'|'linkedin'|'bluesky'|'hn'|'discord'|'other', default other), handle?, evidence? (the verified facts a draft may quote; nothing else is a fact), message?, status?, day?, position? }. Returns { prospect }.",
+        "Add one prospect (platform admin). Body: { name (required), company?, segment?, channel? ('x'|'email'|'linkedin'|'bluesky'|'hn'|'discord'|'other', default other), handle?, evidence? (the verified facts a draft may quote; nothing else is a fact), message?, status? (never approved: a prospect cannot arrive approved), day?, position?, variant? (the angle the first message takes), reasoning? (why this person and message), source? ('owner'|'agent', default owner) }. Returns { prospect }.",
     },
     {
       method: 'POST',
@@ -1390,6 +1390,33 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/admin/outreach/lessons',
       auth: 'admin',
       description: 'Replace the lessons text (platform admin). Body: { lessons }.',
+    },
+    {
+      method: 'POST',
+      path: '/api/admin/outreach/prospects/:id/messages',
+      auth: 'admin',
+      description:
+        "Add a message to a prospect's thread (platform admin; docs/outreach-workbench.md, 'Threads'). Body: { direction: 'in'|'out', text, variant?, reasoning?, at? }. An out message is always created draft, whatever status is sent: only the owner approves. An in message is their words, status received, recorded once per text (posting the same reply again returns the existing message); the first reply moves a sent prospect to replied. Returns { message }.",
+    },
+    {
+      method: 'PATCH',
+      path: '/api/admin/outreach/messages/:id',
+      auth: 'admin',
+      description:
+        'Edit a thread message or move its status (platform admin). Body: { text?, status?, variant?, reasoning? }. Out statuses: draft, approved, sent, skipped; in: received. sent stamps sentAt once; editing the text of a sent message is refused (409). Returns { message }.',
+    },
+    {
+      method: 'GET',
+      path: '/api/admin/outreach/learnings',
+      auth: 'admin',
+      description:
+        "The overnight agent's own learnings (platform admin; docs/outreach-workbench.md, 'The overnight agent'), kept apart from the owner's lessons. Returns { learnings }.",
+    },
+    {
+      method: 'PUT',
+      path: '/api/admin/outreach/learnings',
+      auth: 'admin',
+      description: 'Replace the agent learnings text (platform admin). Body: { learnings }. Never touches the lessons.',
     },
     {
       method: 'POST',

@@ -1405,6 +1405,29 @@ export interface OutreachProspect {
   link: string;
   /** The one-line record shape promised on the contract. */
   logLine: string;
+  /** The angle the first message takes. */
+  variant?: string | null;
+  /** Why this person and why this message, in the drafter's words. */
+  reasoning?: string | null;
+  /** owner | agent */
+  source?: string;
+  /** Everything after the first message, oldest first. */
+  thread?: OutreachThreadMessage[];
+}
+
+/** A message after the first (docs/outreach-workbench.md, "Threads"). */
+export interface OutreachThreadMessage {
+  id: string;
+  prospectId: string;
+  direction: 'in' | 'out' | string;
+  text: string;
+  /** in: received; out: draft | approved | sent | skipped */
+  status: string;
+  variant: string | null;
+  reasoning: string | null;
+  at: string | null;
+  sentAt: string | null;
+  createdAt: string;
 }
 
 export interface OutreachProspectInput {
@@ -1419,6 +1442,8 @@ export interface OutreachProspectInput {
   day?: string | null;
   outcome?: string | null;
   position?: number;
+  variant?: string | null;
+  reasoning?: string | null;
 }
 
 export type OutreachSummary =
@@ -1429,6 +1454,7 @@ export type OutreachSummary =
       replied: number;
       bySegment: { key: string; sent: number; replied: number }[];
       byChannel: { key: string; sent: number; replied: number }[];
+      byVariant?: { key: string; sent: number; replied: number }[];
       features: { label: string; on: number; off: number }[];
     };
 
@@ -2016,6 +2042,17 @@ export const api = {
     request('/api/admin/outreach/lessons'),
   outreachSetLessons: (lessons: string): Promise<{ ok: true }> =>
     request('/api/admin/outreach/lessons', { method: 'PUT', body: JSON.stringify({ lessons }) }),
+  /** Approve, skip or edit a follow-up (docs/outreach-workbench.md, "Threads"). */
+  outreachUpdateMessage: (
+    id: string,
+    input: { text?: string; status?: string },
+  ): Promise<{ message: OutreachThreadMessage }> =>
+    request(`/api/admin/outreach/messages/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+  /** The overnight agent's learnings, apart from the lessons. */
+  outreachGetLearnings: (): Promise<{ learnings: string }> => request('/api/admin/outreach/learnings'),
   editProposal: (id: string, body: { title?: string; description?: string; askUsd?: number | null }) =>
     request(`/api/proposals/${id}`, {
       method: 'PATCH',

@@ -1985,7 +1985,7 @@ export const outreachProspects = pgTable(
     /** The current draft, editable by hand. */
     message: text('message'),
     conversation: jsonb('conversation').notNull().$type<OutreachTurn[]>().default([]),
-    /** draft | ready | sent | replied | call | workspace | activated | no */
+    /** draft | ready | approved | sent | replied | call | workspace | activated | no | skipped */
     status: text('status').notNull().default('draft'),
     /** Planned send day, free text (D1, 2026-09-08). */
     day: text('day'),
@@ -1995,10 +1995,45 @@ export const outreachProspects = pgTable(
     sentAt: timestamp('sent_at'),
     /** Order on the surface; lower first. */
     position: integer('position').notNull().default(0),
+    /** The angle the first message takes, so reply rates compare by angle. */
+    variant: text('variant'),
+    /** Why this person and why this message, in the drafter's words. */
+    reasoning: text('reasoning'),
+    /** owner | agent: who put the row here. */
+    source: text('source').notNull().default('owner'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
   t => [index('outreach_prospects_status_idx').on(t.status), index('outreach_prospects_position_idx').on(t.position)],
+);
+
+/**
+ * Everything after the first message (docs/outreach-workbench.md, "Threads"):
+ * their replies (`in`, status 'received', recorded once per text) and the
+ * follow-ups (`out`: draft, approved, sent, skipped). An out message is
+ * created draft whatever is asked, only the owner approves it, and once
+ * `sent_at` is set its text never changes.
+ */
+export const outreachMessages = pgTable(
+  'outreach_messages',
+  {
+    id: text('id').primaryKey(),
+    prospectId: text('prospect_id')
+      .notNull()
+      .references(() => outreachProspects.id, { onDelete: 'cascade' }),
+    /** in | out */
+    direction: text('direction').notNull(),
+    text: text('text').notNull(),
+    status: text('status').notNull(),
+    variant: text('variant'),
+    reasoning: text('reasoning'),
+    /** When it was received or sent, as the channel shows it. */
+    at: timestamp('at'),
+    sentAt: timestamp('sent_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  t => [index('outreach_messages_prospect_idx').on(t.prospectId)],
 );
 
 /** What the owner has learned sending these, in his words. One row, id
