@@ -251,9 +251,9 @@ export function TradeTicket({
   const hasRange = consensus !== null && rangeMin !== undefined && rangeMax !== undefined;
   const canLimit = !!onPlaceLimit && hasRange;
   const isLimit = mode === 'limit' && canLimit;
-  // The Sell tab's limit sells the one position held (the server keeps a
-  // trader to a single net side), so it exists only while there is one.
-  const canSellLimit = !!onPlaceSellLimit && hasRange && held !== null;
+  // Keep the order-type controls stable when a fill empties the position.
+  // The sell composer itself still requires held shares.
+  const canSellLimit = !!onPlaceSellLimit && hasRange;
   const isSellLimit = tab === 'sell' && mode === 'limit' && canSellLimit;
   const limitOn = tab === 'sell' ? isSellLimit : isLimit;
   const span = rangeMin !== undefined && rangeMax !== undefined ? rangeMax - rangeMin : null;
@@ -674,7 +674,7 @@ export function TradeTicket({
         {/* The order type rides the same rule (owner report 2026-09-09: it
           had a row of its own, which at 293px wrapped under the sides and
           read as a third mode beside a close button). The Sell tab carries it
-          once there is a position to sell (docs/limit-orders.md). */}
+          even with no position to sell (docs/limit-orders.md). */}
         {((tab === 'buy' && canLimit) || (tab === 'sell' && canSellLimit)) && (
           <div className="ticket-mode" role="group" aria-label="Order type">
             <button
@@ -740,7 +740,10 @@ export function TradeTicket({
         four credit stops did not fit 293px (owner report 2026-09-09, "i
         dont understand the sell visualization at all"). */}
       {tab === 'sell' && positions.length === 0 && (
-        <p className="ticket-invite">You hold nothing on this market yet, so there is nothing to sell.</p>
+        <p className="ticket-invite">
+          You have no shares to sell. Unfilled buy orders are not holdings.
+          {orders.length > 0 && ' You can cancel your open orders below.'}
+        </p>
       )}
       {tab === 'sell' && positions.length > 0 && (
         <div className="ticket-pos">

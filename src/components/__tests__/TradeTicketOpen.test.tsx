@@ -108,7 +108,7 @@ describe('selling is a tab on the ticket', () => {
   test('holding nothing, Sell says so instead of showing a dead control', () => {
     render(<TradeTicket {...base} />);
     fireEvent.click(screen.getByRole('button', { name: 'Sell' }));
-    expect(screen.getByText(/nothing to sell/i)).toBeTruthy();
+    expect(screen.getByText(/no shares to sell/i)).toBeTruthy();
     expect(screen.queryByText(/^Sell all for/)).toBeNull();
   });
 

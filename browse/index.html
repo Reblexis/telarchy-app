@@ -2826,8 +2826,9 @@ ticket already asks two questions, side and amount; limit adds a third that
 is optional and hidden until wanted:</p>
 <ul>
 <li>A <code>Quick</code> / <code>Limit</code> toggle in the ticket's header, Manifold-style, on
-both tabs: on Buy once a side is picked, on Sell once there is a position
-to sell. Default is <code>Quick</code>, so the common case gains nothing to read.</li>
+both tabs, including Sell with no position. With no shares, Sell explains
+that unfilled buy orders are waiting instructions, not holdings; it offers
+no sale to submit. Default is <code>Quick</code>.</li>
 <li><strong><code>Limit</code> is offered on every book</strong>, a one-minute snake proposal
 included; nothing about a book's close hides it.</li>
 <li>Choosing <code>Limit</code> reveals one mono input in metric space, prefilled
@@ -2850,6 +2851,11 @@ since every share of a fill sells at the limit or better), and an ink
 confirm that restates the instruction: <strong>&quot;Sell 166.4 at $80,000&quot;</strong>. A limit the market has already passed warns and fills at once, as on Buy.</li>
 <li>The ticket never states when an order is released. That it rests until it
 fills, is cancelled, or its book closes is understood without saying.</li>
+<li>Resting buy and sell orders remain visible and cancellable on both tabs,
+from the initial floor load and after choosing either bet direction, even
+with no held position. Changing tabs never hides an order.</li>
+<li>Placement refreshes the market and chart history immediately,
+because an already-crossed limit can fill at placement.</li>
 <li>Resting orders list under the ticket as one quiet line each, in the same
 register as a held position, naming the verb: &quot;buy under $65,000 · 25 cr&quot;,
 &quot;buy over $80,000 · 25 cr&quot;, &quot;sell at $80,000 · 166.4 sh&quot;, each with a

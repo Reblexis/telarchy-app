@@ -102,6 +102,7 @@ vi.mock('../../lib/api', () => {
 });
 
 const { TradePage } = await import('../TradePage');
+const { api } = await import('../../lib/api');
 
 function renderFloor() {
   return render(
@@ -158,5 +159,50 @@ describe('the bet ticket nets against the held position', () => {
     // 2026-08-28), so the rows stay out of the bet ticket even though its
     // preview now knows the position is there.
     expect(container.querySelector('.pubws-ticket-inline .ticket-pos')).toBeNull();
+  });
+});
+
+describe('existing limit orders stay visible on the floor', () => {
+  test.each(['Buy', 'Sell'])('I can see and cancel my existing orders on %s without opening manage', async tab => {
+    vi.mocked(api.getPositions).mockResolvedValue([]);
+    vi.mocked(api.getLimitOrders).mockResolvedValue([
+      {
+        id: 'resting-buy',
+        marketId: 'm-hero',
+        agentId: 'agent-1',
+        side: 'buy',
+        direction: 'higher',
+        limitValue: 200000,
+        budgetCredits: 50,
+        filledCredits: 0,
+        remainingCredits: 50,
+        status: 'open',
+        expiresAt: null,
+        createdAt: '2026-09-16T18:27:00Z',
+      },
+    ]);
+    renderFloor();
+    await waitFor(() => expect(api.getLimitOrders).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: tab, exact: true }));
+    expect(await screen.findByText(/buy under .*200,000/)).toBeTruthy();
+    vi.mocked(api.getLimitOrders).mockResolvedValue([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }));
+    await waitFor(() => expect(api.cancelLimitOrder).toHaveBeenCalledWith('resting-buy', 'ws-1'));
+    await waitFor(() => expect(screen.queryByText(/buy under .*200,000/)).toBeNull());
+    expect(api.trade).not.toHaveBeenCalled();
+  });
+
+  test('placing a limit refreshes the market immediately because it can fill now', async () => {
+    vi.mocked(api.getPositions).mockResolvedValue([]);
+    vi.mocked(api.getLimitOrders).mockResolvedValue([]);
+    renderFloor();
+    await waitFor(() => expect(api.getLimitOrders).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: 'Limit', exact: true }));
+    fireEvent.change(screen.getByLabelText('Credits to spend'), { target: { value: '25' } });
+    fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '300000' } });
+    vi.mocked(api.getMarketplaceWorkspace).mockClear();
+    fireEvent.click(screen.getByRole('button', { name: /Buy Higher under/ }));
+    await waitFor(() => expect(api.placeLimitOrder).toHaveBeenCalled());
+    await waitFor(() => expect(api.getMarketplaceWorkspace).toHaveBeenCalled());
   });
 });

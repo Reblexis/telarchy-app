@@ -55,15 +55,14 @@ BAL0=$(curl -s -b "$TT_COOKIE" "$TT_API/agents/me" | jq -r '.balance')
 
 ## Tests
 
-### T1. The ticket asks nothing about price until a side is picked
+### T1. The ticket opens ready to compose a trade
 
 **Steps:**
 1. `$B text` the ticket region.
 
-**Expect:** `Lower` and `Higher` are present; `Quick` and `Limit` are NOT.
-Picking a side grows the card: the boxed amount with steppers and slider, the
-Quick/Limit toggle top right, the `New value` and `To win` rows, and a
-confirm reading `Buy HIGHER to win <payout> cr`.
+**Expect:** `Lower`, `Higher`, `Quick` and `Limit` are present. Quick is
+selected, the stake starts at zero, and the confirm is disabled until a
+positive amount is composed.
 
 ### T2. Limit mode opens with a legal limit, not an error
 
@@ -73,17 +72,16 @@ confirm reading `Buy HIGHER to win <payout> cr`.
 
 **Expect:** the field is prefilled just BELOW the current call (a `higher`
 order rests under the price), no error hint is shown, and the confirm reads
-the full instruction: `Buy Higher with 25 cr under $<value>`.
+the instruction: `Buy Higher under $<value>` once a positive stake is entered.
 
-### T3. A limit on the wrong side of the call is refused before it is sent
+### T3. A limit outside the market range is refused before it is sent
 
 **Steps:**
-1. Type a limit ABOVE the current call.
+1. Type a limit outside the market range.
 
-**Expect:** the hint reads `Below $<call>, or it fills right now`, the confirm
-falls back to `Set a price for Higher` and is disabled, and no request is made
-(check the network log, or that `GET /limit-orders` still returns the same
-count).
+**Expect:** a range error is shown, the confirm is disabled, and no order is
+sent. An in-range limit beyond the current call instead warns about the
+immediate fill and remains submittable.
 
 ### T4. Placing reserves the money and draws the order in the chart
 
@@ -93,9 +91,9 @@ count).
 3. `curl -s -b "$TT_COOKIE" "$TT_API/predictions/limit-orders?marketId=$MARKET"`
 
 **Expect:**
-- The confirm flashes `✓ Order resting`.
-- A row appears under the ticket: `▲ higher · under $<limit> · 25.0 cr waiting`.
-- The chart shows a faint dashed rule at the limit, labelled `▲ your order`.
+- The confirm acknowledges placement.
+- A row appears under the ticket: `▲ Higher`, `buy under $<limit> · 25.0 cr`.
+- The chart shows a faint dashed rule at the limit, labelled with the buy direction and limit.
 - The API returns one open order with `remainingCredits: 25`.
 - Balance is now `BAL0 - 25`: the budget is debited at placement, not on fill.
 
@@ -143,6 +141,25 @@ exists on what one participant may put into one market.
 
 **Expect:** the order's status is `cancelled` (resolution) or `voided`, and
 the remainder is back in the balance.
+
+
+### T9. Regression: orders remain visible with no holdings
+
+1. On a local or isolated test workspace, sign in as a participant with no
+   position and an unfilled buy order. Load the floor directly.
+2. Verify the order and its Cancel button appear on Buy without opening
+   any separate management panel. Choose Bet Lower and verify they remain.
+3. Click Sell. Verify Quick and Limit remain visible, together with the
+   order and Cancel. The empty state distinguishes unfilled orders from shares.
+4. Click Limit. Verify it stays selected but no sale can be submitted.
+5. Cancel the order. Verify it disappears after refresh, its unused reservation
+   is returned, and no trade or price movement is produced by cancellation.
+6. With a held position, place an already-crossed sell limit. Verify the
+   call and chart refresh immediately, without waiting for the polling tick.
+
+Use local fixtures for UI checks; use the isolated API workspace for credit
+and execution checks. Never place or cancel production orders for QA.
+
 
 ## Known gaps
 
