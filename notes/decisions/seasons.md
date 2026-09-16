@@ -490,3 +490,32 @@ trading can move, and the score is the wallet at the end minus the stake.
 The credit reset at the season start is his stated intent; its exact form
 is the open question. Specification: docs/seasons.md, "Season 1: the
 season wallet". Nothing built.
+
+## 2026-09-16: your score includes the accounts you own (owner decision)
+
+**DONE 2026-09-16 (Viktor, verbatim):** "could you adjust the net profit
+for a given user to actually be their own + sum of all profit of their
+owned accounts / bots /atgents .. if you know what i mean.. (remember if
+they send via transfer it counts as negative profit for them and postiive
+for the bot they would transfer to so in this case it would cancel out
+nicely)". Asked which number: "Both season and all-time"; asked whether a
+bot keeps its own row beside the consolidated owner row: "Yes, both".
+Told that transfers counted only in the season score and that the
+all-time number was trades-only, so the sum would not cancel there:
+"yes fix it all do 2." (option 2: the all-time board counts peer transfers
+too). Same message: "while at at it improve the leaderboard /design
+especially the workspace scope customization now it doestn affect the
+season leaderboard e.g. properly".
+
+What shipped on branch `family-profit`: the household fold (an owner's
+row is its own number plus every account it owns, transitively, the bots
+keeping their rows) on the season standings, the all-time board, the
+profile and `/api/agents/mine`; peer transfers in the all-time profit
+(settled part, all time); the pool paying once per person (a bot whose
+owner is an entrant is paid through the owner, `paidVia`, prize 0, rank
+kept), decided by the agent because two rows carrying the same credits
+would have paid them twice; the Season 0 rules amended; the floor picker
+scoping the season standings as a view (that floor's trading, transfers
+left out, prizes from the whole field); the picker as a tab row with the
+floor named in every section heading. Rule text in docs/seasons.md,
+docs/ui-conventions.md, docs/legal/season-0-rules.md.
