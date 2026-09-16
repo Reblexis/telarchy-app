@@ -336,6 +336,15 @@ export interface SeasonStanding {
   markedScore?: number | null;
   markedProjectedPrizeUsd?: number | null;
   claimState?: 'unclaimed' | 'claimed' | 'expired' | 'paid' | null;
+  /** The household fold made visible (docs/seasons.md, "Your score includes
+   *  the accounts you own"): this account alone, and how many owned
+   *  accounts `score` folds in. */
+  ownScore?: number;
+  botsCounted?: number;
+  /** The entrant this one is paid through (its owner, also an entrant):
+   *  its prize is 0 because the pool pays once per person. Null: paid on
+   *  its own score. */
+  paidVia?: string | null;
 }
 
 /** This participant's relationship to the running season. */
@@ -382,6 +391,10 @@ export interface LeaderboardEntry {
    *  paid on those markets). Absent on a season row, whose number is a
    *  difference of two marks rather than a sum of settlements. */
   settledEarnings?: number;
+  /** This account alone, before the household fold, and how many owned
+   *  accounts totalEarnings folds in (docs/seasons.md). */
+  ownEarnings?: number;
+  botsCounted?: number;
   /** The still-a-mark part: totalEarnings - settledEarnings. */
   openEarnings?: number;
   resolvedMarkets: number;
@@ -499,6 +512,11 @@ export interface PublicParticipantProfile {
     totalEarnings: number;
     settledEarnings: number;
     openEarnings: number;
+    /** This account alone, and how many owned accounts totalEarnings folds
+     *  in (docs/seasons.md, "Your score includes the accounts you own").
+     *  Absent on an older payload. */
+    ownEarnings?: number;
+    botsCounted?: number;
     resolvedMarkets: number;
     totalTrades: number;
     /** Credits moved by buys and sells on public floors; redemptions do not count. */
@@ -2720,8 +2738,19 @@ export const api = {
   getSeasonStandings: async (
     seasonId: string,
     limit = 100,
-  ): Promise<{ season: PrizeSeason; participants: SeasonStanding[] }> => {
-    const res = await fetch(`${API_BASE}/api/leaderboard?limit=${limit}&seasonId=${encodeURIComponent(seasonId)}`);
+    /** One public floor, by id or slug: the standings as a VIEW of that
+     *  floor (docs/ui-conventions.md, "The picker scopes the season board
+     *  too"). The answer's `scope` names it, or is null. */
+    workspaceIdOrSlug?: string,
+  ): Promise<{
+    season: PrizeSeason;
+    participants: SeasonStanding[];
+    scope?: { workspaceId: string; name: string; slug: string | null } | null;
+  }> => {
+    const scope = workspaceIdOrSlug ? `&workspaceId=${encodeURIComponent(workspaceIdOrSlug)}` : '';
+    const res = await fetch(
+      `${API_BASE}/api/leaderboard?limit=${limit}&seasonId=${encodeURIComponent(seasonId)}${scope}`,
+    );
     if (!res.ok) throw new Error(`Season standings request failed: ${res.status}`);
     return res.json();
   },

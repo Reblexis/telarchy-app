@@ -224,6 +224,31 @@ describe('the stats strip', () => {
     expect(profit.querySelector('.is-up')).not.toBeNull();
   });
 
+  test('an owner reads how many bots the profit folds in and their own number (docs/seasons.md)', async () => {
+    getPublicProfile.mockResolvedValue({
+      ...base,
+      stats: {
+        ...base.stats,
+        totalEarnings: -70,
+        settledEarnings: -70,
+        openEarnings: 0,
+        ownEarnings: -1000,
+        botsCounted: 2,
+      },
+    });
+    renderPage();
+    const profit = await screen.findByTestId('prof-stat-profit');
+    expect(profit.textContent).toContain('incl. 2 bots');
+    expect(profit.textContent).toContain('own -1,000');
+  });
+
+  test('a participant with no bots gets no household line', async () => {
+    getPublicProfile.mockResolvedValue({ ...base, stats: { ...base.stats, ownEarnings: 6336.66, botsCounted: 0 } });
+    renderPage();
+    const profit = await screen.findByTestId('prof-stat-profit');
+    expect(profit.textContent).not.toContain('incl.');
+  });
+
   test('balance is the live tradeable balance, with what sits in positions', async () => {
     renderPage();
     const bal = await screen.findByTestId('prof-stat-balance');

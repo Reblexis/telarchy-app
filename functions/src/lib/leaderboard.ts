@@ -643,3 +643,93 @@ export function computeLeaderboardFromAggregates(
     ...e,
   }));
 }
+
+/**
+ * Households: your score includes the accounts you own (docs/seasons.md,
+ * "Your score includes the accounts you own"; owner decision 2026-09-16).
+ * `ownerOf` maps an owned account to its owner: a bot registered from a
+ * browser account maps to the participant that IS that account, a bot
+ * created with an agent key maps to that agent. A household is an account
+ * plus everything reachable by following that map backwards, each member
+ * once; a cycle (two accounts recorded as owning each other) is cut rather
+ * than followed, so the fold always terminates and counts nobody twice.
+ */
+export function householdMembers(agentId: string, ownerOf: Map<string, string>): Set<string> {
+  const ownedBy = new Map<string, string[]>();
+  for (const [bot, owner] of ownerOf) {
+    const list = ownedBy.get(owner);
+    if (list) list.push(bot);
+    else ownedBy.set(owner, [bot]);
+  }
+  const seen = new Set<string>([agentId]);
+  const stack = [agentId];
+  while (stack.length > 0) {
+    const id = stack.pop()!;
+    for (const bot of ownedBy.get(id) ?? []) {
+      if (!seen.has(bot)) {
+        seen.add(bot);
+        stack.push(bot);
+      }
+    }
+  }
+  return seen;
+}
+
+/**
+ * An owner's number is its own plus every account it owns; a bot keeps its
+ * own number (and gains its own sub-bots'). An owner with no number of its
+ * own but a bot with one gets a row; a bot with no number adds nothing and
+ * is not invented. Two decimals, like everything the board reports.
+ */
+export function foldHouseholds(own: Map<string, number>, ownerOf: Map<string, string>): Map<string, number> {
+  const out = new Map<string, number>();
+  const roots = new Set<string>(own.keys());
+  for (const [bot, owner] of ownerOf) if (own.has(bot)) roots.add(owner);
+  // An owner of an owner with a number needs a row too: walk up.
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const id of Array.from(roots)) {
+      const owner = ownerOf.get(id);
+      if (owner && !roots.has(owner)) {
+        roots.add(owner);
+        grew = true;
+      }
+    }
+  }
+  for (const id of roots) {
+    let sum = 0;
+    for (const member of householdMembers(id, ownerOf)) sum += own.get(member) ?? 0;
+    out.set(id, Math.round(sum * 100) / 100);
+  }
+  return out;
+}
+
+/** The same fold over the settled/open split, so total = settled + open
+ *  still holds on a folded row. */
+export function foldHouseholdBreakdowns(
+  own: Map<string, ProfitBreakdown>,
+  ownerOf: Map<string, string>,
+): Map<string, ProfitBreakdown> {
+  const settled = foldHouseholds(new Map(Array.from(own, ([id, b]) => [id, b.settled])), ownerOf);
+  const open = foldHouseholds(new Map(Array.from(own, ([id, b]) => [id, b.open])), ownerOf);
+  const out = new Map<string, ProfitBreakdown>();
+  for (const [id, s] of settled) {
+    const o = open.get(id) ?? 0;
+    out.set(id, { settled: s, open: o, total: Math.round((s + o) * 100) / 100 });
+  }
+  return out;
+}
+
+/** Which accounts each owner's row folds in (the owner itself excluded),
+ *  for the "incl. N bots" line. Only owners with at least one folded
+ *  account appear. */
+export function householdsOf(ids: Iterable<string>, ownerOf: Map<string, string>): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const id of ids) {
+    const members = householdMembers(id, ownerOf);
+    members.delete(id);
+    if (members.size > 0) out.set(id, Array.from(members).sort());
+  }
+  return out;
+}

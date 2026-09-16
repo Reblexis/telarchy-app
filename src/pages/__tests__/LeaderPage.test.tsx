@@ -295,15 +295,33 @@ describe('the floor picker', () => {
     await waitFor(() => expect(picker().value).toBe('ghost'));
   });
 
-  test('the season board is never scoped: a season is the whole platform', async () => {
+  test('THE PICKER SCOPES THE SEASON BOARD TOO, AS A VIEW: the standings are asked for that floor', async () => {
     vi.mocked(api.getSeasons).mockResolvedValue({ seasons: [{ ...draftSeason, status: 'running' }] } as never);
     vi.mocked(api.getSeasonStandings).mockResolvedValue({
       season: { ...draftSeason, status: 'running' },
       participants: [{ rank: 1, id: 'e1', nickname: 'elonmusk', score: 12, projectedPrizeUsd: 500 }],
+      scope: { workspaceId: 'ws-acme', name: 'Acme', slug: 'acme' },
     } as never);
     renderPage('/leaderboard?workspace=acme');
     expect(await screen.findByText('Season 0 standings')).toBeInTheDocument();
-    expect(vi.mocked(api.getSeasonStandings)).toHaveBeenCalledWith('s0', 100);
+    expect(vi.mocked(api.getSeasonStandings)).toHaveBeenCalledWith('s0', 100, 'acme');
+    // The section says what it is showing and that the prize is not decided here.
+    const note = screen.getByText('Season 0 standings').nextElementSibling as HTMLElement;
+    expect(note.textContent).toContain('Scored on Acme');
+    expect(note.textContent).toContain('Prizes are decided on every floor');
+  });
+
+  test('every floor asks for the season unscoped and says nothing about a floor', async () => {
+    vi.mocked(api.getSeasons).mockResolvedValue({ seasons: [{ ...draftSeason, status: 'running' }] } as never);
+    vi.mocked(api.getSeasonStandings).mockResolvedValue({
+      season: { ...draftSeason, status: 'running' },
+      participants: [{ rank: 1, id: 'e1', nickname: 'elonmusk', score: 12, projectedPrizeUsd: 500 }],
+      scope: null,
+    } as never);
+    renderPage();
+    expect(await screen.findByText('Season 0 standings')).toBeInTheDocument();
+    expect(vi.mocked(api.getSeasonStandings)).toHaveBeenCalledWith('s0', 100, undefined);
+    expect(screen.queryByText(/Scored on/)).toBeNull();
   });
 
   test('a bot contractor carries the bot mark on this board', async () => {
@@ -316,5 +334,64 @@ describe('the floor picker', () => {
       [...container.querySelectorAll('tr')].find(r => r.textContent?.includes(name)) as HTMLElement;
     expect(rowOf('poster-acme').querySelector('.pubws-bot')).toBeTruthy();
     expect(rowOf('poster-beta').querySelector('.pubws-bot')).toBeNull();
+  });
+});
+
+describe('a row can be a household (docs/seasons.md, "Your score includes the accounts you own")', () => {
+  test('an all-time owner row says how many bots it folds in, with its own number in the tooltip', async () => {
+    mockBoard([
+      trader({ id: 'o1', nickname: 'owner', totalEarnings: -70, ownEarnings: -1000, botsCounted: 2 }),
+      trader({ id: 'b1', nickname: 'bot', rank: 2, totalEarnings: 930, ownEarnings: 930, botsCounted: 0 }),
+    ]);
+    const { container } = renderPage();
+    await screen.findByText('owner');
+    const rowOf = (name: string) =>
+      [...container.querySelectorAll('tr')].find(
+        r => r.querySelector('.lbt-nametext')?.textContent === name,
+      ) as HTMLElement;
+    expect(rowOf('owner').textContent).toContain('incl. 2 bots');
+    expect(rowOf('owner').querySelector('[title*="own -1,000"]')).not.toBeNull();
+    expect(rowOf('bot').textContent).not.toContain('incl.');
+  });
+
+  test('a season row paid through its owner shows "via <owner>" where the prize would be', async () => {
+    vi.mocked(api.getSeasons).mockResolvedValue({ seasons: [{ ...draftSeason, status: 'running' }] } as never);
+    vi.mocked(api.getSeasonStandings).mockResolvedValue({
+      season: { ...draftSeason, status: 'running' },
+      participants: [
+        {
+          rank: 1,
+          id: 'b1',
+          nickname: 'bot',
+          score: 930,
+          ownScore: 930,
+          botsCounted: 0,
+          paidVia: 'o1',
+          projectedPrizeUsd: 0,
+        },
+        {
+          rank: 2,
+          id: 'o1',
+          nickname: 'owner',
+          score: 100,
+          ownScore: -830,
+          botsCounted: 1,
+          paidVia: null,
+          projectedPrizeUsd: 500,
+        },
+      ],
+      scope: null,
+    } as never);
+    mockBoard([trader({})]);
+    const { container } = renderPage();
+    await screen.findByText('Season 0 standings');
+    const rowOf = (name: string) =>
+      [...container.querySelectorAll('tr')].find(
+        r => r.querySelector('.lbt-nametext')?.textContent === name,
+      ) as HTMLElement;
+    expect(rowOf('bot').textContent).toContain('via owner');
+    expect(rowOf('bot').textContent).not.toContain('$');
+    expect(rowOf('owner').textContent).toContain('incl. 1 bot');
+    expect(rowOf('owner').textContent).toContain('$500');
   });
 });

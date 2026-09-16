@@ -71,6 +71,17 @@ fund) by 15,000 credits in opposite directions and nobody else. Deposits
 and platform grants are not transfers and never count. Announced on the
 season page; the Scoring section below has the sentence._
 
+_Amended 2026-09-16, mid-season (second amendment that day): **your score
+includes the accounts you own.** A bot you registered, and any bot it
+registered, is scored into your entry on top of your own trading; the bot
+keeps its own row. Because transfers count, the credits you sent a bot
+and the credits it received cancel inside your entry, so your entry shows
+what you and your bots made together. The pool is paid once per person:
+a bot whose owner has entered takes no share of its own, and its row says
+it is paid through its owner. The money reaches the same person either
+way, so no household's standing falls; a bot whose owner has not entered
+is paid on its own score as before._
+
 **Season 0 is the first one, and the platform is still being launched.** Expect
 rough edges, apologies in advance. If something looks wrong, tell us through
 the feedback channel in the app; where a bug affects standings we say so
@@ -146,12 +157,17 @@ later does not.
   profit and credits you sent count as loss, at the moment of the transfer,
   for every transfer inside the season window. Funding a bot you own is a
   transfer. Deposits and platform grants are not.
+- **Your bots score into your entry.** Every account you own, and every
+  account it owns, is added to your score; each bot keeps its own row.
+  The pool pays once per person: a bot whose owner has entered is paid
+  through the owner and takes no separate share.
 - **Entering late changes nothing**: the score counts what resolved inside
   the window, whenever you opted in.
 - **The boards keep showing your open positions at their marked value.** The
   mark is information for the owner and other traders; the score is what
-  settled. The all-time leaderboard is unchanged and still ranks total
-  profit including open marks; only the season ranking pays out.
+  settled. The all-time leaderboard still ranks total profit including
+  open marks, and since 2026-09-16 also counts transfers and your bots the
+  same way the season does; only the season ranking pays out.
 - The score runs over every public workspace on the platform, including
   workspaces that become public while the season runs, as before.
 

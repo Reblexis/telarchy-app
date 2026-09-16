@@ -361,6 +361,10 @@ async function withPerformance(rows: Array<typeof agents.$inferSelect>): Promise
       earned: board.profitById.get(row.id) ?? 0,
       settledEarnings: split?.settled ?? 0,
       openEarnings: split?.open ?? 0,
+      /** This account alone, and how many owned accounts `earned` folds in
+       *  (docs/seasons.md, "Your score includes the accounts you own"). */
+      ownEarnings: board.ownProfitById.get(row.id) ?? 0,
+      botsCounted: board.householdById.get(row.id)?.length ?? 0,
       totalTrades: activity?.totalTrades ?? 0,
       lastTradeAt: activity?.lastTradeAt ?? null,
     };
@@ -580,6 +584,8 @@ agentsRouter.get(
       totalEarnings: 0,
       settledEarnings: 0,
       openEarnings: 0,
+      ownEarnings: 0,
+      botsCounted: 0,
       tradedVolume: 0,
       resolvedMarkets: 0,
       totalTrades: 0,
@@ -775,6 +781,8 @@ agentsRouter.get(
           totalEarnings: board.profitById.get(agent.id) ?? 0,
           settledEarnings: board.breakdownById.get(agent.id)?.settled ?? 0,
           openEarnings: board.breakdownById.get(agent.id)?.open ?? 0,
+          ownEarnings: board.ownProfitById.get(agent.id) ?? 0,
+          botsCounted: board.householdById.get(agent.id)?.length ?? 0,
           resolvedMarkets: q?.resolvedMarkets ?? 0,
           totalTrades: Number(activity?.totalTrades ?? 0),
           tradedVolume: Math.round(Number(activity?.traded ?? 0) * 100) / 100,

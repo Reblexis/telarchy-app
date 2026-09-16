@@ -272,7 +272,10 @@ disagrees with another page:
 
 - **Profit**: the trading profit marked to market that the leaderboard
   ranks on, the same number, with "N settled · N open" beneath it. Green
-  when positive, red when negative.
+  when positive, red when negative. It counts transfers and the accounts
+  this participant owns the way the board does (docs/seasons.md, "The
+  score"); an owner reads "incl. N bots · own N" as a third line, so the
+  gap between their own trading and the household is on the record.
 - **Balance**: the participant's tradeable credits right now, platform-wide
   (the live point of the balance history), with "N cr in positions"
   beneath: what their open positions are worth at the current call, summed.
@@ -3120,10 +3123,27 @@ all. The floor list is the public marketplace list
 reads for the contractors, so there is no second vocabulary of floors to
 keep in step.
 
-**The season board is never scoped.** A season is a platform-wide contest
-scored over every public floor, so the picker leaves it alone and the
-section says which floors it covers by covering all of them. Scoping it
-would print a standing that pays nobody.
+**The picker scopes the season board too, as a view.** A season is a
+platform-wide contest scored over every public floor, and the prize is
+decided on that whole field. A chosen floor makes the season section show
+each entrant's score ON THAT FLOOR (the traders board passes
+`?workspaceId=<slug>` beside `seasonId`): the settled trading profit and
+the mark from that floor's markets alone, with transfers left out, since a
+transfer belongs to no floor. The prize columns keep reading the whole
+field, so a reader sees what the entrant took from this floor next to
+what they would actually be paid, and the section's note says both
+("Scored on <floor>. Prizes are decided on every floor."). Entrants and
+their order come from the scoped score; the prize columns are looked up
+by entrant. A settled season ignores the scope: its finals are stored and
+never recomputed, so the section says it is showing the final standings.
+
+**A row can be a household.** An owner's row on either board carries the
+sum of their own number and their bots' (docs/seasons.md, "Your score
+includes the accounts you own"), and says so under the name: "incl. N
+bots" in the small type, with the owner's own number in the cell's
+tooltip. A bot's row keeps its own number; when its owner is also an
+entrant its prize cell reads "via <owner>" and no dollar figure, because
+the pool pays once per person.
 
 **The choice lives in the URL**, as `?workspace=<slug>`, and the page holds
 no filter the URL does not show (the data room's rule). So the back button

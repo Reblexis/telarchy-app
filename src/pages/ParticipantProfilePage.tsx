@@ -385,6 +385,19 @@ export function ParticipantProfilePage() {
                 >
                   {fmtCr(profile.stats.settledEarnings)} settled · {fmtCr(profile.stats.openEarnings)} open
                 </span>
+                {/* A household (docs/seasons.md, "Your score includes the
+                    accounts you own"): the number above folds in the bots
+                    this participant owns; their own trading is named so the
+                    gap is on the record. */}
+                {profile.stats.botsCounted ? (
+                  <span
+                    className="prof-stat-sub"
+                    title="This participant's own number plus every account they own, transfers between them cancelling"
+                  >
+                    incl. {profile.stats.botsCounted} {profile.stats.botsCounted === 1 ? 'bot' : 'bots'} · own{' '}
+                    {fmtCr(profile.stats.ownEarnings ?? 0)}
+                  </span>
+                ) : null}
               </button>
               <button
                 type="button"
