@@ -100,3 +100,6 @@ HTTP 200, served bundle `/beta/assets/index-20mGk9TP.js` contains the new
 Open orders and Your shares regions and the Order placed acknowledgement,
 and no longer contains Order resting. This is the updated preview, not the
 published site. The branch is not merged and no production publish occurred.
+
+Visual review: [before/after ticket comparison](design/limit-order-ticket-before-after.html),
+with [scope and validation](design/limit-order-comparison.md).
