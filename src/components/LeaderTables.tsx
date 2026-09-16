@@ -221,7 +221,7 @@ export function SeasonTable({
                   )}
                 </td>
                 <td
-                  className={`lbt-num${markedPrize > 0 ? '' : ' is-zero'}`}
+                  className={`lbt-num lbt-desk${markedPrize > 0 ? '' : ' is-zero'}`}
                   title="What the pool would pay on that number, if it held to the end of the season"
                 >
                   {/* Whole dollars at both widths: this column is a
@@ -256,7 +256,7 @@ export function SeasonTable({
             <th className="lbt-h is-paysgrp" colSpan={2}>
               Pays the prize
             </th>
-            <th className="lbt-h" colSpan={2}>
+            <th className="lbt-h lbt-grp-hold" colSpan={2}>
               If prices hold
             </th>
           </tr>
@@ -276,7 +276,10 @@ export function SeasonTable({
                   <th className="lbt-h" title="Not the scoring key: the season pays settled profit">
                     <Both wide="Total if prices hold" tight="Total cr" />
                   </th>
-                  <th className="lbt-h">Would pay</th>
+                  {/* A desk column: on a phone the prize column already
+                      says the money, and this projection of a projection
+                      was the 36px that pushed the table past the screen. */}
+                  <th className="lbt-h lbt-desk">Would pay</th>
                 </>
               )}
             </>

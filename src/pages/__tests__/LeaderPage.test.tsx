@@ -405,3 +405,69 @@ describe('a row can be a household (docs/seasons.md, "Your score includes the ac
     expect(rowOf('owner').textContent).toContain('$500');
   });
 });
+
+describe('what the phone and the board keep', () => {
+  beforeEach(() => {
+    vi.mocked(api.getPublicWorkspaces).mockResolvedValue([
+      { workspaceId: 'ws-acme', name: 'Acme', slug: 'acme' },
+      { workspaceId: 'ws-beta', name: 'Beta Co', slug: 'beta' },
+    ] as never);
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({ topContractors: [] } as never);
+    mockBoard([trader({})]);
+  });
+
+  test('a row without trades of its own (an owner whose bots traded) stays on the board, ranks contiguous', async () => {
+    mockBoard([
+      trader({
+        id: 'o1',
+        nickname: 'owner',
+        rank: 1,
+        totalEarnings: 300,
+        totalTrades: 0,
+        ownEarnings: 0,
+        botsCounted: 1,
+      }),
+      trader({ id: 'k1', nickname: 'kai', rank: 2, totalEarnings: 42 }),
+    ]);
+    const { container } = renderPage();
+    await screen.findByText('kai');
+    expect(screen.getByText('owner')).toBeInTheDocument();
+    const ranks = [...container.querySelectorAll('section[aria-label="Traders"] .lbt-rank')].map(td => td.textContent);
+    expect(ranks).toEqual(['1', '2']);
+  });
+
+  test('the current floor tab is scrolled into view, so a phone never hides the choice off-screen', async () => {
+    const spy = vi.fn();
+    Element.prototype.scrollIntoView = spy;
+    renderPage('/leaderboard?workspace=beta');
+    await waitFor(() => expect(current()).toBe('Beta Co'));
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+  });
+
+  test('"Would pay" is a desk column: the phone keeps the prize and drops the projection of a projection', async () => {
+    vi.mocked(api.getSeasons).mockResolvedValue({ seasons: [{ ...draftSeason, status: 'running' }] } as never);
+    vi.mocked(api.getSeasonStandings).mockResolvedValue({
+      season: { ...draftSeason, status: 'running' },
+      participants: [
+        {
+          rank: 1,
+          id: 'e1',
+          nickname: 'elonmusk',
+          score: 12,
+          projectedPrizeUsd: 500,
+          markedScore: 20,
+          markedProjectedPrizeUsd: 600,
+        },
+      ],
+      scope: null,
+    } as never);
+    mockBoard([trader({})]);
+    const { container } = renderPage();
+    await screen.findByText('Season 0 standings');
+    const heads = [...container.querySelectorAll('.lbt--season thead tr:last-child th')];
+    const wouldPay = heads.find(h => h.textContent === 'Would pay') as HTMLElement;
+    expect(wouldPay.className).toContain('lbt-desk');
+    const cells = [...container.querySelectorAll('.lbt--season tbody td')];
+    expect(cells[cells.length - 1].className).toContain('lbt-desk');
+  });
+});
