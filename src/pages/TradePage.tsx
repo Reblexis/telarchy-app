@@ -3286,7 +3286,8 @@ export function TradePage() {
                 proposalReward={ws.proposalReward}
                 metricNames={metricNames}
                 decisionMinutes={ws.decisionMinutes ?? 1440}
-                onPropose={async (title, description, askUsd, decideBy, options) => {
+                spendable={user && balance !== null ? balance + liquidityWallet : null}
+                onPropose={async (title, description, askUsd, decideBy, options, liquidityBudget) => {
                   // Anonymous proposers go through the signup door; the board
                   // itself is public information (Open workspace ballot).
                   // Payment details come from the account (owner decision
@@ -3295,17 +3296,16 @@ export function TradePage() {
                     navigate(authPath('signup', location));
                     return;
                   }
-                  // No proposer stake (owner call 2026-08-14): the workspace
-                  // auto-funds the branch markets instead. Charging the empty
-                  // side of the marketplace half a newcomer's starting balance
-                  // to make an offer is spam defence aimed the wrong way; add
-                  // it back if someone actually spams.
+                  // Posting is free; a proposer who wants a price to read may
+                  // put their own credits behind it on the form
+                  // (docs/ui-conventions.md, "Posting one").
                   const created = (await api.createProposal({
                     title,
                     description,
                     askUsd,
                     decideBy,
                     ...(options ? { options } : {}),
+                    ...(liquidityBudget ? { liquidityBudget } : {}),
                   })) as {
                     id?: string;
                   };

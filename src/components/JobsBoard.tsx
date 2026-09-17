@@ -71,10 +71,17 @@ interface Props {
     askUsd: number,
     decideBy: string,
     options?: Array<{ id: string; label: string }>,
+    /** The proposer's own liquidity, the whole amount in credits; present
+     *  only when they picked one. */
+    liquidityBudget?: number,
   ) => Promise<void>;
   /** The floor's own decision window in minutes, the preselected preset on
    *  the form (docs/guides/proposals.md, "The deadline, and the close"). */
   decisionMinutes?: number;
+  /** What the viewer can put into a pool (liquidity wallet plus balance), so
+   *  the form refuses a seed they cannot pay. Null when unknown: the server
+   *  decides then. */
+  spendable?: number | null;
   /** Whether this viewer is offered the propose line at all; false on a floor
    *  closed to outside proposals for anyone without manage (see
    *  `proposingOffered`). Absent means true. */
@@ -215,6 +222,13 @@ export { countdownTo };
  * own default is preselected and named as such; custom takes a number and a
  * unit and nothing else.
  */
+/**
+ * What a proposer may put behind their own proposal (docs/ui-conventions.md,
+ * "Posting one"): the WHOLE amount in credits, split by the server across
+ * the markets the proposal spawns. Zero, the default, is "none".
+ */
+export const SEED_PRESETS = [100, 500, 2000];
+
 export const WINDOW_PRESETS: Array<{ minutes: number; label: string }> = [
   { minutes: 60, label: '1h' },
   { minutes: 360, label: '6h' },
@@ -382,6 +396,7 @@ export function JobsBoard({
   horizonMetricId,
   viewerId = null,
   decisionMinutes = 1440,
+  spendable = null,
 }: Props) {
   const navigate = useNavigate();
   // The number the charter funds on, falling back to the largest priced delta
@@ -420,6 +435,10 @@ export function JobsBoard({
   const [customOpen, setCustomOpen] = useState(false);
   const [customN, setCustomN] = useState('30');
   const [customUnit, setCustomUnit] = useState<'m' | 'h' | 'd'>('m');
+  // The proposer's own liquidity, whole credits; 0 is none.
+  const [seed, setSeed] = useState(0);
+  const [seedCustomOpen, setSeedCustomOpen] = useState(false);
+  const [seedCustom, setSeedCustom] = useState('');
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
   const [formBusy, setFormBusy] = useState(false);
@@ -532,7 +551,10 @@ export function JobsBoard({
   // is blocked, with a warning, until the account has them.
   const askNum = Math.max(0, Math.floor(parseFloat(ask) || 0));
   const needsPayout = askNum > 0 && accountPayout === null;
-  const formValid = title.trim().length > 0 && !needsPayout;
+  // A seed they cannot pay is refused here rather than by a 400 after the
+  // click; an unknown balance leaves it to the server.
+  const seedTooBig = seed > 0 && spendable !== null && seed > spendable;
+  const formValid = title.trim().length > 0 && !needsPayout && !seedTooBig;
 
   const submit = async () => {
     if (!title.trim()) {
@@ -551,7 +573,8 @@ export function JobsBoard({
       const decideBy = new Date(Date.now() + windowMinutes * 60_000).toISOString();
       // Fewer than two filled labels is a two-branch proposal.
       const options = optionsOpen ? optionsFromLabels(optionLabels) : undefined;
-      if (options) await onPropose(fullTitle, desc.trim(), askNum, decideBy, options);
+      if (seed > 0) await onPropose(fullTitle, desc.trim(), askNum, decideBy, options, seed);
+      else if (options) await onPropose(fullTitle, desc.trim(), askNum, decideBy, options);
       else await onPropose(fullTitle, desc.trim(), askNum, decideBy);
       // The green moment: the one place the form earns its color.
       setPlaced(true);
@@ -559,6 +582,9 @@ export function JobsBoard({
         setAsk('');
         setWindowMinutes(decisionMinutes);
         setCustomOpen(false);
+        setSeed(0);
+        setSeedCustomOpen(false);
+        setSeedCustom('');
         setTitle('');
         setDesc('');
         setOptionsOpen(false);
@@ -1140,6 +1166,78 @@ export function JobsBoard({
               )}
             </div>
 
+            {/* The proposer's own liquidity (docs/ui-conventions.md, "Posting
+                one"): none by default, because posting is free; a number is
+                the whole amount, which the server splits across the markets. */}
+            <div className="jobform-field">
+              <span className="ticket-label">Your liquidity</span>
+              <div className="jobform-windows" aria-label="Your liquidity">
+                <button
+                  type="button"
+                  className={`jobform-window${!seedCustomOpen && seed === 0 ? ' is-on' : ''}`}
+                  aria-pressed={!seedCustomOpen && seed === 0}
+                  onClick={() => {
+                    setSeedCustomOpen(false);
+                    setSeed(0);
+                  }}
+                >
+                  none
+                </button>
+                {SEED_PRESETS.map(n => (
+                  <button
+                    key={n}
+                    type="button"
+                    className={`jobform-window${!seedCustomOpen && seed === n ? ' is-on' : ''}`}
+                    aria-pressed={!seedCustomOpen && seed === n}
+                    onClick={() => {
+                      setSeedCustomOpen(false);
+                      setSeed(n);
+                    }}
+                  >
+                    {n.toLocaleString()}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className={`jobform-window${seedCustomOpen ? ' is-on' : ''}`}
+                  aria-pressed={seedCustomOpen}
+                  aria-label="custom amount"
+                  onClick={() => {
+                    setSeedCustomOpen(true);
+                    setSeed(parseInt(seedCustom, 10) || 0);
+                  }}
+                >
+                  custom
+                </button>
+                {seedCustomOpen && (
+                  <>
+                    <input
+                      className="jobform-line jobform-line--n jobform-line--cr"
+                      inputMode="numeric"
+                      value={seedCustom}
+                      onChange={e => {
+                        const raw = e.target.value.replace(/[^0-9]/g, '').slice(0, 9);
+                        setSeedCustom(raw);
+                        setSeed(parseInt(raw, 10) || 0);
+                      }}
+                      aria-label="Custom liquidity"
+                    />
+                    <span className="jobform-count">cr</span>
+                  </>
+                )}
+              </div>
+              <span className="jobform-count jobform-seed-note">
+                {seed > 0
+                  ? `Split across this proposal's markets so traders have a price to move. The owner buys it back on approval.${
+                      spendable !== null && !seedTooBig ? ` You hold ${Math.floor(spendable).toLocaleString()} cr.` : ''
+                    }`
+                  : 'Optional. Your credits in the books, so there is a price to read.'}
+              </span>
+            </div>
+
+            {seedTooBig && spendable !== null && (
+              <p className="ticket-err">You hold {Math.floor(spendable).toLocaleString()} cr: pick a smaller amount.</p>
+            )}
             {needsPayout && (
               <p className="ticket-err">A paid proposal needs payment details first: add them in your account menu.</p>
             )}
@@ -1165,7 +1263,8 @@ export function JobsBoard({
                   {/* The bounty is the workspace's own proposalReward, like
                       the board above: a hardcoded 500 cr promised what most
                       floors do not pay. */}
-                  Free to post. Approved means you are paid in real money
+                  {seed > 0 ? <>Puts {seed.toLocaleString()}&nbsp;cr of yours in its markets.</> : 'Free to post.'}{' '}
+                  Approved means you are paid in real money
                   {proposalReward > 0 ? <>, plus {proposalReward.toLocaleString()}&nbsp;cr</> : null}.
                 </span>
               )}
