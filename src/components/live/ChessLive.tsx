@@ -197,6 +197,7 @@ function Board({
   fen,
   color,
   last,
+  prior,
   proposalMove,
   hoverMove,
   arrows,
@@ -210,6 +211,8 @@ function Board({
   fen: string | null;
   color: Color;
   last: string | null;
+  /** The move before the last: tinted fainter, because a reply and our move often land in one read. */
+  prior?: string | null;
   /** The proposal on screen's move when it is the open move: its squares tinted. */
   proposalMove: string | null;
   /** The move a list row is hovered or focused on: its squares tinted. */
@@ -231,6 +234,7 @@ function Board({
     return out;
   }, []);
   const lastSquares = last ? [last.slice(0, 2), last.slice(2, 4)] : [];
+  const priorSquares = prior ? [prior.slice(0, 2), prior.slice(2, 4)] : [];
   const squaresOf = (m: string | null) => (m ? [m.slice(0, 2), m.slice(2, 4)] : []);
   const proposalSquares = squaresOf(proposalMove);
   const hoverSquares = squaresOf(hoverMove);
@@ -248,7 +252,7 @@ function Board({
         const cls = [
           'chess-square',
           light ? 'is-light' : 'is-dark',
-          lastSquares.includes(sq) ? 'is-last' : '',
+          lastSquares.includes(sq) ? 'is-last' : priorSquares.includes(sq) ? 'is-prior' : '',
           proposalSquares.includes(sq) ? 'is-proposal' : '',
           hoverSquares.includes(sq) ? 'is-hover' : '',
           selected === sq ? 'is-selected' : '',
@@ -318,15 +322,26 @@ function Board({
       {FILES.split('').map((f, i) => (
         <text
           key={`f-${f}`}
-          className="chess-coord"
+          className="chess-coord is-file"
           x={(color === 'white' ? i : 7 - i) * S + S - 4}
           y={8 * S - 5}
           textAnchor="end"
-          fontSize={S * 0.17}
+          fontSize={S * 0.2}
         >
           {f}
         </text>
       ))}
+      {/* Ranks up the left edge, top to bottom as drawn, so the side the
+          player has is readable without knowing the pieces (persona run
+          2026-09-17). */}
+      {[0, 1, 2, 3, 4, 5, 6, 7].map(row => {
+        const rank = color === 'white' ? 8 - row : row + 1;
+        return (
+          <text key={`r-${rank}`} className="chess-coord is-rank" x={4} y={row * S + S * 0.24} fontSize={S * 0.2}>
+            {rank}
+          </text>
+        );
+      })}
       {arrows.map(a => {
         const d = arrowPath(a.from, a.to, color);
         const mark = (
@@ -613,6 +628,7 @@ export function ChessLive({
         fen: replay.entry === 0 ? START_FEN : (replayRow?.fen ?? null),
         color: replayColor,
         last: replayRow?.uci ?? null,
+        prior: null as string | null,
         arrows:
           replayRow && replayRow.by === 'us'
             ? [{ option: replayRow.uci, from: replayRow.uci.slice(0, 2), to: replayRow.uci.slice(2, 4), opacity: 1 }]
@@ -622,6 +638,7 @@ export function ChessLive({
         fen: game?.fen ?? START_FEN,
         color,
         last: game?.moves?.length ? game.moves[game.moves.length - 1] : null,
+        prior: game?.moves && game.moves.length > 1 ? game.moves[game.moves.length - 2] : null,
         arrows: liveArrows(),
       };
 
@@ -683,7 +700,7 @@ export function ChessLive({
       const n = Math.ceil(replayRow.ply / 2);
       const chosen =
         replayRow.kind === 'market' && typeof replayRow.price === 'number'
-          ? `chosen at ${replayRow.price.toFixed(1)}`
+          ? `chosen at ${replayRow.price.toFixed(1)} of 100`
           : 'chosen at random';
       line = {
         text:
@@ -722,6 +739,25 @@ export function ChessLive({
     line = { text: 'Waiting for the next game', cls: 'is-idle' };
   }
 
+  /* Who is playing whom, always on screen (persona run 2026-09-17: a visitor
+     could not tell the side or the opponent from the next-move line alone). */
+  const playerName = state?.player?.username ?? 'TelarchyBot';
+  const gameCaption = game
+    ? `${playerName} plays ${game.color === 'black' ? 'Black' : 'White'} against ${game.opponent?.name ?? 'the opponent'}${
+        typeof game.opponent?.rating === 'number' ? ` (${game.opponent.rating})` : ''
+      }`
+    : null;
+  const replayGame = replay ? games.find(g => g.number === replay.game) : undefined;
+  const replayChip = replay
+    ? `Replay: game ${replay.game}${replayGame ? ` against ${replayGame.opponent?.name ?? 'the opponent'}, ${resultWord(replayGame)}` : ''}. Not live.`
+    : null;
+  /* A proposal that is not the open move belongs to a position the board no
+     longer shows; the board says so instead of sitting under its heading. */
+  const nowNote =
+    !replay && selectedProposal && (!open || selectedProposal.number !== open.proposal.number)
+      ? `The board shows the game as it stands now, not the position of proposal #${selectedProposal.number}.`
+      : null;
+
   const scrubGame = replay?.game ?? games[0]?.number;
   const scrubTotal = scrubGame === undefined ? undefined : plies[scrubGame]?.length;
   const scrubMax = scrubTotal ?? 0;
@@ -749,60 +785,66 @@ export function ChessLive({
           <div className="chess-moves-col">
             {open && openOptions.length > 0 && (
               /* The moves, one slim column beside the board (docs/ui-conventions.md, "The chess feed", item 4). */
-              <div className="chess-movelist" role="list" aria-label="Moves, highest price first">
-                {(() => {
-                  const list = ranked(openOptions);
-                  const pricedList = list.filter(priced);
-                  const lo = pricedList.length ? Math.min(...pricedList.map(o => o.price as number)) : 0;
-                  const hi = pricedList.length ? Math.max(...pricedList.map(o => o.price as number)) : 0;
-                  const board = piecesOf(game?.fen ?? null);
-                  return list.map((o, i) => {
-                    const piece = board.get(o.id.slice(0, 2));
-                    const width = priced(o) ? (hi > lo ? 6 + 94 * (((o.price as number) - lo) / (hi - lo)) : 100) : 0;
-                    const cls = `chess-moverow${boardLeader?.id === o.id ? ' is-leader' : ''}${proposalMove === o.id ? ' is-selected' : ''}`;
-                    return (
-                      <a
-                        key={o.id}
-                        role="listitem"
-                        className={cls}
-                        href={withBase(optionHref(o.id))}
-                        onClick={e => {
-                          if (!onPickProposal) return;
-                          e.preventDefault();
-                          pick(o.id);
-                        }}
-                        onMouseEnter={() => setHoverState({ id: openId, move: o.id })}
-                        onMouseLeave={() => setHoverState(h => (h.move === o.id ? { id: null, move: null } : h))}
-                        onFocus={() => setHoverState({ id: openId, move: o.id })}
-                        onBlur={() => setHoverState(h => (h.move === o.id ? { id: null, move: null } : h))}
-                      >
-                        <span className="chess-moverow-rank">{i + 1}</span>
-                        <span className="chess-moverow-san">
-                          {piece && (
-                            <span className="chess-moverow-glyph">{`${GLYPH[piece.toLowerCase()]}\uFE0E`}</span>
-                          )}
-                          {o.san}
-                        </span>
-                        <span className="chess-moverow-bar">
-                          <span style={{ width: `${width}%` }} />
-                        </span>
-                        <span className="chess-moverow-price">
-                          {priced(o) ? (o.price as number).toFixed(1) : 'open'}
-                        </span>
-                      </a>
-                    );
-                  });
-                })()}
-              </div>
+              <>
+                <p className="chess-movelist-head">Expected score if played: 0 loss, 50 draw, 100 win</p>
+                <div className="chess-movelist" role="list" aria-label="Moves, highest price first">
+                  {(() => {
+                    const list = ranked(openOptions);
+                    const pricedList = list.filter(priced);
+                    const lo = pricedList.length ? Math.min(...pricedList.map(o => o.price as number)) : 0;
+                    const hi = pricedList.length ? Math.max(...pricedList.map(o => o.price as number)) : 0;
+                    const board = piecesOf(game?.fen ?? null);
+                    return list.map((o, i) => {
+                      const piece = board.get(o.id.slice(0, 2));
+                      const width = priced(o) ? (hi > lo ? 6 + 94 * (((o.price as number) - lo) / (hi - lo)) : 100) : 0;
+                      const cls = `chess-moverow${boardLeader?.id === o.id ? ' is-leader' : ''}${proposalMove === o.id ? ' is-selected' : ''}`;
+                      return (
+                        <a
+                          key={o.id}
+                          role="listitem"
+                          className={cls}
+                          href={withBase(optionHref(o.id))}
+                          onClick={e => {
+                            if (!onPickProposal) return;
+                            e.preventDefault();
+                            pick(o.id);
+                          }}
+                          onMouseEnter={() => setHoverState({ id: openId, move: o.id })}
+                          onMouseLeave={() => setHoverState(h => (h.move === o.id ? { id: null, move: null } : h))}
+                          onFocus={() => setHoverState({ id: openId, move: o.id })}
+                          onBlur={() => setHoverState(h => (h.move === o.id ? { id: null, move: null } : h))}
+                        >
+                          <span className="chess-moverow-rank">{i + 1}</span>
+                          <span className="chess-moverow-san">
+                            {piece && (
+                              <span className="chess-moverow-glyph">{`${GLYPH[piece.toLowerCase()]}\uFE0E`}</span>
+                            )}
+                            {o.san}
+                          </span>
+                          <span className="chess-moverow-bar">
+                            <span style={{ width: `${width}%` }} />
+                          </span>
+                          <span className="chess-moverow-price">
+                            {priced(o) ? (o.price as number).toFixed(1) : 'open'}
+                          </span>
+                        </a>
+                      );
+                    });
+                  })()}
+                </div>
+              </>
             )}
           </div>
         )}
         <div className="chess-board-col">
+          {replayChip && <p className="chess-replay-chip">{replayChip}</p>}
+          {gameCaption && !replay && <p className="chess-game">{gameCaption}</p>}
           <div className="chess-board-box">
             <Board
               fen={drawn.fen}
               color={drawn.color}
               last={drawn.last}
+              prior={drawn.prior}
               proposalMove={replay ? null : proposalMove}
               hoverMove={replay ? null : liveHover}
               arrows={drawn.arrows}
@@ -814,6 +856,7 @@ export function ChessLive({
               onPick={onPickProposal}
             />
           </div>
+          {nowNote && <p className="chess-now-note">{nowNote}</p>}
           <p className={`chess-next ${line.cls}`}>
             {line.text}
             {line.clock !== undefined && <span className="chess-clock">{line.clock}</span>}
@@ -829,6 +872,7 @@ export function ChessLive({
           <div className="chess-stats-col">
             {state?.player && (
               <section role="region" aria-label="Player statistics">
+                <p className="chess-stats-head">{playerName} on Lichess</p>
                 <dl className="chess-stats">
                   {record.map(([label, value]) => (
                     <div className="chess-stat" key={label}>

@@ -12787,6 +12787,9 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .chess-square.is-dark { fill: #d6ccb2; }
 .chess-square.is-last { fill: #e6d28a; }
 .chess-square.is-dark.is-last { fill: #d2bb6a; }
+/* The move before the last, fainter: a reply and our move often land in one read (persona run 2026-09-17). */
+.chess-square.is-prior { fill: #ece2b8; }
+.chess-square.is-dark.is-prior { fill: #dccd92; }
 .chess-square.is-selected { fill: #b9d8c3; }
 /* A piece that can move, under the pointer: tinted so it reads as pressable (docs/ui-conventions.md, "The chess feed", item 1). */
 .chess-square.is-hover-piece { fill: #d3e6d8; cursor: pointer; }
@@ -12794,7 +12797,7 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .chess-piece.is-white { fill: #fbf9f4; stroke: #17171c; stroke-width: 1.2px; paint-order: stroke; }
 .chess-piece.is-black { fill: #17171c; }
 .chess-target { fill: var(--higher); fill-opacity: 0.55; pointer-events: none; }
-.chess-coord { fill: #6b6b7a; font-family: var(--font-mono); pointer-events: none; }
+.chess-coord { fill: #4a4a57; font-weight: 600; font-family: var(--font-mono); pointer-events: none; }
 .chess-arrow { fill: none; stroke: var(--accent); }
 .chess-arrow-link { cursor: pointer; }
 .chess-arrow-link:hover .chess-arrow, .chess-arrow-link:focus-visible .chess-arrow { stroke-opacity: 1 !important; }
@@ -12807,6 +12810,14 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .chess-stat dt, .chess-stat dd { margin: 0; }
 .chess-stat dd { color: var(--text-primary); font-weight: 600; }
 .chess-next { overflow-wrap: anywhere; }
+/* Who plays whom, the replay marker, the note on a proposal that is not the open move, the record's and the list's headings. All one-liners in the stats' mono, left-aligned. */
+.chess-game, .chess-now-note, .chess-stats-head, .chess-movelist-head, .chess-replay-chip { margin: 0 0 6px; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.02em; line-height: 1.35; color: var(--text-secondary); text-align: left; overflow-wrap: anywhere; }
+.chess-game { color: var(--text-primary); }
+.chess-now-note { margin: 6px 0 0; color: var(--text-tertiary); }
+.chess-stats-head { color: var(--text-primary); font-weight: 600; }
+.chess-movelist-head { color: var(--text-tertiary); }
+/* A replay is never mistaken for the live game, wherever the page is scrolled. */
+.chess-replay-chip { position: sticky; top: 8px; z-index: 2; display: inline-block; padding: 4px 8px; border-radius: 6px; background: var(--accent, #f59e0b); color: #17171c; font-weight: 600; }
 .chess-next.is-decided, .chess-next.is-default, .chess-next.is-replay { color: var(--text-secondary); }
 .chess-next.is-idle { color: var(--text-tertiary); font-weight: 500; }
 .chess-target-mark { pointer-events: none; }
