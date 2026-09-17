@@ -159,6 +159,55 @@ describe('approval buys the proposer out', () => {
     for (const row of lp) expect(row.agentId).toBe(OWNER);
   });
 
+  test('THE BUY-OUT RETURNS EACH PART TO THE PURSE THAT PAID IT: liquidity credits never become trading credits', async () => {
+    await seed(1000);
+    // What a newcomer looks like: pool money in the wallet, little to trade with.
+    await db
+      .update(agents)
+      .set({ balance: toUnits(10), liquidityBalance: toUnits(300) })
+      .where(eq(agents.id, PROPOSER));
+    // 155 a branch is 310: the wallet's 300, then 10 of the balance.
+    const created = await asAgent(PROPOSER).propose({ title: 'Wallet stake', description: 'x', liquiditySubsidy: 155 });
+    expect(created.status).toBe(201);
+    expect(await balanceOf(PROPOSER)).toBeCloseTo(0, 5);
+
+    expect((await asAgent(OWNER).approve(created.body.id)).status).toBe(200);
+
+    const [after] = await db.select().from(agents).where(eq(agents.id, PROPOSER));
+    expect(fromUnits(after.liquidityBalance as number)).toBeCloseTo(300, 4);
+    expect(fromUnits(after.balance as number)).toBeCloseTo(10, 4);
+    // The owner paid for the approved half from the balance, all 155 of it.
+    expect(await balanceOf(OWNER)).toBeCloseTo(845, 4);
+  });
+
+  test('the rows the owner bought pay their leftover to the balance that bought them, not to a wallet', async () => {
+    await seed(1000);
+    await db
+      .update(agents)
+      .set({ balance: toUnits(10), liquidityBalance: toUnits(300) })
+      .where(eq(agents.id, PROPOSER));
+    const created = await asAgent(PROPOSER).propose({ title: 'Wallet stake', description: 'x', liquiditySubsidy: 155 });
+    await asAgent(OWNER).approve(created.body.id);
+    const open = await db
+      .select()
+      .from(markets)
+      .where(and(eq(markets.workspaceId, WS), eq(markets.proposalId, created.body.id), eq(markets.resolved, false)));
+    const lp = await db
+      .select()
+      .from(liquidityEvents)
+      .where(
+        inArray(
+          liquidityEvents.marketId,
+          open.map(m => m.id),
+        ),
+      );
+    expect(lp.length).toBeGreaterThan(0);
+    for (const row of lp) {
+      expect(row.agentId).toBe(OWNER);
+      expect(row.fundedFrom).toBe('balance');
+    }
+  });
+
   test('a broke owner approves anyway; the stake waits for resolution', async () => {
     await seed(100);
     const created = await asAgent(PROPOSER).propose({
