@@ -278,9 +278,9 @@ export function LeaderPage() {
             <p className="lbp-note">
               {seasonScope && season.status !== 'settled' ? (
                 <>
-                  Scored on <strong>{seasonScope.name}</strong> alone: settled trading profit there inside the season,
-                  transfers left out. <strong>Prizes are decided on every floor</strong>, and the dollar columns say
-                  what each entrant would actually be paid.{' '}
+                  Scored on <strong>{seasonScope.name}</strong> alone: each entrant's own settled trading profit there
+                  inside the season, no transfers and no bots added. <strong>Prizes are decided on every floor</strong>,
+                  and the dollar columns say what each entrant would actually be paid.{' '}
                 </>
               ) : null}
               {season.payoutMode === 'proportional' ? (
@@ -310,7 +310,17 @@ export function LeaderPage() {
         <section className="lbp-section" aria-label="Traders">
           <h2 className="pubws-h2">All-time{floorName ? ` · ${floorName}` : ''}</h2>
           <p className="lbp-note">
-            Every trader, ranked on <strong>total profit</strong>: settled bets plus what open positions are worth now.
+            {floorName ? (
+              <>
+                Every trader on {floorName}, ranked on their own <strong>trading profit</strong> there: settled bets
+                plus what open positions are worth now.
+              </>
+            ) : (
+              <>
+                Every trader, ranked on <strong>total profit</strong>: settled bets plus what open positions are worth
+                now, with credits sent or received and the bots they own counted in.
+              </>
+            )}
           </p>
           {traders === null ? null : traders.length === 0 ? (
             <p className="lbp-empty">Nobody has traded yet.</p>

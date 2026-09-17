@@ -91,7 +91,7 @@ export interface Board {
  * rather than silently widening to every workspace, which would leak the exact
  * opposite of what was asked for.
  */
-export async function loadBoard(workspaceIds: string[], opts: { transfers?: boolean } = {}): Promise<Board> {
+export async function loadBoard(workspaceIds: string[], opts: { floorOnly?: boolean } = {}): Promise<Board> {
   if (workspaceIds.length === 0) {
     return {
       profitById: new Map(),
@@ -260,10 +260,11 @@ export async function loadBoard(workspaceIds: string[], opts: { transfers?: bool
   // CREDITS TRANSFERRED BETWEEN PARTICIPANTS COUNT here too, over all time
   // (docs/seasons.md, "The ALL-TIME board's ranking key", 2026-09-16):
   // received is profit, sent is loss, settled money. From the peer-transfer
-  // receipt only. NOT on a board scoped to one floor (owner, 2026-09-17):
-  // a transfer belongs to no floor, so a floor's own board is the trading
-  // there and nothing else; that caller passes `transfers: false`.
-  const transfers = opts.transfers === false ? new Map<string, number>() : await loadTransferNet(null, null);
+  // receipt only. NOT on a board scoped to one floor (owner, 2026-09-17:
+  // "leaderboard on a floor should show only traded profits from there"):
+  // a floor's board is each account's own trading there, no transfers and
+  // no family sum; that caller passes `floorOnly`.
+  const transfers = opts.floorOnly ? new Map<string, number>() : await loadTransferNet(null, null);
   for (const [agentId, net] of transfers) {
     const b = breakdownById.get(agentId) ?? { settled: 0, open: 0, total: 0 };
     breakdownById.set(agentId, {
@@ -277,7 +278,7 @@ export async function loadBoard(workspaceIds: string[], opts: { transfers?: bool
 
   // YOUR SCORE INCLUDES THE ACCOUNTS YOU OWN (docs/seasons.md): the owner's
   // row is its own plus its bots' and their bots'; the bots keep their own.
-  const ownerOf = await loadOwnerOf();
+  const ownerOf = opts.floorOnly ? new Map<string, string>() : await loadOwnerOf();
   const foldedBreakdownById = foldHouseholdBreakdowns(ownBreakdownById, ownerOf);
   const profitById = new Map(Array.from(foldedBreakdownById, ([id, b]) => [id, b.total]));
   const householdById = householdsOf(foldedBreakdownById.keys(), ownerOf);
@@ -430,11 +431,11 @@ export async function loadSeasonSettled(
 }
 
 export interface SeasonScoreOptions {
-  /** False for the standings scoped to one floor as a view: a transfer
-   *  belongs to no floor, so that view leaves them out
-   *  (docs/ui-conventions.md, "The picker scopes the season board too").
-   *  Default true: the score. */
-  transfers?: boolean;
+  /** True for the standings scoped to one floor as a view: each account's
+   *  own trading there, no transfers (a transfer belongs to no floor) and
+   *  no family sum (docs/ui-conventions.md, "The picker scopes the season
+   *  board too"). Default false: the score. */
+  floorOnly?: boolean;
 }
 
 /** A season number with its household fold made visible: `byId` is what the
@@ -457,11 +458,10 @@ export async function loadSeasonSettledSplit(
   // CREDITS TRANSFERRED BETWEEN PARTICIPANTS COUNT (docs/seasons.md, rules
   // amended 2026-09-16): received is profit, sent is loss, at the transfer
   // instant, same window shape as resolutions.
-  if (opts.transfers !== false) {
-    const transfers = await loadTransferNet(windowStart, windowEnd);
-    for (const [agentId, net] of transfers) {
-      own.set(agentId, Math.round(((own.get(agentId) ?? 0) + net) * 100) / 100);
-    }
+  if (opts.floorOnly) return { byId: new Map(own), ownById: own, householdById: new Map() };
+  const transfers = await loadTransferNet(windowStart, windowEnd);
+  for (const [agentId, net] of transfers) {
+    own.set(agentId, Math.round(((own.get(agentId) ?? 0) + net) * 100) / 100);
   }
   return foldSeason(own);
 }
@@ -688,6 +688,7 @@ export async function loadSeasonMarkedSplit(
   }
   // Both halves are already 2dp; the sum of two 2dp floats is not.
   for (const [agentId, profit] of own) own.set(agentId, Math.round(profit * 100) / 100);
+  if (opts.floorOnly) return { byId: new Map(own), ownById: own, householdById: new Map() };
   return foldSeason(own);
 }
 

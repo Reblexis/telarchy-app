@@ -565,3 +565,10 @@ counted as profit. A board scoped to one floor now leaves transfers out;
 the every-floor board, the season score, the profile and /api/agents/mine
 keep counting them. Rule text: docs/seasons.md, "The ALL-TIME board's
 ranking key".
+
+**Tightened the same day (Viktor, verbatim):** "i dont understand its
+actually very confusing now.. look leaderboard on a floor should show only
+traded profits from there.. and full leaderboard should show family
+profits (counting transfers (family cancel out from others dont) thats
+it..". So a floor board drops the family sum as well as transfers; the
+full board, season, profile and /api/agents/mine keep both.

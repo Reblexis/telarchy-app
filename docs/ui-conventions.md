@@ -2535,14 +2535,13 @@ reload; `/leaderboard` ranks the same way in its own tables.
   money back on that market, settled, so the board shows the result the
   holder would have had without the fault; the season standings count it
   the same way (`docs/seasons.md`, "A fault refund counts"). An apology or
-  any other grant stays out. Credits transferred between participants count on
-  the every-floor board only (received as profit, sent as loss, settled);
-  a floor's own footer, and a floor tab on `/leaderboard`, never count
-  one, because a transfer belongs to no floor. An owner's row folds in the accounts
-  they own (`docs/seasons.md`, "Your score includes the accounts you
-  own"), so the footer draws a row for anyone with a trade OR a number:
-  an owner whose bots traded is on it without a trade of their own; a name
-  with no trades and nothing earned is noise and stays off. **No account
+  any other grant stays out. A floor's own footer, and a floor tab on `/leaderboard`,
+  show each account's own trading profit on that floor and nothing else:
+  no transfer counts, and no family sum (`docs/seasons.md`, "The ALL-TIME
+  board's ranking key"). Only the every-floor board counts transfers and
+  folds an owner's bots into the owner's row; there an owner whose bots
+  traded holds a row without a trade of their own. A name with no trades
+  and nothing earned is noise and stays off. **No account
   is excluded.**
   Anyone who has ever traded in a public workspace is on the board. **A
   cancelled market is valued at its refund, not skipped**: a void pays
@@ -3224,16 +3223,15 @@ screen.
 **The picker scopes the season board too, as a view.** A season is a
 platform-wide contest scored over every public floor, and the prize is
 decided on that whole field. A chosen floor makes the season section show
-each entrant's score ON THAT FLOOR (the traders board passes
-`?workspaceId=<slug>` beside `seasonId`): the settled trading profit and
-the mark from that floor's markets alone, with transfers left out, since a
-transfer belongs to no floor. The prize columns keep reading the whole
-field, so a reader sees what the entrant took from this floor next to
-what they would actually be paid, and the section's note says both
-("Scored on <floor>. Prizes are decided on every floor."). Entrants and
-their order come from the scoped score; the prize columns are looked up
-by entrant. A settled season ignores the scope: its finals are stored and
-never recomputed, so the section says it is showing the final standings.
+each entrant's own settled trading profit ON THAT FLOOR inside the window
+(the traders board passes `?workspaceId=<slug>` beside `seasonId`), with
+the mark from that floor's markets: no transfers and no family sum, the
+floor-board rule. The prize columns keep reading the whole field, so a
+reader sees what the entrant took from this floor next to what they would
+actually be paid, and the section's note says both ("Scored on <floor>.
+Prizes are decided on every floor."). Entrants and their order come from
+the scoped score; the prize columns are looked up by entrant. A settled
+season ignores the scope: its finals are stored and never recomputed.
 
 **A row can be a household.** An owner's row on either board carries the
 sum of their own number and their bots' (docs/seasons.md, "Your score

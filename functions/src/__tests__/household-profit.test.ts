@@ -268,9 +268,18 @@ describe("a floor's own board counts trading there, never transfers (owner, 2026
     const res = await request(app).get('/api/leaderboard?workspaceId=floor-a');
     expect(res.status).toBe(200);
     const byId = new Map((res.body.participants as Array<Record<string, unknown>>).map(p => [p.id, p]));
-    expect(byId.get(BOT)).toMatchObject({ totalEarnings: 500, ownEarnings: 500 });
-    // The owner's row still folds in the bot's trading there, and only that.
-    expect(byId.get(OWNER)).toMatchObject({ totalEarnings: 500, ownEarnings: 0, botsCounted: 2 });
+    expect(byId.get(BOT)).toMatchObject({ totalEarnings: 500, ownEarnings: 500, botsCounted: 0 });
+    // No family sum on a floor: the owner never traded there, so is not on it.
+    expect(byId.get(OWNER)).toBeUndefined();
+  });
+
+  test('a floor board is each account alone: an owner who traded there reads their own trading, not the bots', async () => {
+    await loserPaysWinner(WS, OTHER, BOT, 500, 'bot-wins');
+    await loserPaysWinner(WS, OTHER, OWNER, 40, 'owner-wins');
+    const res = await request(app).get('/api/leaderboard?workspaceId=floor-a');
+    const byId = new Map((res.body.participants as Array<Record<string, unknown>>).map(p => [p.id, p]));
+    expect(byId.get(OWNER)).toMatchObject({ totalEarnings: 40, ownEarnings: 40, botsCounted: 0 });
+    expect(byId.get(BOT)).toMatchObject({ totalEarnings: 500 });
   });
 
   test('the every-floor board still counts them, so the household nets out there', async () => {
@@ -290,7 +299,7 @@ describe("a floor's own board counts trading there, never transfers (owner, 2026
 
   test('loadBoard: transfers are opt-out, and the profile keeps counting them', async () => {
     await transfer(OTHER, OWNER, 100);
-    expect((await loadBoard([WS], { transfers: false })).profitById.get(OWNER) ?? 0).toBe(0);
+    expect((await loadBoard([WS], { floorOnly: true })).profitById.get(OWNER) ?? 0).toBe(0);
     expect((await loadBoard([WS])).profitById.get(OWNER)).toBe(100);
   });
 });
@@ -417,7 +426,8 @@ describe('the season standings scoped to one floor', () => {
     expect(res.status).toBe(200);
     const byId = new Map((res.body.participants as Array<Record<string, unknown>>).map(p => [p.id, p]));
     // Floor A alone: the bot lost 100 to OTHER; the transfer and floor B are out.
-    expect(byId.get(OWNER)).toMatchObject({ score: -100, ownScore: 0 });
+    // Each account alone: the owner never traded on floor A.
+    expect(byId.get(OWNER)).toMatchObject({ score: 0, ownScore: 0, botsCounted: 0 });
     expect(byId.get(BOT)).toMatchObject({ score: -100, ownScore: -100 });
     expect(byId.get(OTHER)).toMatchObject({ score: 100 });
     expect(byId.get(OTHER)?.projectedPrizeUsd).toBe(wholeById.get(OTHER)?.projectedPrizeUsd);
@@ -429,7 +439,7 @@ describe('the season standings scoped to one floor', () => {
     await seedHousehold();
     await seedSeason([OWNER, BOT, OTHER]);
     const res = await request(app).get(`/api/leaderboard?seasonId=${SEASON}&workspaceId=floor-a`);
-    expect((res.body.participants as Array<{ id: string }>).map(p => p.id)).toEqual([OTHER, BOT, OWNER]); // equal scores break by id
+    expect((res.body.participants as Array<{ id: string }>).map(p => p.id)).toEqual([OTHER, OWNER, BOT]); // other +100, owner 0, bot -100
   });
 
   test('a scope naming no public floor answers an empty board', async () => {

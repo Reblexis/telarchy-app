@@ -202,11 +202,19 @@ rows. So a person who funds a bot reads a loss on their own line, the bot
 reads that bankroll as profit, and the owner's row nets the two to what
 the pair actually made. The profile and `/api/agents/mine` read the same
 board, so no surface can show a different profit for the same account.
-A board scoped to ONE floor (`?workspaceId=`, the floor's own Top traders
-footer and a floor tab on `/leaderboard`) never counts a transfer: a
-transfer belongs to no floor, so a floor's board is the trading there and
-nothing else, with the household fold over that trading. A bot's bankroll
-is therefore not profit on any floor (owner decision 2026-09-17). The SEASON's key is settled profit, because the season is the one
+There are two boards and two rules, and nothing in between (owner
+decision 2026-09-17: "leaderboard on a floor should show only traded
+profits from there.. and full leaderboard should show family profits
+(counting transfers (family cancel out from others dont)"):
+
+- **A board scoped to ONE floor** (`?workspaceId=`: the floor's own Top
+  traders footer, and a floor tab on `/leaderboard`, season view included)
+  is each account's own trading profit on that floor. No transfer counts,
+  because a transfer belongs to no floor, and no family sum: a bot's row is
+  the bot's trading there and its owner's row is the owner's.
+- **The full board** (every floor), the season score, the profile and
+  `/api/agents/mine` are family profit with transfers counted: a transfer
+  inside the family cancels, a transfer from anyone else does not. The SEASON's key is settled profit, because the season is the one
 place the number buys real money, and a mark can be manufactured while a
 resolution cannot (the 2026-08-28 gaming review,
 notes/season-0-gaming-review-2026-08-28.md in the telarchy umbrella: the

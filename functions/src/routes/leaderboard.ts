@@ -110,7 +110,7 @@ const boardCache = ttlCache({
   // with scoped boards, hence the (default) size bound in the helper.
   keyOf: (workspaceIds: string[], floorOnly: boolean) =>
     `${floorOnly ? 'floor|' : ''}${[...workspaceIds].sort().join(',')}`,
-  load: (workspaceIds: string[], floorOnly: boolean) => loadBoard(workspaceIds, { transfers: !floorOnly }),
+  load: (workspaceIds: string[], floorOnly: boolean) => loadBoard(workspaceIds, { floorOnly }),
 });
 
 /** `floorOnly`: the board of one floor, which is the trading there and never
@@ -165,7 +165,7 @@ const settledCache = ttlCache({
   keyOf: (seasonId: string, workspaceIds: string[], _from: Date, _to: Date, scoped: boolean) =>
     scoped ? `${seasonId}|${[...workspaceIds].sort().join(',')}` : seasonId,
   load: (_seasonId: string, workspaceIds: string[], from: Date, to: Date, scoped: boolean) =>
-    loadSeasonSettledSplit(workspaceIds, from, to, { transfers: !scoped }),
+    loadSeasonSettledSplit(workspaceIds, from, to, { floorOnly: scoped }),
 });
 
 /**
@@ -183,7 +183,7 @@ const markedCache = ttlCache({
   keyOf: (seasonId: string, workspaceIds: string[], _from: Date, _to: Date, scoped: boolean) =>
     scoped ? `${seasonId}|${[...workspaceIds].sort().join(',')}` : seasonId,
   load: (_seasonId: string, workspaceIds: string[], from: Date, to: Date, scoped: boolean) =>
-    loadSeasonMarkedSplit(workspaceIds, from, to, { transfers: !scoped }),
+    loadSeasonMarkedSplit(workspaceIds, from, to, { floorOnly: scoped }),
 });
 
 /** The mark reads to the season's END, not to now: a market resolving next
