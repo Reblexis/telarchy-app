@@ -245,3 +245,49 @@ describe('another series in the same chart (the profile balance)', () => {
     );
   });
 });
+
+describe('MarketChart vertical axis shows every price in the window', () => {
+  const PLOT_TOP = 16; // PAD_T
+  const PLOT_BOTTOM = 260 - 24; // wide H - PAD_B
+  const DAY = 86_400_000;
+  const pathYs = (d: string) => [...d.matchAll(/[ML][\d.-]+,([\d.-]+)/g)].map(m => parseFloat(m[1]));
+  const ysOf = (values: number[], consensus: number) => {
+    const series = values.map((v, i) => ({ at: iso((values.length - i) * DAY), consensus: v }));
+    const { container } = render(<MarketChart series={series} consensus={consensus} unit="" />);
+    return pathYs(container.querySelector('.mchart-mline')!.getAttribute('d')!);
+  };
+  // The owner's chart (2026-09-17): a book that lived between 6 and 21, with
+  // one print at 27 and one at 3. Both used to run off the plot.
+  const LIVED = [
+    20, 19.8, 19.8, 17.8, 13, 13, 12.8, 20.2, 19.8, 19.5, 18, 18.2, 19, 18.5, 17, 17, 21, 17.8, 13, 7, 6.2, 6.2, 9, 7,
+  ];
+
+  it('THE HIGHEST AND THE LOWEST PRICE BOTH SIT INSIDE THE PLOT: a 27 and a 3 in a book that lived between 6 and 21', () => {
+    const ys = ysOf([...LIVED.slice(0, 5), 27, ...LIVED.slice(5, 12), 3, ...LIVED.slice(12)], 17);
+    expect(Math.min(...ys)).toBeGreaterThanOrEqual(PLOT_TOP);
+    expect(Math.max(...ys)).toBeLessThanOrEqual(PLOT_BOTTOM);
+  });
+
+  it('shows a lone high print when nothing went low, and a lone low print when nothing went high', () => {
+    const high = ysOf([...LIVED, 27, 17], 17);
+    expect(Math.min(...high)).toBeGreaterThanOrEqual(PLOT_TOP);
+    const low = ysOf([...LIVED, 3, 17], 17);
+    expect(Math.max(...low)).toBeLessThanOrEqual(PLOT_BOTTOM);
+  });
+
+  it('a freak print at the ceiling is cut at the edge and does not flatten the real moves (73k..77k book, one 180k tick)', () => {
+    const lived = Array.from({ length: 40 }, (_, i) => 73_000 + ((i * 7) % 5) * 1000);
+    const ys = ysOf([...lived.slice(0, 20), 180_000, ...lived.slice(20)], 75_000);
+    expect(Math.min(...ys)).toBeLessThan(PLOT_TOP);
+    // The 73k..77k band still takes at least a quarter of the plot's height.
+    const inPlot = ys.filter(v => v >= PLOT_TOP);
+    expect(Math.max(...inPlot) - Math.min(...inPlot)).toBeGreaterThan((PLOT_BOTTOM - PLOT_TOP) / 4);
+  });
+
+  it('never cuts the live call, however far it sits from where the book lived', () => {
+    const lived = Array.from({ length: 40 }, (_, i) => 73_000 + ((i * 7) % 5) * 1000);
+    const ys = ysOf(lived, 180_000);
+    expect(Math.min(...ys)).toBeGreaterThanOrEqual(PLOT_TOP);
+    expect(Math.max(...ys)).toBeLessThanOrEqual(PLOT_BOTTOM);
+  });
+});

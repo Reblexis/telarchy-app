@@ -376,6 +376,26 @@ describe('the market spark', () => {
     expect(spread).toBeGreaterThan(20);
   });
 
+  test('the highest and the lowest price both draw inside the box, not pinned to its edge', async () => {
+    // The owner's chart (2026-09-17): a book that lived between 6 and 21
+    // with one print at 27 and one at 3. Both used to be clamped to the edge.
+    const lived = [
+      20, 19.8, 19.8, 17.8, 13, 27, 13, 12.8, 20.2, 19.8, 19.5, 18, 3, 18.2, 19, 18.5, 17, 17, 21, 17.8, 13, 7, 6.2,
+      6.2, 9, 7,
+    ];
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
+      ...payload,
+      markets: [{ marketId: 'm-1', metricName: 'traders', consensus: 17, targetDate: '2026-08' }],
+      marketHistory: lived.map((v, i) => ({ at: new Date(Date.UTC(2026, 7, 1 + i)).toISOString(), consensus: v })),
+    } as never);
+    const { container } = renderPage();
+    await waitFor(() => expect(container.querySelector('.mkt-spark-line')).toBeTruthy());
+    const ys = yValuesOf(container);
+    // The box is 72 high with 8 of padding: the edges are y=8 and y=64.
+    expect(Math.min(...ys)).toBeGreaterThan(8);
+    expect(Math.max(...ys)).toBeLessThan(64);
+  });
+
   test('an untraded market draws one flat line, not an empty card', async () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
       ...payload,
