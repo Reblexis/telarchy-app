@@ -18,7 +18,8 @@ const getMarketplaceWorkspace = vi.fn(async () => ({
   slug: 'lookpilot',
   openMarketCount: 4,
 }));
-const getProfile = vi.fn(async () => ({ capabilities: ['read', 'trade', 'manage'] }));
+// The server names the workspace its answer is about; the page trusts "manage" only for this floor.
+const getProfile = vi.fn(async () => ({ workspaceId: 'ws', capabilities: ['read', 'trade', 'manage'] }));
 const getParticipant = vi.fn(async () => ({ balance: 10000, liquidityBalance: 128400 }));
 const getLiquidityPurchases = vi.fn(async () => ({
   purchases: [

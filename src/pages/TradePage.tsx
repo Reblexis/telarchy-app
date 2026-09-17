@@ -79,6 +79,7 @@ import {
 } from '../lib/floor-horizons';
 import { dropInline, readInline } from '../lib/inline-data';
 import { isFastWorkspace } from '../lib/live-log';
+import { managesFloor } from '../lib/manages-floor';
 import { maxWinLabel } from '../lib/market-quote';
 import { authPath } from '../lib/nextPath';
 import { periodGapOf } from '../lib/period-gap';
@@ -668,10 +669,16 @@ export function TradePage() {
   // silent join: the owner of a floor that is not open-join never joins,
   // and they are exactly who these controls exist for.
   useEffect(() => {
+    /* A new floor or a new login starts with no owner's controls until the
+       server says otherwise for it. */
+    setCanManage(false);
     if (!user || !ws) return;
     api
       .getProfile()
-      .then(p => setCanManage(((p as { capabilities?: string[] }).capabilities ?? []).includes('manage')))
+      .then(p => {
+        /* Only when the answer is about THIS floor (lib/manages-floor). */
+        setCanManage(managesFloor(p, ws.workspaceId));
+      })
       .catch(e => console.error('profile fetch failed:', e));
     // ws is a fresh object every poll tick; the answer only changes with
     // the login or the floor, so key on their identities, not the object.

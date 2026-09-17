@@ -42,6 +42,20 @@ add one", with the add-first-metric button chaining into dialogs 1 and 2
 below. A visitor on the same empty floor reads the honest state instead
 ("Nothing is priced here yet. The owner has not added a number.").
 
+## Who sees the owner's controls
+
+Every owner control on a floor (Choose, Approve, Decline, the pencil, Manage
+metrics, Manage dates, Inject, the publish band) is drawn only for a viewer who
+holds `manage` **on that floor's workspace**, and for nobody else: not a
+trader, not a viewer, not the owner of some other workspace. The page asks
+`GET /api/auth/me` with the floor as its workspace and believes the answer only
+when the answer's own `workspaceId` is that floor's: asked about a workspace
+the viewer is not a member of, the server answers for one they are in, and
+that answer's `manage` says nothing about this floor. A new floor or a new
+login starts with no controls until such an answer arrives. The server refuses
+the actions regardless; this rule is about never showing a trader a button
+that is not theirs.
+
 ## The v1 controls: four dialogs
 
 Owner direction 2026-08-27: start as simple as possible: a metric is a name
