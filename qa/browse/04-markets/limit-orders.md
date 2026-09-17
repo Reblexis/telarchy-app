@@ -187,3 +187,6 @@ and execution checks. Never place or cancel production orders for QA.
    with the remaining shares still available in the open sell composer.
 5. After each action, allow the floor refresh to complete and repeat the
    selection assertions. Refreshing data never resets the ticket to Quick Buy.
+
+Confirm the visible Open orders label and Cancel rows remain inside the ticket
+in Buy Quick, Buy Limit, Sell Quick and Sell Limit. Buy/Sell labels stay fixed.

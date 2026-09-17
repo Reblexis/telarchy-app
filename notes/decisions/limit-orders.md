@@ -164,3 +164,9 @@ Viktor asked to revise the HTML comparison to show limit orders at all times
 below the trading dialog, with Cancel on each order. This approval covers the
 comparison layout; application placement is unchanged in this revision.
 See [the design](../design/limit-order-ticket-before-after.html).
+
+## 2026-09-17: Fixed tabs and orders inside
+
+Viktor approved keeping Buy/Sell and Quick/Limit fixed, with cancellable open
+orders inside the dialog in both modes, after sharing the Kalshi dropdown
+screenshot. This supersedes the earlier outside-the-dialog comparison.
