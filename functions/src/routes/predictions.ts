@@ -20,6 +20,7 @@ import { isValidDateFormat, periodEndInstant, settlesOn } from '../lib/date-util
 import { markDeprecated } from '../lib/deprecation';
 import { docUrlFor } from '../lib/error-codes';
 import { AppError } from '../lib/errors';
+import { cellKey, type LiquidityCell, parseLiquidityCells } from '../lib/liquidity-cells';
 import { emitPricesChanged } from '../lib/market-events';
 import { assertMarketUntraded } from '../lib/market-freeze';
 import { extractMetricReferences } from '../lib/metrics-engine';
@@ -29,17 +30,20 @@ import {
   listParticipantsForWorkspace,
   resolveWorkspaceOwnerAgentId,
 } from '../lib/participants';
-import { fromUnits, MIN_LIQUIDITY_CONTRIBUTION, sufficientBalance, toUnits, validateContent } from '../lib/validation';
+import {
+  fromUnits,
+  liquiditySpendableUnits,
+  MIN_LIQUIDITY_CONTRIBUTION,
+  sufficientBalance,
+  toUnits,
+  validateContent,
+} from '../lib/validation';
 import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
 import { applyCredits } from '../services/credits';
 import { settleDailyStreak } from '../services/earnRules';
 import { emitEvent } from '../services/events';
-import {
-  anchorUntradedMarketTx,
-  applyAgentLiquidityInjectionTx,
-  liquidityStateAfterPoolContribution,
-} from '../services/marketLiquidity';
+import { anchorUntradedMarketTx, applyAgentLiquidityInjectionTx } from '../services/marketLiquidity';
 import { refreshRelativeDateMarkets, voidMarket } from '../services/markets';
 import { getAllMetrics, getMetricLogs, getUpdates } from '../services/metrics';
 import { notifyCommentPosted } from '../services/notifications';
@@ -1619,28 +1623,41 @@ predictionsRouter.post(
   requireCapability('trade'),
   wrap(async (req, res) => {
     const { workspaceId, agentId: callerAgentId } = req.auth!;
-    const { amount: bodyAmount, budget, agentId: bodyAgentId, proposalId } = req.body;
+    const { amount: bodyAmount, budget, liquidity: rawLiquidity, agentId: bodyAgentId, proposalId } = req.body;
     const canManage = req.auth!.capabilities.has('manage');
-    // `budget` is the WHOLE amount, split evenly across the proposal's open
-    // markets and rounded down so the charge never exceeds it; `amount` is
-    // credits per market. One or the other.
-    const hasBudget = budget !== undefined && budget !== null;
-    if (hasBudget && bodyAmount !== undefined && bodyAmount !== null) {
-      res.status(400).json({ error: 'Name budget (the whole amount) or amount (per market), not both' });
+    if (budget !== undefined && budget !== null) {
+      res.status(400).json({ error: 'budget is retired: name liquidity per book, [{ metricId, targetDate, amount }]' });
       return;
     }
-    if (hasBudget && (typeof budget !== 'number' || !Number.isFinite(budget) || budget <= 0)) {
-      res.status(400).json({ error: 'budget must be a positive number' });
+    // `amount` is one number into every market; `liquidity` is the per-book
+    // list posting takes (docs/guides/get-paid.md), for a proposal only.
+    const hasCells = rawLiquidity !== undefined && rawLiquidity !== null;
+    const hasAmount = bodyAmount !== undefined && bodyAmount !== null;
+    if (hasCells && hasAmount) {
+      res.status(400).json({ error: 'Name liquidity (per book) or amount (every market), not both' });
       return;
     }
-    if (hasBudget && !proposalId) {
-      res.status(400).json({ error: "budget needs a proposalId; fund the floor's own books with amount" });
+    if (hasCells && !proposalId) {
+      res.status(400).json({ error: "liquidity per book needs a proposalId; fund the floor's own books with amount" });
       return;
     }
-    if (!hasBudget && (typeof bodyAmount !== 'number' || bodyAmount <= 0)) {
+    let cells: LiquidityCell[] = [];
+    if (hasCells) {
+      const parsed = parseLiquidityCells(rawLiquidity);
+      if ('error' in parsed) {
+        res.status(400).json({ error: parsed.error });
+        return;
+      }
+      if (parsed.cells.length === 0) {
+        res.status(400).json({ error: 'liquidity names no amount above zero' });
+        return;
+      }
+      cells = parsed.cells;
+    } else if (typeof bodyAmount !== 'number' || !Number.isFinite(bodyAmount) || bodyAmount <= 0) {
       res.status(400).json({ error: 'amount must be a positive number' });
       return;
     }
+    const amount: number = hasCells ? 0 : bodyAmount;
     if (!canManage) {
       if (!proposalId || (typeof bodyAgentId === 'string' && bodyAgentId && bodyAgentId !== callerAgentId)) {
         res.status(403).json({ error: 'Missing capability: manage' });
@@ -1657,24 +1674,22 @@ predictionsRouter.post(
         return;
       }
     }
-    let amount: number = hasBudget ? 0 : bodyAmount;
     const agentId = typeof bodyAgentId === 'string' && bodyAgentId ? bodyAgentId : callerAgentId;
     if (!agentId) {
       res.status(400).json({ error: 'agentId is required' });
       return;
     }
 
-    const [agent] = await db.select().from(agents).where(eq(agents.id, agentId));
+    const [agent] = await db.select({ id: agents.id }).from(agents).where(eq(agents.id, agentId));
     if (!agent) {
       res.status(404).json({ error: 'Agent not found' });
       return;
     }
-    // Funding your own balance is already authorized by requireCapability('manage')
-    // above; only recheck workspace membership when an admin targets some *other*
-    // agent's balance via bodyAgentId. listParticipantsForWorkspace intentionally
-    // omits platform admins, so without this self-exemption a platform admin (incl.
-    // a workspace owner flagged platformAdmin) could never fund from their own
-    // balance and would hit a spurious "Agent is not in your workspace".
+    // Funding from your own purses is already authorized above; only recheck
+    // workspace membership when an admin targets some *other* agent via
+    // bodyAgentId. listParticipantsForWorkspace intentionally omits platform
+    // admins, so without this self-exemption a platform admin could never
+    // fund from their own balance.
     if (agentId !== callerAgentId) {
       const wsMembers = await listParticipantsForWorkspace(workspaceId);
       if (!wsMembers.some(m => m.id === agentId)) {
@@ -1683,12 +1698,9 @@ predictionsRouter.post(
       }
     }
 
-    // Proposal top-ups are recorded on the proposal row so rollover re-spawns
-    // re-seed them (otherwise the injection would be refunded and lost when
-    // the conditional markets roll to new target dates).
     let proposalRow: typeof proposals.$inferSelect | null = null;
     if (proposalId) {
-      if (!hasBudget && amount < MIN_LIQUIDITY_CONTRIBUTION) {
+      if (!hasCells && amount < MIN_LIQUIDITY_CONTRIBUTION) {
         res.status(400).json({
           error: `amount must be at least ${MIN_LIQUIDITY_CONTRIBUTION} credits per market for proposal subsidies (LMSR b below this is butterfly-sensitive)`,
         });
@@ -1706,7 +1718,12 @@ predictionsRouter.post(
     }
 
     let marketRows = await db
-      .select()
+      .select({
+        id: markets.id,
+        metricId: markets.metricId,
+        targetDate: markets.targetDate,
+        proposalId: markets.proposalId,
+      })
       .from(markets)
       .where(and(eq(markets.workspaceId, workspaceId), eq(markets.active, true), eq(markets.resolved, false)));
     if (proposalId) marketRows = marketRows.filter(m => m.proposalId === proposalId);
@@ -1715,89 +1732,73 @@ predictionsRouter.post(
       res.status(400).json({ error: 'No active markets' });
       return;
     }
-    if (hasBudget) {
-      amount = Math.floor((budget / marketRows.length) * 1e6) / 1e6;
-      if (amount < MIN_LIQUIDITY_CONTRIBUTION) {
-        res.status(400).json({ error: "budget is too small to split across this proposal's markets" });
+
+    // What goes into each market: the one number, or its book's number.
+    const byCell = new Map(cells.map(c => [cellKey(c), c.amount]));
+    if (hasCells) {
+      const open = new Set(marketRows.map(m => cellKey(m)));
+      const stray = cells.find(c => !open.has(cellKey(c)));
+      if (stray) {
+        res.status(400).json({
+          error: `liquidity names ${stray.metricId} ${stray.targetDate}, which this proposal has no open market on`,
+        });
         return;
       }
     }
-
-    const balanceUnits = agent.balance as number;
-    // `amount` = credits the agent spends per market (pool contribution).
-    // The same arithmetic the single-market injection uses, CALLED rather
-    // than transcribed: this endpoint carried its own copy, so the anchored
-    // sizing fix would have landed in one door and not the other (bug hunt
-    // 2026-08-31). The loop below still exists because one credit debit
-    // covers every market in the batch.
-    const marketUpdates = marketRows.map(m => {
-      const { newPool, newLiquidity, newShares } = liquidityStateAfterPoolContribution(
-        (m.shares as [number, number]) || [0, 0],
-        m.liquidity,
-        m.pool,
-        amount,
-      );
-      return { market: m, newLiquidity, newShares, newPool, poolContribution: amount };
-    });
-
-    const totalCost = Math.round(amount * marketUpdates.length * 1e6) / 1e6;
-    if (!sufficientBalance(balanceUnits, totalCost)) {
-      res.status(400).json({ error: `Insufficient balance: need ${totalCost}, have ${fromUnits(balanceUnits)}` });
-      return;
-    }
+    const plan = marketRows
+      .map(m => ({ marketId: m.id, credits: hasCells ? (byCell.get(cellKey(m)) ?? 0) : amount }))
+      .filter(x => x.credits > 0);
+    const totalCost = Math.round(plan.reduce((sum, x) => sum + x.credits, 0) * 1e6) / 1e6;
 
     await db.transaction(async tx => {
-      await applyCredits(tx, {
-        agentId,
-        workspaceId,
-        deltaUnits: -toUnits(totalCost),
-        reason: 'liquidity',
-        refType: 'market',
-        refId: marketUpdates.map(u => u.market.id).join(','),
-        also: { spentBetting: sql`${agents.spentBetting} + ${totalCost}` },
-      });
-
-      for (const { market, newLiquidity, newShares, newPool, poolContribution } of marketUpdates) {
-        await tx
-          .update(markets)
-          .set({ liquidity: newLiquidity, shares: newShares, pool: newPool })
-          .where(and(eq(markets.id, market.id), eq(markets.workspaceId, workspaceId)));
-        await tx.insert(liquidityEvents).values({
-          id: randomUUID(),
+      // The payer's row is locked FIRST and the whole bill checked against
+      // both purses, so two calls at once cannot spend the same credits and a
+      // bill that cannot be paid moves nothing. Each market then goes through
+      // the one injection every other door uses: liquidity credits first,
+      // trading credits second, one row per purse, the opening anchor asked.
+      const [payer] = await tx.select().from(agents).where(eq(agents.id, agentId)).for('update');
+      const spendable = payer ? fromUnits(liquiditySpendableUnits(payer)) : 0;
+      if (spendable < totalCost) {
+        throw new AppError(`Insufficient balance: need ${totalCost}, have ${spendable}`, 400);
+      }
+      for (const x of plan) {
+        await applyAgentLiquidityInjectionTx(tx, {
           workspaceId,
-          marketId: market.id,
+          marketId: x.marketId,
           agentId,
-          amount,
-          poolContribution,
-          totalLiquidity: newLiquidity,
-          type: 'injection',
-          createdAt: new Date(),
+          poolContribution: x.credits,
         });
-        // This loop inlines the injection arithmetic (one credit debit covers
-        // every market in the batch, so it cannot call the shared injection
-        // per market), which means it also has to ask the opening-price
-        // question itself. A no-op on every market that already has a price.
-        await anchorUntradedMarketTx(tx, { workspaceId, marketId: market.id });
-        // Funding a book moves its depth, not anybody's position.
-        emitPricesChanged(workspaceId, market.id, { moneyMoved: false });
       }
 
-      // Persist the per-market top-up on a pending proposal so the subsidy
-      // survives market rollovers and the proposal header reflects it. Only
-      // pending proposals re-spawn markets; post-decision injections stay a
-      // one-off boost to the surviving branch.
+      // Persist the top-up on a pending proposal so it survives market
+      // rollovers. Only pending proposals re-spawn markets; post-decision
+      // injections stay a one-off boost to the surviving branch.
       if (proposalRow && proposalRow.status === 'pending') {
-        const contributionsMap = { ...(proposalRow.subsidyContributions ?? {}) };
-        contributionsMap[agentId] = Math.round(((contributionsMap[agentId] ?? 0) + amount) * 1e6) / 1e6;
-        const newSubsidy = Math.round(((proposalRow.liquiditySubsidy ?? 0) + amount) * 1e6) / 1e6;
-        await tx
-          .update(proposals)
-          .set({ subsidyContributions: contributionsMap, liquiditySubsidy: newSubsidy })
-          .where(and(eq(proposals.id, proposalRow.id), eq(proposals.workspaceId, workspaceId)));
+        const [fresh] = await tx.select().from(proposals).where(eq(proposals.id, proposalRow.id)).for('update');
+        if (hasCells) {
+          const mine = new Map((fresh?.subsidyCells?.[agentId] ?? []).map(c => [cellKey(c), c]));
+          for (const c of cells) {
+            const had = mine.get(cellKey(c))?.amount ?? 0;
+            mine.set(cellKey(c), { ...c, amount: Math.round((had + c.amount) * 1e6) / 1e6 });
+          }
+          await tx
+            .update(proposals)
+            .set({ subsidyCells: { ...(fresh?.subsidyCells ?? {}), [agentId]: Array.from(mine.values()) } })
+            .where(and(eq(proposals.id, proposalRow.id), eq(proposals.workspaceId, workspaceId)));
+        } else {
+          const contributionsMap = { ...(fresh?.subsidyContributions ?? {}) };
+          contributionsMap[agentId] = Math.round(((contributionsMap[agentId] ?? 0) + amount) * 1e6) / 1e6;
+          const newSubsidy = Math.round(((fresh?.liquiditySubsidy ?? 0) + amount) * 1e6) / 1e6;
+          await tx
+            .update(proposals)
+            .set({ subsidyContributions: contributionsMap, liquiditySubsidy: newSubsidy })
+            .where(and(eq(proposals.id, proposalRow.id), eq(proposals.workspaceId, workspaceId)));
+        }
       }
     });
+    for (const x of plan) emitPricesChanged(workspaceId, x.marketId, { moneyMoved: false });
 
-    res.json({ markets: marketRows.length, totalCost, amountPerMarket: amount });
+    res.json({ markets: plan.length, totalCost, ...(hasCells ? { liquidity: cells } : { amountPerMarket: amount }) });
   }),
 );
 

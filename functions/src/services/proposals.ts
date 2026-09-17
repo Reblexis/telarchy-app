@@ -20,6 +20,7 @@ import { periodEndInstant, resolutionInstant } from '../lib/date-utils';
 import { AppError } from '../lib/errors';
 import { proposalCreditsFor } from '../lib/horizon-credits';
 import { allowLedgerAdmin } from '../lib/ledger-admin';
+import { cellKey } from '../lib/liquidity-cells';
 import { emitPricesChanged } from '../lib/market-events';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { isOptionBranch, optionDeltas } from '../lib/proposal-options';
@@ -187,16 +188,12 @@ export function subsidyContributionsOf(proposal: {
 }
 
 /**
- * How many markets a proposal posted now would spawn: one per branch per
- * open leaf baseline whose date settles after the deadline. It is what a
- * `liquidityBudget` is divided by (docs/guides/proposals.md, "Posting one"),
+ * The books a proposal posted now would be priced on: every open leaf
+ * baseline whose date settles after the deadline, as `metricId:targetDate`
+ * keys. It is what a request's per-book `liquidity` list is checked against,
  * and it reads the same set createConditionalMarkets spawns from.
  */
-export async function conditionalMarketCount(
-  workspaceId: string,
-  deadline: Date | null,
-  branchCount: number,
-): Promise<number> {
+export async function conditionalCellKeys(workspaceId: string, deadline: Date | null): Promise<Set<string>> {
   const metricRows = await db
     .select({ id: metricsTable.id, formula: metricsTable.formula })
     .from(metricsTable)
@@ -206,13 +203,16 @@ export async function conditionalMarketCount(
     .select({ metricId: markets.metricId, targetDate: markets.targetDate, active: markets.active })
     .from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false), isNull(markets.proposalId)));
-  const cells = open.filter(
-    m =>
-      m.active !== false &&
-      leaf.has(m.metricId) &&
-      (!deadline || periodEndInstant(m.targetDate).getTime() > deadline.getTime()),
+  return new Set(
+    open
+      .filter(
+        m =>
+          m.active !== false &&
+          leaf.has(m.metricId) &&
+          (!deadline || periodEndInstant(m.targetDate).getTime() > deadline.getTime()),
+      )
+      .map(m => cellKey(m)),
   );
-  return cells.length * branchCount;
 }
 
 export async function createConditionalMarkets(
@@ -286,6 +286,7 @@ export async function createConditionalMarkets(
         title: proposals.title,
         decideBy: proposals.decideBy,
         options: proposals.options,
+        subsidyCells: proposals.subsidyCells,
       })
       .from(proposals)
       .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
@@ -411,9 +412,28 @@ export async function createConditionalMarkets(
       // is per market: a listed contributor pays the same on every branch,
       // the owner pays each branch its date's number.
       const funded: Array<[string, Map<string, number>]> = [];
-      const uniform = (perMarket: number) => new Map(newMarkets.map(m => [m.id as string, perMarket]));
+      // What each listed contributor puts behind each new book: their one
+      // number for every book, plus what they chose per book (the proposal's
+      // subsidyCells; docs/guides/get-paid.md, "Posting one"). A book they
+      // named that this generation does not spawn costs them nothing.
+      const wanted = new Map<string, Map<string, number>>();
+      const want = (contributorId: string, marketId: string, credits: number) => {
+        const amounts = wanted.get(contributorId) ?? new Map<string, number>();
+        amounts.set(marketId, (amounts.get(marketId) ?? 0) + credits);
+        wanted.set(contributorId, amounts);
+      };
       for (const [contributorId, perMarket] of contributions) {
-        const cost = Math.round(perMarket * newMarkets.length * 1e6) / 1e6;
+        for (const m of newMarkets) want(contributorId, m.id as string, perMarket);
+      }
+      for (const [contributorId, cells] of Object.entries(proposalRowForAsk?.subsidyCells ?? {})) {
+        const byCell = new Map(cells.map(c => [cellKey(c), c.amount]));
+        for (const m of newMarkets) {
+          const credits = byCell.get(cellKey(m)) ?? 0;
+          if (credits > 0) want(contributorId, m.id as string, credits);
+        }
+      }
+      for (const [contributorId, amounts] of wanted) {
+        const cost = Math.round(Array.from(amounts.values()).reduce((sum, c) => sum + c, 0) * 1e6) / 1e6;
         const [agentRow] = await tx.select().from(agents).where(eq(agents.id, contributorId)).for('update');
         if (!agentRow) {
           if (options.strict) throw new AppError('Subsidy contributor agent not found', 404);
@@ -436,7 +456,7 @@ export async function createConditionalMarkets(
           skipped.push({ contributorId, needed: cost, had: spendable });
           continue;
         }
-        funded.push([contributorId, uniform(perMarket)]);
+        funded.push([contributorId, amounts]);
       }
 
       // The owner pays what they chose per date, and only that, ON TOP of

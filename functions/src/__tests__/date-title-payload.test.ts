@@ -175,3 +175,32 @@ describe("A DATE'S TITLE REACHES THE BOOK OF THE DATE IT NAMES", () => {
     expect((await storedTp()).horizonTitles).toEqual({ 'until-settled': 'this attempt' });
   });
 });
+
+/**
+ * The floor says what each book adds to a new proposal, so the posting form
+ * can show it beside the proposer's own number (docs/ui-conventions.md,
+ * "Posting one"): the owner's "Proposal opens with" for that date, 0 where
+ * they set none, and null on a metric proposals are not priced on.
+ */
+describe('each book says what the floor adds to a new proposal', () => {
+  test("the date's proposal number rides the market row, and a date without one says 0", async () => {
+    await db
+      .update(metrics)
+      .set({
+        timePreference: {
+          enabled: false,
+          halfLife: 1,
+          customHorizons: ['until-settled', '+0w'],
+          horizonCredits: { '+0w': { proposal: 3000 } },
+        },
+      })
+      .where(eq(metrics.id, 'len'));
+    expect((await floorMarket('mkt-week'))?.proposalOpensWith).toBe(3000);
+    expect((await floorMarket('mkt-open'))?.proposalOpensWith).toBe(0);
+  });
+
+  test('a formula metric prices no proposal, so its books say null', async () => {
+    await db.update(metrics).set({ formula: 'a + b' }).where(eq(metrics.id, 'len'));
+    expect((await floorMarket('mkt-week'))?.proposalOpensWith).toBeNull();
+  });
+});

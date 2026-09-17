@@ -982,6 +982,16 @@ export const proposals = pgTable(
      * per-contributor liquidityEvents rows.
      */
     subsidyContributions: jsonb('subsidy_contributions').notNull().$type<Record<string, number>>().default({}),
+    /**
+     * Liquidity a contributor chose PER BOOK: agentId -> cells, each putting
+     * `amount` credits into every branch book of that metric and date
+     * (docs/guides/get-paid.md, "Posting one"). Beside subsidyContributions,
+     * which is one number for every book; a respawn reseeds both.
+     */
+    subsidyCells: jsonb('subsidy_cells')
+      .notNull()
+      .$type<Record<string, Array<{ metricId: string; targetDate: string; amount: number }>>>()
+      .default({}),
     /** Reward credits actually paid out on approval. 0 if not approved or workspace had no reward configured. */
     rewardPaid: doublePrecision('reward_paid').notNull().default(0),
     /** Penalty credits actually charged on spam-decline. 0 if not declined as spam. */

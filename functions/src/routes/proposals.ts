@@ -4,6 +4,7 @@ import { Router } from 'express';
 import { db } from '../db/client';
 import { agents, proposalMessages, proposals, workspaces } from '../db/schema';
 import { docUrlFor } from '../lib/error-codes';
+import { cellKey, type LiquidityCell, parseLiquidityCells } from '../lib/liquidity-cells';
 import { branchIsShown } from '../lib/market-pairs';
 import { notifyOwner } from '../lib/notify';
 import { publicOrigin } from '../lib/origin';
@@ -16,7 +17,7 @@ import { emitEvent } from '../services/events';
 import { notifyCommentPosted, notifyProposalCreated, notifyProposalDecided } from '../services/notifications';
 import {
   approveProposal,
-  conditionalMarketCount,
+  conditionalCellKeys,
   countPendingProposalsByProposer,
   createConditionalMarkets,
   declineProposal,
@@ -80,6 +81,7 @@ proposalsRouter.post(
       description,
       liquiditySubsidy,
       liquidityBudget,
+      liquidity: rawLiquidity,
       askUsd,
       payoutHandle,
       decideBy,
@@ -247,25 +249,38 @@ proposalsRouter.post(
     } else {
       subsidy = liquiditySubsidy;
     }
-    // `liquidityBudget` says the same seed as a whole amount, split evenly
-    // across the markets this proposal spawns (docs/guides/proposals.md,
-    // "Posting one"): the floor's form asks a person what they spend, not a
-    // per-market number times a count they cannot see. Rounded DOWN to the
-    // ledger's precision so the charge never exceeds the budget named.
+    // `liquidity` is the proposer's choice PER BOOK (docs/guides/get-paid.md,
+    // "Posting one"): amount credits into each branch book of that metric and
+    // date, nothing anywhere else. Every book named must be one this proposal
+    // will be priced on, or the list is refused before anything is created.
     if (liquidityBudget !== undefined && liquidityBudget !== null) {
-      if (typeof liquidityBudget !== 'number' || !Number.isFinite(liquidityBudget) || liquidityBudget < 0) {
-        res.status(400).json({ error: 'liquidityBudget must be a non-negative number' });
-        return;
-      }
+      res
+        .status(400)
+        .json({ error: 'liquidityBudget is retired: name liquidity per book, [{ metricId, targetDate, amount }]' });
+      return;
+    }
+    let cells: LiquidityCell[] = [];
+    if (rawLiquidity !== undefined && rawLiquidity !== null) {
       if (liquiditySubsidy !== undefined && liquiditySubsidy !== null) {
-        res
-          .status(400)
-          .json({ error: 'Name liquidityBudget (the whole amount) or liquiditySubsidy (per market), not both' });
+        res.status(400).json({ error: 'Name liquidity (per book) or liquiditySubsidy (every book), not both' });
         return;
       }
-      const count = await conditionalMarketCount(workspaceId, deadline, options?.length ? options.length : 2);
-      subsidy = count > 0 ? Math.floor((liquidityBudget / count) * 1e6) / 1e6 : 0;
-      if (subsidy < MIN_LIQUIDITY_CONTRIBUTION) subsidy = 0;
+      const parsed = parseLiquidityCells(rawLiquidity);
+      if ('error' in parsed) {
+        res.status(400).json({ error: parsed.error });
+        return;
+      }
+      cells = parsed.cells;
+      if (cells.length > 0) {
+        const priced = await conditionalCellKeys(workspaceId, deadline);
+        const stray = cells.find(c => !priced.has(cellKey(c)));
+        if (stray) {
+          res.status(400).json({
+            error: `liquidity names ${stray.metricId} ${stray.targetDate}, which this proposal will not be priced on (no open market there, or it settles before the deadline)`,
+          });
+          return;
+        }
+      }
     }
     if (subsidy > 0 && subsidy < MIN_LIQUIDITY_CONTRIBUTION) {
       res
@@ -305,6 +320,7 @@ proposalsRouter.post(
           conditionalMarketIds: [],
           liquiditySubsidy: subsidy,
           subsidyContributions: subsidy > 0 ? { [proposedBy]: subsidy } : {},
+          subsidyCells: cells.length > 0 ? { [proposedBy]: cells } : {},
           decideBy: deadline,
           options,
           createdAt: new Date(),
@@ -334,7 +350,7 @@ proposalsRouter.post(
       }
     } catch (e) {
       console.error(`createConditionalMarkets failed for proposal ${id}:`, e);
-      if (subsidy > 0) {
+      if (subsidy > 0 || cells.length > 0) {
         // The proposal row is inserted before the spawn, so without this
         // delete a failed stake leaves a pending proposal that LOOKS funded
         // (subsidyContributions records the intent) while the hourly
@@ -376,7 +392,7 @@ proposalsRouter.post(
       );
     }
 
-    res.status(201).json({ id, number, conditionalMarketIds, liquiditySubsidy: subsidy, options });
+    res.status(201).json({ id, number, conditionalMarketIds, liquiditySubsidy: subsidy, liquidity: cells, options });
   }),
 );
 
