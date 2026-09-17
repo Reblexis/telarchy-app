@@ -109,6 +109,8 @@ vi.mock('../../lib/api', () => {
   return { api, setActiveWorkspace: vi.fn() };
 });
 
+vi.mock('../../components/live/LiveView', () => ({ LiveView: () => <div data-testid="live-view" /> }));
+
 const { TradePage } = await import('../TradePage');
 
 function renderFloor(path = '/lookpilot') {
@@ -193,5 +195,32 @@ describe('every floor carries the door to a bot, in the ticket rail', () => {
       name: /Add your own trading bot/,
     });
     await waitFor(() => expect(door).toHaveAttribute('href', '/agents?market=lookpilot#agent-setup'));
+  });
+});
+
+/* Persona run 2026-09-17, the bot author: "I found a starter bot, but I still
+   cannot tell it where to read the chess game." telarchy-chess docs/chess.md
+   says the floor links to its trading guide, which names the feed. */
+describe('a fed floor links to its own bot guide', () => {
+  const GUIDE = 'https://github.com/Reblexis/telarchy-chess/blob/main/docs/trading.md';
+  test('the chess floor carries "How to trade chess with a bot" under the door, opening the guide in a new tab', async () => {
+    await withWorkspace({ liveFeed: { kind: 'chess', url: 'https://chess.example.com' } });
+    renderFloor();
+    const link = await screen.findByRole('link', {
+      name: 'How to trade chess with a bot: the game feed, a dry run, a reference bot',
+    });
+    expect(link).toHaveAttribute('href', GUIDE);
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link.getAttribute('rel')).toMatch(/noopener/);
+    expect(link.closest('.pubws-botdoor')).toBeTruthy();
+  });
+  test('a floor with no feed, or a feed with no guide, carries no such link', async () => {
+    renderFloor();
+    await screen.findByRole('link', { name: /Add your own trading bot/ });
+    expect(screen.queryByRole('link', { name: /How to trade/ })).toBeNull();
+    await withWorkspace({ liveFeed: { kind: 'snake', url: 'https://snake.example.com' } });
+    renderFloor();
+    await waitFor(() => expect(screen.getAllByRole('link', { name: /Add your own trading bot/ }).length).toBe(2));
+    expect(screen.queryByRole('link', { name: /How to trade/ })).toBeNull();
   });
 });

@@ -4503,6 +4503,7 @@ textarea.jobform-line--desc {
   color: var(--text-secondary);
   text-align: left;
 }
+.pubws-botdoor-guide { display: block; margin-top: 6px; font-family: var(--font-mono); font-size: 0.72rem; line-height: 1.4; color: var(--accent); text-align: left; text-decoration: underline; text-underline-offset: 2px; }
 
 .pubws-bet-btn {
   flex: 1;
