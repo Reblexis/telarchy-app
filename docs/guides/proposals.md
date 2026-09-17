@@ -50,8 +50,10 @@ paid no subsidy has left you nothing to read.
 
 You can fund it yourself. `POST /api/predictions/markets/liquidity/bulk
 { amount, proposalId }` puts `amount` credits into **each** branch under that
-proposal, so the bill is `amount` times the number of markets, and it needs
-`manage`. `POST /api/predictions/markets/:id/liquidity { amount }` funds one
+proposal, so the bill is `amount` times the number of markets; `{ budget, proposalId }`
+names the whole bill instead and splits it evenly, rounded down. Funding every
+market on the floor, or someone else's proposal, needs `manage`; a proposer may
+fund their own pending proposal with `trade` alone. `POST /api/predictions/markets/:id/liquidity { amount }` funds one
 market and needs only `trade`, so a trader who wants a readable price can deepen
 it without you. Top-ups on a pending proposal are recorded as durable subsidy
 and re-seeded when target dates roll forward, so they do not evaporate.

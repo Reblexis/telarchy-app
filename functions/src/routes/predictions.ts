@@ -1612,14 +1612,52 @@ predictionsRouter.get(
 
 predictionsRouter.post(
   '/markets/liquidity/bulk',
-  requireCapability('manage'),
+  // `trade`, not `manage`: a proposer may add liquidity to THEIR OWN pending
+  // proposal out of their own balance (docs/guides/proposals.md, "Editing,
+  // and getting out"). Everything else this route does is refused below
+  // for a caller without manage.
+  requireCapability('trade'),
   wrap(async (req, res) => {
     const { workspaceId, agentId: callerAgentId } = req.auth!;
-    const { amount, agentId: bodyAgentId, proposalId } = req.body;
-    if (typeof amount !== 'number' || amount <= 0) {
+    const { amount: bodyAmount, budget, agentId: bodyAgentId, proposalId } = req.body;
+    const canManage = req.auth!.capabilities.has('manage');
+    // `budget` is the WHOLE amount, split evenly across the proposal's open
+    // markets and rounded down so the charge never exceeds it; `amount` is
+    // credits per market. One or the other.
+    const hasBudget = budget !== undefined && budget !== null;
+    if (hasBudget && bodyAmount !== undefined && bodyAmount !== null) {
+      res.status(400).json({ error: 'Name budget (the whole amount) or amount (per market), not both' });
+      return;
+    }
+    if (hasBudget && (typeof budget !== 'number' || !Number.isFinite(budget) || budget <= 0)) {
+      res.status(400).json({ error: 'budget must be a positive number' });
+      return;
+    }
+    if (hasBudget && !proposalId) {
+      res.status(400).json({ error: "budget needs a proposalId; fund the floor's own books with amount" });
+      return;
+    }
+    if (!hasBudget && (typeof bodyAmount !== 'number' || bodyAmount <= 0)) {
       res.status(400).json({ error: 'amount must be a positive number' });
       return;
     }
+    if (!canManage) {
+      if (!proposalId || (typeof bodyAgentId === 'string' && bodyAgentId && bodyAgentId !== callerAgentId)) {
+        res.status(403).json({ error: 'Missing capability: manage' });
+        return;
+      }
+      const [own] = await db
+        .select({ proposedBy: proposals.proposedBy, status: proposals.status })
+        .from(proposals)
+        .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+      if (!own || own.proposedBy !== callerAgentId || own.status !== 'pending') {
+        res
+          .status(403)
+          .json({ error: 'Only the proposer of a pending proposal, or a manager, can fund all its markets' });
+        return;
+      }
+    }
+    let amount: number = hasBudget ? 0 : bodyAmount;
     const agentId = typeof bodyAgentId === 'string' && bodyAgentId ? bodyAgentId : callerAgentId;
     if (!agentId) {
       res.status(400).json({ error: 'agentId is required' });
@@ -1650,7 +1688,7 @@ predictionsRouter.post(
     // the conditional markets roll to new target dates).
     let proposalRow: typeof proposals.$inferSelect | null = null;
     if (proposalId) {
-      if (amount < MIN_LIQUIDITY_CONTRIBUTION) {
+      if (!hasBudget && amount < MIN_LIQUIDITY_CONTRIBUTION) {
         res.status(400).json({
           error: `amount must be at least ${MIN_LIQUIDITY_CONTRIBUTION} credits per market for proposal subsidies (LMSR b below this is butterfly-sensitive)`,
         });
@@ -1676,6 +1714,13 @@ predictionsRouter.post(
     if (marketRows.length === 0) {
       res.status(400).json({ error: 'No active markets' });
       return;
+    }
+    if (hasBudget) {
+      amount = Math.floor((budget / marketRows.length) * 1e6) / 1e6;
+      if (amount < MIN_LIQUIDITY_CONTRIBUTION) {
+        res.status(400).json({ error: "budget is too small to split across this proposal's markets" });
+        return;
+      }
     }
 
     const balanceUnits = agent.balance as number;
