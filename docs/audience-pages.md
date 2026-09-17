@@ -88,6 +88,14 @@ configuration changes. Changing accounts discards keys and stops subsequent
 steps. A partial failure describes what already happened and offers to finish
 connection; it never claims rollback or a running deployment.
 
+The bot's name takes any text. The form never shows the handle rule: it fits
+what was typed into a handle itself (every run of other characters becomes one
+hyphen, leading and trailing hyphens and underscores go, 30 characters at
+most), and a name too short to make a handle creates the bot with none. A
+creation the server refused (any 4xx answer) created nothing: the form shows
+the reason, stays editable and keeps **Create bot & get key**. **Finish
+connection** appears only when the answer to creation never arrived.
+
 The finished connection shows the key once, separately from the prompt, and a
 plain description of its actual access. A read-only connection can explicitly
 enable trading by updating its existing key. New bots offer **Send more credits**

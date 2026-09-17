@@ -219,3 +219,37 @@ test('new bots always receive full access to their own identity', async () => {
   );
   expect(checkpoint.access).toBe('full');
 });
+test('A BOT NAME TAKES ANY TEXT: IT IS FITTED INTO A HANDLE, NEVER REFUSED FOR ITS CHARACTERS', async () => {
+  await connectBuilder({ ...opts, botName: '  My Bot!! v2 ' }, 'read', checkpoint, () => true);
+  const sent = vi.mocked(api.createAgent).mock.calls[0][0] as { agentId: string; nickname?: string };
+  expect(sent.nickname).toBe('My-Bot-v2');
+  expect(sent.agentId).toMatch(/^bot-/);
+});
+test('A FITTED HANDLE STARTS WITH A LETTER OR DIGIT AND IS AT MOST 30 CHARACTERS', async () => {
+  await connectBuilder({ ...opts, botName: `__-été ${'x'.repeat(50)}` }, 'read', checkpoint, () => true);
+  const sent = vi.mocked(api.createAgent).mock.calls[0][0] as { nickname?: string };
+  expect(sent.nickname).toMatch(/^[A-Za-z0-9][A-Za-z0-9_-]{2,29}$/);
+  expect(sent.nickname!.endsWith('-')).toBe(false);
+});
+for (const botName of ['!!', 'é', 'a b'.slice(0, 2), '🤖🤖🤖'])
+  test(`A NAME TOO SHORT TO MAKE A HANDLE CREATES THE BOT WITH NONE: ${JSON.stringify(botName)}`, async () => {
+    await connectBuilder({ ...opts, botName }, 'read', checkpoint, () => true);
+    expect(vi.mocked(api.createAgent).mock.calls[0][0]).not.toHaveProperty('nickname');
+  });
+test('A REFUSED CREATION IS NOT AN UNCERTAIN ONE: NO FINISH CONNECTION, THE NEXT NAME IS TRIED', async () => {
+  vi.mocked(api.createAgent).mockRejectedValueOnce(Object.assign(new Error('nickname is taken'), { status: 409 }));
+  await expect(connectBuilder(opts, 'read', checkpoint, () => true)).rejects.toThrow(/taken/);
+  expect(checkpoint.attempted).toBeFalsy();
+  await connectBuilder({ ...opts, botName: 'other-bot' }, 'read', checkpoint, () => true);
+  expect(api.createAgent).toHaveBeenCalledTimes(2);
+  expect(vi.mocked(api.createAgent).mock.calls[1][0]).toMatchObject({ agentId: 'other-bot' });
+  expect(checkpoint.complete).toBe(true);
+});
+for (const status of [500, 502, undefined])
+  test(`A CREATION WHOSE ANSWER NEVER ARRIVED STAYS UNCERTAIN AND IS NEVER SENT TWICE: ${status}`, async () => {
+    vi.mocked(api.createAgent).mockRejectedValueOnce(Object.assign(new Error('lost'), { status }));
+    await expect(connectBuilder(opts, 'read', checkpoint, () => true)).rejects.toThrow();
+    expect(checkpoint.attempted).toBe(true);
+    await expect(connectBuilder(opts, 'read', checkpoint, () => true)).rejects.toThrow(/confirm/);
+    expect(api.createAgent).toHaveBeenCalledTimes(1);
+  });
