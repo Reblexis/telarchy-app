@@ -39,6 +39,8 @@ export interface ChessDecision {
   san: string;
   price: number | null;
   kind: string;
+  /** When the move was played (ISO): the moment the feed's clocks were last true. */
+  at?: string;
 }
 export interface ChessState {
   /** The floor's rule in one sentence (telarchy-chess docs/chess.md, "The feed"). */
@@ -439,8 +441,6 @@ export function ChessLive({
 }) {
   const [state, setState] = useState<ChessState | null>(null);
   const [failed, setFailed] = useState(false);
-  /* When the last feed read landed: a running clock counts down from it. */
-  const [fetchedAt, setFetchedAt] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [selectionState, setSelectionState] = useState<{ id: string | null; square: string | null }>({
     id: null,
@@ -468,7 +468,6 @@ export function ChessLive({
         const s = (await api.getLiveState(slug)) as unknown as ChessState;
         if (stopped) return;
         setState(s);
-        setFetchedAt(Date.now());
         setFailed(false);
         const key = s.open?.proposal?.id ?? 'none';
         if (stepKeyRef.current !== null && key !== stepKeyRef.current) {
@@ -729,8 +728,12 @@ export function ChessLive({
     const what = d && d.game === game.number ? `to reply to ${d.san}` : 'to move';
     const theirs: Color = game.color === 'white' ? 'black' : 'white';
     const ms = game.clocks?.[theirs];
-    const left =
-      typeof ms === 'number' && Number.isFinite(ms) ? ms / 1000 - (fetchedAt ? (now - fetchedAt) / 1000 : 0) : null;
+    /* The feed's clocks change only when a move is made, so the count runs from
+       the decision they were last true at, never from the read (which would
+       snap it back every poll); with no such moment the clock stands still. */
+    const since = d && d.game === game.number && d.at ? Date.parse(d.at) : Number.NaN;
+    const spent = Number.isFinite(since) ? Math.max(0, now - since) / 1000 : 0;
+    const left = typeof ms === 'number' && Number.isFinite(ms) ? ms / 1000 - spent : null;
     line =
       left === null
         ? { text: `Waiting for ${who} ${what}`, cls: 'is-default' }

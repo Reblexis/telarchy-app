@@ -675,17 +675,69 @@ describe('the next move and the floor', () => {
     expect(container.querySelector('.chess-next .chess-clock')?.textContent).toMatch(/^28:(20|19)$/);
   });
 
-  test('their clock counts down between feed reads', async () => {
+  /* The feed's clocks change only when a move is made, so every read carries the
+     same number; the count runs from the decision's `at`, not from the read. */
+  const thinking = (agoMs: number) =>
+    h.state({
+      phase: 'their-move',
+      open: null,
+      recentDecisions: [
+        {
+          game: 3,
+          move: 6,
+          chosen: 'e1g1',
+          san: 'O-O',
+          price: 56.4,
+          kind: 'market',
+          at: new Date(Date.now() - agoMs).toISOString(),
+        },
+      ],
+    });
+  const clockText = (c: HTMLElement) => c.querySelector('.chess-next .chess-clock')?.textContent ?? '';
+  const secs = (t: string) => Number(t.split(':')[0]) * 60 + Number(t.split(':')[1]);
+
+  test('their clock counts from the moment our move was played, not from the feed read', async () => {
+    const state = thinking(60_000);
+    vi.mocked(api.getLiveState).mockImplementation(async () => state as never);
+    const { container } = renderLive();
+    // 28:20 on the feed, a minute of thinking since: 27:20.
+    await waitFor(() => expect(clockText(container)).toMatch(/^27:(20|19)$/));
+  });
+
+  test('the timer does not reset two seconds back at every feed read', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const state = thinking(0);
+    vi.mocked(api.getLiveState).mockImplementation(async () => ({ ...state }) as never);
+    const { container } = renderLive();
+    await waitFor(() => expect(clockText(container)).toMatch(/^28:(20|19)$/));
+    const reads = vi.mocked(api.getLiveState).mock.calls.length;
+    let last = secs(clockText(container));
+    for (let i = 0; i < 9; i++) {
+      await vi.advanceTimersByTimeAsync(1_000);
+      const s = secs(clockText(container));
+      expect(s).toBeLessThanOrEqual(last);
+      last = s;
+    }
+    // Several reads landed meanwhile, each with the same 28:20, and nine seconds are gone.
+    expect(vi.mocked(api.getLiveState).mock.calls.length).toBeGreaterThan(reads + 2);
+    expect(last).toBeLessThanOrEqual(28 * 60 + 12);
+    expect(last).toBeGreaterThanOrEqual(28 * 60 + 9);
+  });
+
+  test('with no decision of this game to date it from, their clock stands still', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.mocked(api.getLiveState).mockImplementation(async () => h.state({ phase: 'their-move', open: null }) as never);
     const { container } = renderLive();
-    await waitFor(() =>
-      expect(container.querySelector('.chess-next .chess-clock')?.textContent).toMatch(/^28:(20|19)$/),
-    );
-    // Hold the feed where it is so only the page's own clock moves.
-    vi.mocked(api.getLiveState).mockImplementation(() => new Promise(() => {}) as never);
+    await waitFor(() => expect(clockText(container)).toBe('28:20'));
     await vi.advanceTimersByTimeAsync(5_000);
-    await waitFor(() => expect(container.querySelector('.chess-next .chess-clock')?.textContent).toMatch(/^28:1[45]$/));
+    expect(clockText(container)).toBe('28:20');
+  });
+
+  test('a clock that has run out reads 0:00, never below', async () => {
+    const state = thinking(3_600_000);
+    vi.mocked(api.getLiveState).mockImplementation(async () => state as never);
+    const { container } = renderLive();
+    await waitFor(() => expect(clockText(container)).toBe('0:00'));
   });
 
   test('before TelarchyBot has moved in this game the line says the opponent is to move', async () => {
