@@ -1,0 +1,7 @@
+{
+  "files": ["agent.py", "llm_agent.py"],
+  "flags": {
+    "agent.py": ["--live", "--workspace"],
+    "llm_agent.py": ["--live", "--workspace"]
+  }
+}

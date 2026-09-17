@@ -71,16 +71,18 @@ package if `python3 -m venv` reports that `ensurepip` is missing.
 git clone https://github.com/Reblexis/telarchy-reference-agent.git
 cd telarchy-reference-agent
 python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install -r requirements.txt
-export TELARCHY_WORKSPACE=telarchy
-python agent.py
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python agent.py
 ```
 
-On Windows, activate with `.venv\Scripts\Activate.ps1` in PowerShell and set
-variables with `$env:TELARCHY_WORKSPACE = "telarchy"`. The Python commands are
-the same. Requirements pin the client to a tested Git revision; this setup
-does not depend on a PyPI release.
+On Windows PowerShell, create the environment with `py -3 -m venv .venv` and
+use `.\.venv\Scripts\python.exe` wherever these commands say
+`.venv/bin/python`. Requirements pin the client to a tested Git revision; this
+setup does not depend on a PyPI release.
+
+With no workspace named, the agent previews the public `telarchy` workspace.
+Name another with `--workspace <slug>` (or `TELARCHY_WORKSPACE`). Every run
+ends by printing the next command to try.
 
 No account, key, or credits are needed for public market reads. Find another
 workspace in `GET /api/marketplace/workspaces/public` and use its ID or slug.
@@ -202,11 +204,19 @@ membership. API scopes and workspace permissions both apply. Store keys outside
 source control and never put them in model prompts.
 
 ```bash
-export TELARCHY_KEY=your-participant-key
-python agent.py --budget-per-trade 1 --cycle-budget 5
+.venv/bin/python agent.py --login   # paste the key once; it is checked, then saved
+.venv/bin/python agent.py           # preview again, now with real fills
 # Inspect the forecasts and quotes, then deliberately enable execution:
-python agent.py --budget-per-trade 1 --cycle-budget 5 --live
+.venv/bin/python agent.py --live
+.venv/bin/python agent.py --live --every 30   # one cycle every 30 minutes
 ```
+
+`--login` reads the key with a hidden prompt, verifies it, and saves it to
+`.telarchy-key` beside `agent.py` (readable only by you, ignored by Git). A
+refused key is never saved. `TELARCHY_KEY`, when set, wins over the saved key,
+which is the right choice on a server. The defaults are 1 credit per trade and
+5 per cycle; change them with `--budget-per-trade` and `--cycle-budget`. `--live`
+on a bot with no credits stops at once and says where credits come from.
 
 Both starters default to these limits. Zero disables trading. The cycle reserves
 each submitted trade's maximum allowance, even when its fill is cheaper or the
