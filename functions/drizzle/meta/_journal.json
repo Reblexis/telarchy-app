@@ -953,6 +953,13 @@
       "when": 1789637515096,
       "tag": "0135_proposal_subsidy_cells",
       "breakpoints": true
+    },
+    {
+      "idx": 136,
+      "version": "7",
+      "when": 1789656845442,
+      "tag": "0136_bot_id_is_nickname",
+      "breakpoints": true
     }
   ]
 }

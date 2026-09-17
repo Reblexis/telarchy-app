@@ -31,6 +31,15 @@ export function validateNickname(value: unknown): string | undefined {
   return undefined;
 }
 
+/**
+ * An id fit to be shown as a name when a participant has no nickname: 16
+ * characters or fewer, or a hyphenated word of 24 or fewer. A uuid or a long
+ * hash is not. Same rule as the page (src/lib/display-name.ts).
+ */
+export function isReadableParticipantId(id: string): boolean {
+  return (id.length <= 24 && /[a-z]/i.test(id) && id.includes('-')) || id.length <= 16;
+}
+
 /** Free-text content fields (proposal descriptions, messages, metric descriptions). Max 10,000 chars. */
 export function validateContent(value: unknown, fieldName = 'content', maxLength = 10_000): string | undefined {
   if (typeof value !== 'string') return `${fieldName} must be a string`;

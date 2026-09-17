@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { LeaderboardEntry } from '../lib/api';
 import { api, type PrizeSeason } from '../lib/api';
+import { displayName } from '../lib/display-name';
 import { pickCurrentSeason } from '../lib/season-clock';
 import { useSeasonClock } from '../lib/useSeasonClock';
 import { BotMark } from './BotMark';
@@ -111,13 +112,13 @@ function TraderRow({
   season: PrizeSeason | null;
   pinned?: boolean;
 }) {
-  const name = e.nickname || (pinned ? 'you' : 'anonymous');
+  const name = displayName(e.nickname, e.id, pinned ? 'you' : 'anonymous');
   return (
     <li className={`pubws-lb-row${e.id === meId ? ' is-me' : ''}${pinned ? ' is-pinned' : ''}`}>
       <span className="pubws-lb-rank">{rank}</span>
       <Link className="pubws-lb-who pubws-name-link" to={`/participants/${encodeURIComponent(e.nickname ?? e.id)}`}>
         <span className="pubws-lb-avatar">
-          {e.image ? <img src={e.image} alt="" /> : <span>{initialOf(e.nickname || 'anonymous')}</span>}
+          {e.image ? <img src={e.image} alt="" /> : <span>{initialOf(name)}</span>}
         </span>
         {e.positionLine ? (
           <span className="pubws-lb-stack">

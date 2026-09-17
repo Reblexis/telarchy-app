@@ -12,6 +12,7 @@ import {
   type PublicProfileTrade,
   type PublicProfileTransfer,
 } from '../lib/api';
+import { displayName } from '../lib/display-name';
 import { floorHref } from '../lib/floor-hash';
 
 /**
@@ -264,12 +265,12 @@ function BotsSection({ bots, total }: { bots: NonNullable<PublicParticipantProfi
                 <Link className="prof-row prof-row-link" to={`/participants/${encodeURIComponent(b.nickname ?? b.id)}`}>
                   <span className="prof-row-main">
                     <span className="prof-row-title">
-                      {b.nickname ?? 'anonymous'}
+                      {displayName(b.nickname, b.id)}
                       <BotMark bot />
                     </span>
                     <span className="prof-row-sub">
                       {b.totalTrades.toLocaleString('en-US')} {b.totalTrades === 1 ? 'trade' : 'trades'}
-                      {parent ? ` · bot of ${parent.nickname ?? 'anonymous'}` : ''}
+                      {parent ? ` · bot of ${displayName(parent.nickname, parent.id)}` : ''}
                     </span>
                   </span>
                   <span className="prof-row-right">
@@ -367,8 +368,7 @@ export function ParticipantProfilePage() {
 
   // Show the handle; fall back to a readable id (a named bot) but never a
   // 32-char opaque key, which reads as noise.
-  const readableId = (v: string) => (v.length <= 24 && /[a-z]/i.test(v) && v.includes('-')) || v.length <= 16;
-  const handle = profile ? (profile.nickname ?? (readableId(profile.id) ? profile.id : 'anonymous')) : '';
+  const handle = profile ? displayName(profile.nickname, profile.id) : '';
   const inPositions = profile ? profile.openPositions.reduce((sum, p) => sum + (p.worth ?? 0), 0) : 0;
   // An older payload carries the balance only as the last history point.
   const balance = profile
