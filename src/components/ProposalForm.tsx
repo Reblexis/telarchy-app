@@ -314,7 +314,7 @@ export function ProposalForm({
         {edit ? (
           <div className="jobform-field">
             <span className="ticket-label">Decided</span>
-            <span className="jobform-count jobform-seed-note">
+            <span className="jobform-seed-note">
               {edit.decideBy ? deadlineWords(edit.decideBy) : ''}The deadline cannot be moved.
             </span>
           </div>
@@ -442,7 +442,7 @@ export function ProposalForm({
               </>
             )}
           </div>
-          <span className="jobform-count jobform-seed-note">{seedNote}</span>
+          <span className="jobform-seed-note">{seedNote}</span>
         </div>
 
         {seedTooBig && spendable !== null && (
@@ -478,14 +478,16 @@ export function ProposalForm({
                 seed > 0 ? (
                   <>Adds {seed.toLocaleString()}&nbsp;cr of yours to its markets.</>
                 ) : (
-                  'The markets keep their prices and every position. The edit is public.'
+                  'Prices and positions stay. The edit is public.'
                 )
+              ) : seed > 0 ? (
+                // One short line: a centred sub-line must never wrap into a block.
+                <>Puts {seed.toLocaleString()}&nbsp;cr of yours in its markets.</>
               ) : (
                 <>
                   {/* The bounty is the workspace's own proposalReward: a
                       hardcoded 500 cr promised what most floors do not pay. */}
-                  {seed > 0 ? <>Puts {seed.toLocaleString()}&nbsp;cr of yours in its markets.</> : 'Free to post.'}{' '}
-                  Approved means you are paid in real money
+                  Free to post. Approved means you are paid in real money
                   {proposalReward > 0 ? <>, plus {proposalReward.toLocaleString()}&nbsp;cr</> : null}.
                 </>
               )}

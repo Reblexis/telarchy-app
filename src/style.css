@@ -2502,7 +2502,14 @@ a.prof-row-link:hover .prof-row-title { text-decoration: underline; text-underli
 .jobform-line--unit { width: auto; }
 .jobform-line--cr { width: 9ch; }
 /* The liquidity row's one sentence: prose, so left-aligned under the chips. */
-.jobform-seed-note { display: block; margin-top: 0.45rem; text-align: left; line-height: 1.45; }
+.jobform-seed-note {
+  display: block;
+  margin-top: 0.45rem;
+  text-align: left;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+}
 
 /* The deadline on a board row: a clock and a countdown beside the pool, in
    the pool's own mono register; red inside the last day. */
