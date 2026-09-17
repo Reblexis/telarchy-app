@@ -112,9 +112,25 @@ score and a profit on the bot's, and both rows say so. The one place an
 owner's bots are added up is their own profile, as a plain sum beside the
 list (docs/ui-conventions.md, "Bots"); it ranks nothing and pays nothing.
 
+**Trading credits put into liquidity are a position, and count.** Funding a
+book out of the tradeable balance is a cost on the score the moment it is
+paid, and whatever that stake returns (the pool's leftover when the book
+settles or voids, the owner's buy-out of a proposer's stake on approval) is
+proceeds when it lands. It is read off the credit ledger (`liquidity`,
+`lp_leftover`, `proposal_stake`), on the floor it was paid on, and in a
+season at the instant each row was written. So credits cannot be handed to
+another account through a book: what a second account trades out of the pool
+is what the first account's score already lost. Liquidity paid from the
+liquidity wallet (granted or bought) counts as nothing, in either direction:
+it writes no ledger row and its leftover returns to the wallet. An open
+stake reads as spent until money comes back; nothing marks it to the pool.
+Every all-time board and the season apply the same rule.
+
 **Profit out of a book you funded is not score.** In a market you put pool
 credits into, your settled trading profit is reduced by what you contributed
-to that market's pool, floored at zero rather than turned into a loss. Fund a
+to that market's pool (less any part recorded as paid from the tradeable
+balance, which is already a cost under the rule above and is not charged
+twice), floored at zero rather than turned into a loss. Fund a
 market, be the only trader, win it, and the score is nothing: you paid
 yourself. An LP who does not trade their own book is untouched, because they
 have no trading profit to reduce; a trader who funded nothing is untouched;

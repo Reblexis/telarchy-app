@@ -242,6 +242,18 @@ export async function loadBoard(workspaceIds: string[]): Promise<Board> {
       total: Math.round((b.total + credits) * 100) / 100,
     });
   }
+  // TRADING CREDITS PUT INTO LIQUIDITY COUNT (docs/seasons.md): a stake paid
+  // from the balance is a cost, what it returns is proceeds, both settled
+  // money. All time, on the floors of this workspace set.
+  const liquidityNet = await loadLiquidityNet(workspaceIds);
+  for (const [agentId, credits] of liquidityNet) {
+    const b = breakdownById.get(agentId) ?? { settled: 0, open: 0, total: 0 };
+    breakdownById.set(agentId, {
+      settled: Math.round((b.settled + credits) * 100) / 100,
+      open: b.open,
+      total: Math.round((b.total + credits) * 100) / 100,
+    });
+  }
   const profitById = new Map(Array.from(breakdownById, ([id, b]) => [id, b.total]));
 
   // Calibration is about markets that produced an answer, so voided ones
@@ -266,6 +278,7 @@ export async function loadBoard(workspaceIds: string[]): Promise<Board> {
   for (const t of tradeAggs) agentIdsSeen.add(t.agentId);
   for (const p of positionRows) agentIdsSeen.add(p.agentId);
   for (const r of faultRefunds) agentIdsSeen.add(r.agentId);
+  for (const agentId of liquidityNet.keys()) agentIdsSeen.add(agentId);
 
   return {
     profitById,
@@ -346,7 +359,16 @@ async function ownPoolFundingWhere(marketPredicate: SQL): Promise<Map<string, nu
       markets,
       and(eq(markets.id, liquidityEvents.marketId), eq(markets.workspaceId, liquidityEvents.workspaceId)),
     )
-    .where(and(isNotNull(liquidityEvents.agentId), marketPredicate))
+    // A stake recorded as paid from the tradeable balance is already a cost on
+    // the score (loadLiquidityNet) and is not charged twice. Rows that name no
+    // purse predate the record and stay in: the conservative reading.
+    .where(
+      and(
+        isNotNull(liquidityEvents.agentId),
+        sql`${liquidityEvents.fundedFrom} is distinct from 'balance'`,
+        marketPredicate,
+      ),
+    )
     .groupBy(liquidityEvents.agentId, liquidityEvents.workspaceId, liquidityEvents.marketId);
   for (const f of funding) {
     out.set(`${f.agentId} ${f.workspaceId} ${f.marketId}`, Number(f.contributed));
@@ -395,6 +417,39 @@ export async function loadSeasonSettled(
     out.set(agentId, Math.round(((out.get(agentId) ?? 0) + net) * 100) / 100);
   }
   return out;
+}
+
+/** The ledger reasons under which tradeable credits enter or leave a pool:
+ *  a stake, the pool's leftover coming back, and the buy-out of a proposer's
+ *  stake on approval (both legs). The liquidity wallet writes none of them. */
+const LIQUIDITY_REASONS = ['liquidity', 'lp_leftover', 'proposal_stake'];
+
+/**
+ * Net tradeable credits each participant got back from pools minus put into
+ * them, on these floors: negative while a stake is out. With a window, only
+ * rows written in (start, end], the season's own shape.
+ */
+async function loadLiquidityNet(
+  workspaceIds: string[],
+  windowStart?: Date,
+  windowEnd?: Date,
+): Promise<Map<string, number>> {
+  const rows = await db
+    .select({
+      agentId: creditLedger.agentId,
+      units: sql<number>`coalesce(sum(${creditLedger.deltaUnits}), 0)::float`,
+    })
+    .from(creditLedger)
+    .where(
+      and(
+        inArray(creditLedger.reason, LIQUIDITY_REASONS),
+        inArray(creditLedger.workspaceId, workspaceIds),
+        windowStart ? gt(creditLedger.createdAt, windowStart) : undefined,
+        windowEnd ? lte(creditLedger.createdAt, windowEnd) : undefined,
+      ),
+    )
+    .groupBy(creditLedger.agentId);
+  return new Map(rows.map(r => [r.agentId, fromUnits(Number(r.units))]));
 }
 
 export interface SeasonScoreOptions {
@@ -528,6 +583,12 @@ async function loadSeasonSettledTrading(
   for (const r of faultRefunds) {
     const credits = fromUnits(Number(r.units));
     scores.set(r.agentId, Math.round(((scores.get(r.agentId) ?? 0) + credits) * 100) / 100);
+  }
+  // TRADING CREDITS PUT INTO LIQUIDITY COUNT, at the instant they moved
+  // (docs/seasons.md). Here rather than beside the transfers, so a floor's
+  // own view and the marked column carry it too.
+  for (const [agentId, credits] of await loadLiquidityNet(workspaceIds, windowStart, windowEnd)) {
+    scores.set(agentId, Math.round(((scores.get(agentId) ?? 0) + credits) * 100) / 100);
   }
   return scores;
 }
