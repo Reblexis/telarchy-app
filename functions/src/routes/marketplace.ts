@@ -25,7 +25,7 @@ import { type BaselineOrderKey, compareSoonestFirst, primaryOf } from '../lib/ba
 import { coalesce } from '../lib/coalesce';
 import { type ContractorEntry, type ContractorJobPair, computeContractors, pairDelta } from '../lib/contractors';
 import { periodEndInstant, periodStartInstant, resolutionInstant, settlesOn } from '../lib/date-utils';
-import { horizonTitleFor } from '../lib/horizon-credits';
+import { horizonTitleFor, proposalCreditsFor } from '../lib/horizon-credits';
 import { historyQuery, type LiveEndpoint, LiveFeedError, readLiveFeed } from '../lib/live-feed';
 import { branchIsShown } from '../lib/market-pairs';
 import {
@@ -565,6 +565,7 @@ async function buildFloorPayload(ws: PublicWs) {
       order: metrics.order,
       description: metrics.description,
       marketTitle: metrics.marketTitle,
+      formula: metrics.formula,
       timePreference: metrics.timePreference,
       resetsEvery: metrics.resetsEvery,
       resolvesNaUntilMeasured: metrics.resolvesNaUntilMeasured,
@@ -610,6 +611,15 @@ async function buildFloorPayload(ws: PublicWs) {
           metricById.get(m.metricId)?.timePreference as TimePreference | null | undefined,
           m.targetDate,
         ),
+        // What the owner puts into each branch book a new proposal opens on
+        // this date ("Proposal opens with"), so the posting form can show it
+        // beside the proposer's own number; null on a formula metric, which
+        // proposals are not priced on (docs/ui-conventions.md, "Posting one").
+        proposalOpensWith: (() => {
+          const metric = metricById.get(m.metricId);
+          if (!metric || (metric.formula && metric.formula !== '0')) return null;
+          return proposalCreditsFor(metric, m.targetDate);
+        })(),
         // The market's facts (docs/ui-conventions.md, "What a market says
         // about itself"): how many distinct traders, and credits traded.
         traderCount: tradersByMarket.get(m.id) ?? 0,
