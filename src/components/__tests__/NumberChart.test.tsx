@@ -80,6 +80,52 @@ describe('every open date in the band is the date control', () => {
     expect(picked).toEqual(['week']);
   });
 
+  // Owner report 2026-09-17: "clicking the market point ... doesnt work.. when i
+  // hover over the point it doesnt get selected only if i hover slightly above".
+  // The hover crosshair drew its own dot on top of the marker and took the press.
+  test('hovering a market point leaves it pressable: the crosshair over it takes no pointer events', () => {
+    const { container } = wide(() => {});
+    const svg = container.querySelector('svg') as SVGSVGElement;
+    svg.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      width: 800,
+      height: 300,
+      right: 800,
+      bottom: 300,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    fireEvent(svg, new MouseEvent('pointermove', { bubbles: true, clientX: 780, clientY: 100 }));
+    const cross = container.querySelector('.mchart-cross') as SVGGElement;
+    expect(cross).not.toBeNull();
+    expect(cross.getAttribute('pointer-events')).toBe('none');
+  });
+
+  test('THE DOT IS THE TARGET: a pressable marker carries a 12px hit area on its dot, and pressing it picks the date', () => {
+    const picked: string[] = [];
+    const { container } = wide(id => picked.push(id));
+    const week = container.querySelector('.nchart-marker[data-market="week"]') as SVGGElement;
+    const hit = week.querySelector('.nchart-marker-hit') as SVGCircleElement;
+    const dot = week.querySelector('circle:not(.nchart-marker-hit)') as SVGCircleElement;
+    expect(hit).not.toBeNull();
+    expect(Number(hit.getAttribute('r'))).toBeGreaterThanOrEqual(12);
+    expect(hit.getAttribute('cx')).toBe(dot.getAttribute('cx'));
+    expect(hit.getAttribute('cy')).toBe(dot.getAttribute('cy'));
+    expect(hit.getAttribute('fill')).toBe('transparent');
+    fireEvent.click(hit);
+    expect(picked).toEqual(['week']);
+  });
+
+  test('the selected marker and a picture-only chart carry no hit area', () => {
+    const a = wide(() => {});
+    expect(a.container.querySelector('.nchart-marker.is-selected .nchart-marker-hit')).toBeNull();
+    a.unmount();
+    const b = wide();
+    expect(b.container.querySelector('.nchart-marker-hit')).toBeNull();
+  });
+
   test('the selected marker is not pressable: it is where you already are', () => {
     const picked: string[] = [];
     const { container } = wide(id => picked.push(id));

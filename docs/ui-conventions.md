@@ -1411,7 +1411,11 @@ reading by then"), because it changes what a bet is.
   in step because they are one selection. A marker is a `button` with the
   date and its call as its accessible name, grows a ring on hover and
   focus, and names the date it would switch to in a tooltip; the selected
-  one is not pressable, because it is where you already are. A reader who
+  one is not pressable, because it is where you already are. **The dot is
+  the target**: a pressable marker answers on the dot itself and a
+  finger's width around it (a 12px radius), not only on its label, and
+  the hover crosshair that lands on the same dot never takes the press
+  from it. A reader who
   can see four dots priced differently and cannot press them is being shown
   a control that is not one. Hovering snaps to the nearest reading on the past side (the dot sits on
   a real point of the line, the tooltip names that reading and its date), and the nearest market's call on the future side,

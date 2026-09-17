@@ -665,6 +665,11 @@ export function NumberChart({
                 </g>
               )}
               {my !== null && <circle cx={mx} cy={my} r={m.selected ? 4.5 : 3.5} />}
+              {/* The dot is the target: a 3.5px dot is not a thing a finger or
+                a cursor lands on, so the press area is 12px around it. */}
+              {my !== null && pickable && (
+                <circle className="nchart-marker-hit" cx={mx} cy={my} r={12} fill="transparent" pointerEvents="all" />
+              )}
               {/* The other open dates carry their call, so the date strip and
                 the settlement band say the same thing (2026-09-09). */}
               {my !== null && !m.selected && !hasPair && mx >= x(nowT) && (
@@ -788,7 +793,9 @@ export function NumberChart({
           </text>
         )}
         {tip && (
-          <g className="mchart-cross">
+          /* The crosshair snaps onto the very dot a reader is about to
+             press, and is drawn over it: it must never take the press. */
+          <g className="mchart-cross" pointerEvents="none">
             <line x1={tip.x} x2={tip.x} y1={PAD_T - 6} y2={H - PAD_B + 6} />
             <circle className="mchart-cross-mkt" cx={tip.x} cy={tip.y} r={4} />
           </g>
