@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { PageTopBar } from '../components/PageTopBar';
 import { useAuth } from '../hooks/useAuth';
 import { api, type PublicWorkspace } from '../lib/api';
+import { managesFloor } from '../lib/manages-floor';
 import { startVisiblePoll } from '../lib/visible-poll';
 
 /**
@@ -93,7 +94,7 @@ export function FundingPage() {
     }
     api
       .getProfile()
-      .then(p => setCanManage(((p as { capabilities?: string[] }).capabilities ?? []).includes('manage')))
+      .then(p => setCanManage(managesFloor(p, ws.workspaceId)))
       .catch(() => setCanManage(false));
   }, [user, ws, authLoading]);
 
