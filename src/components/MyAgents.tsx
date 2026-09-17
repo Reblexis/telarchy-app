@@ -34,8 +34,9 @@ const NewButton = ({ label, onClick }: { label: string; onClick: () => void }) =
   </button>
 );
 
-/** The signed-in owner's bots and personal keys, on /agents: a ticket card per
- * bot with the prompt one press away, personal keys in the second column. */
+/** The signed-in owner's bots and personal keys, on /agents: a hairline row per
+ * bot that opens onto its actions, personal keys in the second column
+ * (docs/audience-pages.md, "Agent page hierarchy"). */
 export function MyAgents({
   revision = 0,
   created,
@@ -50,6 +51,9 @@ export function MyAgents({
 }) {
   const [rows, setRows] = useState<MyAgent[] | null>(null);
   const [err, setErr] = useState('');
+  /** The open row; undefined until the owner presses one, so the arrival rule
+   * (the created bot, else an only bot) can answer. */
+  const [opened, setOpened] = useState<string | null | undefined>(undefined);
   const [funding, setFunding] = useState<string | null>(null);
   const [amount, setAmount] = useState('25');
   const [busy, setBusy] = useState(false);
@@ -145,6 +149,21 @@ export function MyAgents({
     a.id === createdBot ? -1 : b.id === createdBot ? 1 : 0,
   );
   const me = rows?.find(a => a.authUserId !== null);
+  const openId =
+    opened !== undefined
+      ? opened
+      : createdBot && bots.some(a => a.id === createdBot)
+        ? createdBot
+        : bots.length === 1
+          ? bots[0].id
+          : null;
+  /** One row open at a time; what was open inside a row closes with it. */
+  const toggleRow = (id: string) => {
+    setOpened(openId === id ? null : id);
+    setFunding(null);
+    setManual(null);
+    setKeysOpen(null);
+  };
   return (
     <div className="agent-owned agent-columns">
       <section className="agent-section agent-bots" aria-labelledby="agent-bots-heading">
@@ -176,148 +195,181 @@ export function MyAgents({
             )}
           </div>
         ) : (
-          <ul className="agent-cards">
+          <ul className="agent-rows">
+            <li className="agent-rows-head" aria-hidden="true">
+              <span>Bot</span>
+              <span>Credits</span>
+              <span>Earned</span>
+              <span>Trades</span>
+              <span />
+            </li>
             {bots.map(a => {
               const name = a.nickname || a.id;
               const createdHere = createdBot === a.id;
               const apiKey = createdHere ? created?.connection.key?.apiKey : undefined;
               const day = lastDay(a);
+              const open = openId === a.id;
               return (
-                <li key={a.id} className="agent-card">
-                  <div className="agent-card-head">
-                    <AgentMark compact />
-                    <Link className="agent-profile-link" to={`/participants/${encodeURIComponent(a.id)}`}>
-                      {name}
-                    </Link>
-                  </div>
-                  <div className="agent-card-facts">
-                    <div title="Credits left">
-                      <span className="agent-card-cap">Credits</span>
-                      <span className="agent-card-num">{money(a.balance)}</span>
-                    </div>
-                    <div title="Credits earned, the number the leaderboard ranks on">
-                      <span className="agent-card-cap">Earned</span>
+                <li key={a.id} className={`agent-row${open ? ' is-open' : ''}`}>
+                  {/* The whole line opens the row; the toggle button is the
+                      keyboard's way in, and the name stays a link. */}
+                  <div
+                    className="agent-row-line"
+                    onClick={e => {
+                      if (!(e.target as HTMLElement).closest('a, button')) toggleRow(a.id);
+                    }}
+                  >
+                    <span className="agent-row-name">
+                      <AgentMark compact />
+                      <Link className="agent-profile-link" to={`/participants/${encodeURIComponent(a.id)}`}>
+                        {name}
+                      </Link>
+                    </span>
+                    <span className="agent-row-cell" title="Credits left">
+                      <span className="agent-row-cap">Credits</span>
+                      <span className="agent-row-num">{money(a.balance)}</span>
+                    </span>
+                    <span className="agent-row-cell" title="Credits earned, the number the leaderboard ranks on">
+                      <span className="agent-row-cap">Earned</span>
                       {a.totalTrades === 0 ? (
-                        <span className="agent-card-note">no trades yet</span>
+                        <span className="agent-row-note">no trades yet</span>
                       ) : (
-                        <span className={`agent-card-num${a.earned > 0 ? ' is-up' : a.earned < 0 ? ' is-down' : ''}`}>
+                        <span className={`agent-row-num${a.earned > 0 ? ' is-up' : a.earned < 0 ? ' is-down' : ''}`}>
                           {a.earned >= 0 ? '+' : ''}
                           {money(a.earned)}
                         </span>
                       )}
-                    </div>
-                    <div title="Trades">
-                      <span className="agent-card-cap">Trades</span>
-                      <span className="agent-card-num">{a.totalTrades.toLocaleString('en-US')}</span>
-                      {day && <span className="agent-card-note">last {day}</span>}
-                    </div>
-                  </div>
-                  {apiKey && (
-                    <div className="builder-secret">
-                      <span className="builder-secret-label">YOUR API KEY</span>
-                      <code className="builder-key">{apiKey}</code>
-                      <button
-                        type="button"
-                        className="doors-pill"
-                        onClick={() =>
-                          void navigator.clipboard.writeText(apiKey).then(
-                            () => live.current && setSaid('Key copied'),
-                            () => live.current && setErr('Copy failed. Select the key and copy it manually.'),
-                          )
-                        }
-                      >
-                        Copy key
-                      </button>
-                      <small>Save it now. It’s only shown this session.</small>
-                    </div>
-                  )}
-                  <div className="agent-card-actions">
-                    <button type="button" className="agent-primary" onClick={() => void copyPrompt(a.id)}>
-                      {copied === a.id ? 'Prompt copied' : 'Copy setup prompt'}
-                    </button>
+                    </span>
+                    <span className="agent-row-cell" title="Trades">
+                      <span className="agent-row-cap">Trades</span>
+                      <span className="agent-row-num">{a.totalTrades.toLocaleString('en-US')}</span>
+                    </span>
                     <button
                       type="button"
-                      aria-expanded={manual === a.id}
-                      onClick={() => setManual(manual === a.id ? null : a.id)}
+                      className="agent-row-toggle"
+                      aria-label={`Actions for ${name}`}
+                      aria-expanded={open}
+                      onClick={() => toggleRow(a.id)}
                     >
-                      {manual === a.id ? 'Hide manual setup' : 'Set up manually'}
-                    </button>
-                    <button type="button" onClick={() => setFunding(funding === a.id ? null : a.id)}>
-                      {funding === a.id ? 'Cancel transfer' : 'Send credits'}
-                    </button>
-                    <button
-                      type="button"
-                      className="agent-card-keys-toggle"
-                      aria-label={`Keys for ${name}`}
-                      aria-expanded={keysOpen === a.id}
-                      onClick={() => setKeysOpen(keysOpen === a.id ? null : a.id)}
-                    >
-                      Keys
+                      <span aria-hidden="true">{open ? '-' : '+'}</span>
                     </button>
                   </div>
-                  {copied === a.id && (
-                    <p role="status" className="agent-card-status">
-                      Paste it into your coding assistant, such as Claude Code or Codex. Nothing is running yet.
-                    </p>
-                  )}
-                  {copyFailed === a.id && (
-                    <p role="alert" className="agent-card-status">
-                      Copy failed. Open Set up manually and copy the commands instead.
-                    </p>
-                  )}
-                  {funding === a.id && (
-                    <div className="myagents-send">
-                      <p className="agent-manage-hint">
-                        From your balance: {me ? `${money(me.balance)} cr` : 'not loaded'}
-                      </p>
-                      <input
-                        type="number"
-                        min="0"
-                        step="any"
-                        value={amount}
-                        disabled={busy}
-                        onChange={e => setAmount(e.target.value)}
-                        aria-label={`Credits to send to ${name}`}
-                      />
-                      <button type="button" disabled={busy || uncertain} onClick={() => void send(a.id, name)}>
-                        {busy ? 'Sending…' : 'Send'}
-                      </button>
-                      <details className="agent-transfer-details">
-                        <summary>Returning credits</summary>
-                        <p>To return credits, send them from the bot using a key with wallet access.</p>
-                      </details>
-                    </div>
-                  )}
-                  {manual === a.id && (
-                    <AgentManualSetup
-                      workspace="telarchy"
-                      identity="bot"
-                      access="full"
-                      connected
-                      connectionForm={
-                        apiKey ? (
-                          <button type="button" onClick={() => void navigator.clipboard.writeText(apiKey)}>
+                  {open && (
+                    <div className="agent-row-body">
+                      {apiKey && (
+                        <div className="builder-secret">
+                          <span className="builder-secret-label">YOUR API KEY</span>
+                          <code className="builder-key">{apiKey}</code>
+                          <button
+                            type="button"
+                            className="doors-pill"
+                            onClick={() =>
+                              void navigator.clipboard.writeText(apiKey).then(
+                                () => live.current && setSaid('Key copied'),
+                                () => live.current && setErr('Copy failed. Select the key and copy it manually.'),
+                              )
+                            }
+                          >
                             Copy key
                           </button>
-                        ) : (
-                          <p>Use this bot’s saved key, or create one under Keys.</p>
-                        )
-                      }
-                    />
-                  )}
-                  {keysOpen === a.id && (
-                    <div className="agent-card-keys">
-                      <span className="agent-group-cap">
-                        Keys
-                        <NewButton label="New key" onClick={() => setBotKeyCreate(n => n + 1)} />
-                      </span>
-                      <AgentKeys
-                        key={`keys-${a.id}`}
-                        agentId={a.id}
-                        identity="bot"
-                        showCreate={false}
-                        createRequested={botKeyCreate}
-                      />
+                          <small>Save it now. It’s only shown this session.</small>
+                        </div>
+                      )}
+                      <div className="agent-row-actions">
+                        <button type="button" className="agent-row-copy" onClick={() => void copyPrompt(a.id)}>
+                          {copied === a.id ? 'Prompt copied' : 'Copy setup prompt'}
+                        </button>
+                        <button
+                          type="button"
+                          className="agent-row-text"
+                          aria-expanded={manual === a.id}
+                          onClick={() => setManual(manual === a.id ? null : a.id)}
+                        >
+                          {manual === a.id ? 'Hide manual setup' : 'Set up manually'}
+                        </button>
+                        <button
+                          type="button"
+                          className="agent-row-text"
+                          onClick={() => setFunding(funding === a.id ? null : a.id)}
+                        >
+                          {funding === a.id ? 'Cancel transfer' : 'Send credits'}
+                        </button>
+                        <button
+                          type="button"
+                          className="agent-row-text agent-row-keys-toggle"
+                          aria-label={`Keys for ${name}`}
+                          aria-expanded={keysOpen === a.id}
+                          onClick={() => setKeysOpen(keysOpen === a.id ? null : a.id)}
+                        >
+                          Keys
+                        </button>
+                        {day && <span className="agent-row-last">last trade {day}</span>}
+                      </div>
+                      {copied === a.id && (
+                        <p role="status" className="agent-row-status">
+                          Paste it into your coding assistant, such as Claude Code or Codex. Nothing is running yet.
+                        </p>
+                      )}
+                      {copyFailed === a.id && (
+                        <p role="alert" className="agent-row-status">
+                          Copy failed. Open Set up manually and copy the commands instead.
+                        </p>
+                      )}
+                      {funding === a.id && (
+                        <div className="myagents-send">
+                          <p className="agent-manage-hint">
+                            From your balance: {me ? `${money(me.balance)} cr` : 'not loaded'}
+                          </p>
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            value={amount}
+                            disabled={busy}
+                            onChange={e => setAmount(e.target.value)}
+                            aria-label={`Credits to send to ${name}`}
+                          />
+                          <button type="button" disabled={busy || uncertain} onClick={() => void send(a.id, name)}>
+                            {busy ? 'Sending…' : 'Send'}
+                          </button>
+                          <details className="agent-transfer-details">
+                            <summary>Returning credits</summary>
+                            <p>To return credits, send them from the bot using a key with wallet access.</p>
+                          </details>
+                        </div>
+                      )}
+                      {manual === a.id && (
+                        <AgentManualSetup
+                          workspace="telarchy"
+                          identity="bot"
+                          access="full"
+                          connected
+                          connectionForm={
+                            apiKey ? (
+                              <button type="button" onClick={() => void navigator.clipboard.writeText(apiKey)}>
+                                Copy key
+                              </button>
+                            ) : (
+                              <p>Use this bot’s saved key, or create one under Keys.</p>
+                            )
+                          }
+                        />
+                      )}
+                      {keysOpen === a.id && (
+                        <div className="agent-row-keys">
+                          <span className="agent-group-cap">
+                            Keys
+                            <NewButton label="New key" onClick={() => setBotKeyCreate(n => n + 1)} />
+                          </span>
+                          <AgentKeys
+                            key={`keys-${a.id}`}
+                            agentId={a.id}
+                            identity="bot"
+                            showCreate={false}
+                            createRequested={botKeyCreate}
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                 </li>

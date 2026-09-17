@@ -304,6 +304,8 @@ export function AgentKeys({
             <li key={k.keyId}>
               <div className="agent-key-heading">
                 <strong>{k.label || 'Unnamed key'}</strong>
+              </div>
+              <div className="agent-key-meta">
                 <span
                   className="agent-key-access"
                   title={
@@ -320,12 +322,12 @@ export function AgentKeys({
                       : 'Restricted key'
                     : describeAccess(k.scopes).name}
                 </span>
+                <span className="agent-key-used">
+                  {k.lastUsedAt
+                    ? `Last used ${new Date(k.lastUsedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
+                    : 'Not used yet'}
+                </span>
               </div>
-              <p className="agent-key-used">
-                {k.lastUsedAt
-                  ? `Last used ${new Date(k.lastUsedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
-                  : 'Not used yet'}
-              </p>
               {runtime === k.keyId && (
                 <AgentConnectionSetup
                   agentId={agentId}

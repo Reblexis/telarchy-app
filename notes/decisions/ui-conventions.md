@@ -2183,3 +2183,14 @@ said "do a" (outline pill), then "actually no do b": the hairline row. This
 reverses the earlier "a pill, not a hairline row". The chess guide link moved
 to the new-bot form the chess door opens, so the floor's rail carries nothing
 under the row; the floor's about text still links the guide.
+
+## 2026-09-18: the Agents page lists bots as hairline rows (Viktor)
+
+Viktor, 2026-09-17, on a screenshot of /agents: "can we make this look better
+use /design". The canvas (claude.ai/artifact/7DiPgXiUQ1pq64S5bU5Hqv) named
+five faults (a filled button on every card, numbers off one baseline, Cancel
+floating over the form, key rows two lines tall, three bots to a screen) and
+three directions: quieter cards, hairline rows, one column with tabs. He
+picked B ("do b"). This costs one press: a bot's actions were one press away
+on its card and are now behind opening its row, except for the bot just
+created and for an owner's only bot, whose row starts open.
