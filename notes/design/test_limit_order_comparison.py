@@ -31,7 +31,7 @@ class Tree(HTMLParser):
         self.current.text += data
 
 class ComparisonTests(unittest.TestCase):
-    def test_open_limit_orders_are_always_below_the_dialog_with_cancel_only(self):
+    def test_open_limit_orders_are_always_inside_the_dialog_with_cancel_only(self):
         root = Tree(Path(__file__).with_name('limit-order-ticket-before-after.html').read_text()).root
         examples = root.find('after')
         self.assertEqual(len(examples), 3)
@@ -39,12 +39,11 @@ class ComparisonTests(unittest.TestCase):
             with self.subTest(example=example.content()):
                 ticket, = example.find('ticket')
                 orders, = example.find('open-orders')
-                self.assertIs(orders.parent, ticket.parent)
-                self.assertEqual(example.children.index(orders), example.children.index(ticket) + 1)
+                self.assertIs(orders.parent, ticket)
                 self.assertIn('Open orders', orders.content())
                 self.assertIn('Cancel', orders.content())
                 self.assertNotIn('Sell', orders.content())
-                self.assertNotIn('buy under', ticket.content())
+                self.assertIn('buy under', ticket.content())
                 self.assertIn('Quick', ticket.content())
                 self.assertIn('Limit', ticket.content())
 

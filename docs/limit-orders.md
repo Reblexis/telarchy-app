@@ -217,7 +217,10 @@ is optional and hidden until wanted:
   returns the ticket to Quick Buy. Only an explicit tab or mode choice
   changes those selections. A full sale removes the exhausted position
   without changing the selected tab or mode.
-- Pending orders appear before held shares. Their only action is Cancel;
+- Buy/Sell labels stay fixed in both Quick and Limit modes. Cancel belongs
+  to an existing order, never to a replacement for the Sell tab.
+- Pending orders appear inside the ticket under a visible Open orders label,
+  before held shares. Their only action is Cancel;
   selling is offered only for shares already bought, including the filled
   portion of a partially filled order. Cancelling the remainder does not
   sell the filled portion. Placement acknowledgement says "Order placed",
@@ -227,7 +230,8 @@ is optional and hidden until wanted:
   with no held position. Changing tabs never hides an order.
 - Placement refreshes the market and chart history immediately,
   because an already-crossed limit can fill at placement.
-- Resting orders list under the ticket as one quiet line each, in the same
+- Resting orders list inside the ticket in both Quick and Limit modes as
+  one quiet line each, in the same
   register as a held position, naming the verb: "buy under $65,000 · 25 cr",
   "buy over $80,000 · 25 cr", "sell at $80,000 · 166.4 sh", each with a
   Cancel, the only thing a resting order can have done to it. Filled and

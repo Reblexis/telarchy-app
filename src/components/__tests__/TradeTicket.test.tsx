@@ -1148,6 +1148,36 @@ describe('the trade dialog keeps my selections after an action', () => {
     expect(screen.getByRole('button', { name: /^Sell all for/ })).toBeTruthy();
   });
 
+  test.each(['Buy', 'Sell'])('open orders stay visibly labelled inside %s in Quick and Limit', tab => {
+    render(
+      <TradeTicket
+        {...base}
+        positions={[position]}
+        orders={[order]}
+        onPlaceLimit={async () => {}}
+        onPlaceSellLimit={async () => {}}
+        onCancelLimit={async () => {}}
+      />,
+    );
+    const header = screen.getByRole('group', { name: 'Buy or sell' });
+    fireEvent.click(within(header).getByRole('button', { name: tab, exact: true }));
+    for (const mode of ['Quick', 'Limit']) {
+      fireEvent.click(within(header).getByRole('button', { name: mode, exact: true }));
+      const region = screen.getByRole('region', { name: 'Open orders' });
+      expect(within(region).getByText('Open orders')).toBeTruthy();
+      expect(region.closest('.ticket')).toBeTruthy();
+      expect(
+        within(region)
+          .getAllByRole('button')
+          .map(button => button.textContent),
+      ).toEqual(['Cancel']);
+      expect(within(header).getByRole('button', { name: 'Buy', exact: true })).toBeTruthy();
+      expect(within(header).getByRole('button', { name: 'Sell', exact: true })).toBeTruthy();
+      selected(tab);
+      selected(mode);
+    }
+  });
+
   test('pending orders offer only Cancel before the actually bought shares', async () => {
     const cancel = vi.fn(async () => {});
     const sell = vi.fn(async () => {});

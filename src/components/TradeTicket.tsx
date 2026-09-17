@@ -730,6 +730,7 @@ export function TradeTicket({
           you told the market to do while you were away. */}
       {orders.length > 0 && (
         <section className="ticket-pos" aria-label="Open orders">
+          <span className="ticket-subject-ctx">Open orders</span>
           {orders.map(o => (
             <div key={o.id} className="ticket-pos-row">
               <div className="ticket-pos-head">
