@@ -46,3 +46,29 @@ Revised-layout validation: the structural test failed against all three old
 examples before the HTML edit and passes afterwards. Browser checks at 390px
 confirm each order region is outside and below its ticket, with no overflow.
 Full-page desktop and mobile screenshots were inspected.
+
+## Kalshi reference, 2026-09-17
+
+Kalshi's current help documents separate buying/selling from order type:
+quick orders trade at available prices; limit buys and limit sells specify a
+price and quantity. Selling with a limit requires owned contracts. Its auto-sell
+help places resting limit sells under Orders, where they can be edited or
+cancelled before filling. Cancellation is management of an existing order,
+not the counterpart of placing a new buy or sell.
+
+Sources checked:
+- [Limit purchase](https://help.kalshi.com/en/articles/13823813-limit-order-purchase)
+- [Limit sale](https://help.kalshi.com/en/articles/13823815-limit-order-sale)
+- [Quick orders](https://help.kalshi.com/en/articles/13823810-quick-orders)
+- [Orders and cancellation](https://help.kalshi.com/en/articles/15521632-auto-sell-take-profit)
+
+These sources establish behavior, not the exact current visual arrangement of
+the authenticated trading ticket. No claim about pixel placement is verified.
+
+Recommendation for Telarchy, not an implemented change: retain Buy/Sell in both
+Quick and Limit modes. Name submit actions Buy now / Sell now for Quick and
+Place buy order / Place sell order for Limit. Keep Open orders with Cancel
+inside the dialog in either mode, following Viktor's latest layout preference.
+Do not replace Sell with Cancel, since selling owned shares and cancelling an
+unfilled instruction are different actions. The HTML currently still shows the
+previous proposal with orders outside; it has not been revised for this research.
