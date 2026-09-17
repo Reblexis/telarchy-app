@@ -75,6 +75,15 @@ appended to a public revision log at `GET /api/proposals/:id/revisions`, so
 nobody has to wonder whether the goalposts moved. Changing the ask re-anchors
 the markets only while nobody has traded them.
 
+You can also deepen your own proposal while it is pending: `POST
+/api/predictions/markets/liquidity/bulk { budget, proposalId }` splits `budget`
+credits evenly across its open markets, out of your balance, rounded down so it
+never costs more than you named (`amount` is the per-market form). It is
+recorded on the proposal like a seed paid at posting: re-seeded when dates roll,
+bought back on approval. Liquidity goes in and does not come out before then.
+The pencil on your proposal's page opens the posting form again with all of
+this in it: the words, the price, and "Add liquidity".
+
 `POST /api/proposals/:id/withdraw` pulls it. Both branches void and everyone is
 refunded.
 

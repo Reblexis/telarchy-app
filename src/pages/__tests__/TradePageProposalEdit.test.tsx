@@ -182,13 +182,48 @@ describe('editing a proposal is a pencil, not a button', () => {
     expect([...container.querySelectorAll('button')].some(b => b.textContent?.trim() === 'Edit proposal')).toBe(false);
   });
 
-  test('the pencil opens the edit form and stands down while it is open', async () => {
+  test('the pencil opens the posting form, filled in, and there is no inline editor', async () => {
     const { container } = renderFloor();
     await openProposal(container);
     await waitFor(() => expect(head(container).querySelector('.pubws-icon-edit')).toBeTruthy());
     fireEvent.click(head(container).querySelector('.pubws-icon-edit') as HTMLElement);
-    await waitFor(() => expect(container.querySelector('.pubws-know-edit')).toBeTruthy());
-    expect(head(container).querySelector('.pubws-icon-edit')).toBeNull();
+    await waitFor(() => expect(document.querySelector('.jobform')).toBeTruthy());
+    expect(container.querySelector('div.pubws-know-edit')).toBeNull();
+    const title = document.querySelector('.jobform input[aria-label="Proposal title"]') as HTMLInputElement;
+    expect(title.value).toBe('rewrite the store page');
+  });
+
+  test('Save sends the words, then the liquidity as a whole amount for this proposal', async () => {
+    const { container } = renderFloor();
+    await openProposal(container);
+    await waitFor(() => expect(head(container).querySelector('.pubws-icon-edit')).toBeTruthy());
+    fireEvent.click(head(container).querySelector('.pubws-icon-edit') as HTMLElement);
+    await waitFor(() => expect(document.querySelector('.jobform')).toBeTruthy());
+    const form = document.querySelector('.jobform') as HTMLElement;
+    fireEvent.click([...form.querySelectorAll('button')].find(b => b.textContent === '100') as HTMLElement);
+    fireEvent.click(form.querySelector('.ticket-go') as HTMLElement);
+    await waitFor(() => expect(api.fundProposal).toHaveBeenCalledWith('job-1', 100));
+    expect(api.editProposal).toHaveBeenCalledWith('job-1', {
+      title: '$80: rewrite the store page',
+      description: 'A better store page.',
+      askUsd: 80,
+    });
+    const order = [
+      vi.mocked(api.editProposal).mock.invocationCallOrder[0],
+      vi.mocked(api.fundProposal).mock.invocationCallOrder[0],
+    ];
+    expect(order[0]).toBeLessThan(order[1]);
+  });
+
+  test('Save with no liquidity picked never calls the funding route', async () => {
+    const { container } = renderFloor();
+    await openProposal(container);
+    await waitFor(() => expect(head(container).querySelector('.pubws-icon-edit')).toBeTruthy());
+    fireEvent.click(head(container).querySelector('.pubws-icon-edit') as HTMLElement);
+    await waitFor(() => expect(document.querySelector('.jobform')).toBeTruthy());
+    fireEvent.click(document.querySelector('.jobform .ticket-go') as HTMLElement);
+    await waitFor(() => expect(api.editProposal).toHaveBeenCalled());
+    expect(api.fundProposal).not.toHaveBeenCalled();
   });
 
   test('somebody who cannot edit this proposal never sees the pencil', async () => {

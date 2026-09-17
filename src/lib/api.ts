@@ -1884,6 +1884,15 @@ export const api = {
       body: JSON.stringify({ amount, ...(proposalId && { proposalId }) }),
     }),
 
+  /** Adds `budget` credits, the WHOLE amount, to a pending proposal's open
+   *  markets, split evenly; its proposer or a manager (docs/guides/get-paid.md,
+   *  "Editing, and getting out"). */
+  fundProposal: (proposalId: string, budget: number) =>
+    request('/api/predictions/markets/liquidity/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ budget, proposalId }),
+    }),
+
   // Proposals
   /** Paginated: the newest `limit` (100, up to 500), `before` a proposal
    *  number or an ISO instant (docs/infra/deploy.md, "Reads are bounded in

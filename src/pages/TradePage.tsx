@@ -40,6 +40,7 @@ import { NotificationsBell } from '../components/NotificationsBell';
 import { granularityOf, NumberChart, type NumberSeries } from '../components/NumberChart';
 import { AddDateDialog, InjectLiquidityDialog, NewMetricDialog, ReportValueDialog } from '../components/OwnerDialogs';
 import { PositionSummary } from '../components/PositionSummary';
+import { ProposalForm } from '../components/ProposalForm';
 import { DEFAULT_OPTION_QUESTION, formatOptionQuestion, QuestionWording } from '../components/QuestionWording';
 import { SubjectAbout } from '../components/SubjectAbout';
 import { TopBarShortcuts } from '../components/TopBarShortcuts';
@@ -337,7 +338,6 @@ export function TradePage() {
   // location.hash sees both that and a pasted URL.
   useEffect(() => {
     setEditingJob(false);
-    setJobErr('');
   }, [selectedJobId]);
 
   useEffect(() => {
@@ -526,11 +526,6 @@ export function TradePage() {
   // untraded pair re-anchors, a traded one keeps its markets and positions
   // and the revision row discloses the change (docs/market-integrity.md I1b).
   const [editingJob, setEditingJob] = useState(false);
-  const [jobAsk, setJobAsk] = useState('');
-  const [jobTitle, setJobTitle] = useState('');
-  const [jobDesc, setJobDesc] = useState('');
-  const [jobSaving, setJobSaving] = useState(false);
-  const [jobErr, setJobErr] = useState('');
   const [declineReason, setDeclineReason] = useState<string | null>(null); // null = decline not open
   const [decideBusy, setDecideBusy] = useState(false);
   const [decideErr, setDecideErr] = useState('');
@@ -1004,30 +999,16 @@ export function TradePage() {
     (selectedJob.status ?? 'pending') === 'pending' &&
     (canManage || (!!myAgentId && selectedJob.proposedByHandle === myAgentId));
 
-  const saveJobEdit = async () => {
-    if (!selectedJob || !ws) return;
-    setJobSaving(true);
-    setJobErr('');
+  // Editing is the posting form again (docs/ui-conventions.md, "Editing
+  // one"): the words first, the liquidity second, so a refused top-up leaves
+  // the words saved and the form open on the error.
+  const saveJobEdit = async (words: { title: string; description: string; askUsd: number }, addBudget?: number) => {
+    if (!selectedJob) return;
+    await api.editProposal(selectedJob.id, words);
     try {
-      const askNum = jobAsk.trim() === '' ? 0 : Math.max(0, Math.round(Number(jobAsk)));
-      if (!Number.isFinite(askNum)) throw new Error('The price has to be a number');
-      // Same composition as posting one: the price rides in the title for
-      // everything that reads prose, and separately as the number anything
-      // financial reads. The server refuses the two disagreeing.
-      const task = jobTitle.trim();
-      if (!task) throw new Error('A proposal needs a title');
-      const fullTitle = askNum > 0 ? `$${askNum}: ${task}` : task;
-      await api.editProposal(selectedJob.id, {
-        title: fullTitle,
-        description: jobDesc.trim(),
-        askUsd: askNum,
-      });
-      setEditingJob(false);
-      reload();
-    } catch (e) {
-      setJobErr(e instanceof Error ? e.message : 'Could not save the proposal');
+      if (addBudget) await api.fundProposal(selectedJob.id, addBudget);
     } finally {
-      setJobSaving(false);
+      reload();
     }
   };
 
@@ -2926,14 +2907,7 @@ export function TradePage() {
                     className="pubws-icon-edit"
                     aria-label="Edit proposal"
                     title="Edit proposal"
-                    onClick={() => {
-                      const split = splitAsk(selectedJob.title);
-                      setJobAsk(split.ask !== null ? String(split.ask) : '');
-                      setJobTitle(split.rest);
-                      setJobDesc(selectedJob.description ?? '');
-                      setJobErr('');
-                      setEditingJob(true);
-                    }}
+                    onClick={() => setEditingJob(true)}
                   >
                     <svg
                       width="14"
@@ -2954,91 +2928,21 @@ export function TradePage() {
               </h2>
               {selectedJob && (
                 <>
-                  {editingJob ? (
-                    /* Editing a proposal in place (owner ask 2026-08-20). The
-                 words save without touching the market; the price only
-                 moves while nobody has traded the pair, and the server
-                 says so plainly when it will not (docs/market-integrity.md
-                 I1b). Same three fields as posting one, same order. */
-                    <div className="pubws-know-edit pubws-enter pubws-enter--1">
-                      <label className="jobform-field">
-                        <span className="ticket-label">Price (USD)</span>
-                        <input
-                          className="jobform-line"
-                          inputMode="numeric"
-                          value={jobAsk}
-                          onChange={e => setJobAsk(e.target.value.replace(/[^0-9]/g, ''))}
-                          placeholder="0"
-                          aria-label="Price in USD"
-                        />
-                      </label>
-                      <label className="jobform-field">
-                        <span className="ticket-label">What you will do</span>
-                        <input
-                          className="jobform-line"
-                          value={jobTitle}
-                          maxLength={80}
-                          onChange={e => setJobTitle(e.target.value)}
-                          aria-label="Proposal title"
-                        />
-                      </label>
-                      <label className="jobform-field">
-                        <span className="ticket-label">Details</span>
-                        <textarea
-                          className="pubws-know-edit-text"
-                          rows={4}
-                          value={jobDesc}
-                          onChange={e => setJobDesc(e.target.value)}
-                          aria-label="Proposal details"
-                        />
-                      </label>
-                      <p className="pubws-settle">
-                        Editing the words keeps the market and every position, and publishes that it changed. The price
-                        can only move while nobody has traded this proposal yet.
+                  {selectedJob.description && (
+                    <>
+                      <p className={`pubws-details pubws-enter pubws-enter--1${descExpanded ? '' : ' is-clamped'}`}>
+                        <Linkified text={selectedJob.description} />
                       </p>
-                      <div>
-                        <button
-                          className="pubws-decide"
-                          disabled={jobSaving}
-                          onClick={() => {
-                            void saveJobEdit();
-                          }}
-                        >
-                          {jobSaving ? 'Saving…' : 'Save'}
+                      {selectedJob.description.length > 220 && (
+                        <button className="pubws-details-more" onClick={() => setDescExpanded(v => !v)}>
+                          {descExpanded ? 'less' : 'more'}
                         </button>
-                        <button
-                          className="pubws-decide"
-                          style={{ marginLeft: '0.5rem' }}
-                          disabled={jobSaving}
-                          onClick={() => {
-                            setEditingJob(false);
-                            setJobErr('');
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                      {jobErr && <p className="ticket-err">{jobErr}</p>}
-                    </div>
-                  ) : (
-                    selectedJob.description && (
-                      <>
-                        <p className={`pubws-details pubws-enter pubws-enter--1${descExpanded ? '' : ' is-clamped'}`}>
-                          <Linkified text={selectedJob.description} />
-                        </p>
-                        {selectedJob.description.length > 220 && (
-                          <button className="pubws-details-more" onClick={() => setDescExpanded(v => !v)}>
-                            {descExpanded ? 'less' : 'more'}
-                          </button>
-                        )}
-                      </>
-                    )
+                      )}
+                    </>
                   )}
                   {/* Edited, and when: a trader who priced this proposal before
                 the wording moved is entitled to know that it moved. */}
-                  {!editingJob && selectedJob.editedAt && (
-                    <p className="pubws-proposal-meta">edited {dayOf(selectedJob.editedAt)}</p>
-                  )}
+                  {selectedJob.editedAt && <p className="pubws-proposal-meta">edited {dayOf(selectedJob.editedAt)}</p>}
                   {/* How this decides: the mechanism, and the only place it
                 is explained (Viktor, 2026-09-10, of a sentence above the
                 trade: "shouldnt this just be in the market rules or
@@ -3047,49 +2951,46 @@ export function TradePage() {
                 declined branch and refunds it at cost, declining voids the
                 approved one, and an undecided proposal lapses as a decline
                 (functions/src/services/proposals.ts). */}
-                  {!editingJob && (
-                    <div className="pubws-decides">
-                      <h3 className="pubws-know-head">How this decides</h3>
-                      {jobOptioned ? (
-                        <>
-                          <p className="pubws-decides-p">
-                            {!jobAskUsd
-                              ? `Choosing an option commits ${selectedJob.proposedByName ?? 'the proposer'} to it.`
-                              : `Choosing an option pays ${selectedJob.proposedByName ?? 'the proposer'} $${jobAskUsd} and commits them to it.`}{' '}
-                            Every number this floor prices gets one market per option for this proposal, each as if that
-                            option is chosen; the gap between the leader and the next best is what the market says the
-                            choice is worth.
-                          </p>
-                          <p className="pubws-decides-p">
-                            When the owner chooses, every other option is voided and every credit in it is refunded at
-                            what it cost, while the chosen one keeps trading until the number itself settles. Declining
-                            voids them all.
-                            {selectedJob.decideBy && !selectedJobDecided
-                              ? ` Undecided by ${dayOf(selectedJob.decideBy)}, the proposal lapses and counts as declined.`
-                              : ' A proposal nobody rules on by its deadline lapses and counts as declined.'}
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <p className="pubws-decides-p">
-                            {!jobAskUsd
-                              ? `Approving commits ${ws.name} to the work.`
-                              : `Approving pays ${selectedJob.proposedByName ?? 'the proposer'} $${jobAskUsd} and commits ${ws.name} to the work.`}{' '}
-                            Every number this floor prices gets two markets for this proposal, one as if it is approved
-                            and one as if it is declined; the gap between them is what the market says the work is
-                            worth.
-                          </p>
-                          <p className="pubws-decides-p">
-                            When the owner rules, the world that did not happen is voided and every credit in it is
-                            refunded at what it cost, while the other keeps trading until the number itself settles.
-                            {selectedJob.decideBy && !selectedJobDecided
-                              ? ` Undecided by ${dayOf(selectedJob.decideBy)}, the proposal lapses and counts as declined.`
-                              : ' A proposal nobody rules on by its deadline lapses and counts as declined.'}
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  )}
+                  <div className="pubws-decides">
+                    <h3 className="pubws-know-head">How this decides</h3>
+                    {jobOptioned ? (
+                      <>
+                        <p className="pubws-decides-p">
+                          {!jobAskUsd
+                            ? `Choosing an option commits ${selectedJob.proposedByName ?? 'the proposer'} to it.`
+                            : `Choosing an option pays ${selectedJob.proposedByName ?? 'the proposer'} $${jobAskUsd} and commits them to it.`}{' '}
+                          Every number this floor prices gets one market per option for this proposal, each as if that
+                          option is chosen; the gap between the leader and the next best is what the market says the
+                          choice is worth.
+                        </p>
+                        <p className="pubws-decides-p">
+                          When the owner chooses, every other option is voided and every credit in it is refunded at
+                          what it cost, while the chosen one keeps trading until the number itself settles. Declining
+                          voids them all.
+                          {selectedJob.decideBy && !selectedJobDecided
+                            ? ` Undecided by ${dayOf(selectedJob.decideBy)}, the proposal lapses and counts as declined.`
+                            : ' A proposal nobody rules on by its deadline lapses and counts as declined.'}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="pubws-decides-p">
+                          {!jobAskUsd
+                            ? `Approving commits ${ws.name} to the work.`
+                            : `Approving pays ${selectedJob.proposedByName ?? 'the proposer'} $${jobAskUsd} and commits ${ws.name} to the work.`}{' '}
+                          Every number this floor prices gets two markets for this proposal, one as if it is approved
+                          and one as if it is declined; the gap between them is what the market says the work is worth.
+                        </p>
+                        <p className="pubws-decides-p">
+                          When the owner rules, the world that did not happen is voided and every credit in it is
+                          refunded at what it cost, while the other keeps trading until the number itself settles.
+                          {selectedJob.decideBy && !selectedJobDecided
+                            ? ` Undecided by ${dayOf(selectedJob.decideBy)}, the proposal lapses and counts as declined.`
+                            : ' A proposal nobody rules on by its deadline lapses and counts as declined.'}
+                        </p>
+                      </>
+                    )}
+                  </div>
                   {/* The owner's press, on the floor itself (owner ask
                 2026-08-11). Approve is the money verb, green; decline
                 asks for the reason the charter promises to publish. */}
@@ -3672,6 +3573,25 @@ export function TradePage() {
       {/* The metrics, and the dates as rows on each metric's sheet: the
           `dates` chip opens the same dialog straight onto the metric on
           screen (docs/owner-on-the-floor.md, dialogs 1 and 2). */}
+      {editingJob && selectedJob && canEditJob && ws && (
+        <ProposalForm
+          onClose={() => setEditingJob(false)}
+          workspaceName={ws.name}
+          metricNames={metricNames}
+          proposalReward={ws.proposalReward ?? 0}
+          decisionMinutes={ws.decisionMinutes ?? 1440}
+          // The bulk route debits the tradeable balance alone.
+          spendable={balance}
+          edit={{
+            ask: selectedJob.askUsd ?? splitAsk(selectedJob.title).ask,
+            title: splitAsk(selectedJob.title).rest,
+            description: selectedJob.description ?? '',
+            decideBy: selectedJob.decideBy ?? null,
+            pool: poolOf(selectedJob),
+          }}
+          onSave={saveJobEdit}
+        />
+      )}
       {(ownerDialog?.kind === 'metrics' || ownerDialog?.kind === 'dates') && ws && (
         <MetricsDialog
           workspaceId={ws.workspaceId}

@@ -1109,6 +1109,18 @@ counting:
   what they hold; an unknown balance leaves the check to the server. With a
   seed the confirm's sub-line says "Puts N cr of yours in its markets" in
   place of "Free to post".
+- **Editing one** is the same form (the pencil on the proposal's page, for
+  its proposer or a manager, while it is pending), opened with the price,
+  the title and the pitch filled in and "Save" on the confirm. What cannot
+  change is not offered: there is no Options row, and "Decided within" is one
+  read-only line with the deadline, because nothing moves a deadline. The
+  liquidity row reads "Add liquidity" with the same chips, `none`
+  preselected, and its sentence says what the proposal's markets hold now;
+  a number is a whole amount ADDED to them (`budget` on the bulk route),
+  never a new total, because liquidity does not come out. Saving sends the
+  words first and the liquidity second; if the second is refused the form
+  stays open, says so, and the words are already saved. There is no inline
+  editor on the page any more.
 
 ### A proposal ships every pair of the grid, and the board reads the pair on screen
 

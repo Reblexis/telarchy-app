@@ -36,3 +36,25 @@ opened them at 100. Now the owner pays the date number on every spawn and
 contributors' credits are added to it. The owner's cost is what it was with
 no seed. An owner seeding their own proposal pays the date numbers out of
 what the seed left, never more than they hold.
+
+## Editing is the same form
+
+Owner ask, same session (Viktor, verbatim): "also for existing proposals I'd
+like to be able to edit them using smae dialog (along witht he injected
+liqudiity)".
+
+The pencil on a proposal's page opens the posting form filled in; the inline
+editor under the words is gone. What cannot change is not offered: no Options
+row, and the deadline is one read-only line. The liquidity row reads "Add
+liquidity" and its number is an amount ADDED, because an LMSR book cannot
+give liquidity back before it closes; the sentence under it says what the
+markets hold now.
+
+For that a proposer needed a way to fund all of their own proposal's markets:
+the bulk route was `manage` only. It now takes `trade` from the proposer of a
+pending proposal, for that proposal and their own balance alone, and accepts
+`budget` (the whole amount, split evenly, rounded down) beside `amount`.
+
+Known limit, left as it was: the bulk route debits the tradeable balance only,
+not the liquidity wallet, unlike a seed paid at posting. The edit form
+therefore checks against the balance alone.

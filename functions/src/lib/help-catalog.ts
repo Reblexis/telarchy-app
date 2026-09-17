@@ -626,9 +626,9 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
     {
       method: 'POST',
       path: '/api/predictions/markets/liquidity/bulk',
-      auth: 'admin',
+      auth: 'agent/admin',
       description:
-        'Inject the same liquidity amount across many open markets in one call. Body: { amount: number, proposalId?: string } (without proposalId: every active non-proposal market in the workspace; with proposalId: every conditional market under that proposal, both branches or every option on a proposal with options, amount must be positive, down to one nanocredit). Proposal top-ups on pending proposals are recorded as durable subsidy contributions: when conditional markets roll to new target dates, the re-spawned markets are re-seeded with the same per-market amount, debiting the same contributor.',
+        "Needs manage, with ONE exception: the proposer of a PENDING proposal may call it with trade alone for that proposalId, from their own balance (no agentId), and anything else without manage is 403. With proposalId, { budget } may replace { amount }: the WHOLE amount, split evenly across the proposal's open markets and rounded down to a millionth so the charge never exceeds it; naming both, a non-positive budget, or a budget without proposalId is a 400. Inject the same liquidity amount across many open markets in one call. Body: { amount: number, proposalId?: string } (without proposalId: every active non-proposal market in the workspace; with proposalId: every conditional market under that proposal, both branches or every option on a proposal with options, amount must be positive, down to one nanocredit). Proposal top-ups on pending proposals are recorded as durable subsidy contributions: when conditional markets roll to new target dates, the re-spawned markets are re-seeded with the same per-market amount, debiting the same contributor.",
     },
     {
       method: 'POST',
