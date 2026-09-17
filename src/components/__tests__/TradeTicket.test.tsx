@@ -1209,3 +1209,50 @@ describe('the trade dialog keeps my selections after an action', () => {
     expect(screen.getByRole('region', { name: 'Your shares' })).toBeTruthy();
   });
 });
+
+/* Persona run 2026-09-17, the trader: "The confirmation is gone after about
+   three seconds and never restates the cost." */
+describe('a placed bet leaves a line saying what was bought', () => {
+  test('after a bet the ticket says the side and the cost, and keeps saying it', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(<TradeTicket {...base} onTrade={async () => ({ spent: 25 })} />);
+      pick('Higher');
+      fireEvent.click(screen.getByText('Bet 25 cr on Higher'));
+      expect((await screen.findByRole('status')).textContent).toBe('You bought Higher for 25 cr.');
+      // The tick on the button goes; the line stays.
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(screen.getByRole('status').textContent).toBe('You bought Higher for 25 cr.');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  test('it goes when the trader composes something else', async () => {
+    render(<TradeTicket {...base} onTrade={async () => ({ spent: 25 })} />);
+    pick('Higher');
+    fireEvent.click(screen.getByText('Bet 25 cr on Higher'));
+    await screen.findByRole('status');
+    fireEvent.change(screen.getByLabelText('Credits to spend'), { target: { value: '30' } });
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+  test('a partly filled bet keeps its own line, which already names what was spent', async () => {
+    render(<TradeTicket {...base} onTrade={async () => ({ limited: true, spent: 10, unspent: 15 })} />);
+    pick('Higher');
+    fireEvent.click(screen.getByText('Bet 25 cr on Higher'));
+    expect((await screen.findByRole('status')).textContent).toMatch(/^Filled 10 of 25 cr/);
+  });
+  test('a failed bet says nothing was bought', async () => {
+    render(
+      <TradeTicket
+        {...base}
+        onTrade={async () => {
+          throw new Error('Insufficient balance');
+        }}
+      />,
+    );
+    pick('Higher');
+    fireEvent.click(screen.getByText('Bet 25 cr on Higher'));
+    expect(await screen.findByText('Insufficient balance')).toBeTruthy();
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+});

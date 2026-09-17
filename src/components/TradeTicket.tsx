@@ -439,6 +439,7 @@ export function TradeTicket({
     setBusy('place');
     try {
       let result: TicketTradeResult | undefined;
+      let bought = dir;
       if (isLimit && onPlaceLimit && limitNum !== null) {
         // A resting order is not guarded: its price is the order.
         await onPlaceLimit(dir, limitNum, amountNum);
@@ -448,6 +449,7 @@ export function TradeTicket({
         // approximating it with a budget buy. The side travels with it, so
         // the server never flips it.
         const side = targetComposed?.direction ?? dir;
+        bought = side;
         result = asResult(
           await onTradeTarget(target, amountNum, side, limitFor(targetComposed?.newProb, pushesCallUp('buy', side))),
         );
@@ -458,6 +460,14 @@ export function TradeTicket({
       if (result && result.limited) {
         setNote({
           text: `Filled ${fmtStake(result.spent ?? 0)} of ${fmtStake(amountNum)} cr. The price moved.`,
+          key: currentNoteKey,
+        });
+      } else if (!isLimit) {
+        /* What was bought and what it cost, until the trader composes
+           something else: the tick on the button is gone in under two
+           seconds (docs/ui-conventions.md, "A placed bet leaves a line"). */
+        setNote({
+          text: `You bought ${bought === 'higher' ? 'Higher' : 'Lower'} for ${fmtStake(result?.spent ?? amountNum)} cr.`,
           key: currentNoteKey,
         });
       }
