@@ -1,6 +1,8 @@
 # The stat row: one number, the market's call (proposal, 2026-09-17)
 
-Status: PROPOSAL, nothing built. Viktor picks, then `docs/ui-conventions.md`
+Status: DECIDED 2026-09-17, Viktor picked A; built on branch `call-only-stat-row`
+(the footer reading line was added so CALL and LIVE modes still print the value).
+Originally: Viktor picks, then `docs/ui-conventions.md`
 ("The price and the chart", "The stat row") changes first and the page follows.
 
 ## The ask

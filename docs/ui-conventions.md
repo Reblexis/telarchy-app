@@ -531,8 +531,8 @@ find out:
   14.3        17.9
               ----------
         What will be Telarchy's active traders this month?
-              NOW · READ 35M AGO   |   MARKET'S CALL · FOR 30 SEP
-              9.00                 |   17.9  ▲ +0.4
+              MARKET'S CALL · FOR 30 SEP
+              17.9  ▲ +0.4
                   [ HIGHER ]  [ LOWER ]
 ```
 
@@ -1178,9 +1178,9 @@ floor) are defined in that floor's own docs.
 ### The price and the chart
 
 **One chart is the hero: the number's own, with the market's call drawn on
-it.** A newcomer reads the floor top to bottom: what the number is, what it
-reads now, what the market says it will read, then the picture of both on
-one axis. Everything in this section serves that order (decision record:
+it.** A newcomer reads the floor top to bottom: what the number is, what
+the market says it will read, then the picture of that call and the
+reading on one axis. Everything in this section serves that order (decision record:
 `notes/decisions/ui-conventions.md`, 2026-09-03).
 
 **Nothing about settlement stands between the question and the number**
@@ -1189,32 +1189,42 @@ it the last way the definition could print twice: the rule the market settles
 on is one block UNDER the trade, "How this settles"
 (`.pubws-settles`, a tinted `--bg-secondary` panel with the section's tiny
 uppercase label), carrying the metric's full definition and the settle
-instant in one paragraph. A reader meets the question, the two numbers, the
+instant in one paragraph. A reader meets the question, the market's call, the
 chart and the two verbs first, and reads the rule when they want to check it,
 which is the order every venue that prices a number uses. A metric with no
 definition prints the settle sentence alone. The know block keeps the
 manager's Edit control on that same text.
 
-**The stat row** (`.pubws-stats`) is two named numbers in ONE row, two
-cells on hairlines the way the home board draws its cells (revised
-2026-09-04): a 1px `var(--border-color)` rule above and below the row and
-one between the cells, each cell (`.pubws-stat-block`) a mono small-caps
-caption line first ("NOW · READ 35M AGO", "MARKET'S CALL · FOR 30 SEP",
-`.pubws-stat-what`) and the value under it at the price size
-(`.pubws-price`, mono, tabular, 2.1rem), the reading left-aligned in its
-cell and the call left-aligned in its own, so the two numbers start on
-the same vertical rhythm.
+**The stat row** (`.pubws-stats`) is ONE named number, the market's call.
+A 1px `var(--border-color)` rule above and below the row, and in it one
+block (`.pubws-stat-block`): a mono small-caps caption line first
+("MARKET'S CALL · FOR 30 SEP", `.pubws-stat-what`) and the value under it
+at the price size (`.pubws-price`, mono, tabular, 2.1rem), left-aligned.
+The only number printed at the price size above the chart is the one the
+two bet verbs are about. The reading never stands beside it: two numbers
+of one size in equal cells were told apart by a caption and a colour, and
+the eye took the left one, which was not the price (decision record:
+`notes/decisions/ui-conventions.md`, 2026-09-17).
 
-- The reading (`.pubws-stat--now`, ink): the value in force, "now", then
-  "read 25m ago" (`.pubws-updated`, `timeAgoOf` from the latest reading's
-  instant, the exact instant as its hover title), because a reading is
-  only trustworthy with its age on it. A metric with no reading yet prints
-  "no reading yet" in the value's place and no age. **On a snake floor the
-  caption names the attempt** (2026-09-11): "NOW · ATTEMPT 41 · READ 5S
-  AGO", the attempt being `game.deaths + 1` from the live feed's latest
-  poll, so the reading is read as "this attempt's length", which is what
-  resets to 1 when the snake dies. Before the first poll (or on a floor
-  with no feed) the caption is the one every floor prints.
+- **The reading lives with the chart.** In VALUE mode the number chart
+  labels the end of its ink line with the value in force and the word
+  "now" ("22.0 now", `.nchart-reading-label`, ink, the call label's
+  anatomy), so the picture reads "it is 22, the market says 49.9" on one
+  axis. And the chart's footer opens with the reading line
+  (`.pubws-reading`) in every chart mode, because CALL and LIVE draw no
+  ink line: "now 22.0 · read 25m ago", the value in ink
+  (`.pubws-reading-val`), the age quiet (`.pubws-updated`, `timeAgoOf`
+  from the latest reading's instant, the exact instant as its hover
+  title), because a reading is only trustworthy with its age on it. A
+  metric with no reading yet prints "no reading yet" as that line, no
+  value, no age, and the chart draws no reading label. **On a snake floor
+  the line names the attempt**: "now 22.0 · attempt 41 · read 5s ago",
+  the attempt being `game.deaths + 1` from the live feed's latest poll, so
+  the reading is read as "this attempt's length", which is what resets to
+  1 when the snake dies. Before the first poll (or on a floor with no
+  feed) the line is the one every floor prints. A selected proposal's view
+  prints no reading line: its "last read" world cell already carries the
+  reading.
 - The market's call (`.pubws-stat--call`, amber): the consensus, "market's
   call", then "for 30 Sep · settles in 27d" (`.pubws-settle-in`: the day
   being forecast, which is the day before the settle instant, exactly as
@@ -1252,7 +1262,7 @@ this metric as a marker at its settle instant carrying its call, the
 selected one amber and labeled. Its control row keeps the metric's own
 name centred (`.pubws-chart-cap`, `captionLabel`, the leading company
 name stripped) and its range chips on the right; the left cell is empty,
-the stats are above. **A legend under the plot names the marks** in a few
+the call is above. **A legend under the plot names the marks** in a few
 words each (`.nchart-legend`): the ink line "actual", the amber dot
 "market's call for 30 Sep", and the grey dots "other open dates" only
 when there are any; with a proposal open the proposal's legend replaces

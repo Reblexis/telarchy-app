@@ -541,3 +541,71 @@ describe('the legend names the marks (docs/ui-conventions.md, "The price and the
     expect(container.querySelector('.nchart-legend')).toBeNull();
   });
 });
+
+/**
+ * THE STAT ROW SHOWS THE MARKET'S CALL ONLY (docs/ui-conventions.md, "The
+ * stat row", 2026-09-17), so the value chart is where the reading is printed:
+ * the end of the ink line carries the value in force and the word "now".
+ */
+describe('THE VALUE CHART PRINTS THE READING IN FORCE AS "<value> now"', () => {
+  const marker = [{ marketId: 'sep', resolvesOn: '2026-10-01T00:00:00Z', consensus: 19.8, selected: true }];
+  const chart = (props: Partial<React.ComponentProps<typeof NumberChart>> = {}) =>
+    render(
+      <NumberChart
+        points={points}
+        markers={marker}
+        selectedResolvesOn="2026-10-01T00:00:00Z"
+        granularity="month"
+        now={NOW}
+        readingLabel
+        {...props}
+      />,
+    );
+
+  test('the newest reading is labelled with its value and "now"', () => {
+    const { container } = chart();
+    const labels = container.querySelectorAll('.nchart-reading-label');
+    expect(labels.length).toBe(1);
+    expect(labels[0].textContent).toBe('5 now');
+  });
+
+  test('the label carries the metric unit like every numeral on the chart', () => {
+    const { container } = chart({ unit: '$' });
+    expect(container.querySelector('.nchart-reading-label')?.textContent).toBe('$5 now');
+  });
+
+  test('it is the NEWEST reading, not the largest or the first', () => {
+    const { container } = chart({
+      points: [
+        { at: '2026-08-10T10:00:00Z', value: 40 },
+        { at: '2026-08-25T10:00:00Z', value: 1 },
+      ],
+    });
+    expect(container.querySelector('.nchart-reading-label')?.textContent).toBe('1 now');
+  });
+
+  test('a zero reading is still a reading', () => {
+    const { container } = chart({ points: [{ at: '2026-08-25T10:00:00Z', value: 0 }] });
+    expect(container.querySelector('.nchart-reading-label')?.textContent).toBe('0 now');
+  });
+
+  test('no reading yet: no label, the empty state speaks', () => {
+    const { container } = chart({ points: [] });
+    expect(container.querySelector('.nchart-reading-label')).toBeNull();
+    expect(container.querySelector('.nchart-empty')?.textContent).toBe('no reading yet');
+  });
+
+  test('a chart that was not asked for it (a proposal view) draws none', () => {
+    const { container } = chart({ readingLabel: false });
+    expect(container.querySelector('.nchart-reading-label')).toBeNull();
+  });
+
+  test('the label sits inside the plot and left of the now rule', () => {
+    const { container } = chart();
+    const label = container.querySelector('.nchart-reading-label') as SVGTextElement;
+    const rule = container.querySelector('.nchart-now') as SVGLineElement;
+    expect(label.getAttribute('text-anchor')).toBe('end');
+    expect(Number(label.getAttribute('x'))).toBeLessThan(Number(rule.getAttribute('x1')));
+    expect(Number(label.getAttribute('y'))).toBeGreaterThan(0);
+  });
+});

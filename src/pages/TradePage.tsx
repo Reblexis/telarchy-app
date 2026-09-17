@@ -2461,28 +2461,10 @@ export function TradePage() {
                     </>
                   ) : (
                     <div className="pubws-stats">
-                      {/* The reading, ink: the value in force with its age,
-                      because a reading is only trustworthy with its age on it. */}
-                      <div className="pubws-stat-block pubws-stat--now">
-                        {/* The caption line FIRST (revised 2026-09-04, the home
-                        board's cell shape): what the number is and its age,
-                        then the value under it. */}
-                        <span className="pubws-stat-what">
-                          now
-                          {attempt !== null && ` · attempt ${attempt}`}
-                          {newestReading?.at && (
-                            <>
-                              {' · '}
-                              <span className="pubws-updated" title={instantOf(newestReading.at)}>
-                                read {timeAgoOf(newestReading.at, now) ?? ''}
-                              </span>
-                            </>
-                          )}
-                        </span>
-                        <span className="pubws-price">
-                          {nowReading !== null ? `${unit}${formatValue(nowReading)}` : 'no reading yet'}
-                        </span>
-                      </div>
+                      {/* THE CALL ALONE (docs/ui-conventions.md, "The stat row",
+                      2026-09-17): the reading is the chart's, labelled on its
+                      line and named in its footer, never a second number at
+                      the price size beside the one the bet verbs are about. */}
                       {/* The market's call, amber: the consensus, its name, the
                       day it is for and the countdown. A proposal's impact chip
                       rides beside the value: the impact is the proposal's one
@@ -2600,6 +2582,7 @@ export function TradePage() {
                         })}
                         impactFrom={branch === 'declined' ? 'declined' : 'approved'}
                         marksLegend
+                        readingLabel={!selectedJob}
                         series={optionSeries}
                         legend={
                           selectedJob && !jobOptioned
@@ -2640,6 +2623,33 @@ export function TradePage() {
                     chart", 2026-09-09). Two of the three take one word;
                     the traders keep their icon. */}
                   <div className="pubws-chartfoot">
+                    {/* The reading line opens the footer in every chart mode,
+                      because CALL and LIVE draw no readings line. A proposal's
+                      view has its "last read" world cell instead. */}
+                    {!selectedJob && (
+                      <span className="pubws-reading">
+                        {nowReading === null ? (
+                          'no reading yet'
+                        ) : (
+                          <>
+                            now{' '}
+                            <span className="pubws-reading-val">
+                              {unit}
+                              {formatValue(nowReading)}
+                            </span>
+                            {attempt !== null && ` · attempt ${attempt}`}
+                            {newestReading?.at && (
+                              <>
+                                {' · '}
+                                <span className="pubws-updated" title={instantOf(newestReading.at)}>
+                                  read {timeAgoOf(newestReading.at, now) ?? ''}
+                                </span>
+                              </>
+                            )}
+                          </>
+                        )}
+                      </span>
+                    )}
                     <MarketMoney traders={active.traders} pool={active.pool} volume={active.volume} />
                   </div>
                 </div>

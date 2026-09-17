@@ -2775,8 +2775,7 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
    the same rhythm. The reading in ink, the market's call in amber. */
 .pubws-stats {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1px;
+  grid-template-columns: minmax(0, 1fr);
   width: 100%;
   margin-top: 1.2rem;
   background: var(--border-color);
@@ -2793,7 +2792,6 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
   background: var(--bg-primary);
   text-align: left;
 }
-.pubws-stat--call { padding-left: 1.25rem; }
 .pubws-stat--call .pubws-price { color: var(--accent); }
 .pubws-stat-value { display: inline-flex; align-items: baseline; gap: 0.6rem; }
 .pubws-stat-what {
@@ -4897,6 +4895,8 @@ textarea.jobform-line--desc {
   .nchart-dot, .nchart-hold, .nchart-marker, .nchart-empty { animation: none; }
 }
 .nchart-dot { fill: var(--text-primary); }
+.nchart-reading-label { fill: var(--text-primary); font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; paint-order: stroke; stroke: var(--bg-primary); stroke-width: 3.5px; animation: mchart-appear 0.4s ease-out 1.1s both; }
+@media (prefers-reduced-motion: reduce) { .nchart-reading-label { animation: none; } }
 .nchart-hold { stroke: var(--text-primary); stroke-width: 2; stroke-dasharray: 3 4; opacity: 0.7; }
 .nchart-marker line { stroke: var(--text-tertiary); stroke-width: 1; stroke-dasharray: 2 4; opacity: 0.6; }
 .nchart-marker circle { fill: var(--text-tertiary); opacity: 0.7; }
@@ -11368,11 +11368,22 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
    exchange puts it, instead of three unlabelled icons beside the tab row. */
 .pubws-chartfoot {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.3rem 1rem;
   margin-top: 0.35rem;
 }
+/* The reading line opens the footer: the stat row above is the call alone
+   (docs/ui-conventions.md, "The stat row", 2026-09-17). */
+.pubws-reading {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+.pubws-reading-val { color: var(--text-primary); font-weight: 600; }
 .pubws-money {
   display: inline-flex;
   flex-wrap: wrap;
