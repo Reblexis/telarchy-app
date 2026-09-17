@@ -4477,33 +4477,29 @@ textarea.jobform-line--desc {
 }
 
 /* Under the ticket, the door to a bot (docs/ui-conventions.md, "Under the
-   ticket, the door to a bot"): the rail's one pill, full width, and one
-   mono caption. It is the only thing in the rail besides the ticket. */
+   ticket, the door to a bot"): one row between two hairlines, quieter than
+   the ticket's own button, and nothing under it. */
 .pubws-botdoor {
   margin: 1.1rem auto 0;
   width: 100%;
   text-align: left;
 }
-.pubws-botdoor-go {
-  display: inline-flex;
+.pubws-botdoor-row {
+  display: flex;
   align-items: center;
-  justify-content: center;
   gap: 0.55rem;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 0.85rem 1.2rem;
-  font-size: 0.98rem;
-}
-.pubws-botdoor-note {
-  margin: 0.55rem 0 0;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.01em;
-  line-height: 1.45;
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
   color: var(--text-secondary);
-  text-align: left;
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 120ms ease;
 }
-.pubws-botdoor-guide { display: block; margin-top: 6px; font-family: var(--font-mono); font-size: 0.72rem; line-height: 1.4; color: var(--accent); text-align: left; text-decoration: underline; text-underline-offset: 2px; }
+.pubws-botdoor-row:hover { color: var(--text-primary); }
+.pubws-botdoor-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.pubws-botdoor-arrow { margin-left: auto; font-family: var(--font-mono); color: var(--text-tertiary); }
 
 .pubws-bet-btn {
   flex: 1;
@@ -12221,6 +12217,7 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .agents-page .agent-builder { margin: 0; }
 .builder-heading h2, .agent-login-state h2 { font: 500 1.65rem/1.25 var(--font-display); margin: 0 0 .5rem; letter-spacing: -.02em; }
 .builder-heading p { color: var(--text-secondary); }
+.builder-feed-guide { display: inline-block; margin: 0 0 .6rem; font-family: var(--font-mono); font-size: .76rem; line-height: 1.45; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
 .builder-journey { display: flex; gap: 1rem; justify-content: space-between; list-style: none; padding: 0 0 1.5rem; margin: 1.5rem 0; border-bottom: 1px solid var(--border-color); }
 .builder-journey li { display: flex; align-items: center; gap: .45rem; color: var(--text-secondary); font-size: .72rem; }
 .builder-journey li > span { display: grid; place-items: center; width: 1.4rem; height: 1.4rem; border: 1px solid var(--border-strong); border-radius: 50%; font: .65rem var(--font-mono); }

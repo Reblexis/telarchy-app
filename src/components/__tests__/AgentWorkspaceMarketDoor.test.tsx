@@ -140,3 +140,46 @@ describe('a bot created from a market lives in that market', () => {
     );
   });
 });
+
+/* Persona run 2026-09-17, the bot author: "I found a starter bot, but I still
+   cannot tell it where to read the chess game." The guide link stood under the
+   floor's door until the door became a bare row (docs/audience-pages.md, "The
+   door from a market"); the form the door opens carries it now. */
+describe('a fed market links to its own bot guide on the form its door opens', () => {
+  const GUIDE = 'https://github.com/Reblexis/telarchy-chess/blob/main/docs/trading.md';
+  const NAME = 'How to trade chess with a bot: the game feed, a dry run, a reference bot';
+  test('the chess door shows "How to trade chess with a bot", opening the guide in a new tab', async () => {
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
+      workspaceId: 'ws-chess',
+      name: 'Chess',
+      slug: 'chess',
+      liveFeed: { kind: 'chess', url: 'https://chess.example.com' },
+    } as never);
+    mount('/agents?market=chess#agent-setup');
+    const link = await screen.findByRole('link', { name: NAME });
+    expect(link).toHaveAttribute('href', GUIDE);
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link.getAttribute('rel')).toMatch(/noopener/);
+    expect(link.closest('#agent-setup')).toBeTruthy();
+  });
+  test('a market with no feed, a feed with no guide, and the plain form carry no such link', async () => {
+    mount();
+    await screen.findByLabelText('Bot name');
+    expect(screen.queryByRole('link', { name: /How to trade/ })).toBeNull();
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
+      workspaceId: 'ws-snake',
+      name: 'Snake',
+      slug: 'snake',
+      liveFeed: { kind: 'snake', url: 'https://snake.example.com' },
+    } as never);
+    mount('/agents?market=snake#agent-setup');
+    await waitFor(() => expect(screen.getAllByLabelText('Bot name').length).toBe(2));
+    expect(screen.queryByRole('link', { name: /How to trade/ })).toBeNull();
+  });
+  test('the plain Agents page, with no market in the address, carries no guide link', async () => {
+    vi.mocked(api.getPublicWorkspaces).mockResolvedValue([] as never);
+    mount('/agents#agent-setup');
+    await screen.findByLabelText('Bot name');
+    expect(screen.queryByRole('link', { name: /How to trade/ })).toBeNull();
+  });
+});

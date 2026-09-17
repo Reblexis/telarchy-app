@@ -2171,3 +2171,15 @@ fixed pixel strip right of now, captioned "until it settles", with the call
 as a fading dashed line; he approved it ("ok"). The time window still ends at
 now, as decided earlier the same day.
 
+
+## 2026-09-17: the bot door is a hairline row with nothing under it (Viktor)
+
+The door was added on 2026-09-16 as a filled full-width pill with a mono
+caption, and the chess floor later gained a long guide link under it.
+Viktor, 2026-09-17: "remove the text below the add your own trading bot
+button and make the add your own trading bot button less prominent". Shown
+four quieter treatments (claude.ai/artifact/BktbNYA6N2acbSCbX3YQV2) he first
+said "do a" (outline pill), then "actually no do b": the hairline row. This
+reverses the earlier "a pill, not a hairline row". The chess guide link moved
+to the new-bot form the chess door opens, so the floor's rail carries nothing
+under the row; the floor's about text still links the guide.

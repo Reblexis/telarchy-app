@@ -261,14 +261,6 @@ export function holdersOf(
 
 type ChartMode = 'value' | 'call' | 'live';
 
-/** The bot guide a feed kind publishes, linked under the floor's bot door. */
-const FEED_BOT_GUIDES: Record<string, { label: string; url: string }> = {
-  chess: {
-    label: 'How to trade chess with a bot: the game feed, a dry run, a reference bot',
-    url: 'https://github.com/Reblexis/telarchy-chess/blob/main/docs/trading.md',
-  },
-};
-
 export function TradePage() {
   const params = useParams();
   const idOrSlug = params.slug ?? params.workspaceId;
@@ -2989,33 +2981,21 @@ export function TradePage() {
             </div>
           )}
           {/* Under the ticket, the door to a bot (docs/ui-conventions.md,
-              "Under the ticket, the door to a bot"; owner ask 2026-09-16):
-              one pill to the Agents page with THIS market preset on the
-              new-bot form, and one caption, on every floor, market open or
-              not, because a bot is added to the floor rather than to one
-              book. */}
+              "Under the ticket, the door to a bot"): one hairline row to the
+              Agents page with THIS market preset on the new-bot form, and
+              nothing under it, on every floor, market open or not, because a
+              bot is added to the floor rather than to one book. */}
           <div className="pubws-botdoor">
             <Link
-              className="pubws-cta pubws-botdoor-go"
+              className="pubws-botdoor-row"
               to={`/agents?market=${encodeURIComponent(ws?.slug || idOrSlug || '')}#agent-setup`}
             >
-              <BotGlyph size={18} strokeWidth={1.8} />
+              <BotGlyph size={17} strokeWidth={1.8} />
               Add your own trading bot
+              <span className="pubws-botdoor-arrow" aria-hidden="true">
+                -&gt;
+              </span>
             </Link>
-            <p className="pubws-botdoor-note">A ready prompt for your coding assistant, or step by step.</p>
-            {/* A fed floor's own bot guide: where its game feed is and how to
-                trade it (docs/ui-conventions.md, "Under the ticket, the door
-                to a bot"). Off-site, so a plain anchor in a new tab. */}
-            {liveFeed && FEED_BOT_GUIDES[liveFeed.kind] && (
-              <a
-                className="pubws-botdoor-guide"
-                href={FEED_BOT_GUIDES[liveFeed.kind].url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {FEED_BOT_GUIDES[liveFeed.kind].label}
-              </a>
-            )}
           </div>
         </aside>
         {/* Everything under the trade, in one grid item so the DOM order
