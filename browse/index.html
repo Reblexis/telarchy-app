@@ -8113,7 +8113,11 @@ move now it just says their move&quot;): the opponent by name and rating (no
 rating when Lichess has none), the move of TelarchyBot's they are
 answering when the last decision belongs to this game (otherwise &quot;to
 move&quot;), and their clock in the accent, counting down by the second from
-the feed's last read, &quot;Settling the game&quot;
+the moment the feed's clocks were last true, which is that decision's
+<code>at</code> (the feed's <code>clocks</code> change only when a move is made, so a count
+restarted at every read would snap back every two seconds); with no
+decision of this game to date it from, the clock stands still,
+&quot;Settling the game&quot;
 while <code>phase</code> is <code>settling</code>, &quot;Waiting for the next game&quot; between games,
 &quot;Loading&quot; before the first read and &quot;Feed unavailable&quot; after a failed
 one.

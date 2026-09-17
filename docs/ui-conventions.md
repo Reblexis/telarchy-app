@@ -2985,7 +2985,11 @@ horizontal overflow. The available slot controls this, including home cards.
    rating when Lichess has none), the move of TelarchyBot's they are
    answering when the last decision belongs to this game (otherwise "to
    move"), and their clock in the accent, counting down by the second from
-   the feed's last read, "Settling the game"
+   the moment the feed's clocks were last true, which is that decision's
+   `at` (the feed's `clocks` change only when a move is made, so a count
+   restarted at every read would snap back every two seconds); with no
+   decision of this game to date it from, the clock stands still,
+   "Settling the game"
    while `phase` is `settling`, "Waiting for the next game" between games,
    "Loading" before the first read and "Feed unavailable" after a failed
    one.
