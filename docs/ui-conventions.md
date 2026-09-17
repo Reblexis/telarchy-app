@@ -2949,7 +2949,12 @@ horizontal overflow. The available slot controls this, including home cards.
    ranks numbered up the left edge, from the side the board is seen from.
    Above the board one line says who plays whom (`.chess-game`):
    "TelarchyBot plays Black against OppBot (2171)", the rating left out when
-   Lichess has none, absent while no game is known and during a replay. **Arrows for the three highest
+   Lichess has none, absent while no game is known and during a replay.
+   Under it, on the floor (not on the home card, not in a replay), one muted
+   line says who picks the moves (`.chess-rule`): "Traders price every legal
+   move. The highest price is played.", with the feed's own `rule` sentence as
+   its tooltip, because a visitor who has to scroll to "How this settles" to
+   learn that the market decides has already guessed wrong. **Arrows for the three highest
    prices** of an open move (`.chess-arrow`), shaded as the snake's
    chevrons are (the leader at 0.9, the lowest of the three at 0.3, all at
    0.55 on a tie or fewer than two priced), each a link to

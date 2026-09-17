@@ -974,3 +974,26 @@ describe('"no file/rank labels I could read ... it took me a while to work out w
     await waitFor(() => expect(coords(container, 'rank')).toEqual(['1', '2', '3', '4', '5', '6', '7', '8']));
   });
 });
+
+describe('"I only learned who picks the moves from a paragraph far down the page and a tiny i"', () => {
+  const rule = (c: HTMLElement) => c.querySelector('.chess-rule');
+  test("one line by the board says the market picks, with the feed's full rule behind it", async () => {
+    vi.mocked(api.getLiveState).mockImplementation(async () => h.state({ rule: 'The full rule sentence.' }) as never);
+    const { container } = renderLive();
+    await waitFor(() =>
+      expect(rule(container)?.textContent).toBe('Traders price every legal move. The highest price is played.'),
+    );
+    expect(rule(container)?.getAttribute('title')).toBe('The full rule sentence.');
+  });
+  test('not in a replay and not on the home card', async () => {
+    const a = renderLive({ card: true });
+    await waitFor(() => expect(a.container.querySelector('.chess-game')).toBeTruthy());
+    expect(rule(a.container)).toBeNull();
+    a.unmount();
+    const b = renderLive();
+    await waitFor(() => expect(rule(b.container)).toBeTruthy());
+    fireEvent.change(b.container.querySelector('.chess-games') as HTMLSelectElement, { target: { value: '2' } });
+    await waitFor(() => expect(b.container.querySelector('.chess-replay-chip')).toBeTruthy());
+    expect(rule(b.container)).toBeNull();
+  });
+});
