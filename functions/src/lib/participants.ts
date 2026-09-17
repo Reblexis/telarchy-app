@@ -4,7 +4,7 @@ import { db } from '../db/client';
 import { agents, authUser, permissionGroups, workspaceSlugAliases, workspaces } from '../db/schema';
 import { AppError } from './errors';
 import { uniqueSlugForOwner } from './slug';
-import { DEFAULT_MARKET_LIQUIDITY_CREDITS, validateNickname } from './validation';
+import { DEFAULT_MARKET_LIQUIDITY_CREDITS, isReadableParticipantId, validateNickname } from './validation';
 
 type DbOrTx = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
 
@@ -363,9 +363,10 @@ export async function listParticipantsForWorkspace(workspaceId: string) {
 /**
  * Resolve participant IDs (agents.id) to human-readable display names. Prefers
  * agents.nickname (claimed via either signup path), falls back to
- * authUser.name for human accounts that haven't picked one. Pure API agents
- * without a nickname are absent from the map; callers should fall back to a
- * truncated ID.
+ * authUser.name for human accounts that haven't picked one, then to the id
+ * when it is readable (docs/agent-economy.md, "Optional nickname"). A
+ * participant with only an opaque id is absent from the map; callers fall
+ * back to a truncated ID or "anonymous".
  */
 export async function getParticipantDisplayNames(participantIds: string[]): Promise<Map<string, string>> {
   const names = new Map<string, string>();
@@ -379,7 +380,7 @@ export async function getParticipantDisplayNames(participantIds: string[]): Prom
     .where(inArray(agents.id, unique));
 
   for (const row of rows) {
-    const display = row.nickname ?? row.name;
+    const display = row.nickname ?? row.name ?? (isReadableParticipantId(row.agentId) ? row.agentId : null);
     if (display) names.set(row.agentId, display);
   }
   return names;
@@ -412,6 +413,35 @@ export async function claimNickname(tx: DbOrTx, participantId: string, nickname:
     const code = (err as { code?: string })?.code;
     if (code === '23505') throw new AppError('Nickname is already taken', 409);
     throw err;
+  }
+}
+
+/**
+ * A participant created through the API that named no nickname takes its id
+ * as its nickname, when the id is a valid nickname nobody holds
+ * (docs/agent-economy.md, "Optional nickname"). Without this the name an
+ * owner typed when creating a bot lived only in the id, and every board
+ * called the bot "anonymous".
+ *
+ * Never throws for a name it cannot have: the participant is simply created
+ * with none. The write runs in a savepoint because a lost race on the unique
+ * index would otherwise abort the caller's whole creation transaction.
+ */
+export async function claimIdAsNickname(tx: DbOrTx, participantId: string): Promise<void> {
+  if (validateNickname(participantId)) return;
+  try {
+    await tx.transaction(async sp => {
+      await sp.execute(sql`
+        UPDATE agents SET nickname = ${participantId}
+        WHERE id = ${participantId} AND nickname IS NULL
+          AND NOT EXISTS (SELECT 1 FROM agents b WHERE LOWER(b.nickname) = LOWER(${participantId}))
+      `);
+    });
+  } catch (err) {
+    const code =
+      (err as { code?: string; cause?: { code?: string } })?.code ??
+      (err as { cause?: { code?: string } })?.cause?.code;
+    if (code !== '23505') throw err;
   }
 }
 

@@ -26,7 +26,7 @@ import { resolutionInstant, settlesOn } from '../lib/date-utils';
 import { creditsIssuedForUsdcDeposit, depositBuyRateUsd } from '../lib/economy';
 import { AppError } from '../lib/errors';
 import { allowLedgerAdmin } from '../lib/ledger-admin';
-import { botIds, claimNickname, listParticipantsForWorkspace } from '../lib/participants';
+import { botIds, claimIdAsNickname, claimNickname, listParticipantsForWorkspace } from '../lib/participants';
 import { isPlatformAuthorized } from '../lib/platform-admin';
 import { restrictedToMembers } from '../lib/public-read';
 import { granterCoversScopes, parseScopesInput, SCOPE_PRESETS } from '../lib/scopes';
@@ -303,6 +303,8 @@ agentsRouter.post(
       await tx.insert(agentApiKeys).values({ hash: keyHash, keyId, agentId, workspaceId: wsId, scopes: ['*'] });
       if (nickname !== undefined && nickname !== null && nickname !== '') {
         await claimNickname(tx, agentId, nickname);
+      } else {
+        await claimIdAsNickname(tx, agentId);
       }
     });
 
@@ -1413,6 +1415,8 @@ agentsRouter.post(
       });
       if (typeof nickname === 'string' && nickname !== '') {
         await claimNickname(tx, agentId, nickname);
+      } else {
+        await claimIdAsNickname(tx, agentId);
       }
       for (const m of membershipList) {
         if (m.groupIds.length === 0) continue;

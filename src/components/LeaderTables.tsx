@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { LeaderboardEntry, PrizeSeason, SeasonStanding } from '../lib/api';
+import { displayName } from '../lib/display-name';
 import { BotMark } from './BotMark';
 import { ManifoldLogo } from './ManifoldLogo';
 
@@ -87,7 +88,7 @@ function TraderCell({
   sub?: string | null;
   bot?: boolean;
 }) {
-  const name = nickname || 'anonymous';
+  const name = displayName(nickname, id);
   return (
     <Link className="lbt-who" to={`/participants/${encodeURIComponent(nickname ?? id)}`}>
       <span className="lbp-avatar">{image ? <img src={image} alt="" /> : <span>{initialOf(name)}</span>}</span>
