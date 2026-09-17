@@ -11635,6 +11635,13 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   stroke: var(--accent);
   stroke-width: 2;
 }
+/* The press area around the dot: never painted, in any state. */
+.nchart-marker circle.nchart-marker-hit,
+.nchart-marker.is-pickable:hover circle.nchart-marker-hit,
+.nchart-marker.is-pickable:focus-visible circle.nchart-marker-hit {
+  fill: transparent;
+  stroke: none;
+}
 .nchart-marker.is-pickable:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
