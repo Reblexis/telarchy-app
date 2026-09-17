@@ -1647,19 +1647,38 @@ async function buyOutProposerLiquidity(proposalId: string, workspaceId: string, 
       refType: 'proposal',
       refId: proposalId,
     });
-    await applyCredits(tx, {
-      agentId: proposerId,
-      workspaceId,
-      deltaUnits: toUnits(stake),
-      reason: 'proposal_stake',
-      refType: 'proposal',
-      refId: proposalId,
-    });
+    // Each part goes back to the purse that paid it: liquidity-wallet credits
+    // return to the wallet and never become tradeable credits (or score,
+    // docs/seasons.md), the rest returns to the balance.
+    const walletPart = rows
+      .filter(r => r.fundedFrom === 'liquidity')
+      .reduce((sum, r) => sum + (r.poolContribution ?? 0), 0);
+    const balancePart = stake - walletPart;
+    if (walletPart > 0) {
+      await tx
+        .update(agents)
+        .set({ liquidityBalance: sql`${agents.liquidityBalance} + ${toUnits(walletPart)}` })
+        .where(eq(agents.id, proposerId));
+    }
+    if (balancePart > 0) {
+      await applyCredits(tx, {
+        agentId: proposerId,
+        workspaceId,
+        deltaUnits: toUnits(balancePart),
+        reason: 'proposal_stake',
+        refType: 'proposal',
+        refId: proposalId,
+      });
+    }
     for (const row of rows) {
       // Re-attribution, not erasure: the row moves to the account that
       // actually paid for it.
       await allowLedgerAdmin(tx);
-      await tx.update(liquidityEvents).set({ agentId: ownerAgentId }).where(eq(liquidityEvents.id, row.id));
+      // The owner paid from the balance, so the leftover returns there.
+      await tx
+        .update(liquidityEvents)
+        .set({ agentId: ownerAgentId, fundedFrom: 'balance' })
+        .where(eq(liquidityEvents.id, row.id));
     }
   });
 }

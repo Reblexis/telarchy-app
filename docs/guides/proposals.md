@@ -192,7 +192,10 @@ Two credit movements do happen automatically on approve, both out of your
 balance:
 
 - **The proposer's liquidity stake is bought out.** Whatever they put into the
-  branch markets comes back to them, and the LP position transfers to you. If
+  branch markets comes back to them, and the LP position transfers to you. Each
+  part returns to the purse that paid it: what they staked from their
+  liquidity wallet goes back to the wallet, the rest to their balance. You
+  pay from your balance, so the pool's leftover later returns to your balance. If
   your balance cannot cover it, the buyout is skipped and their stake stays in
   the market until it resolves.
 - **`proposalReward` is paid**, if you set one. It defaults to 0. When it is set
