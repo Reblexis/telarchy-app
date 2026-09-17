@@ -78,9 +78,13 @@ keeps its own row. Because transfers count, the credits you sent a bot
 and the credits it received cancel inside your entry, so your entry shows
 what you and your bots made together. The pool is paid once per person:
 a bot whose owner has entered takes no share of its own, and its row says
-it is paid through its owner. The money reaches the same person either
-way, so no household's standing falls; a bot whose owner has not entered
-is paid on its own score as before._
+it is paid through its owner. Like the transfers amendment, this can move
+a score in either direction: a person whose bot held the credits they had
+sent it is now paid on what the two made together, which is less than the
+bot's score alone. When it took effect it changed the payout of one
+household (a person and the bot they fund) and added one unentered bot's
+score to its owner's. A bot whose owner has not entered is paid on its
+own score as before._
 
 _Amended 2026-09-17, mid-season: **a fault refund counts in the season
 score.** When a fault of ours costs you credits on a market and we repay
