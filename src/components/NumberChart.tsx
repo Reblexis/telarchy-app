@@ -92,6 +92,9 @@ interface Props {
 export type Granularity = 'day' | 'week' | 'month' | 'other';
 
 const DAY = 86_400_000;
+/** The narrowest window a date with no clock draws: a reading seconds old
+ *  still needs a plot with width. */
+const MIN_CLOCKLESS_WINDOW = 10 * 60_000;
 
 /** The range words per granularity; the first is the automatic window. */
 export const RANGE_WORDS: Record<Granularity, Array<{ key: string; ms: number | null }>> = {
@@ -129,7 +132,8 @@ export function granularityOf(targetDate: string): Granularity {
  * to the selected settle instant (plus a hair of padding so the marker is
  * not on the frame). ALL starts at the first reading. Anchored on "now"
  * rather than on the settle instant so a far market still shows the last
- * month of readings instead of an empty month before its date.
+ * month of readings instead of an empty month before its date. A date with
+ * no clock has no future side: its window is its readings, ending at now.
  */
 export function windowFor(
   selectedResolvesOn: string,
@@ -137,15 +141,22 @@ export function windowFor(
   points: NumberPoint[],
   now: Date,
 ): [number, number] {
-  // A date with no clock stands at a far edge that names no moment
-  // (docs/ui-conventions.md, "The number chart"): the window ends at now.
+  const nowT = now.getTime();
   const settle = new Date(selectedResolvesOn).getTime();
-  const end =
-    Number.isFinite(settle) && forecastDayOf(selectedResolvesOn) !== null
-      ? Math.max(settle, now.getTime())
-      : now.getTime();
-  const first = points.length > 0 ? new Date(points[0].at).getTime() : now.getTime() - DAY;
-  const start = span === null ? Math.min(first, now.getTime() - DAY) : now.getTime() - span;
+  const first = points.length > 0 ? new Date(points[0].at).getTime() : null;
+  // A DATE WITH NO CLOCK IS FILLED BY ITS READINGS (docs/ui-conventions.md,
+  // "The number chart"): it stands at a far edge that names no moment, so
+  // there is no future side. The window ends exactly at now and begins at
+  // the first reading the range holds; an empty past would only squeeze the
+  // line into a sliver (owner report 2026-09-17, the Snake floor).
+  if (!Number.isFinite(settle) || forecastDayOf(selectedResolvesOn) === null) {
+    const edge = span === null ? null : nowT - span;
+    const held = points.map(p => new Date(p.at).getTime()).find(t => edge === null || t >= edge);
+    const start = held ?? edge ?? nowT - DAY;
+    return [Math.min(start, nowT - MIN_CLOCKLESS_WINDOW), nowT];
+  }
+  const end = Math.max(settle, nowT);
+  const start = span === null ? Math.min(first ?? nowT - DAY, nowT - DAY) : nowT - span;
   const pad = (end - start) * 0.03;
   return [start, end + pad];
 }
@@ -476,13 +487,15 @@ export function NumberChart({
         ))}
         {nowT >= x0 && nowT <= x1 && (
           <>
-            <rect
-              className="nchart-future"
-              x={x(nowT)}
-              y={PAD_T - 6}
-              width={Math.max(0, W - PAD_R - x(nowT))}
-              height={H - PAD_T - PAD_B + 12}
-            />
+            {target[1] > nowT && (
+              <rect
+                className="nchart-future"
+                x={x(nowT)}
+                y={PAD_T - 6}
+                width={Math.max(0, W - PAD_R - x(nowT))}
+                height={H - PAD_T - PAD_B + 12}
+              />
+            )}
             <line className="nchart-now" x1={x(nowT)} x2={x(nowT)} y1={PAD_T - 6} y2={H - PAD_B + 6} />
             <text className="mchart-xlabel" x={x(nowT)} y={H - 8}>
               now
