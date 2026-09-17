@@ -829,7 +829,7 @@ describe('the replay', () => {
     const scrub = container.querySelector('.chess-scrub') as HTMLInputElement;
     await waitFor(() => expect(scrub.max).toBe('4'));
     fireEvent.change(scrub, { target: { value: '2' } });
-    await waitFor(() => expect(nextLine(container)).toBe('Move 1: e5, chosen at 52.5'));
+    await waitFor(() => expect(nextLine(container)).toBe('Move 1: e5, chosen at 52.5 of 100'));
     expect(sq(container, 'e5').getAttribute('data-piece')).toBe('p');
     expect(sq(container, 'e5').classList.contains('is-last')).toBe(true);
     expect(arrows(container)).toHaveLength(1);
@@ -845,3 +845,132 @@ describe('the replay', () => {
 
 void FEN;
 void MOVES;
+
+/* Found by the 2026-09-17 chess persona run (telarchy-chess
+   tests/persona/results/2026-09-17). Each test is named after what the tester
+   said. */
+describe('a visitor can tell who is playing whom', () => {
+  const caption = (c: HTMLElement) => c.querySelector('.chess-game')?.textContent ?? '';
+  test('"I could not tell whose turn it was or who the opponent is": the caption names the side and the opponent', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(caption(container)).toBe('TelarchyBot plays White against OppBot (2171)'));
+  });
+  test('as Black, and with an unrated opponent', async () => {
+    vi.mocked(api.getLiveState).mockImplementation(
+      async () =>
+        h.state({
+          game: { ...h.state().game, color: 'black', opponent: { name: 'Anon', title: null, rating: null } },
+        }) as never,
+    );
+    const { container } = renderLive();
+    await waitFor(() => expect(caption(container)).toBe('TelarchyBot plays Black against Anon'));
+  });
+  test('no caption before any game is known', async () => {
+    vi.mocked(api.getLiveState).mockImplementation(
+      async () => h.state({ game: null, open: null, phase: 'seeking' }) as never,
+    );
+    const { container } = renderLive();
+    await waitFor(() => expect(nextLine(container)).toBe('Waiting for the next game'));
+    expect(container.querySelector('.chess-game')).toBeNull();
+  });
+  test('the card form carries it too', async () => {
+    const { container } = renderLive({ card: true });
+    await waitFor(() => expect(caption(container)).toContain('plays White against OppBot'));
+  });
+});
+
+describe('"two pieces jumped at once with only one marked"', () => {
+  test('the move before the last is tinted too, fainter', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(sq(container, 'd4').classList.contains('is-last')).toBe(true));
+    // MOVES end ... d2d4, e5d4: the last is e5d4, the one before d2d4.
+    expect(sq(container, 'd2').classList.contains('is-prior')).toBe(true);
+    expect(sq(container, 'e5').classList.contains('is-last')).toBe(true);
+    // d4 belongs to both; the last move wins.
+    expect(sq(container, 'd4').classList.contains('is-prior')).toBe(false);
+    expect(sq(container, 'a1').classList.contains('is-prior')).toBe(false);
+  });
+  test('a game with one move has no prior tint', async () => {
+    vi.mocked(api.getLiveState).mockImplementation(
+      async () => h.state({ game: { ...h.state().game, moves: ['e2e4'] } }) as never,
+    );
+    const { container } = renderLive();
+    await waitFor(() => expect(sq(container, 'e4').classList.contains('is-last')).toBe(true));
+    expect(container.querySelectorAll('.is-prior').length).toBe(0);
+  });
+});
+
+describe('"Won 3, Lost 126 sits next to the board with no label saying whose record it is"', () => {
+  test('the record is headed by the player and the site', async () => {
+    const { container } = renderLive();
+    await waitFor(() =>
+      expect(container.querySelector('.chess-stats-head')?.textContent).toBe('TelarchyBot on Lichess'),
+    );
+  });
+});
+
+describe('"nothing on the screen told me what that number is"', () => {
+  test('the move list is headed by the scale of its prices', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(container.querySelector('.chess-movelist-head')).toBeTruthy());
+    expect(container.querySelector('.chess-movelist-head')?.textContent).toBe(
+      'Expected score if played: 0 loss, 50 draw, 100 win',
+    );
+  });
+  test('no heading while no move is open', async () => {
+    vi.mocked(api.getLiveState).mockImplementation(async () => h.state({ open: null, phase: 'their-move' }) as never);
+    const { container } = renderLive();
+    await waitFor(() => expect(nextLine(container)).toMatch(/^Waiting for OppBot/));
+    expect(container.querySelector('.chess-movelist-head')).toBeNull();
+  });
+});
+
+describe('"nothing said I was watching an old game"', () => {
+  const chip = (c: HTMLElement) => c.querySelector('.chess-replay-chip');
+  test('a replay carries a marker naming the game; live carries none', async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    expect(chip(container)).toBeNull();
+    fireEvent.change(container.querySelector('.chess-games') as HTMLSelectElement, { target: { value: '2' } });
+    await waitFor(() => expect(chip(container)?.textContent).toBe('Replay: game 2 against OldBot, lost. Not live.'));
+    fireEvent.click(container.querySelector('.chess-live-btn') as Element);
+    await waitFor(() => expect(chip(container)).toBeNull());
+  });
+});
+
+describe('"the question and the board do not belong together"', () => {
+  const note = (c: HTMLElement) => c.querySelector('.chess-now-note')?.textContent ?? null;
+  test('on a proposal that is not the open move, the board says it shows the game now', async () => {
+    const { container } = renderLive({ selectedProposal: { number: 400, option: 'e2e4' } });
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    expect(note(container)).toBe('The board shows the game as it stands now, not the position of proposal #400.');
+  });
+  test('on the open move, and with no proposal selected, it says nothing', async () => {
+    const a = renderLive({ selectedProposal: { number: 412, option: 'e1g1' } });
+    await waitFor(() => expect(arrows(a.container).length).toBeGreaterThan(0));
+    expect(note(a.container)).toBeNull();
+    a.unmount();
+    const b = renderLive();
+    await waitFor(() => expect(arrows(b.container).length).toBe(3));
+    expect(note(b.container)).toBeNull();
+  });
+});
+
+describe('"no file/rank labels I could read ... it took me a while to work out which way pieces move"', () => {
+  const coords = (c: HTMLElement, kind: string) =>
+    [...c.querySelectorAll(`.chess-coord.is-${kind}`)].map(t => t.textContent);
+  test("files along the bottom and ranks up the side, from the player's side", async () => {
+    const { container } = renderLive();
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    expect(coords(container, 'file')).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+    // Top to bottom as drawn: White at the bottom reads 8 down to 1.
+    expect(coords(container, 'rank')).toEqual(['8', '7', '6', '5', '4', '3', '2', '1']);
+  });
+  test('as Black the ranks read 1 down to 8', async () => {
+    vi.mocked(api.getLiveState).mockImplementation(
+      async () => h.state({ game: { ...h.state().game, color: 'black' } }) as never,
+    );
+    const { container } = renderLive();
+    await waitFor(() => expect(coords(container, 'rank')).toEqual(['1', '2', '3', '4', '5', '6', '7', '8']));
+  });
+});

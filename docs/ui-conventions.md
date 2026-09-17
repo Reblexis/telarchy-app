@@ -2926,7 +2926,14 @@ horizontal overflow. The available slot controls this, including home cards.
    `game.color` is white, black at the bottom otherwise. a1 is a dark
    square and h1 a light one, as on every chessboard. The pieces are
    the position in `game.fen`; the two squares of the last move
-   (`game.moves`' last) are tinted. **Arrows for the three highest
+   (`game.moves`' last) are tinted, and the two of the move before it are
+   tinted fainter (`.is-prior`), because the opponent's reply and
+   TelarchyBot's move often arrive in one read and a visitor otherwise sees
+   two pieces jump with one marked. Files are lettered along the bottom and
+   ranks numbered up the left edge, from the side the board is seen from.
+   Above the board one line says who plays whom (`.chess-game`):
+   "TelarchyBot plays Black against OppBot (2171)", the rating left out when
+   Lichess has none, absent while no game is known and during a replay. **Arrows for the three highest
    prices** of an open move (`.chess-arrow`), shaded as the snake's
    chevrons are (the leader at 0.9, the lowest of the three at 0.3, all at
    0.55 on a tie or fewer than two priced), each a link to
@@ -2965,7 +2972,9 @@ horizontal overflow. The available slot controls this, including home cards.
    Rating, Played, Won, Lost and Drawn, each on its own labeled row, read
    from the feed's `player`. The rating is Lichess's classical rating, with
    "?" while provisional. Game counts are Lichess's own for the account.
-   The record is absent while `player` is null.
+   The record is headed by whose it is (`.chess-stats-head`): "TelarchyBot on
+   Lichess", the feed's `player.username`. The record is absent while `player`
+   is null.
 3. **The proposal on screen is marked on the board** (Viktor 2026-09-13:
    "when im in a proposal page make sure that the move corresponding to the
    proposal is highlighted"). When the page has the open move's proposal
@@ -2973,7 +2982,9 @@ horizontal overflow. The available slot controls this, including home cards.
    the approved green, whether or not it is among the three highest, and its
    two squares are tinted; the three highest keep their accent arrows beside
    it. A proposal that is decided, lapsed or not the open move marks nothing,
-   because its move belongs to a position the board no longer shows. **A move
+   because its move belongs to a position the board no longer shows; under
+   the board one muted line says so (`.chess-now-note`): "The board shows the
+   game as it stands now, not the position of proposal #400." **A move
    made on the board always opens the newest open proposal**, from any page:
    pressing a piece and a target, or an arrow, on a decided proposal's page
    opens that move on the open one, and nothing when no move is open. Away
@@ -2983,7 +2994,9 @@ horizontal overflow. The available slot controls this, including home cards.
    click on the card lands on the right proposal with that move selected
    (Viktor 2026-09-16: "make sure that clicking (moving by clicking) in the
    visualization works.. by going to the correct proposal").
-4. **The moves, one slim column left of the board** (`.chess-movelist`).
+4. **The moves, one slim column left of the board** (`.chess-movelist`),
+   headed by the scale its prices are on (`.chess-movelist-head`): "Expected
+   score if played: 0 loss, 50 draw, 100 win".
    Only while a move is open: every legal move, highest price
    first, an unpriced one last as "open", one row each (`.chess-moverow`):
    the rank, the piece and the SAN, a thin bar the length of the price
@@ -3003,9 +3016,12 @@ The replay row is the snake's (picker, scrubber, play, speed, LIVE): the
 picker lists the games newest first as "Game 3 · vs OppBot · lost", the
 scrubber runs over the plies (0 is the start position), play steps one
 ply a second (ten at 10x), and the line reads "Move 6: O-O, chosen at
-56.4" for TelarchyBot's ply ("chosen at random" when its `kind` is not
+56.4 of 100" for TelarchyBot's ply ("chosen at random" when its `kind` is not
 `market` or no price was recorded) and "Move 6: they played Nf6" for the
-opponent's. In replay the board draws the ply's `fen`, its move tinted,
+opponent's. **A replay is never mistaken for the live game**: while one is
+on, a marker above the board (`.chess-replay-chip`, in the accent, sticky to
+the top of the view as the page scrolls) reads "Replay: game 3 against
+OppBot, lost. Not live." and it goes when LIVE is pressed. In replay the board draws the ply's `fen`, its move tinted,
 and our chosen move as one solid arrow; there is no move list. Every read
 reports the open move's option prices by proposal id for the floor's own
 cells, and a new open proposal (or none) reloads the floor, as the snake's
