@@ -32,6 +32,8 @@
  *                       + credits other participants sent them inside the
  *                         window - credits they sent (rules amended
  *                         2026-09-16; lib/board.ts loadSeasonSettled)
+ *                       + fault refunds naming those markets (rules
+ *                         amended 2026-09-17; docs/seasons.md)
  *
  * The window on `markets.resolvedAt` (and on a transfer's instant) is the
  * baseline: nothing marked enters the score and entering late changes

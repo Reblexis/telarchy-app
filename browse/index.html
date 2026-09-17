@@ -3440,8 +3440,11 @@ read-then-write race.</li>
 <code>refType</code>/<code>refId</code> point at the market, proposal or transfer that caused it.
 A <code>fault_refund</code> is issued by the platform operator to repay what a
 platform fault cost a holder on one market, and always names that market;
-it is the only issued credit the board counts as trading profit
-(<code>docs/ui-conventions.md</code>, &quot;Top traders&quot;).</li>
+it is the only issued credit the board and the season count as trading
+profit (<code>docs/ui-conventions.md</code>, &quot;Top traders&quot;; <code>docs/seasons.md</code>, &quot;A
+fault refund counts&quot;). It never exceeds what the holder is down on that
+market in the ledger, so it brings a market back to zero and never above;
+<code>scripts/pay-fault-refund.mjs</code> refuses a larger amount.</li>
 <li><strong>Balance after is stored on the row</strong>, not derived at read time, so a
 divergence is visible where it started rather than only in the total.</li>
 <li><strong>A new participant is created at zero</strong> and granted through the ledger, so
@@ -4706,6 +4709,18 @@ second account could lose to the first on purpose, be refunded by
 transfer, and repeat without bound (reported by a trader 2026-09-16, owner
 decision the same day; F2 below). Both halves of the standings carry it,
 because the settled half is where it is added.</p>
+<p><strong>A fault refund counts.</strong> When a fault of the platform costs a holder
+credits on one market, the operator repays the net loss with a fault refund
+(ledger reason <code>fault_refund</code>, naming that market;
+<code>docs/market-integrity.md</code>), and the season scores it as money back on that
+market: it counts when the market it names settled inside the window on a
+floor the season scores, whenever the refund itself was paid, so the
+standings show the result the holder would have had without the fault. It
+is trading money on that floor, so the standings scoped to one floor carry
+it too. It is the only issued credit a season counts: a grant, an apology
+or an admin adjustment never is. A refund never exceeds the holder's net
+loss on the market, so the most it can do is bring that market back to
+zero.</p>
 <p><strong>Your score includes the accounts you own.</strong> A participant's score is its
 own score plus the score of every account it owns, added up the same way:
 a bot registered from its browser account (<code>agents.ownerUserId</code>), a bot
@@ -7614,8 +7629,9 @@ platform handed an account never enter it. The one exception is a
 <strong>fault refund</strong> (ledger reason <code>fault_refund</code>, <code>ref_type</code> <code>market</code>): the
 platform repaying what its own fault cost a holder on one market counts as
 money back on that market, settled, so the board shows the result the
-holder would have had without the fault. An apology or any other grant
-stays out. Credits transferred between participants count (received as
+holder would have had without the fault; the season standings count it
+the same way (<code>docs/seasons.md</code>, &quot;A fault refund counts&quot;). An apology or
+any other grant stays out. Credits transferred between participants count (received as
 profit, sent as loss, settled), and an owner's row folds in the accounts
 they own (<code>docs/seasons.md</code>, &quot;Your score includes the accounts you
 own&quot;), so the footer draws a row for anyone with a trade OR a number:
@@ -14739,6 +14755,17 @@ a bot whose owner has entered takes no share of its own, and its row says
 it is paid through its owner. The money reaches the same person either
 way, so no household's standing falls; a bot whose owner has not entered
 is paid on its own score as before.</em></p>
+<p><em>Amended 2026-09-17, mid-season: <strong>a fault refund counts in the season
+score.</strong> When a fault of ours costs you credits on a market and we repay
+that loss, the repayment is scored with that market, so your score is what
+it would have been without the fault. It can only bring a market back to
+zero, never above it. Nobody else's score changes; because the pool is
+split in proportion to score, a restored score does take back its share
+of the pool from everyone else. It
+applies to every fault refund since the season started: five so far, all
+on the Snake floor, 3,052.64 credits in total to four accounts. Grants,
+apologies and adjustments still never count. Announced on the season page;
+the Scoring section below has the sentence.</em></p>
 <p><strong>Season 0 is the first one, and the platform is still being launched.</strong> Expect
 rough edges, apologies in advance. If something looks wrong, tell us through
 the feedback channel in the app; where a bug affects standings we say so
@@ -14801,6 +14828,9 @@ have earned.</li>
 profit and credits you sent count as loss, at the moment of the transfer,
 for every transfer inside the season window. Funding a bot you own is a
 transfer. Deposits and platform grants are not.</li>
+<li><strong>Fault refunds count.</strong> If a fault of ours cost you credits on a market
+and we repaid the loss, the repayment counts with that market, up to the
+loss and never beyond it. Nothing else we hand out counts.</li>
 <li><strong>Your bots score into your entry.</strong> Every account you own, and every
 account it owns, is added to your score; each bot keeps its own row.
 The pool pays once per person: a bot whose owner has entered is paid

@@ -145,12 +145,16 @@ export function SeasonPage() {
                 resolve, so that depth would have scored nothing. Extending
                 can only add to a score, never subtract, which is the
                 amendment clause's test. */}
-            Rule change, 2026-09-16: credits another participant sent you count as profit and credits you sent count as
-            loss, at the moment of the transfer.
+            Rule change, 2026-09-17: when a fault of ours costs you credits on a market and we repay the loss, the
+            refund counts in your score with that market, up to the loss and never beyond it.
             <span className="seasonp-rulechanges-toggle" aria-hidden="true">
               earlier changes
             </span>
           </summary>
+          <p className="seasonp-experimental">
+            Rule change, 2026-09-16: credits another participant sent you count as profit and credits you sent count as
+            loss, at the moment of the transfer.
+          </p>
           <p className="seasonp-experimental">
             Rule change, 2026-08-31: the season runs one day longer, to 2 October, so markets resolving on 1 October
             score.

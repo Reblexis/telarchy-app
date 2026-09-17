@@ -82,6 +82,18 @@ it is paid through its owner. The money reaches the same person either
 way, so no household's standing falls; a bot whose owner has not entered
 is paid on its own score as before._
 
+_Amended 2026-09-17, mid-season: **a fault refund counts in the season
+score.** When a fault of ours costs you credits on a market and we repay
+that loss, the repayment is scored with that market, so your score is what
+it would have been without the fault. It can only bring a market back to
+zero, never above it. Nobody else's score changes; because the pool is
+split in proportion to score, a restored score does take back its share
+of the pool from everyone else. It
+applies to every fault refund since the season started: five so far, all
+on the Snake floor, 3,052.64 credits in total to four accounts. Grants,
+apologies and adjustments still never count. Announced on the season page;
+the Scoring section below has the sentence._
+
 **Season 0 is the first one, and the platform is still being launched.** Expect
 rough edges, apologies in advance. If something looks wrong, tell us through
 the feedback channel in the app; where a bug affects standings we say so
@@ -157,6 +169,9 @@ later does not.
   profit and credits you sent count as loss, at the moment of the transfer,
   for every transfer inside the season window. Funding a bot you own is a
   transfer. Deposits and platform grants are not.
+- **Fault refunds count.** If a fault of ours cost you credits on a market
+  and we repaid the loss, the repayment counts with that market, up to the
+  loss and never beyond it. Nothing else we hand out counts.
 - **Your bots score into your entry.** Every account you own, and every
   account it owns, is added to your score; each bot keeps its own row.
   The pool pays once per person: a bot whose owner has entered is paid
