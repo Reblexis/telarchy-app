@@ -2888,6 +2888,15 @@ visualization and no buttons around the board as that is making it just
 messy.. inputing the moves will be done on the board itself by clicking or
 going trough the proposal the official way"):
 
+**While no book is open the floor is still the feed's floor.** Between
+rounds (a chess game has settled and the next has not started, the snake is
+between levels) the workspace has no open market, and a floor whose workspace
+names a feed draws the live view in the instrument's place, with its idle line
+("Waiting for the next game") and its replay row. It never shows the
+empty-floor state ("No number here yet", "Add your first metric"), to the
+owner or to anyone else; that state belongs to a floor with no feed and no
+market.
+
 The live view has three columns: moves on the left, a centered board,
 and player statistics on the right. The two side columns have equal width,
 so neither missing moves nor missing stats shifts the board. A host that
