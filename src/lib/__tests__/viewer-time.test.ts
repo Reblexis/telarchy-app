@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { clockOf, countdownTo, dayOf, instantOf, pollIntervalFor, tickIntervalFor } from '../viewer-time';
+import { clockOf, countdownTo, dayOf, decidesWord, instantOf, pollIntervalFor, tickIntervalFor } from '../viewer-time';
 
 /**
  * Every clock on the floor reads in the viewer's zone (docs/ui-conventions.md,
@@ -67,5 +67,31 @@ describe('the clocks tick and the floor polls at the rate the nearest deadline m
     expect(pollIntervalFor([pending(4 * 60)], now, { fed: true })).toBe(15_000);
     expect(pollIntervalFor([pending(4 * 60)], now, { fed: false })).toBe(5000);
     expect(pollIntervalFor([], now)).toBe(15_000);
+  });
+});
+
+/* Persona run 2026-09-17, the trader: "where the page drops me to bet there is
+   no clock ... two moves closed under me before I even knew a timer existed."
+   The ticket said "decides 17 Sep" for a move closing in 40 seconds. */
+describe('the ticket says when its proposal decides, at the resolution that matters', () => {
+  const NOW = Date.parse('2026-09-17T14:58:00Z');
+  const at = (ms: number) => new Date(NOW + ms).toISOString();
+  test('under an hour it counts down by the second', () => {
+    expect(decidesWord(at(31_000), NOW, 'UTC')).toBe('decides in 0:31');
+    expect(decidesWord(at(5 * 60_000 + 31_000), NOW, 'UTC')).toBe('decides in 5:31');
+  });
+  test('under a day it counts hours', () => {
+    expect(decidesWord(at(4 * 3_600_000), NOW, 'UTC')).toBe('decides in 4h');
+  });
+  test('a day or more away it is the date', () => {
+    expect(decidesWord(at(3 * 86_400_000), NOW, 'UTC')).toBe('decides 20 Sep');
+  });
+  test('at and past the deadline it is deciding, never a negative clock', () => {
+    expect(decidesWord(at(0), NOW, 'UTC')).toBe('deciding');
+    expect(decidesWord(at(-5_000), NOW, 'UTC')).toBe('deciding');
+  });
+  test('no deadline, or an unreadable one, says nothing', () => {
+    expect(decidesWord(null, NOW, 'UTC')).toBe('');
+    expect(decidesWord('not a date', NOW, 'UTC')).toBe('');
   });
 });

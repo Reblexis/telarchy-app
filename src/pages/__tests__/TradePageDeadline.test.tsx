@@ -267,6 +267,17 @@ describe('the deadline reads at every scale', () => {
     expect(chip.className).toContain('is-urgent');
   });
 
+  test('"where the page drops me to bet there is no clock": the ticket counts the same seconds down', async () => {
+    // Persona run 2026-09-17, the trader on the chess floor: the ticket said
+    // "decides 17 Sep" for a move closing within the minute.
+    await withProposal({ decideBy: new Date(Date.now() + 12 * 60_000).toISOString() });
+    renderFloor();
+    await selectContract();
+    await screen.findByLabelText('Decision deadline');
+    const ctx = document.querySelector('.ticket-subject-ctx') as HTMLElement;
+    expect(ctx.textContent).toMatch(/decides in 1[12]:\d\d/);
+  });
+
   test('a day or more out it names the day', async () => {
     await withProposal({ decideBy: new Date(Date.now() + 3 * 86_400_000).toISOString() });
     renderFloor();

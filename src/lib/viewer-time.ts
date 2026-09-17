@@ -84,6 +84,20 @@ export function countdownTo(iso: string, now = Date.now()): { label: string; urg
   return { label: `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`, urgent: true };
 }
 
+/**
+ * "decides in 0:31", "decides in 4h", "decides 20 Sep", "deciding": the
+ * ticket's word for its proposal's deadline, at the facts row's resolution
+ * (docs/ui-conventions.md, "The deadline is said ONCE").
+ */
+export function decidesWord(iso: string | null | undefined, now = Date.now(), zone?: string): string {
+  if (!iso) return '';
+  const at = new Date(iso).getTime();
+  if (!Number.isFinite(at)) return '';
+  if (at - now <= 0) return 'deciding';
+  if (at - now >= 86_400_000) return `decides ${dayOf(iso, zone)}`;
+  return `decides in ${countdownTo(iso, now).label}`;
+}
+
 type Clocked = { status?: string | null; decideBy?: string | null };
 
 function soonestPendingMs(proposals: readonly Clocked[], now: number): number | null {
