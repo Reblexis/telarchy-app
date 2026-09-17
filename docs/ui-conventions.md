@@ -968,6 +968,13 @@ picker cannot express ten minutes: a row of presets (1h, 6h, 1 day, 3 days,
 1 week, custom) with the floor's own default preselected and named as such.
 Custom reveals a number and a unit, nothing more.
 
+**A placed bet leaves a line.** The confirm button's "Placed" tick lasts under
+two seconds; under the ticket one status line then says what happened and
+keeps saying it until the trader composes something else: "You bought Higher
+for 10 cr." (the credits actually spent). A partly filled bet keeps its own
+line ("Filled 10 of 25 cr. The price moved."), a resting order and a failed
+bet leave none.
+
 **What did not change.** The pair still resolves by the cell on screen, so
 picking a metric or a date moves the pair with it. The ticket trades the
 selected branch: its probability and liquidity come from the active market,
