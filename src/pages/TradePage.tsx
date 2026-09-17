@@ -368,6 +368,7 @@ export function TradePage() {
   // copying the proposal. Replaced, never pushed, so the back button still
   // leaves the floor. A number still waiting for its proposal (the effect
   // below) is left alone; so is any hash that is not a proposal's.
+  const pushedProposalRef = useRef(false);
   useEffect(() => {
     if (!ws || !idOrSlug) return;
     /* Two spellings of the same path. The ROUTER's is basename-relative and
@@ -390,12 +391,42 @@ export function TradePage() {
         ? `${floorPath}/p/${p.number}${search}`
         : `${floorPath}${search}#proposal=${encodeURIComponent(selectedJobId)}`;
       if (window.location.pathname + search + window.location.hash !== want) {
-        window.history.replaceState(null, '', want);
+        /* Opening a proposal from the floor's own address is one place in
+           the history, so Back returns to the floor; stepping from one
+           proposal to another replaces it, so Back never walks through every
+           proposal looked at. */
+        if (window.location.pathname === floorPath) {
+          window.history.pushState(null, '', want);
+          pushedProposalRef.current = true;
+        } else window.history.replaceState(null, '', want);
       }
     } else if (window.location.pathname !== floorPath || parseFloorHash(window.location.hash)?.proposal) {
-      window.history.replaceState(null, '', floorPath + search);
+      /* Closing a proposal this page opened steps back over the entry it
+         pushed, so the history holds the floor once, not twice. */
+      if (pushedProposalRef.current && window.location.pathname.startsWith(`${floorPath}/p/`)) {
+        pushedProposalRef.current = false;
+        window.history.back();
+      } else window.history.replaceState(null, '', floorPath + search);
     }
   }, [ws, selectedJobId, idOrSlug, location.pathname]);
+  /* Back and Forward across that one entry: the address already changed, the
+     selection follows it. */
+  useEffect(() => {
+    if (!idOrSlug) return;
+    const floorPath = withBase(`/${encodeURIComponent(idOrSlug)}`);
+    const onPop = () => {
+      const path = window.location.pathname;
+      if (path === floorPath) {
+        pushedProposalRef.current = false;
+        setSelectedJobId(null);
+      } else if (path.startsWith(`${floorPath}/p/`)) {
+        const n = path.slice(`${floorPath}/p/`.length);
+        if (/^\d+$/.test(n)) setSelectedJobId(n);
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [idOrSlug]);
   // A proposal address accepts the number too: #proposal=7 names proposal
   // #7 (docs/ui-conventions.md, "A proposal has a number and an address").
   /* A proposal's own address (docs/ui-conventions.md, "A proposal has an

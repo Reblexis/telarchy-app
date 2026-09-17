@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
+import { withBase } from '../../lib/base-path';
 import type { FeedQuotes } from '../../lib/feed-overlay';
 import { startVisiblePoll } from '../../lib/visible-poll';
 import { leadOpacities } from './SnakeLive';
@@ -598,7 +599,8 @@ export function ChessLive({
       from: id.slice(0, 2),
       to: id.slice(2, 4),
       number: open.proposal.number,
-      href: `/${slug}/p/${open.proposal.number}?option=${id}`,
+      /* A raw anchor, so it carries the build's base itself (lib/base-path). */
+      href: withBase(`/${slug}/p/${open.proposal.number}?option=${id}`),
     });
     const out: Arrow[] = top.map((o, i) => ({ ...at(o.id), opacity: ops[i] }));
     if (proposalMove && proposalMove !== liveHover) out.push({ ...at(proposalMove), opacity: 1, selected: true });
@@ -763,7 +765,7 @@ export function ChessLive({
                         key={o.id}
                         role="listitem"
                         className={cls}
-                        href={optionHref(o.id)}
+                        href={withBase(optionHref(o.id))}
                         onClick={e => {
                           if (!onPickProposal) return;
                           e.preventDefault();

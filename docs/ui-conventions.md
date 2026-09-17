@@ -2127,9 +2127,13 @@ prints the number in mono before the title, and nothing else: no link
 control, because **selecting a proposal changes the page's address** (owner
 decision 2026-09-04): the address bar reads `telarchy.com/<slug>#proposal=7`
 while proposal #7 is open, so copying the address bar is copying the
-proposal, and deselecting restores the floor's own address. The address is
-replaced, never pushed, so the back button still leaves the floor rather
-than stepping through every proposal the visitor looked at. The same
+proposal, and deselecting restores the floor's own address (by stepping back
+over the entry below when this page pushed it). **Opening a
+proposal from the floor is one place in the history**: it is pushed, so Back
+closes the proposal and shows the floor, and Forward opens it again. Stepping
+from one open proposal to another, or between its options, replaces that
+entry, so Back never walks through every proposal the visitor looked at, and
+arriving on a proposal's address pushes nothing. The same
 anchor is what a notification links to, by id (`#proposal=<id>`), and both
 forms open the same proposal. A visitor who wanted to
 ask about a proposal and could not say which one (Otto conversation,
