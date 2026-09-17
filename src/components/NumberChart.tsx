@@ -285,6 +285,7 @@ export function NumberChart({
   const { W, PAD_L, PAD_R, H: geomH } = GEOM[compact ? 'compact' : 'wide'];
   const H = height ?? geomH;
   const words = RANGE_WORDS[granularity];
+  const clockless = forecastDayOf(selectedResolvesOn) === null;
   const [rangeKey, setRangeKey] = useState<string | null>(null);
   // Hover: the reading in force at the cursor on the past side, the nearest
   // market's call on the future side (owner ask: "when i hover over it i
@@ -710,16 +711,20 @@ export function NumberChart({
           ))}
         </div>
       )}
-      {!optionMode && !legend && marksLegend && (
+      {/* THE LEGEND NAMES ONLY THE MARKS THE PLOT DRAWS: a date with no clock
+          draws no call dot and no pair, so its legend is the ink line alone. */}
+      {!optionMode && (clockless ? marksLegend || legend : !legend && marksLegend) && (
         <div className="nchart-legend" aria-label="Legend">
           <span>
             <i className="nchart-legend-line" />
             actual
           </span>
-          <span>
-            <i className="nchart-legend-dot nchart-legend-dot--now" />
-            market's call{forecastDayOf(selectedResolvesOn) ? ` for ${forecastDayOf(selectedResolvesOn)}` : ''}
-          </span>
+          {!clockless && (
+            <span>
+              <i className="nchart-legend-dot nchart-legend-dot--now" />
+              market's call for {forecastDayOf(selectedResolvesOn)}
+            </span>
+          )}
           {markers.some(m => !m.selected) && (
             <span>
               <i className="nchart-legend-dot nchart-legend-dot--other" />
@@ -728,7 +733,7 @@ export function NumberChart({
           )}
         </div>
       )}
-      {!optionMode && legend && (
+      {!optionMode && legend && !clockless && (
         <div className="nchart-legend" aria-label="Legend">
           <span>
             <i className="nchart-legend-dot nchart-legend-dot--approved" />

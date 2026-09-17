@@ -89,3 +89,49 @@ describe('a date with no clock is filled by its readings', () => {
     expect(container.querySelector('.nchart-now')).not.toBeNull();
   });
 });
+
+/**
+ * THE LEGEND NAMES ONLY THE MARKS THE PLOT DRAWS (docs/ui-conventions.md,
+ * "The price and the chart"). A date with no clock draws no call dot, so
+ * its legend is the ink line alone (owner ask 2026-09-17).
+ */
+describe('the legend names only the marks the plot draws', () => {
+  const chart = (resolvesOn: string, extra: Record<string, unknown> = {}) =>
+    render(
+      <NumberChart
+        points={hours}
+        markers={[]}
+        selectedResolvesOn={resolvesOn}
+        granularity="other"
+        unit=""
+        now={NOW}
+        marksLegend
+        {...extra}
+      />,
+    ).container;
+
+  test("a date with no clock: the legend says actual and never market's call", () => {
+    const legend = chart(FAR).querySelector('.nchart-legend');
+    expect(legend?.textContent).toContain('actual');
+    expect(legend?.textContent).not.toMatch(/market/i);
+    expect(legend?.querySelector('.nchart-legend-dot')).toBeNull();
+  });
+
+  test("a dated book keeps market's call with its day", () => {
+    const legend = chart('2026-10-01T00:00:00Z').querySelector('.nchart-legend');
+    expect(legend?.textContent).toMatch(/market's call for 30 Sep/);
+  });
+
+  test('a proposal open on a date with no clock: its pair is not drawn, so its legend is the ink line alone too', () => {
+    const legend = chart(FAR, { legend: { approved: 'if paid', declined: 'if not' } }).querySelector('.nchart-legend');
+    expect(legend?.textContent).toContain('actual');
+    expect(legend?.textContent).not.toMatch(/if paid|if not|market/i);
+  });
+
+  test('a proposal open on a dated book keeps its three-dot legend', () => {
+    const legend = chart('2026-10-01T00:00:00Z', { legend: { approved: 'if paid', declined: 'if not' } }).querySelector(
+      '.nchart-legend',
+    );
+    expect(legend?.textContent).toMatch(/if paid.*if not.*the market now/);
+  });
+});

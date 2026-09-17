@@ -6489,7 +6489,8 @@ the stats are above. <strong>A legend under the plot names the marks</strong> in
 words each (<code>.nchart-legend</code>): the ink line &quot;actual&quot;, the amber dot
 &quot;market's call for 30 Sep&quot;, and the grey dots &quot;other open dates&quot; only
 when there are any; with a proposal open the proposal's legend replaces
-it. The market chart and the number chart used to stack at equal size
+it. The legend names only the marks the plot draws: a date with no clock
+draws no call dot and no pair, so its legend is &quot;actual&quot; alone. The market chart and the number chart used to stack at equal size
 with a stat each and no words joining them; a Manifold trader read the
 $6k on the bottom one as a lifetime total and bet against a company he
 thought had just started.</p>
@@ -6552,7 +6553,7 @@ every open market of this metric as a marker at its settle instant
 carrying that market's current call. A book on an <code>until-settled</code> date
 has no instant, so the chart has no future side at all: no marker, no
 shaded band past the now rule, the window ends exactly at now, and the
-legend's call names no day. <strong>Its readings fill the plot</strong>: the window
+legend names no call. <strong>Its readings fill the plot</strong>: the window
 begins at the first reading the chosen range holds rather than at the
 range's far edge, because with no settle instant to give the future a
 width an empty past only squeezes the line into a sliver (a range still
