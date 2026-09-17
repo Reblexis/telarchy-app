@@ -72,3 +72,11 @@ inside the dialog in either mode, following Viktor's latest layout preference.
 Do not replace Sell with Cancel, since selling owned shares and cancelling an
 unfilled instruction are different actions. The HTML currently still shows the
 previous proposal with orders outside; it has not been revised for this research.
+
+Follow-up: Kalshi's current event-order V2 API requires a price for every order
+and supports immediate-or-cancel, fill-or-kill, and good-till-canceled lifetimes.
+Thus immediate execution can use a marketable limit order; the UI distinction
+Quick/Limit does not establish different underlying exchange order primitives.
+The public Quick help calls it a market order, but does not document the exact
+price or lifetime parameters sent by its frontend. Do not assert those parameters
+without evidence. Source: https://docs.kalshi.com/api-reference/orders/create-order-v2
