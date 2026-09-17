@@ -2160,3 +2160,14 @@ footer opens with "now 22.0 · read 25m ago" in every chart mode, because the
 CALL and LIVE modes draw no readings line and the current value would
 otherwise be printed nowhere. The snake's attempt number rides that footer
 line. The proposal view keeps its "last read" world cell.
+
+## 2026-09-17: a date with no clock draws its call on a dateless future side (Viktor)
+
+After the stat row became the call alone, the snake's value chart drew no
+call at all. A first mockup drew a level line across the whole plot; Viktor:
+"ok but shouldnt it be more like shown in the future.. ratehr tahn above past
+values". The redraw (claude.ai/artifact/X5sR9BQ3ebD8tR8FkabXmz) keeps a
+fixed pixel strip right of now, captioned "until it settles", with the call
+as a fading dashed line; he approved it ("ok"). The time window still ends at
+now, as decided earlier the same day.
+

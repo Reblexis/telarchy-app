@@ -2560,8 +2560,12 @@ export function TradePage() {
                       <NumberChart
                         points={hero.metricHistory}
                         markers={datesOf(horizons, hero.metricId, keptCells).flatMap(d => {
-                          // A date with no clock has no instant to stand at on a time axis.
-                          if (!d.resolvesOn || d.settlesByOwner) return [];
+                          // A date with no clock has no instant to stand at on a time
+                          // axis, so it is never a marker; the SELECTED one still
+                          // hands the chart its call, drawn as a level right of now
+                          // (docs/ui-conventions.md, "The price and the chart").
+                          if (!d.resolvesOn) return [];
+                          if (d.settlesByOwner && d.marketId !== hero.marketId) return [];
                           // The open proposal's pair on this date, by (metric, date).
                           const pr = selectedJob?.markets.find(
                             m =>

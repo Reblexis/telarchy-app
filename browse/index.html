@@ -6500,7 +6500,29 @@ words each (<code>.nchart-legend</code>): the ink line &quot;actual&quot;, the a
 &quot;market's call for 30 Sep&quot;, and the grey dots &quot;other open dates&quot; only
 when there are any; with a proposal open the proposal's legend replaces
 it. The legend names only the marks the plot draws: a date with no clock
-draws no call dot and no pair, so its legend is &quot;actual&quot; alone. The market chart and the number chart used to stack at equal size
+draws no call dot and no pair, so its legend is &quot;actual&quot;, and &quot;market's
+call&quot; beside a dashed amber stroke (<code>.nchart-legend-dash</code>) only when the
+call line below is drawn.</p>
+<p><strong>A date with no clock draws its call as a level on a future side that has
+no dates</strong> (decision record: <code>notes/decisions/ui-conventions.md</code>,
+2026-09-17). Its time window still ends exactly at now; right of the now
+rule the plot keeps a fixed strip of pixels, not of time (<code>CLOCKLESS_STRIP</code>,
+150 wide, 110 compact), tinted like every future side (<code>.nchart-future</code>) and
+captioned &quot;until it settles&quot; under the axis in place of a date. The
+selected book's call is a dashed amber line (<code>.nchart-call-line</code>) that
+starts at the now rule with a dot and runs across the strip, fading out
+before the frame and ending in no dot, because no instant is known; its
+label, &quot;49.9 market's call&quot; (<code>.nchart-call-label</code>), sits inside the strip,
+so it can never collide with the reading's &quot;25 now&quot; label left of the
+rule. A dotted riser just right of the now rule (<code>.nchart-call-gap</code>) joins the reading
+in force to the call when they are more than 14px apart: that distance is
+the trade. Never a line across the past: drawn over old readings it reads
+as what the market said back then. The y axis always includes the call. A
+bet being composed draws a second dotted line in the side's own colour in
+the same strip (<code>.mchart-ghost</code>), labelled with the ghost's arrow and
+value. No strip is drawn when the book has no call yet, when a proposal's
+options are on screen, or when the selected book carries a pair.</p>
+<p>The market chart and the number chart used to stack at equal size
 with a stat each and no words joining them; a Manifold trader read the
 $6k on the bottom one as a lifetime total and bet against a company he
 thought had just started.</p>

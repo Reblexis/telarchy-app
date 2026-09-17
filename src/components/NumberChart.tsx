@@ -1,5 +1,5 @@
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, PointerEvent as ReactPointerEvent } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { forecastDayOf } from '../lib/floor-horizons';
 import { clockOf, dayOf } from '../lib/viewer-time';
 import { GEOM } from './MarketChart';
@@ -96,6 +96,10 @@ interface Props {
 export type Granularity = 'day' | 'week' | 'month' | 'other';
 
 const DAY = 86_400_000;
+/** The future side of a date with no clock, in viewBox pixels and not in
+ *  time (docs/ui-conventions.md, "The price and the chart"): its window ends
+ *  at now, and the call is a level drawn across this strip. */
+export const CLOCKLESS_STRIP = { wide: 150, compact: 110 } as const;
 /** The narrowest window a date with no clock draws: a reading seconds old
  *  still needs a plot with width. */
 const MIN_CLOCKLESS_WINDOW = 10 * 60_000;
@@ -276,6 +280,7 @@ export function NumberChart({
   // restarting the domain rAF loop forever (60fps setState, allocating a
   // fresh array per frame). Callers that pass `now` are unaffected.
   const [mountNow] = useState(() => new Date());
+  const fadeId = useId().replace(/:/g, '');
   const now = nowProp ?? mountNow;
   // Same geometry and breakpoint as the market view (GEOM is theirs), so the
   // two views of the chart slot have one width, one plot area and one
@@ -304,7 +309,16 @@ export function NumberChart({
   const span = (rangeKey ? words.find(w => w.key === rangeKey) : words[0])?.ms ?? null;
   const target = windowFor(selectedResolvesOn, span, points, now);
   const [x0, x1] = useTweenedDomain(target);
-  const x = (t: number) => PAD_L + ((t - x0) / (x1 - x0)) * (W - PAD_L - PAD_R);
+  // A date with no clock: the selected book's call is a level on a dateless
+  // strip right of now. No call yet, options on screen or a pair: no strip.
+  const selectedBook = markers.find(m => m.selected) ?? null;
+  const hasSeries = (series ?? []).some(sr => typeof sr.consensus === 'number');
+  const pairOn = typeof selectedBook?.pair?.approved === 'number' && typeof selectedBook?.pair?.declined === 'number';
+  const callLevel =
+    clockless && !hasSeries && !pairOn && typeof selectedBook?.consensus === 'number' ? selectedBook.consensus : null;
+  const strip = callLevel === null ? 0 : CLOCKLESS_STRIP[compact ? 'compact' : 'wide'];
+  const plotR = W - PAD_R - strip;
+  const x = (t: number) => PAD_L + ((t - x0) / (x1 - x0)) * (plotR - PAD_L);
 
   const visible = points.filter(p => {
     const t = new Date(p.at).getTime();
@@ -343,6 +357,7 @@ export function NumberChart({
     ...inWindow.flatMap(m => (m.consensus === null ? [] : [m.consensus])),
     ...inWindow.flatMap(m => [m.pair?.approved, m.pair?.declined].filter((v): v is number => typeof v === 'number')),
     ...(preview ? [preview.value] : []),
+    ...(callLevel === null ? [] : [callLevel]),
   ];
   const rawLo = ys.length ? Math.min(...ys) : 0;
   const rawHi = ys.length ? Math.max(...ys) : 1;
@@ -375,7 +390,12 @@ export function NumberChart({
   const d = pts.map(([px, py], i) => (i === 0 ? `M${px} ${py}` : `L${px} ${py}`)).join(' ');
   const last = drawn[drawn.length - 1];
   const lastX = last ? x(new Date(last.at).getTime()) : 0;
-  const holdX = Math.min(x(nowT), W - PAD_R);
+  // A date with no clock ends its window AT now, and the page hands a new
+  // `now` every second while the tweened window still ends at the last one:
+  // there the rule stands at the plot's right edge, always.
+  const nowIn = clockless || (nowT >= x0 && nowT <= x1);
+  const nowX = clockless ? plotR : x(nowT);
+  const holdX = Math.min(nowX, plotR);
   const onMove = (e: ReactPointerEvent<SVGSVGElement>) => {
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect || rect.width === 0) return;
@@ -383,7 +403,7 @@ export function NumberChart({
     // viewBox-to-pixel ratio is rect.width / W; then map through the plot
     // area, not the whole svg, exactly as the market view does.
     const mouseX = ((e.clientX - rect.left) / rect.width) * W;
-    const frac = (mouseX - PAD_L) / (W - PAD_L - PAD_R);
+    const frac = (mouseX - PAD_L) / (plotR - PAD_L);
     setCursor(x0 + Math.max(0, Math.min(1, frac)) * (x1 - x0));
   };
   const onLeave = () => setCursor(null);
@@ -491,23 +511,84 @@ export function NumberChart({
             </text>
           </g>
         ))}
-        {nowT >= x0 && nowT <= x1 && (
+        {nowIn && (
           <>
-            {target[1] > nowT && (
+            {(target[1] > nowT || strip > 0) && (
               <rect
                 className="nchart-future"
-                x={x(nowT)}
+                x={nowX}
                 y={PAD_T - 6}
-                width={Math.max(0, W - PAD_R - x(nowT))}
+                width={Math.max(0, W - PAD_R - nowX)}
                 height={H - PAD_T - PAD_B + 12}
               />
             )}
-            <line className="nchart-now" x1={x(nowT)} x2={x(nowT)} y1={PAD_T - 6} y2={H - PAD_B + 6} />
-            <text className="mchart-xlabel" x={x(nowT)} y={H - 8}>
+            <line className="nchart-now" x1={nowX} x2={nowX} y1={PAD_T - 6} y2={H - PAD_B + 6} />
+            <text className="mchart-xlabel" x={nowX} y={H - 8}>
               now
             </text>
           </>
         )}
+        {callLevel !== null &&
+          (() => {
+            const nx = nowX;
+            const edge = W - PAD_R;
+            const cy = y(callLevel);
+            const ry = last ? y(last.value) : null;
+            const fade = (id: string, cls: string) => (
+              <linearGradient id={id} gradientUnits="userSpaceOnUse" x1={nx} x2={edge} y1={0} y2={0}>
+                <stop className={cls} offset="0.55" stopOpacity={1} />
+                <stop className={cls} offset="1" stopOpacity={0} />
+              </linearGradient>
+            );
+            const gy = preview ? y(preview.value) : null;
+            // The call is named above its line, unless the ghost's own label
+            // needs that side.
+            const labelBelow = gy !== null && gy < cy && cy - gy < 26;
+            return (
+              <g className="nchart-call">
+                <defs>
+                  {fade(`${fadeId}-call`, 'nchart-call-stop')}
+                  {fade(`${fadeId}-ghost`, `nchart-ghost-stop nchart-ghost-stop--${preview?.direction ?? 'higher'}`)}
+                </defs>
+                <text className="mchart-xlabel nchart-strip-cap" x={edge} y={H - 8} style={{ textAnchor: 'end' }}>
+                  until it settles
+                </text>
+                {ry !== null && Math.abs(ry - cy) > 14 && (
+                  <line
+                    className="nchart-call-gap"
+                    x1={nx + 5}
+                    x2={nx + 5}
+                    y1={cy + (ry > cy ? 3 : -3)}
+                    y2={ry + (ry > cy ? -5 : 5)}
+                  />
+                )}
+                <line className="nchart-call-line" x1={nx} x2={edge} y1={cy} y2={cy} stroke={`url(#${fadeId}-call)`} />
+                <circle className="nchart-call-dot" cx={nx} cy={cy} r={4} />
+                <text className="nchart-call-label" x={nx + 10} y={labelBelow ? cy + 15 : cy - 8}>
+                  {fmt(callLevel, unit)} market's call
+                </text>
+                {preview && gy !== null && (
+                  <g className={`mchart-ghost mchart-ghost--${preview.direction}`}>
+                    <line
+                      className="nchart-call-ghost"
+                      x1={nx}
+                      x2={edge}
+                      y1={gy}
+                      y2={gy}
+                      stroke={`url(#${fadeId}-ghost)`}
+                    />
+                    <text
+                      className={`mchart-ghost-label mchart-ghost--${preview.direction}`}
+                      x={nx + 10}
+                      y={gy > cy ? gy + 15 : gy - 8}
+                    >
+                      {preview.direction === 'higher' ? '▲' : '▼'} {fmt(preview.value, unit)}
+                    </text>
+                  </g>
+                )}
+              </g>
+            );
+          })()}
         {d && <path key={`line-${selectedResolvesOn}`} className="nchart-line" d={d} pathLength={1} />}
         {last && nowT > new Date(last.at).getTime() && holdX > lastX && (
           <line className="nchart-hold" x1={lastX} x2={holdX} y1={y(last.value)} y2={y(last.value)} />
@@ -734,6 +815,12 @@ export function NumberChart({
             <i className="nchart-legend-line" />
             actual
           </span>
+          {callLevel !== null && (
+            <span>
+              <i className="nchart-legend-dash" />
+              market's call
+            </span>
+          )}
           {!clockless && (
             <span>
               <i className="nchart-legend-dot nchart-legend-dot--now" />
