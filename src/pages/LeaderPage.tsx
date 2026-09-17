@@ -103,10 +103,8 @@ export function LeaderPage() {
       api
         .getLeaderboard(200, scope || undefined)
         .then(r => {
-          // Everyone the board ranks, with the board's own ranks: since the
-          // household fold an owner whose bots traded is on the board with
-          // no trades of their own, and hiding such rows here left gaps in
-          // the numbering.
+          // Everyone the board ranks, with the board's own ranks: dropping
+          // rows here would leave gaps in the numbering.
           if (!cancelled) setTraders(r.participants ?? []);
         })
         .catch(e => {
@@ -278,9 +276,9 @@ export function LeaderPage() {
             <p className="lbp-note">
               {seasonScope && season.status !== 'settled' ? (
                 <>
-                  Scored on <strong>{seasonScope.name}</strong> alone: each entrant's own settled trading profit there
-                  inside the season, no transfers and no bots added. <strong>Prizes are decided on every floor</strong>,
-                  and the dollar columns say what each entrant would actually be paid.{' '}
+                  Scored on <strong>{seasonScope.name}</strong> alone: settled trading profit there inside the season,
+                  transfers left out. <strong>Prizes are decided on every floor</strong>, and the dollar columns say
+                  what each entrant would actually be paid.{' '}
                 </>
               ) : null}
               {season.payoutMode === 'proportional' ? (
@@ -310,17 +308,8 @@ export function LeaderPage() {
         <section className="lbp-section" aria-label="Traders">
           <h2 className="pubws-h2">All-time{floorName ? ` · ${floorName}` : ''}</h2>
           <p className="lbp-note">
-            {floorName ? (
-              <>
-                Every trader on {floorName}, ranked on their own <strong>trading profit</strong> there: settled bets
-                plus what open positions are worth now.
-              </>
-            ) : (
-              <>
-                Every trader, ranked on <strong>total profit</strong>: settled bets plus what open positions are worth
-                now, with credits sent or received and the bots they own counted in.
-              </>
-            )}
+            Every trader{floorName ? ` on ${floorName}` : ''}, ranked on <strong>total profit</strong>: settled bets
+            plus what open positions are worth now.
           </p>
           {traders === null ? null : traders.length === 0 ? (
             <p className="lbp-empty">Nobody has traded yet.</p>

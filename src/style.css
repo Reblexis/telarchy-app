@@ -2022,6 +2022,19 @@ button.notif-row-link {
   text-transform: uppercase;
   color: var(--text-tertiary);
 }
+/* The Bots section's closing line (docs/ui-conventions.md, "Bots"): the
+   owner's profit plus their bots', a plain sum under the rows, in the row's
+   own register with the label left and the number right. */
+.prof-bots-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 0;
+  padding: 0.7rem 0 0;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
 .prof-empty {
   margin: 0;
   font-size: 0.85rem;
@@ -7712,11 +7725,6 @@ textarea.jobform-line--desc {
 /* The settled/open split, restated under the name where the phone hides the
    two middle columns. Desktop hides it: the columns say the same thing. */
 .lbt-msub { display: none; font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; color: var(--text-tertiary); }
-/* A row can be a household: "incl. N bots" under the name, and "via <owner>"
-   where a bot's prize would be (docs/ui-conventions.md, "A row can be a
-   household"). Both in the quiet mono voice; the number is the story. */
-.lbt-house { color: var(--text-tertiary); }
-.lbt-via { font-family: 'JetBrains Mono', monospace; font-size: 0.66rem; color: var(--text-tertiary); white-space: nowrap; }
 .lbt-msub.is-prize { color: var(--accent); font-weight: 700; font-size: 0.7rem; }
 /* Every number is in the table twice, full and tight, and the width picks
    (owner report 2026-08-31: the phone's stacked sub-lines made every row

@@ -17,7 +17,7 @@ jest.mock('../db/client', () => require('./harness/test-db'));
 import { eq } from 'drizzle-orm';
 import { agents, creditLedger, markets, positions, trades, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
-import { loadSeasonMarked, loadSeasonSettled, loadSeasonSettledSplit } from '../lib/board';
+import { loadSeasonMarked, loadSeasonSettled } from '../lib/board';
 import { toUnits } from '../lib/validation';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 
@@ -256,12 +256,12 @@ describe('A FAULT REFUND COUNTS IN THE SEASON SCORE, ON THE MARKET IT NAMES', ()
     expect((await loadSeasonSettled([WS], START, END)).get(KAI)).toBeCloseTo(before + 2, 6);
   });
 
-  test("a bot's refund reaches its owner's entry once, and the bot keeps its own number", async () => {
+  test("a bot's refund stays the bot's: a bot is a separate entity and its owner's entry never sees it", async () => {
     await db.insert(agents).values({ id: 'owner-of-kai', apiKeyHash: 'h-own', balance: 0 });
     await db.update(agents).set({ ownerAgentId: 'owner-of-kai' }).where(eq(agents.id, KAI));
     await refund();
-    const split = await loadSeasonSettledSplit([WS], START, END);
-    expect(split.ownById.get(KAI)).toBeCloseTo(0, 6);
-    expect(split.byId.get('owner-of-kai')).toBeCloseTo(0, 6);
+    const score = await loadSeasonSettled([WS], START, END);
+    expect(score.get(KAI)).toBeCloseTo(0, 6);
+    expect(score.has('owner-of-kai')).toBe(false);
   });
 });

@@ -156,12 +156,6 @@ export interface SeasonEntrant {
    *  best-placed one. Null/absent when none is set (none is required until
    *  claim time). */
   payoutHandle?: string | null;
-  /** The entrant this account is paid through: its owner, when the owner is
-   *  an entrant of the same season. Its score is already inside the owner's
-   *  (docs/seasons.md, "Your score includes the accounts you own"), so it
-   *  takes no share of its own, dilutes nothing and burns no rung; it keeps
-   *  its rank. Null or absent: paid on its own score. */
-  paidVia?: string | null;
 }
 
 /** An entrant after scoring and ranking. */
@@ -282,7 +276,6 @@ export function settleSeason(
     platformOperated: e.platformOperated === true,
     workspaceOperator: e.workspaceOperator === true,
     payoutHandle: (e.payoutHandle ?? '').trim().toLowerCase(),
-    paidVia: e.paidVia ?? null,
     score: seasonScore(e.currentProfit, e.baselineProfit),
   }));
 
@@ -320,9 +313,6 @@ export function settleSeason(
   } else {
     for (const e of scored) eligibleAt.push(isPrizeEligible(e.score, e.platformOperated));
   }
-  // The pool pays once per person: an account paid through its owner takes
-  // no share of its own, whatever the mode.
-  for (let i = 0; i < scored.length; i++) if (scored[i].paidVia) eligibleAt[i] = false;
 
   let ranked: RankedEntrant[];
   if (payoutMode === 'proportional') {

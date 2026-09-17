@@ -361,10 +361,6 @@ async function withPerformance(rows: Array<typeof agents.$inferSelect>): Promise
       earned: board.profitById.get(row.id) ?? 0,
       settledEarnings: split?.settled ?? 0,
       openEarnings: split?.open ?? 0,
-      /** This account alone, and how many owned accounts `earned` folds in
-       *  (docs/seasons.md, "Your score includes the accounts you own"). */
-      ownEarnings: board.ownProfitById.get(row.id) ?? 0,
-      botsCounted: board.householdById.get(row.id)?.length ?? 0,
       totalTrades: activity?.totalTrades ?? 0,
       lastTradeAt: activity?.lastTradeAt ?? null,
     };
@@ -584,8 +580,6 @@ agentsRouter.get(
       totalEarnings: 0,
       settledEarnings: 0,
       openEarnings: 0,
-      ownEarnings: 0,
-      botsCounted: 0,
       tradedVolume: 0,
       resolvedMarkets: 0,
       totalTrades: 0,
@@ -781,8 +775,6 @@ agentsRouter.get(
           totalEarnings: board.profitById.get(agent.id) ?? 0,
           settledEarnings: board.breakdownById.get(agent.id)?.settled ?? 0,
           openEarnings: board.breakdownById.get(agent.id)?.open ?? 0,
-          ownEarnings: board.ownProfitById.get(agent.id) ?? 0,
-          botsCounted: board.householdById.get(agent.id)?.length ?? 0,
           resolvedMarkets: q?.resolvedMarkets ?? 0,
           totalTrades: Number(activity?.totalTrades ?? 0),
           tradedVolume: Math.round(Number(activity?.traded ?? 0) * 100) / 100,
@@ -1109,6 +1101,64 @@ agentsRouter.get(
       createdAt: p.createdAt,
     }));
 
+    // THE BOTS THIS PARTICIPANT OWNS, and their bots (docs/ui-conventions.md,
+    // "Bots"): a bot is a separate entity, so each is listed with ITS OWN
+    // board profit, and the one sum beside them is this page's alone; no
+    // board, season or stat adds accounts together. Bounded: one indexed
+    // read per generation, a seen-set ends a cycle in the ownership record.
+    const descendants: Array<{ id: string; nickname: string | null; parentId: string }> = [];
+    {
+      const seen = new Set<string>([agent.id]);
+      let frontier: Array<{ id: string; nickname: string | null; parentId: string }> = agent.authUserId
+        ? (
+            await db
+              .select({ id: agents.id, nickname: agents.nickname })
+              .from(agents)
+              .where(eq(agents.ownerUserId, agent.authUserId))
+          ).map(r => ({ ...r, parentId: agent.id }))
+        : [];
+      frontier.push(...childRows.map(c => ({ id: c.id, nickname: c.nickname, parentId: agent.id })));
+      while (frontier.length > 0 && descendants.length < 200) {
+        const fresh = frontier.filter(r => !seen.has(r.id));
+        for (const r of fresh) seen.add(r.id);
+        descendants.push(...fresh);
+        if (fresh.length === 0) break;
+        frontier = (
+          await db
+            .select({ id: agents.id, nickname: agents.nickname, parentId: agents.ownerAgentId })
+            .from(agents)
+            .where(
+              inArray(
+                agents.ownerAgentId,
+                fresh.map(r => r.id),
+              ),
+            )
+        ).map(r => ({ id: r.id, nickname: r.nickname, parentId: r.parentId as string }));
+      }
+    }
+    let bots: Array<{
+      id: string;
+      nickname: string | null;
+      parentId: string;
+      totalEarnings: number;
+      totalTrades: number;
+    }> = [];
+    if (descendants.length > 0) {
+      const botBoard = publicWsIds.length > 0 ? await cachedBoard(publicWsIds) : null;
+      bots = descendants
+        .map(d => ({
+          ...d,
+          totalEarnings: botBoard?.profitById.get(d.id) ?? 0,
+          totalTrades: botBoard?.activityById.get(d.id)?.totalTrades ?? 0,
+        }))
+        .sort((a, b) => b.totalEarnings - a.totalEarnings || (a.id < b.id ? -1 : 1));
+    }
+    const withBotsEarnings =
+      bots.length > 0
+        ? Math.round(((entry ?? emptyStats).totalEarnings + bots.reduce((sum, b) => sum + b.totalEarnings, 0)) * 100) /
+          100
+        : null;
+
     res.json({
       id: agent.id,
       nickname: agent.nickname,
@@ -1120,6 +1170,8 @@ agentsRouter.get(
       joinedAt: agent.createdAt,
       parent: lineage.parent,
       children: lineage.children,
+      bots,
+      withBotsEarnings,
       stats: entry ?? emptyStats,
       // Tradeable credits right now, platform-wide: the live point of
       // balanceHistory as a number the strip can print.

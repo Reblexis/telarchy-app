@@ -1193,11 +1193,10 @@ operated by the platform are excluded and counted in <code>excludedInternal</cod
 <li><code>GET /api/agents/mine</code> - identities visible to the current caller: for a
 browser session, the participant that IS the human plus every bot they
 own. Each row carries <code>balance</code> and its performance (<code>earned</code>,
-<code>settledEarnings</code>, <code>openEarnings</code>, <code>ownEarnings</code>, <code>botsCounted</code>,
-<code>totalTrades</code>, <code>lastTradeAt</code>), computed from the same source the public
-leaderboard ranks on so the private view and the board cannot disagree:
-<code>earned</code> includes peer transfers and the bots this account owns, <code>ownEarnings</code>
-is this account alone.</li>
+<code>settledEarnings</code>, <code>openEarnings</code>, <code>totalTrades</code>, <code>lastTradeAt</code>), computed
+from the same source the public leaderboard ranks on so the private view
+and the board cannot disagree. Each row is that account alone: a bot is a
+separate entity and nothing is summed across the list.</li>
 <li><code>POST /api/agents/transfer</code> - send credits to another participant (id or
 nickname); <code>GET /api/agents/transfers</code> lists the caller's transfer history.
 The wallet primitive used by external settlement systems (e.g. the
@@ -4721,29 +4720,15 @@ it too. It is the only issued credit a season counts: a grant, an apology
 or an admin adjustment never is. A refund never exceeds the holder's net
 loss on the market, so the most it can do is bring that market back to
 zero.</p>
-<p><strong>Your score includes the accounts you own.</strong> A participant's score is its
-own score plus the score of every account it owns, added up the same way:
-a bot registered from its browser account (<code>agents.ownerUserId</code>), a bot
-created with its own key (<code>agents.ownerAgentId</code>), and those bots' bots in
-turn (cycles are cut; an account is counted once). The bot keeps its own
-row and its own score; the owner's row carries the sum (<code>ownScore</code> is
-reported beside it, with <code>botsCounted</code>, the number of accounts folded
-in), and a bot that never entered still counts in its owner's score.
-Because transfers count, the bankroll an owner sends a bot is a loss on
-the owner's own score and a profit on the bot's, and the sum cancels
-them: an owner's row shows what the owner and their bots made together
-against everyone else, which is the only number a person controlling
-several accounts can be ranked on (owner decision 2026-09-16: &quot;their own</p>
-<ul>
-<li>sum of all profit of their owned accounts / bots / agents&quot;).</li>
-</ul>
-<p>The pool is paid once per person. A bot whose owner is also an entrant
-takes no share of its own, because its score is already inside its
-owner's; its row reads &quot;paid through <owner>&quot; (<code>paidVia</code> names the
-owner's id) and its prize is 0 in both the projection and the settlement.
-A bot whose owner has not entered is paid on its own score like any
-entrant, and an ownerless bot is its own person. Rank is still over every
-row, so a bot sees where its own score stands.</p>
+<p><strong>A bot is a separate entity.</strong> A bot someone owns is scored, ranked and
+paid as its own account, and its owner's score never includes it:
+ownership is a label on the profile and nothing the platform does
+arithmetic over (owner decision 2026-09-17: &quot;yes it is owned but it
+should end there and its not platforms tasks to trace profit ownership&quot;).
+So the bankroll an owner sends a bot is a loss on the owner's season
+score and a profit on the bot's, and both rows say so. The one place an
+owner's bots are added up is their own profile, as a plain sum beside the
+list (docs/ui-conventions.md, &quot;Bots&quot;); it ranks nothing and pays nothing.</p>
 <p><strong>Profit out of a book you funded is not score.</strong> In a market you put pool
 credits into, your settled trading profit is reduced by what you contributed
 to that market's pool, floored at zero rather than turned into a loss. Fund a
@@ -4804,35 +4789,16 @@ mark informs an entrant without deciding anything.</p>
 <p>The ALL-TIME board's ranking key stays trading profit marked to market: it
 is the one number a trader can see moving, and a board that only moves on
 resolution days ranks nobody between them (the 2026-08-19 liquidation-mark
-lesson). Since 2026-09-16 it reads the same two rules as the season, over
-all time instead of a window: credits transferred between participants
-count (received as profit, sent as loss, in the settled part, since a
-transfer is final money; deposits and platform grants never), and an
-owner's number includes the accounts they own, the bots keeping their own
-rows. So a person who funds a bot reads a loss on their own line, the bot
-reads that bankroll as profit, and the owner's row nets the two to what
-the pair actually made. The profile and <code>/api/agents/mine</code> read the same
-board, so no surface can show a different profit for the same account.
-There are two boards and two rules, and nothing in between (owner
-decision 2026-09-17: &quot;leaderboard on a floor should show only traded
-profits from there.. and full leaderboard should show family profits
-(counting transfers (family cancel out from others dont)&quot;):</p>
-<ul>
-<li><strong>A board scoped to ONE floor</strong> (<code>?workspaceId=</code>: the floor's own Top
-traders footer, and a floor tab on <code>/leaderboard</code>, season view included)
-is each account's own trading profit on that floor. No transfer counts,
-because a transfer belongs to no floor, and no family sum: a bot's row is
-the bot's trading there and its owner's row is the owner's.</li>
-<li><strong>The full board</strong> (every floor), the season score, the profile and
-<code>/api/agents/mine</code> are family profit with transfers counted: a transfer
-inside the family cancels, a transfer from anyone else does not. The SEASON's key is settled profit, because the season is the one
+lesson). It is trading profit and nothing else: a credit
+transfer is not a trade, so the all-time board never counts one, on every
+floor or on one (the season does, above, because there a transfer is the
+return leg of a loop that pays money). The SEASON's key is settled profit, because the season is the one
 place the number buys real money, and a mark can be manufactured while a
 resolution cannot (the 2026-08-28 gaming review,
 notes/season-0-gaming-review-2026-08-28.md in the telarchy umbrella: the
 board's #1 stood at +1425 marked with 0.00 settled). The two boards showing
 different keys is deliberate and each says which it ranks. Calibration and
-accuracy are reported per row; they are never the key.</li>
-</ul>
+accuracy are reported per row; they are never the key.</p>
 <p>The endgame problem the original ladder had (being 6th and being 60th paid
 the same, so the rational last-week move was maximum variance) is mostly
 gone under the proportional split: payout is linear in score, so a coin
@@ -5560,10 +5526,8 @@ disagrees with another page:</p>
 <ul>
 <li><strong>Profit</strong>: the trading profit marked to market that the leaderboard
 ranks on, the same number, with &quot;N settled · N open&quot; beneath it. Green
-when positive, red when negative. It counts transfers and the accounts
-this participant owns the way the board does (docs/seasons.md, &quot;The
-score&quot;); an owner reads &quot;incl. N bots · own N&quot; as a third line, so the
-gap between their own trading and the household is on the record.</li>
+when positive, red when negative. It is this account's own; a bot they
+own is a separate entity and is listed below, never added in.</li>
 <li><strong>Balance</strong>: the participant's tradeable credits right now, platform-wide
 (the live point of the balance history), with &quot;N cr in positions&quot;
 beneath: what their open positions are worth at the current call, summed.</li>
@@ -5589,6 +5553,18 @@ recorded it (below), so the line is the leaderboard's number day by day
 and its live point is the strip's. A series with fewer than two points
 draws nothing; in its place one quiet line says &quot;Recorded once a day; the
 first point lands tomorrow.&quot;</p>
+<p><strong>Bots</strong> lists every bot the participant owns, and those bots' bots, when
+there are any (the section is absent otherwise): one row per bot, best
+profit first, the name with the bot mark linking to that bot's own
+profile, &quot;N trades&quot; beneath (and &quot;bot of <name>&quot; when it belongs to
+another bot on the list), and its own trading profit in the right column,
+coloured. A bot is a separate entity everywhere else on the platform: the
+boards, the season and the strip above never add one account to another.
+So this section closes with the one sum the platform draws, for the
+owner's eye: &quot;With N bots&quot; and the participant's profit plus the listed
+bots', label left and number right under a hairline. It ranks nothing and
+pays nothing, and it is trading profit, so credits moved between the
+owner and a bot are no part of it.</p>
 <p><strong>Positions</strong> are rows, one per market and direction the participant holds,
 heaviest first. The title is the metric and its date (&quot;Active traders ·
 Sep 2026&quot;); a conditional position carries &quot;if <proposal title>&quot; after it.
@@ -7651,13 +7627,8 @@ platform repaying what its own fault cost a holder on one market counts as
 money back on that market, settled, so the board shows the result the
 holder would have had without the fault; the season standings count it
 the same way (<code>docs/seasons.md</code>, &quot;A fault refund counts&quot;). An apology or
-any other grant stays out. A floor's own footer, and a floor tab on <code>/leaderboard</code>,
-show each account's own trading profit on that floor and nothing else:
-no transfer counts, and no family sum (<code>docs/seasons.md</code>, &quot;The ALL-TIME
-board's ranking key&quot;). Only the every-floor board counts transfers and
-folds an owner's bots into the owner's row; there an owner whose bots
-traded holds a row without a trade of their own. A name with no trades
-and nothing earned is noise and stays off. <strong>No account
+any other grant stays out. A credit transfer is not a trade and never counts here, and a
+bot is a separate entity: no row includes another account's profit. <strong>No account
 is excluded.</strong>
 Anyone who has ever traded in a public workspace is on the board. <strong>A
 cancelled market is valued at its refund, not skipped</strong>: a void pays
@@ -8273,31 +8244,22 @@ second vocabulary of floors to keep in step. The row scrolls sideways
 rather than wrapping when the floors outgrow a phone, and the current tab
 is scrolled into view, so the choice is never off-screen.</p>
 <p><strong>The all-time board shows everyone the API ranks</strong>, with the API's
-ranks: since an owner's row folds in their bots, an owner who never
-traded themselves can hold a rank, and dropping such rows on the client
-left gaps in the numbering. On a phone the season table keeps the prize
-column and drops &quot;Would pay&quot; (a projection of a projection) with the
-share-of-pool column, so five numeric columns never push it past the
-screen.</p>
+ranks; the page drops no row, so the numbering has no gaps. On a phone the
+season table keeps the prize column and drops &quot;Would pay&quot; (a projection of
+a projection) with the share-of-pool column, so five numeric columns never
+push it past the screen.</p>
 <p><strong>The picker scopes the season board too, as a view.</strong> A season is a
 platform-wide contest scored over every public floor, and the prize is
 decided on that whole field. A chosen floor makes the season section show
-each entrant's own settled trading profit ON THAT FLOOR inside the window
-(the traders board passes <code>?workspaceId=&lt;slug&gt;</code> beside <code>seasonId</code>), with
-the mark from that floor's markets: no transfers and no family sum, the
-floor-board rule. The prize columns keep reading the whole field, so a
+each entrant's settled trading profit ON THAT FLOOR inside the window (the
+traders board passes <code>?workspaceId=&lt;slug&gt;</code> beside <code>seasonId</code>), with the
+mark from that floor's markets, and transfers left out, since a transfer
+belongs to no floor. The prize columns keep reading the whole field, so a
 reader sees what the entrant took from this floor next to what they would
 actually be paid, and the section's note says both (&quot;Scored on <floor>.
 Prizes are decided on every floor.&quot;). Entrants and their order come from
 the scoped score; the prize columns are looked up by entrant. A settled
 season ignores the scope: its finals are stored and never recomputed.</p>
-<p><strong>A row can be a household.</strong> An owner's row on either board carries the
-sum of their own number and their bots' (docs/seasons.md, &quot;Your score
-includes the accounts you own&quot;), and says so under the name: &quot;incl. N
-bots&quot; in the small type, with the owner's own number in the cell's
-tooltip. A bot's row keeps its own number; when its owner is also an
-entrant its prize cell reads &quot;via <owner>&quot; and no dollar figure, because
-the pool pays once per person.</p>
 <p><strong>The choice lives in the URL</strong>, as <code>?workspace=&lt;slug&gt;</code>, and the page holds
 no filter the URL does not show (the data room's rule). So the back button
 walks the choices, a link to one floor's board is shareable, and the first
@@ -14765,20 +14727,14 @@ it took effect it moved two related accounts (a person and the bot they
 fund) by 15,000 credits in opposite directions and nobody else. Deposits
 and platform grants are not transfers and never count. Announced on the
 season page; the Scoring section below has the sentence.</em></p>
-<p><em>Amended 2026-09-16, mid-season (second amendment that day): <strong>your score
-includes the accounts you own.</strong> A bot you registered, and any bot it
-registered, is scored into your entry on top of your own trading; the bot
-keeps its own row. Because transfers count, the credits you sent a bot
-and the credits it received cancel inside your entry, so your entry shows
-what you and your bots made together. The pool is paid once per person:
-a bot whose owner has entered takes no share of its own, and its row says
-it is paid through its owner. Like the transfers amendment, this can move
-a score in either direction: a person whose bot held the credits they had
-sent it is now paid on what the two made together, which is less than the
-bot's score alone. When it took effect it changed the payout of one
-household (a person and the bot they fund) and added one unentered bot's
-score to its owner's. A bot whose owner has not entered is paid on its
-own score as before.</em></p>
+<p><em>Amended 2026-09-16 and withdrawn 2026-09-17, mid-season: for about
+twelve hours on 2026-09-17 an entrant's score also included the scores of
+the bots they own, and a bot whose owner had entered was paid through the
+owner. We withdrew it the same day: a bot is a separate account, scored
+and paid on its own score like any entrant, and no entry includes another
+account's score. No season was settled and nothing was paid under the
+withdrawn rule; every standing is back to what the Scoring section below
+says.</em></p>
 <p><em>Amended 2026-09-17, mid-season: <strong>a fault refund counts in the season
 score.</strong> When a fault of ours costs you credits on a market and we repay
 that loss, the repayment is scored with that market, so your score is what
@@ -14855,17 +14811,14 @@ transfer. Deposits and platform grants are not.</li>
 <li><strong>Fault refunds count.</strong> If a fault of ours cost you credits on a market
 and we repaid the loss, the repayment counts with that market, up to the
 loss and never beyond it. Nothing else we hand out counts.</li>
-<li><strong>Your bots score into your entry.</strong> Every account you own, and every
-account it owns, is added to your score; each bot keeps its own row.
-The pool pays once per person: a bot whose owner has entered is paid
-through the owner and takes no separate share.</li>
+<li><strong>A bot is its own entrant.</strong> A bot you own is scored and paid on its
+own score if it enters, and your entry never includes it.</li>
 <li><strong>Entering late changes nothing</strong>: the score counts what resolved inside
 the window, whenever you opted in.</li>
 <li><strong>The boards keep showing your open positions at their marked value.</strong> The
 mark is information for the owner and other traders; the score is what
-settled. The all-time leaderboard still ranks total profit including
-open marks, and since 2026-09-16 also counts transfers and your bots the
-same way the season does; only the season ranking pays out.</li>
+settled. The all-time leaderboard is unchanged and still ranks total
+profit including open marks; only the season ranking pays out.</li>
 <li>The score runs over every public workspace on the platform, including
 workspaces that become public while the season runs, as before.</li>
 </ul>

@@ -1,6 +1,6 @@
 import { and, eq, gt, inArray, isNotNull, lte, or, type SQL, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { agents, creditLedger, creditTransfers, liquidityEvents, markets, positions, trades } from '../db/schema';
+import { creditLedger, creditTransfers, liquidityEvents, markets, positions, trades } from '../db/schema';
 import { resolutionInstant, settlesOn } from './date-utils';
 import {
   type CalibrationStats,
@@ -8,9 +8,6 @@ import {
   computeMarkedWindowProfit,
   computeProfitBreakdown,
   computeSettledWindowProfit,
-  foldHouseholdBreakdowns,
-  foldHouseholds,
-  householdsOf,
   type LeaderboardPosition,
   type ProfitBreakdown,
   type ProfitMarket,
@@ -60,21 +57,12 @@ export interface BoardRow {
 }
 
 export interface Board {
-  /** agentId -> profit: the account's own trading profit, plus peer
-   *  transfers, plus the same for every account it owns (docs/seasons.md,
-   *  "Your score includes the accounts you own"). Everyone with a valued
-   *  position, a counted trade, a transfer, or an owned account that has one. */
+  /** agentId -> profit. Everyone with a valued position or a counted trade. */
   profitById: Map<string, number>;
   /** agentId -> the same profit split into settled (final) and open (a
    *  mark); settled + open = profitById exactly. Reported beside the ranking
    *  number, never ranked on (docs/seasons.md, "The score"). */
   breakdownById: Map<string, ProfitBreakdown>;
-  /** agentId -> this account alone, before the household fold. */
-  ownProfitById: Map<string, number>;
-  ownBreakdownById: Map<string, ProfitBreakdown>;
-  /** owner agentId -> the accounts folded into its row (itself excluded);
-   *  only owners with at least one appear. */
-  householdById: Map<string, string[]>;
   /** agentId -> trade count and last trade instant. */
   activityById: Map<string, { totalTrades: number; lastTradeAt: string | null }>;
   /** agentId -> calibration/accuracy over markets that actually resolved.
@@ -91,14 +79,11 @@ export interface Board {
  * rather than silently widening to every workspace, which would leak the exact
  * opposite of what was asked for.
  */
-export async function loadBoard(workspaceIds: string[], opts: { floorOnly?: boolean } = {}): Promise<Board> {
+export async function loadBoard(workspaceIds: string[]): Promise<Board> {
   if (workspaceIds.length === 0) {
     return {
       profitById: new Map(),
       breakdownById: new Map(),
-      ownProfitById: new Map(),
-      ownBreakdownById: new Map(),
-      householdById: new Map(),
       activityById: new Map(),
       calibrationById: new Map(),
       positions: [],
@@ -257,31 +242,7 @@ export async function loadBoard(workspaceIds: string[], opts: { floorOnly?: bool
       total: Math.round((b.total + credits) * 100) / 100,
     });
   }
-  // CREDITS TRANSFERRED BETWEEN PARTICIPANTS COUNT here too, over all time
-  // (docs/seasons.md, "The ALL-TIME board's ranking key", 2026-09-16):
-  // received is profit, sent is loss, settled money. From the peer-transfer
-  // receipt only. NOT on a board scoped to one floor (owner, 2026-09-17:
-  // "leaderboard on a floor should show only traded profits from there"):
-  // a floor's board is each account's own trading there, no transfers and
-  // no family sum; that caller passes `floorOnly`.
-  const transfers = opts.floorOnly ? new Map<string, number>() : await loadTransferNet(null, null);
-  for (const [agentId, net] of transfers) {
-    const b = breakdownById.get(agentId) ?? { settled: 0, open: 0, total: 0 };
-    breakdownById.set(agentId, {
-      settled: Math.round((b.settled + net) * 100) / 100,
-      open: b.open,
-      total: Math.round((b.total + net) * 100) / 100,
-    });
-  }
-  const ownBreakdownById = breakdownById;
-  const ownProfitById = new Map(Array.from(ownBreakdownById, ([id, b]) => [id, b.total]));
-
-  // YOUR SCORE INCLUDES THE ACCOUNTS YOU OWN (docs/seasons.md): the owner's
-  // row is its own plus its bots' and their bots'; the bots keep their own.
-  const ownerOf = opts.floorOnly ? new Map<string, string>() : await loadOwnerOf();
-  const foldedBreakdownById = foldHouseholdBreakdowns(ownBreakdownById, ownerOf);
-  const profitById = new Map(Array.from(foldedBreakdownById, ([id, b]) => [id, b.total]));
-  const householdById = householdsOf(foldedBreakdownById.keys(), ownerOf);
+  const profitById = new Map(Array.from(breakdownById, ([id, b]) => [id, b.total]));
 
   // Calibration is about markets that produced an answer, so voided ones
   // (actualValue null by construction) never reach it.
@@ -305,14 +266,10 @@ export async function loadBoard(workspaceIds: string[], opts: { floorOnly?: bool
   for (const t of tradeAggs) agentIdsSeen.add(t.agentId);
   for (const p of positionRows) agentIdsSeen.add(p.agentId);
   for (const r of faultRefunds) agentIdsSeen.add(r.agentId);
-  for (const id of foldedBreakdownById.keys()) agentIdsSeen.add(id);
 
   return {
     profitById,
-    breakdownById: foldedBreakdownById,
-    ownProfitById,
-    ownBreakdownById,
-    householdById,
+    breakdownById,
     activityById,
     calibrationById,
     positions: positionRows,
@@ -427,66 +384,35 @@ export async function loadSeasonSettled(
   windowEnd: Date,
   opts: SeasonScoreOptions = {},
 ): Promise<Map<string, number>> {
-  return (await loadSeasonSettledSplit(workspaceIds, windowStart, windowEnd, opts)).byId;
-}
-
-export interface SeasonScoreOptions {
-  /** True for the standings scoped to one floor as a view: each account's
-   *  own trading there, no transfers (a transfer belongs to no floor) and
-   *  no family sum (docs/ui-conventions.md, "The picker scopes the season
-   *  board too"). Default false: the score. */
-  floorOnly?: boolean;
-}
-
-/** A season number with its household fold made visible: `byId` is what the
- *  standings rank (own plus owned accounts), `ownById` the account alone,
- *  `householdById` which accounts each owner's row folds in. */
-export interface SeasonScoreSplit {
-  byId: Map<string, number>;
-  ownById: Map<string, number>;
-  householdById: Map<string, string[]>;
-}
-
-export async function loadSeasonSettledSplit(
-  workspaceIds: string[],
-  windowStart: Date,
-  windowEnd: Date,
-  opts: SeasonScoreOptions = {},
-): Promise<SeasonScoreSplit> {
-  if (workspaceIds.length === 0) return { byId: new Map(), ownById: new Map(), householdById: new Map() };
-  const own = await loadSeasonSettledTrading(workspaceIds, windowStart, windowEnd);
+  if (workspaceIds.length === 0) return new Map();
+  const out = await loadSeasonSettledTrading(workspaceIds, windowStart, windowEnd);
+  if (opts.floorOnly) return out;
   // CREDITS TRANSFERRED BETWEEN PARTICIPANTS COUNT (docs/seasons.md, rules
   // amended 2026-09-16): received is profit, sent is loss, at the transfer
   // instant, same window shape as resolutions.
-  if (opts.floorOnly) return { byId: new Map(own), ownById: own, householdById: new Map() };
   const transfers = await loadTransferNet(windowStart, windowEnd);
   for (const [agentId, net] of transfers) {
-    own.set(agentId, Math.round(((own.get(agentId) ?? 0) + net) * 100) / 100);
+    out.set(agentId, Math.round(((out.get(agentId) ?? 0) + net) * 100) / 100);
   }
-  return foldSeason(own);
+  return out;
 }
 
-/** YOUR SCORE INCLUDES THE ACCOUNTS YOU OWN (docs/seasons.md), on a season
- *  number: the same fold the board applies, so a standing and a profile
- *  agree about whose bots count where. */
-async function foldSeason(own: Map<string, number>): Promise<SeasonScoreSplit> {
-  const ownerOf = await loadOwnerOf();
-  const byId = foldHouseholds(own, ownerOf);
-  return { byId, ownById: own, householdById: householdsOf(byId.keys(), ownerOf) };
+export interface SeasonScoreOptions {
+  /** True for the standings scoped to one floor as a view: the trading
+   *  there alone, no transfers, because a transfer belongs to no floor
+   *  (docs/ui-conventions.md, "The picker scopes the season board too").
+   *  Default false: the score. */
+  floorOnly?: boolean;
 }
 
 /**
  * Net credits each participant received minus sent in peer transfers, over
- * `(windowStart, windowEnd]` on the transfer instant, or over all time when
- * both are null. Read from the peer-transfer receipt, never from the ledger
+ * `(windowStart, windowEnd]` on the transfer instant. Read from the peer-transfer receipt, never from the ledger
  * reason: a USDC deposit is written as `transfer_in` with no receipt and no
  * counterparty, and must not score.
  */
-async function loadTransferNet(windowStart: Date | null, windowEnd: Date | null): Promise<Map<string, number>> {
-  const where =
-    windowStart && windowEnd
-      ? sql`where ${creditTransfers.createdAt} > ${windowStart} and ${creditTransfers.createdAt} <= ${windowEnd}`
-      : sql``;
+async function loadTransferNet(windowStart: Date, windowEnd: Date): Promise<Map<string, number>> {
+  const where = sql`where ${creditTransfers.createdAt} > ${windowStart} and ${creditTransfers.createdAt} <= ${windowEnd}`;
   const rows = await db
     .select({
       agentId: sql<string>`x.agent_id`,
@@ -503,36 +429,6 @@ async function loadTransferNet(windowStart: Date | null, windowEnd: Date | null)
     )
     .groupBy(sql`x.agent_id`);
   return new Map(rows.map(r => [r.agentId, Math.round(Number(r.net) * 100) / 100]));
-}
-
-/**
- * Who owns whom: owned account -> owner participant. A bot registered from
- * a browser account (`agents.ownerUserId`) is owned by the participant that
- * IS that account (`agents.authUserId`); a bot created with an agent key
- * (`agents.ownerAgentId`) by that agent. An owning account with no
- * participant owns nothing here, since there is no row to fold into. The
- * agents table is small (thousands of rows) and this is two indexed reads.
- */
-export async function loadOwnerOf(): Promise<Map<string, string>> {
-  const owned = await db
-    .select({ id: agents.id, ownerAgentId: agents.ownerAgentId, ownerUserId: agents.ownerUserId })
-    .from(agents)
-    .where(or(isNotNull(agents.ownerAgentId), isNotNull(agents.ownerUserId)));
-  const uids = Array.from(new Set(owned.map(r => r.ownerUserId).filter((u): u is string => !!u)));
-  const byUid = new Map<string, string>();
-  if (uids.length > 0) {
-    const humans = await db
-      .select({ id: agents.id, authUserId: agents.authUserId })
-      .from(agents)
-      .where(inArray(agents.authUserId, uids));
-    for (const h of humans) if (h.authUserId) byUid.set(h.authUserId, h.id);
-  }
-  const ownerOf = new Map<string, string>();
-  for (const r of owned) {
-    const owner = r.ownerAgentId ?? (r.ownerUserId ? byUid.get(r.ownerUserId) : undefined);
-    if (owner && owner !== r.id) ownerOf.set(r.id, owner);
-  }
-  return ownerOf;
 }
 
 /** The trading half of the settled score: resolution payouts and refunds
@@ -666,30 +562,18 @@ export async function loadSeasonMarked(
   windowEnd: Date,
   opts: SeasonScoreOptions = {},
 ): Promise<Map<string, number>> {
-  return (await loadSeasonMarkedSplit(workspaceIds, windowStart, windowEnd, opts)).byId;
-}
+  if (workspaceIds.length === 0) return new Map();
 
-export async function loadSeasonMarkedSplit(
-  workspaceIds: string[],
-  windowStart: Date,
-  windowEnd: Date,
-  opts: SeasonScoreOptions = {},
-): Promise<SeasonScoreSplit> {
-  if (workspaceIds.length === 0) return { byId: new Map(), ownById: new Map(), householdById: new Map() };
-
-  const settled = await loadSeasonSettledSplit(workspaceIds, windowStart, windowEnd, opts);
+  const settled = await loadSeasonSettled(workspaceIds, windowStart, windowEnd, opts);
   const open = await loadOpenWindowMarked(workspaceIds, windowEnd);
 
-  // Fold on the OWN numbers, then the household: folding a folded map
-  // would count a bot twice.
-  const own = new Map(settled.ownById);
+  const out = new Map(settled);
   for (const [agentId, profit] of open) {
-    own.set(agentId, (own.get(agentId) ?? 0) + profit);
+    out.set(agentId, (out.get(agentId) ?? 0) + profit);
   }
   // Both halves are already 2dp; the sum of two 2dp floats is not.
-  for (const [agentId, profit] of own) own.set(agentId, Math.round(profit * 100) / 100);
-  if (opts.floorOnly) return { byId: new Map(own), ownById: own, householdById: new Map() };
-  return foldSeason(own);
+  for (const [agentId, profit] of out) out.set(agentId, Math.round(profit * 100) / 100);
+  return out;
 }
 
 /**

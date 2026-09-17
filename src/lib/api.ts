@@ -336,15 +336,6 @@ export interface SeasonStanding {
   markedScore?: number | null;
   markedProjectedPrizeUsd?: number | null;
   claimState?: 'unclaimed' | 'claimed' | 'expired' | 'paid' | null;
-  /** The household fold made visible (docs/seasons.md, "Your score includes
-   *  the accounts you own"): this account alone, and how many owned
-   *  accounts `score` folds in. */
-  ownScore?: number;
-  botsCounted?: number;
-  /** The entrant this one is paid through (its owner, also an entrant):
-   *  its prize is 0 because the pool pays once per person. Null: paid on
-   *  its own score. */
-  paidVia?: string | null;
 }
 
 /** This participant's relationship to the running season. */
@@ -391,10 +382,6 @@ export interface LeaderboardEntry {
    *  paid on those markets). Absent on a season row, whose number is a
    *  difference of two marks rather than a sum of settlements. */
   settledEarnings?: number;
-  /** This account alone, before the household fold, and how many owned
-   *  accounts totalEarnings folds in (docs/seasons.md). */
-  ownEarnings?: number;
-  botsCounted?: number;
   /** The still-a-mark part: totalEarnings - settledEarnings. */
   openEarnings?: number;
   resolvedMarkets: number;
@@ -512,11 +499,6 @@ export interface PublicParticipantProfile {
     totalEarnings: number;
     settledEarnings: number;
     openEarnings: number;
-    /** This account alone, and how many owned accounts totalEarnings folds
-     *  in (docs/seasons.md, "Your score includes the accounts you own").
-     *  Absent on an older payload. */
-    ownEarnings?: number;
-    botsCounted?: number;
     resolvedMarkets: number;
     totalTrades: number;
     /** Credits moved by buys and sells on public floors; redemptions do not count. */
@@ -531,6 +513,14 @@ export interface PublicParticipantProfile {
    *  count in the season score, so the public record lists them. Absent on
    *  an older payload. */
   transfers?: PublicProfileTransfer[];
+  /** Every bot this participant owns, and those bots' bots, each with ITS
+   *  OWN trading profit (a bot is a separate entity; nothing else on the
+   *  platform adds them up), best first. `parentId` is who it belongs to.
+   *  Absent on an older payload. */
+  bots?: Array<{ id: string; nickname: string | null; parentId: string; totalEarnings: number; totalTrades: number }>;
+  /** This account's profit plus every listed bot's: a plain sum for the
+   *  owner's eye, never a ranking number. Null when there are no bots. */
+  withBotsEarnings?: number | null;
   /** Jobs this participant proposed on public boards, newest first. */
   proposedJobs: ProfileProposedJob[];
   /** Daily balance snapshots (credits) plus a live "now" point. Snapshots are

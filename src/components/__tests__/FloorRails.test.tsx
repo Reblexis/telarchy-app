@@ -233,18 +233,6 @@ describe('finding yourself in the footer', () => {
     expect(container.querySelectorAll('.pubws-lb-row.is-pinned')).toHaveLength(0);
   });
 
-  test('an owner whose bots traded is on the board without trades of their own (docs/seasons.md)', () => {
-    const owner = { ...trader(1), id: 'owner', nickname: 'owner', totalTrades: 0, totalEarnings: 300, botsCounted: 2 };
-    const { container } = standings({ entries: [owner, ...twelve.slice(1, 4)] });
-    expect(namesIn(container)).toContain('owner');
-  });
-
-  test('a name with no trades and nothing earned is still noise and stays off', () => {
-    const ghost = { ...trader(1), id: 'ghost', nickname: 'ghost', totalTrades: 0, totalEarnings: 0 };
-    const { container } = standings({ entries: [ghost, ...twelve.slice(1, 4)] });
-    expect(namesIn(container)).not.toContain('ghost');
-  });
-
   test('the pin joins the single column when there is only one', () => {
     const { container } = standings({ entries: twelve.slice(0, 3), meId: 'p3' });
     expect(container.querySelector('.pubws-lb-cols')).toBeNull();

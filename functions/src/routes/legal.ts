@@ -200,20 +200,14 @@ fund) by 15,000 credits in opposite directions and nobody else. Deposits
 and platform grants are not transfers and never count. Announced on the
 season page; the Scoring section below has the sentence._
 
-_Amended 2026-09-16, mid-season (second amendment that day): **your score
-includes the accounts you own.** A bot you registered, and any bot it
-registered, is scored into your entry on top of your own trading; the bot
-keeps its own row. Because transfers count, the credits you sent a bot
-and the credits it received cancel inside your entry, so your entry shows
-what you and your bots made together. The pool is paid once per person:
-a bot whose owner has entered takes no share of its own, and its row says
-it is paid through its owner. Like the transfers amendment, this can move
-a score in either direction: a person whose bot held the credits they had
-sent it is now paid on what the two made together, which is less than the
-bot's score alone. When it took effect it changed the payout of one
-household (a person and the bot they fund) and added one unentered bot's
-score to its owner's. A bot whose owner has not entered is paid on its
-own score as before._
+_Amended 2026-09-16 and withdrawn 2026-09-17, mid-season: for about
+twelve hours on 2026-09-17 an entrant's score also included the scores of
+the bots they own, and a bot whose owner had entered was paid through the
+owner. We withdrew it the same day: a bot is a separate account, scored
+and paid on its own score like any entrant, and no entry includes another
+account's score. No season was settled and nothing was paid under the
+withdrawn rule; every standing is back to what the Scoring section below
+says._
 
 _Amended 2026-09-17, mid-season: **a fault refund counts in the season
 score.** When a fault of ours costs you credits on a market and we repay
@@ -305,17 +299,14 @@ later does not.
 - **Fault refunds count.** If a fault of ours cost you credits on a market
   and we repaid the loss, the repayment counts with that market, up to the
   loss and never beyond it. Nothing else we hand out counts.
-- **Your bots score into your entry.** Every account you own, and every
-  account it owns, is added to your score; each bot keeps its own row.
-  The pool pays once per person: a bot whose owner has entered is paid
-  through the owner and takes no separate share.
+- **A bot is its own entrant.** A bot you own is scored and paid on its
+  own score if it enters, and your entry never includes it.
 - **Entering late changes nothing**: the score counts what resolved inside
   the window, whenever you opted in.
 - **The boards keep showing your open positions at their marked value.** The
   mark is information for the owner and other traders; the score is what
-  settled. The all-time leaderboard still ranks total profit including
-  open marks, and since 2026-09-16 also counts transfers and your bots the
-  same way the season does; only the season ranking pays out.
+  settled. The all-time leaderboard is unchanged and still ranks total
+  profit including open marks; only the season ranking pays out.
 - The score runs over every public workspace on the platform, including
   workspaces that become public while the season runs, as before.
 
