@@ -535,7 +535,8 @@ export async function loadOwnerOf(): Promise<Map<string, string>> {
 }
 
 /** The trading half of the settled score: resolution payouts and refunds
- *  minus net cash on the markets that resolved inside the window. */
+ *  minus net cash on the markets that resolved inside the window, plus the
+ *  fault refunds that name those markets. */
 async function loadSeasonSettledTrading(
   workspaceIds: string[],
   windowStart: Date,
@@ -608,11 +609,30 @@ async function loadSeasonSettledTrading(
 
   const ownPoolFunding = await ownPoolFundingWhere(inWindow);
 
-  return computeSettledWindowProfit(
+  const scores = computeSettledWindowProfit(
     marketRows.map(m => ({ ...m, actualValue: m.voided ? null : m.actualValue })),
     aggs.map(a => ({ ...a, shares: Number(a.shares), cost: Number(a.cost) })),
     ownPoolFunding,
   );
+  // A FAULT REFUND COUNTS, ON THE MARKET IT NAMES (docs/seasons.md): the
+  // platform repaying what its own fault cost a holder is money back on that
+  // market, so it is scored with the market, whenever the refund was paid.
+  // The only issued credit a season counts. Rare rows, read through the
+  // partial index on reason = 'fault_refund'.
+  const faultRefunds = await db
+    .select({
+      agentId: creditLedger.agentId,
+      units: sql<number>`coalesce(sum(${creditLedger.deltaUnits}), 0)::float`,
+    })
+    .from(creditLedger)
+    .innerJoin(markets, and(eq(markets.id, creditLedger.refId), eq(markets.workspaceId, creditLedger.workspaceId)))
+    .where(and(eq(creditLedger.reason, 'fault_refund'), eq(creditLedger.refType, 'market'), inWindow))
+    .groupBy(creditLedger.agentId);
+  for (const r of faultRefunds) {
+    const credits = fromUnits(Number(r.units));
+    scores.set(r.agentId, Math.round(((scores.get(r.agentId) ?? 0) + credits) * 100) / 100);
+  }
+  return scores;
 }
 
 /**

@@ -8,7 +8,8 @@
  * One ledger row with reason 'fault_refund', ref_type 'market', ref_id the
  * market, in the market's workspace, written in the same transaction as the
  * balance change. Idempotent per (agent, market): a second run finds the row
- * and writes nothing.
+ * and writes nothing. Refused when the amount exceeds what the holder is
+ * down on the market: a refund brings a market back to zero, never above.
  *
  *   DATABASE_URL=... node scripts/pay-fault-refund.mjs --agent <id> --market <id> --credits <n> [--dry-run]
  */
@@ -57,6 +58,23 @@ try {
     console.log(`already paid: ${agentId} on ${marketId}, ${Number(existing.delta_units) / UNITS} credits`);
     await client.query('rollback');
     process.exit(0);
+  }
+  // A REFUND NEVER EXCEEDS THE NET LOSS (docs/market-integrity.md): the
+  // boards and the season count it as money back on this market, so the most
+  // it may do is bring the market back to zero.
+  const net = Number(
+    (
+      await client.query(
+        `select coalesce(sum(delta_units), 0) as net from credit_ledger
+         where agent_id = $1 and workspace_id = $2 and ref_type = 'market' and ref_id = $3`,
+        [agentId, market.workspace_id, marketId],
+      )
+    ).rows[0].net,
+  );
+  if (deltaUnits > -net) {
+    throw new Error(
+      `refund of ${credits} exceeds the net loss of ${Math.max(0, -net) / UNITS} credits for ${agentId} on ${marketId}`,
+    );
   }
   const after = Number(agent.balance) + deltaUnits;
   console.log(

@@ -89,6 +89,19 @@ transfer, and repeat without bound (reported by a trader 2026-09-16, owner
 decision the same day; F2 below). Both halves of the standings carry it,
 because the settled half is where it is added.
 
+**A fault refund counts.** When a fault of the platform costs a holder
+credits on one market, the operator repays the net loss with a fault refund
+(ledger reason `fault_refund`, naming that market;
+`docs/market-integrity.md`), and the season scores it as money back on that
+market: it counts when the market it names settled inside the window on a
+floor the season scores, whenever the refund itself was paid, so the
+standings show the result the holder would have had without the fault. It
+is trading money on that floor, so the standings scoped to one floor carry
+it too. It is the only issued credit a season counts: a grant, an apology
+or an admin adjustment never is. A refund never exceeds the holder's net
+loss on the market, so the most it can do is bring that market back to
+zero.
+
 **Your score includes the accounts you own.** A participant's score is its
 own score plus the score of every account it owns, added up the same way:
 a bot registered from its browser account (`agents.ownerUserId`), a bot

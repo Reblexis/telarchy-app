@@ -2504,8 +2504,9 @@ reload; `/leaderboard` ranks the same way in its own tables.
   **fault refund** (ledger reason `fault_refund`, `ref_type` `market`): the
   platform repaying what its own fault cost a holder on one market counts as
   money back on that market, settled, so the board shows the result the
-  holder would have had without the fault. An apology or any other grant
-  stays out. Credits transferred between participants count (received as
+  holder would have had without the fault; the season standings count it
+  the same way (`docs/seasons.md`, "A fault refund counts"). An apology or
+  any other grant stays out. Credits transferred between participants count (received as
   profit, sent as loss, settled), and an owner's row folds in the accounts
   they own (`docs/seasons.md`, "Your score includes the accounts you
   own"), so the footer draws a row for anyone with a trade OR a number:

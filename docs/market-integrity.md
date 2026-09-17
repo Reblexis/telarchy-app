@@ -325,8 +325,11 @@ all move money too, and every one of them goes through the ledger.
   `refType`/`refId` point at the market, proposal or transfer that caused it.
   A `fault_refund` is issued by the platform operator to repay what a
   platform fault cost a holder on one market, and always names that market;
-  it is the only issued credit the board counts as trading profit
-  (`docs/ui-conventions.md`, "Top traders").
+  it is the only issued credit the board and the season count as trading
+  profit (`docs/ui-conventions.md`, "Top traders"; `docs/seasons.md`, "A
+  fault refund counts"). It never exceeds what the holder is down on that
+  market in the ledger, so it brings a market back to zero and never above;
+  `scripts/pay-fault-refund.mjs` refuses a larger amount.
 - **Balance after is stored on the row**, not derived at read time, so a
   divergence is visible where it started rather than only in the total.
 - **A new participant is created at zero** and granted through the ledger, so

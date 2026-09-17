@@ -524,3 +524,32 @@ docs/ui-conventions.md, docs/legal/season-0-rules.md.
 in the hierarchy that is registered i n season as well then the pool goes
 towards them". The pay-once-per-person rule stands as built: the prize
 climbs to the nearest ancestor who entered (`paidViaOf`).
+
+## 2026-09-17: a fault refund counts in the season score
+
+A trader on Discord (bobalobascrob, 2026-09-16 22:09 CEST): "did you change
+the length market for snake.... my bot didn't react fast enough cuz i didn't
+know it changed and i lost 1622 credits!!!! the timeframe change led my bot
+to predict the snake would grow exponentially and thenn it bet big and lost
+biggg", then "wait nevermind i checked again it was 1644". Viktor there:
+"Ahh, sorry I'll refund. I did fix it, yeah." Viktor to the agent,
+2026-09-17, verbatim: "can we fix thsi.. check if htat actually happened and
+how much they actually lost and then if so refund as part of season as well".
+
+What the record showed: the snake's length book went from an hourly cell to
+one book per attempt at 19:50 UTC on 2026-09-16 with no announcement
+(umbrella `notes/snake-one-book-per-attempt-2026-09-16.md`). At 19:51:03 to
+19:51:12 the bot bought higher seven times, 300 credits each, carrying the
+fresh book from 6 to 52.94; the attempt ended at length 6 at 20:00 and the
+book paid 455.82. Net loss 1,644.18 credits on market
+`c4227983-2a55-42fd-8a42-1b2d82bfdddf`, the trader's number to the credit.
+
+What was done: a fault refund of 1,644.18 credits paid to `bobalobascrob`
+on that market (`scripts/pay-fault-refund.mjs`), 2026-09-17. The all-time
+board already counted fault refunds; the season score did not, so the rule
+was added (docs/seasons.md, "A fault refund counts"; Season 0 rules amended;
+announced on the season page). It counts every fault refund whose market
+settled inside the window, which includes the four of 2026-09-13 (Wobert
+82.09, bobalobascrob 315.43, bobalob-ascrob 3.70, vi0 1,007.24). The refund
+script now refuses an amount above the holder's net loss on the market
+(agent's addition, so the legal text's "never beyond it" is enforced).
