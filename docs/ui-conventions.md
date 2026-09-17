@@ -949,8 +949,12 @@ the ruling). Under a day it counts down instead ("decides in 4h"), red
 inside the last hour, and under an hour by the second ("decides in 5:31"),
 because a date is no use when the answer is due this afternoon and an hour
 is no use when it is due this minute. The same clock, at the same
-resolution, on the board row and in the owner's bar. There is no standalone chip above the title and nothing under the
-pitch, in the ticket or on the chart. The owner's bar carries three mono
+resolution, on the board row and in the owner's bar, and in the ticket's
+context line ("#6992 · Na7 · decides in 0:31", "deciding" once it runs out,
+"decided 17 Sep" on a closed proposal): on a floor that decides once a minute
+the ticket is where the trader is looking, and a bare date there cost one two
+moves before they knew a clock existed. There is no standalone chip above the
+title and nothing under the pitch or on the chart. The owner's bar carries three mono
 words under its buttons, "declines itself in 4h", and nothing to press: a
 deadline does not move. On the board a pending row carries the same clock
 and countdown among its facts, red inside the last day; a row nobody ruled

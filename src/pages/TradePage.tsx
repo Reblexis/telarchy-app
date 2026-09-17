@@ -85,7 +85,15 @@ import { periodGapOf } from '../lib/period-gap';
 import { overlayFloorPrices } from '../lib/price-overlay';
 import { isPricedOption, optionLead, worldOf } from '../lib/proposal-options';
 import { useFloorPrices } from '../lib/useFloorPrices';
-import { clockSecondsOf, countdownTo, dayOf, instantOf, pollIntervalFor, tickIntervalFor } from '../lib/viewer-time';
+import {
+  clockSecondsOf,
+  countdownTo,
+  dayOf,
+  decidesWord,
+  instantOf,
+  pollIntervalFor,
+  tickIntervalFor,
+} from '../lib/viewer-time';
 import { startVisiblePoll } from '../lib/visible-poll';
 
 /**
@@ -1181,7 +1189,15 @@ export function TradePage() {
   const ticketSubject = (() => {
     if (selectedJob) {
       const bits = [`#${selectedJob.number}`, worldWord];
-      if (selectedJob.decideBy) bits.push(`decides ${dayOf(selectedJob.decideBy)}`);
+      /* The same clock as the facts row, because on a one-minute proposal
+         the ticket is where the trader is looking. A closed proposal keeps
+         its day. */
+      if (selectedJob.decideBy)
+        bits.push(
+          selectedJob.status === 'pending'
+            ? decidesWord(selectedJob.decideBy, now.getTime())
+            : `decided ${dayOf(selectedJob.decideBy)}`,
+        );
       return { context: bits.join(' · '), title: selectedJob.title };
     }
     if (!hero) return undefined;
