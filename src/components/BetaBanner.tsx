@@ -18,6 +18,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
 import { withBase } from '../lib/base-path';
+import { startVisiblePoll } from '../lib/visible-poll';
 
 /** The one origin that is the real site. Everything else wears the stripe. */
 const PUBLIC_ORIGIN = 'telarchy.com';
@@ -138,7 +139,7 @@ export function BetaBanner() {
 
   useEffect(() => {
     if (!publishing) return;
-    const timer = setInterval(() => {
+    return startVisiblePoll(() => {
       api
         .getRelease()
         .then(r => {
@@ -149,7 +150,6 @@ export function BetaBanner() {
         })
         .catch(() => {});
     }, 10000);
-    return () => clearInterval(timer);
   }, [publishing]);
 
   const isPreview = preview !== null;
