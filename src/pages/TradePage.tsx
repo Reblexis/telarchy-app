@@ -1971,7 +1971,27 @@ export function TradePage() {
             metric is one dialog away, and it chains straight into its date,
             because a metric with no date has no market. Everyone else sees
             the honest state, not a broken page. */}
-          {!hero && (
+          {/* A fed floor between rounds (a chess game just settled, the next
+            not started) has no open book but is not an empty floor: the feed
+            still has a last position and a replay (docs/ui-conventions.md,
+            "The chess feed", "While no book is open"). */}
+          {!hero && liveFeed && (
+            <section className="pubws-instrument pubws-enter" aria-label="Live">
+              <div className="pubws-numchart">
+                <LiveView
+                  kind={liveFeed.kind}
+                  slug={ws.slug ?? idOrSlug ?? ws.workspaceId}
+                  onState={setLiveState}
+                  center={<span className="pubws-chart-cap">{ws.name}</span>}
+                  onStep={() => {
+                    reload();
+                    liveLog.refresh();
+                  }}
+                />
+              </div>
+            </section>
+          )}
+          {!hero && !liveFeed && (
             <section className="pubws-instrument pubws-enter" aria-label="No market yet">
               {canManage ? (
                 <>
