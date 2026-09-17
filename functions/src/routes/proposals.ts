@@ -16,6 +16,7 @@ import { emitEvent } from '../services/events';
 import { notifyCommentPosted, notifyProposalCreated, notifyProposalDecided } from '../services/notifications';
 import {
   approveProposal,
+  conditionalMarketCount,
   countPendingProposalsByProposer,
   createConditionalMarkets,
   declineProposal,
@@ -74,7 +75,16 @@ proposalsRouter.post(
   requireCapability('trade'),
   wrap(async (req, res) => {
     const { workspaceId } = req.auth!;
-    const { title, description, liquiditySubsidy, askUsd, payoutHandle, decideBy, options: rawOptions } = req.body;
+    const {
+      title,
+      description,
+      liquiditySubsidy,
+      liquidityBudget,
+      askUsd,
+      payoutHandle,
+      decideBy,
+      options: rawOptions,
+    } = req.body;
     // A floor closed to outside proposals takes them only from whoever holds
     // manage here (docs/guides/proposals.md, "Closing the floor to outside
     // proposals"). Checked first, so an outsider learns the floor is closed
@@ -236,6 +246,26 @@ proposalsRouter.post(
       return;
     } else {
       subsidy = liquiditySubsidy;
+    }
+    // `liquidityBudget` says the same seed as a whole amount, split evenly
+    // across the markets this proposal spawns (docs/guides/proposals.md,
+    // "Posting one"): the floor's form asks a person what they spend, not a
+    // per-market number times a count they cannot see. Rounded DOWN to the
+    // ledger's precision so the charge never exceeds the budget named.
+    if (liquidityBudget !== undefined && liquidityBudget !== null) {
+      if (typeof liquidityBudget !== 'number' || !Number.isFinite(liquidityBudget) || liquidityBudget < 0) {
+        res.status(400).json({ error: 'liquidityBudget must be a non-negative number' });
+        return;
+      }
+      if (liquiditySubsidy !== undefined && liquiditySubsidy !== null) {
+        res
+          .status(400)
+          .json({ error: 'Name liquidityBudget (the whole amount) or liquiditySubsidy (per market), not both' });
+        return;
+      }
+      const count = await conditionalMarketCount(workspaceId, deadline, options?.length ? options.length : 2);
+      subsidy = count > 0 ? Math.floor((liquidityBudget / count) * 1e6) / 1e6 : 0;
+      if (subsidy < MIN_LIQUIDITY_CONTRIBUTION) subsidy = 0;
     }
     if (subsidy > 0 && subsidy < MIN_LIQUIDITY_CONTRIBUTION) {
       res

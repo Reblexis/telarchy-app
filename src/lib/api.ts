@@ -1901,6 +1901,9 @@ export const api = {
     title: string;
     description: string;
     liquiditySubsidy?: number;
+    /** The same seed as a whole amount, split evenly across the markets the
+     *  proposal spawns; never together with liquiditySubsidy. */
+    liquidityBudget?: number;
     askUsd?: number;
     payoutHandle?: string;
     /** The decision deadline, an ISO instant in the future; the floor's

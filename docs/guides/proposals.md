@@ -59,9 +59,10 @@ and re-seeded when target dates roll forward, so they do not evaporate.
 **Or decide it once, per date.** Every date a metric is priced on carries a
 "Proposal opens with" number beside its "Book opens with"
 (`timePreference.horizonCredits[entry].proposal`, set on the metric's sheet
-on the floor or with `PUT /api/metrics/:id`). When a proposal arrives and no
-listed contributor can pay, each branch opens with its own date's number,
-from your wallet, then your balance; a proposal across three dates is three
+on the floor or with `PUT /api/metrics/:id`). When a proposal arrives, each branch opens with its own date's number,
+from your wallet, then your balance, and whatever the proposer seeded is
+added on top of it: a proposer's seed deepens the book you asked for and
+never replaces it, so a small seed cannot thin it; a proposal across three dates is three
 different bills. **The number defaults to 0**, and 0 means the pair spawns
 unfunded and the floor says so in place of the bet buttons: the owner pays
 only on a date where they chose a number because they want the price before

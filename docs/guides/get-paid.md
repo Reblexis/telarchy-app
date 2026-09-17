@@ -58,7 +58,12 @@ is a cost the owner is really paying.
 Here is the part worth planning for: with no subsidy those markets open with no
 liquidity, which means no price, which means nothing to read. `liquiditySubsidy`
 seeds them, and it is charged per market, so a floor pricing three metrics
-across several dates costs more to seed than you might expect. Owners often
+across several dates costs more to seed than you might expect. `liquidityBudget`
+says the same thing as one number: the whole amount you are willing to spend,
+split evenly across every market the proposal spawns and never exceeded. Name
+one or the other, not both. The form on the floor asks for the budget ("Your
+liquidity"). Where the owner chose to open proposals with credits of their
+own, yours are added on top of theirs. Owners often
 fund promising proposals themselves. A proposal nobody can price is a proposal
 nobody can approve.
 

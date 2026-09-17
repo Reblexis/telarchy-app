@@ -357,7 +357,7 @@ describe('a proposal is the proposer to fund unless the owner chose a number for
     expect(fromUnits(owner.balance as number)).toBe(0);
   });
 
-  test('a named subsidy still wins over the date number', async () => {
+  test('a named subsidy adds to the date number: the owner still pays his 250 a branch', async () => {
     await fundedWorkspace(1000);
     const res = await submit(RICH, {
       title: 'self-funded',
@@ -367,8 +367,8 @@ describe('a proposal is the proposer to fund unless the owner chose a number for
     });
     expect(res.status).toBe(201);
     const [owner] = await db.select().from(agents).where(eq(agents.id, OWNER));
-    // The proposer paid, so the owner's balance is untouched.
-    expect(fromUnits(owner.balance as number)).toBe(1000);
-    for (const m of await branchMarkets()) expect(m.liquidity).toBeGreaterThan(0);
+    // Owner decision 2026-09-17: the seed deepens the book, never thins it.
+    expect(fromUnits(owner.balance as number)).toBe(500);
+    for (const m of await branchMarkets()) expect(m.pool).toBeCloseTo(270, 6);
   });
 });

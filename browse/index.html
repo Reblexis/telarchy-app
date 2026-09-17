@@ -6349,7 +6349,17 @@ closed by default (a two-branch proposal is the default and stays the
 default). Opened, it holds two label fields and an &quot;add option&quot; control
 up to six; a label empties an option, and fewer than two filled labels
 post a two-branch proposal. Ids are the labels lowercased and hyphenated,
-deduplicated with a number.</li>
+deduplicated with a number. Under &quot;Decided within&quot; sits &quot;Your liquidity&quot;,
+in the same chips: <code>none</code> (preselected, because posting is free), 100,
+500, 2,000 and custom. The number is the WHOLE amount in credits
+(<code>liquidityBudget</code>), which the server splits evenly across the markets the
+proposal spawns, so the form never shows a per-market figure or a market
+count. One sentence under the chips says where it goes and that the owner
+buys it back on approval, with what the viewer holds. A number above what
+they hold (liquidity wallet plus balance) disables the confirm and names
+what they hold; an unknown balance leaves the check to the server. With a
+seed the confirm's sub-line says &quot;Puts N cr of yours in its markets&quot; in
+place of &quot;Free to post&quot;.</li>
 </ul>
 <h3 id="docs-ui-conventions-md--h25">A proposal ships every pair of the grid, and the board reads the pair on screen</h3>
 <p>A proposal's <code>markets</code> carries EVERY pair the engine spawned for it, one
@@ -11796,7 +11806,12 @@ is a cost the owner is really paying.</p>
 <p>Here is the part worth planning for: with no subsidy those markets open with no
 liquidity, which means no price, which means nothing to read. <code>liquiditySubsidy</code>
 seeds them, and it is charged per market, so a floor pricing three metrics
-across several dates costs more to seed than you might expect. Owners often
+across several dates costs more to seed than you might expect. <code>liquidityBudget</code>
+says the same thing as one number: the whole amount you are willing to spend,
+split evenly across every market the proposal spawns and never exceeded. Name
+one or the other, not both. The form on the floor asks for the budget (&quot;Your
+liquidity&quot;). Where the owner chose to open proposals with credits of their
+own, yours are added on top of theirs. Owners often
 fund promising proposals themselves. A proposal nobody can price is a proposal
 nobody can approve.</p>
 <h2 id="docs-guides-get-paid-md--h4">Editing, and getting out</h2>
@@ -12488,9 +12503,10 @@ and re-seeded when target dates roll forward, so they do not evaporate.</p>
 <p><strong>Or decide it once, per date.</strong> Every date a metric is priced on carries a
 &quot;Proposal opens with&quot; number beside its &quot;Book opens with&quot;
 (<code>timePreference.horizonCredits[entry].proposal</code>, set on the metric's sheet
-on the floor or with <code>PUT /api/metrics/:id</code>). When a proposal arrives and no
-listed contributor can pay, each branch opens with its own date's number,
-from your wallet, then your balance; a proposal across three dates is three
+on the floor or with <code>PUT /api/metrics/:id</code>). When a proposal arrives, each branch opens with its own date's number,
+from your wallet, then your balance, and whatever the proposer seeded is
+added on top of it: a proposer's seed deepens the book you asked for and
+never replaces it, so a small seed cannot thin it; a proposal across three dates is three
 different bills. <strong>The number defaults to 0</strong>, and 0 means the pair spawns
 unfunded and the floor says so in place of the bet buttons: the owner pays
 only on a date where they chose a number because they want the price before

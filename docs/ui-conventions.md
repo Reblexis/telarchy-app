@@ -1098,7 +1098,17 @@ counting:
   default). Opened, it holds two label fields and an "add option" control
   up to six; a label empties an option, and fewer than two filled labels
   post a two-branch proposal. Ids are the labels lowercased and hyphenated,
-  deduplicated with a number.
+  deduplicated with a number. Under "Decided within" sits "Your liquidity",
+  in the same chips: `none` (preselected, because posting is free), 100,
+  500, 2,000 and custom. The number is the WHOLE amount in credits
+  (`liquidityBudget`), which the server splits evenly across the markets the
+  proposal spawns, so the form never shows a per-market figure or a market
+  count. One sentence under the chips says where it goes and that the owner
+  buys it back on approval, with what the viewer holds. A number above what
+  they hold (liquidity wallet plus balance) disables the confirm and names
+  what they hold; an unknown balance leaves the check to the server. With a
+  seed the confirm's sub-line says "Puts N cr of yours in its markets" in
+  place of "Free to post".
 
 ### A proposal ships every pair of the grid, and the board reads the pair on screen
 

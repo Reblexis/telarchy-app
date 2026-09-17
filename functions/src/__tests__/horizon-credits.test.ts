@@ -7,7 +7,9 @@
  * The rule the feature exists to enforce, in the owner's words: a proposal
  * is the proposer's to fund. The owner pays for a proposal's branch only on
  * a date where they chose a number, and the workspace-wide auto-fund never
- * touches a proposal.
+ * touches a proposal. A proposer's own seed adds to the date's number and
+ * never replaces it (owner decision 2026-09-17, notes/
+ * propose-dialog-seed-2026-09-17.md): a small seed must not thin the book.
  */
 jest.mock('../db/client', () => require('./harness/test-db'));
 
@@ -275,14 +277,39 @@ describe('a proposal is the proposer to fund', () => {
     for (const m of rows.filter(r => r.metricId === M_B)) expect(m.pool).toBe(0);
   });
 
-  test('the proposer subsidy wins over the date number, and the owner pays nothing', async () => {
+  test("a proposer's seed adds to the date number: the owner still pays his, and the book holds both", async () => {
     await seed({ aCredits: { [DEC]: { proposal: 250 } } });
     await baseline('base-a', M_A, DEC);
     await proposal('p1');
     await createConditionalMarkets('p1', WS, { contributions: { [PROPOSER]: 20 }, strict: true });
     const rows = await branches('p1');
-    for (const m of rows) expect(m.pool).toBeCloseTo(20, 6);
+    expect(rows).toHaveLength(2);
+    for (const m of rows) expect(m.pool).toBeCloseTo(270, 6);
+    expect((await ownerBalance()).balance).toBeCloseTo(500, 6);
+    const [p] = await db.select().from(agents).where(eq(agents.id, PROPOSER));
+    expect(fromUnits(p.balance as number)).toBeCloseTo(960, 6);
+  });
+
+  test('a seed on a date with no number opens the book with the seed alone, and the owner pays nothing', async () => {
+    await seed({});
+    await baseline('base-a', M_A, DEC);
+    await proposal('p1');
+    await createConditionalMarkets('p1', WS, { contributions: { [PROPOSER]: 20 }, strict: true });
+    for (const m of await branches('p1')) expect(m.pool).toBeCloseTo(20, 6);
     expect((await ownerBalance()).balance).toBeCloseTo(1000, 6);
+  });
+
+  test('an owner seeding their own proposal never pays more than they hold', async () => {
+    // Seed 200 x 2 = 400 of the 500 held; the date number asks 250 x 2 = 500
+    // more, and only 100 is left for it: each branch gets 50 of its number.
+    await seed({ ownerBalance: 500, aCredits: { [DEC]: { proposal: 250 } } });
+    await baseline('base-a', M_A, DEC);
+    await proposal('p1');
+    await createConditionalMarkets('p1', WS, { contributions: { [OWNER]: 200 }, strict: true });
+    for (const m of await branches('p1')) expect(m.pool).toBeCloseTo(250, 4);
+    const after = await ownerBalance();
+    expect(after.balance).toBeCloseTo(0, 4);
+    expect(after.balance).toBeGreaterThanOrEqual(0);
   });
 
   test('an owner short of the bill gives every branch the same share of what it asked for', async () => {

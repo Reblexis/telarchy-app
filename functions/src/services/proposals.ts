@@ -186,6 +186,35 @@ export function subsidyContributionsOf(proposal: {
   return legacy > 0 ? { [proposal.proposedBy]: legacy } : {};
 }
 
+/**
+ * How many markets a proposal posted now would spawn: one per branch per
+ * open leaf baseline whose date settles after the deadline. It is what a
+ * `liquidityBudget` is divided by (docs/guides/proposals.md, "Posting one"),
+ * and it reads the same set createConditionalMarkets spawns from.
+ */
+export async function conditionalMarketCount(
+  workspaceId: string,
+  deadline: Date | null,
+  branchCount: number,
+): Promise<number> {
+  const metricRows = await db
+    .select({ id: metricsTable.id, formula: metricsTable.formula })
+    .from(metricsTable)
+    .where(eq(metricsTable.workspaceId, workspaceId));
+  const leaf = new Set(metricRows.filter(r => !r.formula || r.formula === '0').map(r => r.id));
+  const open = await db
+    .select({ metricId: markets.metricId, targetDate: markets.targetDate, active: markets.active })
+    .from(markets)
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false), isNull(markets.proposalId)));
+  const cells = open.filter(
+    m =>
+      m.active !== false &&
+      leaf.has(m.metricId) &&
+      (!deadline || periodEndInstant(m.targetDate).getTime() > deadline.getTime()),
+  );
+  return cells.length * branchCount;
+}
+
 export async function createConditionalMarkets(
   proposalId: string,
   workspaceId: string,
@@ -410,19 +439,23 @@ export async function createConditionalMarkets(
         funded.push([contributorId, uniform(perMarket)]);
       }
 
-      // A branch market with liquidity 0 has no price at all: consensus is
-      // undefined, the public page has nothing to chart, and the pair reads
-      // as broken rather than merely thin. When no listed contributor could
-      // fund this generation (a proposer with an empty balance, typically),
-      // the owner pays what they chose per date, and only that. Where the
+      // The owner pays what they chose per date, and only that, ON TOP of
+      // whatever the listed contributors put in (owner decision 2026-09-17:
+      // a proposer's seed adds to the date's number and never replaces it,
+      // so a small seed cannot thin a book the owner wanted deep). Where the
       // owner cannot cover the whole bill, every branch gets the same share
       // of its number (docs/guides/proposals.md), down to the minimum
       // contribution, rather than some branches everything and others
-      // nothing. Only if that fails too do the markets spawn unfunded, and
-      // the floor then says so in place of the bet buttons.
-      if (funded.length === 0 && autoFundOwnerId) {
+      // nothing. Only if nobody pays do the markets spawn unfunded, and the
+      // floor then says so in place of the bet buttons.
+      if (autoFundOwnerId) {
         const [ownerRow] = await tx.select().from(agents).where(eq(agents.id, autoFundOwnerId)).for('update');
-        const ownerSpendable = ownerRow ? fromUnits(liquiditySpendableUnits(ownerRow)) : 0;
+        // An owner who also seeded this proposal has already promised that
+        // share above; the date numbers come out of what is left.
+        const ownerPromised = funded
+          .filter(([contributorId]) => contributorId === autoFundOwnerId)
+          .reduce((sum, [, amounts]) => sum + Array.from(amounts.values()).reduce((a, c) => a + c, 0), 0);
+        const ownerSpendable = ownerRow ? Math.max(0, fromUnits(liquiditySpendableUnits(ownerRow)) - ownerPromised) : 0;
         if (!ownerRow) {
           console.error(
             `createConditionalMarkets: owner fallback for proposal ${proposalId} failed (no agent row for owner ${autoFundOwnerId}); markets spawn with zero liquidity`,
