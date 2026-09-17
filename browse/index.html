@@ -2854,6 +2854,7 @@ trader cannot read back is an instruction they did not give.</li>
 <li>Choosing <code>Limit</code> prefills a legal limit just inside the current call
 on the side that rests, so the field opens with an answer rather than an
 error to clear. A limit the market has already passed is not refused: one warning line under it says what fills now (&quot;The market is already under $60,000: 12.4 cr fills now&quot;; on a sell, &quot;12 of 40 shares sell now&quot;), and the confirm places it. A limit outside the market's range is refused in the ticket, before it is sent.</li>
+<li><strong>The limit price is typed with decimals</strong>, on Buy and on Sell alike: digits and one decimal point, six places at most, and a decimal comma counts as the point. The field shows what was typed, a trailing zero or a bare point included, and groups only the whole part (&quot;40,000.50&quot;); it never rewrites a number mid-keystroke. The confirm and the order carry the decimal price as typed.</li>
 <li>A composed limit order casts no ghost on the chart, because it moves no price today. The ghost is reserved for what a confirm would do immediately, so a limit the market has already passed casts the ghost of the fill it makes now.</li>
 <li><strong>A sell limit</strong> is the Sell tab in <code>Limit</code> mode: the held position's row
 with its shares slider (all of it by default, never more), the price input,

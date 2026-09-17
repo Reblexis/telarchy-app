@@ -201,6 +201,7 @@ is optional and hidden until wanted:
 - Choosing `Limit` prefills a legal limit just inside the current call
   on the side that rests, so the field opens with an answer rather than an
   error to clear. A limit the market has already passed is not refused: one warning line under it says what fills now ("The market is already under $60,000: 12.4 cr fills now"; on a sell, "12 of 40 shares sell now"), and the confirm places it. A limit outside the market's range is refused in the ticket, before it is sent.
+- **The limit price is typed with decimals**, on Buy and on Sell alike: digits and one decimal point, six places at most, and a decimal comma counts as the point. The field shows what was typed, a trailing zero or a bare point included, and groups only the whole part ("40,000.50"); it never rewrites a number mid-keystroke. The confirm and the order carry the decimal price as typed.
 - A composed limit order casts no ghost on the chart, because it moves no price today. The ghost is reserved for what a confirm would do immediately, so a limit the market has already passed casts the ghost of the fill it makes now.
 - **A sell limit** is the Sell tab in `Limit` mode: the held position's row
   with its shares slider (all of it by default, never more), the price input,

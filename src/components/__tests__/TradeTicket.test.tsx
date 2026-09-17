@@ -1080,6 +1080,121 @@ describe('decimal stakes', () => {
   });
 });
 
+describe('the limit price is typed with decimals', () => {
+  // Owner report 2026-09-17: "i should be able to enter decimal values here
+  // (in the limit orders (bet below/above)". The field reformatted every
+  // keystroke, so "1.0" snapped back to "1" and the next digit made "15".
+  const small = { ...base, consensus: 50, rangeMin: 0, rangeMax: 100 };
+  const field = () => screen.getByLabelText('Limit price in $') as HTMLInputElement;
+  const type = (value: string) => fireEvent.change(field(), { target: { value } });
+  const openLimit = (props: Record<string, unknown> = {}) => {
+    const onPlaceLimit = vi.fn(async () => {});
+    render(<TradeTicket {...small} balance={100} onPlaceLimit={onPlaceLimit} {...props} />);
+    pick('Higher', '5');
+    fireEvent.click(screen.getByText('Limit'));
+    return onPlaceLimit;
+  };
+
+  test('I can enter a decimal limit price one key at a time', async () => {
+    const onPlaceLimit = openLimit();
+    for (const step of ['1', '1.', '1.0']) {
+      type(step);
+      expect(field().value).toBe(step);
+    }
+    type('1.05');
+    expect(field().value).toBe('1.05');
+    fireEvent.click(screen.getByText('Buy Higher under $1.05'));
+    await waitFor(() => expect(onPlaceLimit).toHaveBeenCalledWith('higher', 1.05, 5));
+  });
+
+  test('a trailing zero stays in the field while I type', () => {
+    openLimit();
+    type('1.50');
+    expect(field().value).toBe('1.50');
+    type('0.0');
+    expect(field().value).toBe('0.0');
+  });
+
+  test('a decimal comma is a decimal point', async () => {
+    const onPlaceLimit = openLimit();
+    type('1,');
+    expect(field().value).toBe('1.');
+    type('1.5');
+    type('12,5');
+    expect(field().value).toBe('12.5');
+    fireEvent.click(screen.getByText('Buy Higher under $12.5'));
+    await waitFor(() => expect(onPlaceLimit).toHaveBeenCalledWith('higher', 12.5, 5));
+  });
+
+  test('the whole part keeps its thousands separators and they are never read as a decimal', () => {
+    openLimit({ consensus: 50_000, rangeMax: 500_000 });
+    type('40000');
+    expect(field().value).toBe('40,000');
+    // The next key arrives with the separator the field itself put there.
+    type('40,0001');
+    expect(field().value).toBe('400,001');
+    type('40,000.25');
+    expect(field().value).toBe('40,000.25');
+    expect(screen.getByText('Buy Higher under $40,000')).toBeTruthy();
+  });
+
+  test('a comma typed after a grouped number is the decimal point', () => {
+    openLimit({ consensus: 50_000, rangeMax: 500_000 });
+    type('40000');
+    type('40,000,');
+    expect(field().value).toBe('40,000.');
+    type('40,000.5');
+    expect(field().value).toBe('40,000.5');
+  });
+
+  test('one decimal point, six places, nothing but digits', () => {
+    openLimit();
+    type('1.2.3');
+    expect(field().value).toBe('1.23');
+    type('1.23456789');
+    expect(field().value).toBe('1.234567');
+    type('-4e2');
+    expect(field().value).toBe('42');
+    type('');
+    expect(field().value).toBe('');
+  });
+
+  test('a price typed from the point down reads as a number', async () => {
+    const onPlaceLimit = openLimit();
+    type('.5');
+    expect(field().value).toBe('.5');
+    fireEvent.click(screen.getByText('Buy Higher under $0.50'));
+    await waitFor(() => expect(onPlaceLimit).toHaveBeenCalledWith('higher', 0.5, 5));
+  });
+
+  test('a decimal limit outside the range is still refused', () => {
+    openLimit();
+    type('100.5');
+    expect(screen.getByText('Between $0.00 and $100')).toBeTruthy();
+  });
+
+  test('the sell limit field takes decimals the same way', async () => {
+    const onPlaceSellLimit = vi.fn(async () => {});
+    render(
+      <TradeTicket
+        {...small}
+        positions={[{ direction: 'higher' as const, shares: 40, totalCost: 18 }]}
+        onPlaceSellLimit={onPlaceSellLimit}
+      />,
+    );
+    fireEvent.click(screen.getByText('Sell'));
+    fireEvent.click(screen.getByText('Limit'));
+    type('60.');
+    expect(field().value).toBe('60.');
+    type('60.0');
+    expect(field().value).toBe('60.0');
+    type('60.05');
+    expect(field().value).toBe('60.05');
+    fireEvent.click(screen.getByText(/^Sell 40(\.0)? at \$60\.1$/));
+    await waitFor(() => expect(onPlaceSellLimit).toHaveBeenCalledWith('higher', 60.05, 40));
+  });
+});
+
 describe('the trade dialog keeps my selections after an action', () => {
   const position = { direction: 'higher' as const, shares: 40.5, totalCost: 18 };
   const order = {
