@@ -108,11 +108,14 @@ const boardCache = ttlCache({
   serveStale: false,
   // One entry per distinct workspace set ever asked for: small today, grows
   // with scoped boards, hence the (default) size bound in the helper.
-  keyOf: (workspaceIds: string[]) => [...workspaceIds].sort().join(','),
-  load: (workspaceIds: string[]) => loadBoard(workspaceIds),
+  keyOf: (workspaceIds: string[], floorOnly: boolean) =>
+    `${floorOnly ? 'floor|' : ''}${[...workspaceIds].sort().join(',')}`,
+  load: (workspaceIds: string[], floorOnly: boolean) => loadBoard(workspaceIds, { transfers: !floorOnly }),
 });
 
-export const cachedBoard = (workspaceIds: string[]) => boardCache.get(workspaceIds);
+/** `floorOnly`: the board of one floor, which is the trading there and never
+ *  a transfer (docs/seasons.md, "The ALL-TIME board's ranking key"). */
+export const cachedBoard = (workspaceIds: string[], floorOnly = false) => boardCache.get(workspaceIds, floorOnly);
 
 /** Settlement, and any test that just wrote trades, needs the next read to
  *  see them rather than a cached answer. */
@@ -321,7 +324,10 @@ leaderboardRouter.get(
       return;
     }
 
-    const board = await cachedBoard(scoped.map(w => w.id));
+    const board = await cachedBoard(
+      scoped.map(w => w.id),
+      !!scope,
+    );
     if (board.agentIds.length === 0) {
       res.json({ participants: [] });
       return;
@@ -619,7 +625,7 @@ export async function seasonStandingsPayload(
     : scoped
       ? await cachedSeasonSettled(season.id, viewIds, new Date(season.startsAt), new Date(season.endsAt), true)
       : settledAll;
-  const board = settledAll ? null : await cachedBoard(viewIds);
+  const board = settledAll ? null : await cachedBoard(viewIds, scoped);
   // The display column beside the score: the same arithmetic with open
   // markets that still resolve inside the season valued at their current
   // call (docs/seasons.md, "The standings show the mark beside the score").

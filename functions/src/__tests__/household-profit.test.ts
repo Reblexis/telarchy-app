@@ -259,6 +259,42 @@ describe('credits transferred between participants count in all-time profit', ()
   });
 });
 
+describe("a floor's own board counts trading there, never transfers (owner, 2026-09-17)", () => {
+  // "as part of workspace floor dont show the transfers dont count them in
+  //  i dont understand why would the bot suddenly have twice as much"
+  test('GET /api/leaderboard?workspaceId: the bankroll a bot received is not profit on the floor', async () => {
+    await transfer(OWNER, BOT, 15000);
+    await loserPaysWinner(WS, OTHER, BOT, 500, 'bot-wins');
+    const res = await request(app).get('/api/leaderboard?workspaceId=floor-a');
+    expect(res.status).toBe(200);
+    const byId = new Map((res.body.participants as Array<Record<string, unknown>>).map(p => [p.id, p]));
+    expect(byId.get(BOT)).toMatchObject({ totalEarnings: 500, ownEarnings: 500 });
+    // The owner's row still folds in the bot's trading there, and only that.
+    expect(byId.get(OWNER)).toMatchObject({ totalEarnings: 500, ownEarnings: 0, botsCounted: 2 });
+  });
+
+  test('the every-floor board still counts them, so the household nets out there', async () => {
+    await transfer(OWNER, BOT, 15000);
+    await loserPaysWinner(WS, OTHER, BOT, 500, 'bot-wins');
+    const res = await request(app).get('/api/leaderboard');
+    const byId = new Map((res.body.participants as Array<Record<string, unknown>>).map(p => [p.id, p]));
+    expect(byId.get(BOT)).toMatchObject({ totalEarnings: 15500 });
+    expect(byId.get(OWNER)).toMatchObject({ totalEarnings: 500, ownEarnings: -15000 });
+  });
+
+  test('a participant who only received a transfer is not on a floor board at all', async () => {
+    await transfer(OWNER, OTHER, 100);
+    const res = await request(app).get('/api/leaderboard?workspaceId=floor-a');
+    expect(res.body.participants).toEqual([]);
+  });
+
+  test('loadBoard: transfers are opt-out, and the profile keeps counting them', async () => {
+    await transfer(OTHER, OWNER, 100);
+    expect((await loadBoard([WS], { transfers: false })).profitById.get(OWNER) ?? 0).toBe(0);
+    expect((await loadBoard([WS])).profitById.get(OWNER)).toBe(100);
+  });
+});
+
 describe('your score includes the accounts you own', () => {
   test("the board: an owner's row is its own plus its bots' and their bots'; the bots keep their own", async () => {
     await seedHousehold();

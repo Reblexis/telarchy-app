@@ -91,7 +91,7 @@ export interface Board {
  * rather than silently widening to every workspace, which would leak the exact
  * opposite of what was asked for.
  */
-export async function loadBoard(workspaceIds: string[]): Promise<Board> {
+export async function loadBoard(workspaceIds: string[], opts: { transfers?: boolean } = {}): Promise<Board> {
   if (workspaceIds.length === 0) {
     return {
       profitById: new Map(),
@@ -259,10 +259,11 @@ export async function loadBoard(workspaceIds: string[]): Promise<Board> {
   }
   // CREDITS TRANSFERRED BETWEEN PARTICIPANTS COUNT here too, over all time
   // (docs/seasons.md, "The ALL-TIME board's ranking key", 2026-09-16):
-  // received is profit, sent is loss, settled money. Whatever the workspace
-  // set: a transfer belongs to no floor, and the number a profile shows has
-  // to be the one the board ranks. From the peer-transfer receipt only.
-  const transfers = await loadTransferNet(null, null);
+  // received is profit, sent is loss, settled money. From the peer-transfer
+  // receipt only. NOT on a board scoped to one floor (owner, 2026-09-17):
+  // a transfer belongs to no floor, so a floor's own board is the trading
+  // there and nothing else; that caller passes `transfers: false`.
+  const transfers = opts.transfers === false ? new Map<string, number>() : await loadTransferNet(null, null);
   for (const [agentId, net] of transfers) {
     const b = breakdownById.get(agentId) ?? { settled: 0, open: 0, total: 0 };
     breakdownById.set(agentId, {
