@@ -13961,6 +13961,15 @@ never on a read path.</li>
 lands another build while you are reading, that one waits its turn. The button
 is on the stripe at the top of every beta page (<code>BetaBanner</code>), backed by
 <code>POST /api/admin/publish</code>, platform-admin only.</p>
+<p><strong>A press is not yet a publish.</strong> Cloud Run accepts the traffic change at once
+and then takes three to five minutes to move the traffic. For that time
+<code>GET /api/admin/release</code> answers <code>publishing: &lt;revision&gt;</code> (the revision the
+service has been told to serve, while another still serves) and <code>serving</code>
+keeps naming the old one. The stripe says &quot;Publishing. telarchy.com switches to
+this build in a few minutes.&quot;, offers no second press, asks again every ten
+seconds, and says &quot;Published. telarchy.com is serving this build.&quot; only once
+<code>isServing</code> is true. Do not run <code>gcloud run services update-traffic</code> because a
+press &quot;did nothing&quot;: it is the same request and changes nothing.</p>
 <h3 id="docs-infra-deploy-md--h8">Reaching it</h3>
 <p><strong><code>telarchy.com/beta</code> IS the beta.</strong> It is not a redirect. The revision serving
 telarchy.com forwards <code>/beta/*</code> to whichever revision carries the <code>candidate</code>

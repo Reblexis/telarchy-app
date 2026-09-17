@@ -162,6 +162,44 @@ describe('when the session appears', () => {
 });
 
 describe('the beta on the real domain', () => {
+  test('publish said ok and traffic has not moved: the stripe says publishing, not published, until telarchy.com serves it', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    setHost('candidate---api-ksc7usrtbq-uc.a.run.app');
+    const waiting = await getRelease();
+    render(<BetaBanner />);
+    await waitFor(() => expect(screen.getByText('Publish this build')).toBeTruthy());
+    getRelease.mockResolvedValue({ ...waiting, publishing: 'api-00381' } as never);
+    fireEvent.click(screen.getByText('Publish this build'));
+    await waitFor(() => expect(screen.getByText(/Publishing\. telarchy\.com switches/)).toBeTruthy());
+    expect(screen.queryByText(/is serving this build/)).toBeNull();
+    expect(screen.queryByText('Publish this build')).toBeNull();
+    await vi.advanceTimersByTimeAsync(11000);
+    expect(screen.queryByText(/is serving this build/)).toBeNull();
+    getRelease.mockResolvedValue({ ...waiting, serving: 'api-00381', isServing: true, publishing: null } as never);
+    await vi.advanceTimersByTimeAsync(11000);
+    await waitFor(() => expect(screen.getByText(/Published\. telarchy\.com is serving this build/)).toBeTruthy());
+    getRelease.mockReset();
+    getRelease.mockResolvedValue(waiting);
+    vi.useRealTimers();
+  });
+
+  test('opening the beta while a publish is under way shows it and offers no second press', async () => {
+    setHost('candidate---api-ksc7usrtbq-uc.a.run.app');
+    const waiting = await getRelease();
+    getRelease.mockResolvedValueOnce({ ...waiting, publishing: 'api-00381' } as never);
+    render(<BetaBanner />);
+    await waitFor(() => expect(screen.getByText(/Publishing\. telarchy\.com switches/)).toBeTruthy());
+    expect(screen.queryByText('Publish this build')).toBeNull();
+  });
+
+  test("someone else publishing an older build does not hide this build's button", async () => {
+    setHost('candidate---api-ksc7usrtbq-uc.a.run.app');
+    const waiting = await getRelease();
+    getRelease.mockResolvedValueOnce({ ...waiting, publishing: 'api-00379' } as never);
+    render(<BetaBanner />);
+    await waitFor(() => expect(screen.getByText('Publish this build')).toBeTruthy());
+  });
+
   test('telarchy.com/beta is not the published site', () => {
     setHost('telarchy.com', '/beta');
     expect(isPublishedOrigin()).toBe(false);

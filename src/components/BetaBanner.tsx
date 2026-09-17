@@ -88,6 +88,10 @@ export function BetaBanner() {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
   const [err, setErr] = useState('');
+  // A press is accepted at once and takes minutes to move the traffic
+  // (docs/infra/deploy.md, "A press is not yet a publish"): while true the
+  // stripe asks again every ten seconds and claims nothing it cannot see.
+  const [publishing, setPublishing] = useState(false);
 
   useEffect(() => {
     if (isPublishedOrigin()) return;
@@ -114,7 +118,9 @@ export function BetaBanner() {
     api
       .getRelease()
       .then(r => {
-        setCanPublish(!r.isServing);
+        const underWay = !r.isServing && !!r.publishing && r.publishing === r.running;
+        setPublishing(underWay);
+        setCanPublish(!r.isServing && !underWay);
         setWaiting(r.isServing ? 'no' : 'yes');
         setPreviews(r.previews ?? []);
         // Only once the release answered: that is the admin check, and the
@@ -129,6 +135,22 @@ export function BetaBanner() {
         setWaiting('unknown');
       });
   }, [user]);
+
+  useEffect(() => {
+    if (!publishing) return;
+    const timer = setInterval(() => {
+      api
+        .getRelease()
+        .then(r => {
+          if (!r.isServing) return;
+          setPublishing(false);
+          setWaiting('no');
+          setNote('Published. telarchy.com is serving this build.');
+        })
+        .catch(() => {});
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [publishing]);
 
   const isPreview = preview !== null;
   const canPick = onRealDomainBeta() && (previews.length > 0 || branches.length > 0);
@@ -156,8 +178,8 @@ export function BetaBanner() {
     setErr('');
     try {
       await api.publishRelease();
-      setNote('Published. telarchy.com is serving this build.');
       setCanPublish(false);
+      setPublishing(true);
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not publish');
     } finally {
@@ -222,13 +244,15 @@ export function BetaBanner() {
       )}
       <span className="betabar-text">
         {note ||
-          (isPreview
-            ? 'A branch preview. It reaches telarchy.com by merging to main.'
-            : waiting === 'yes'
-              ? 'Not published. telarchy.com is still serving the previous build.'
-              : waiting === 'no'
-                ? 'Nothing is waiting. This is the build telarchy.com is serving.'
-                : 'The beta build. What telarchy.com serves may differ.')}
+          (publishing
+            ? 'Publishing. telarchy.com switches to this build in a few minutes.'
+            : isPreview
+              ? 'A branch preview. It reaches telarchy.com by merging to main.'
+              : waiting === 'yes'
+                ? 'Not published. telarchy.com is still serving the previous build.'
+                : waiting === 'no'
+                  ? 'Nothing is waiting. This is the build telarchy.com is serving.'
+                  : 'The beta build. What telarchy.com serves may differ.')}
       </span>
       {canPublish && !isPreview && !note && (
         <button

@@ -108,6 +108,7 @@ function state(over: Partial<ReleaseState> = {}): ReleaseState {
   return {
     serving: 'api-00100-aaa',
     candidate: { revision: 'api-00101-bbb', url: 'https://candidate---x.run.app' },
+    publishing: null,
     previews: [
       { tag: 'br-setup-door-email', revision: 'api-00103-ddd', url: 'https://br-setup-door-email---x.run.app' },
       { tag: 'br-oss-lane-i', revision: 'api-00102-ccc', url: 'https://br-oss-lane-i---x.run.app' },
