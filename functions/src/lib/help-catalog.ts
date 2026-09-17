@@ -188,6 +188,8 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
         marketRangeMax: 'number (optional, default 1000; upper bound for prediction market ranges on this metric)',
         resetsEvery:
           'null | "hour" | "day" | "week" | "month" | "year" (optional, default null: the number accumulates or is a level. Set it when the number RESTARTS each period, e.g. "revenue this week": a reading then belongs only to the period it was taken in, so the floor charts only the readings inside a market\'s own period instead of drawing last period\'s total as this one\'s actual. Does not change settlement, which already fixes on the value as of resolvesOn)',
+        opensAt:
+          "number | null (optional, default null; leaf metrics only, inside 0..marketRangeMax). Where this metric's untraded books open, in place of the current reading: for a number with no running reading, e.g. a game's score, whose value between games is the last game's result. A traded open book of the same metric still wins, a conditional branch still follows its baseline, and a book that already has a price is never moved.",
         resolvesNaUntilMeasured:
           "boolean (optional, default false). Set it for a number that does not exist until an event happens, e.g. the valuation implied by an investment: while the metric has NO logged reading at or before a market's resolution instant, that market is voided (N/A, every position refunded, reason published) instead of settling on the default value. The first logged reading ends the state for good; from then on markets settle on the value as of their instant like any other metric",
         timePreference:
@@ -212,6 +214,8 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
           "string | null (optional; the whole question shown over this metric's book, at most 200 characters. Blank or null clears it and the floor composes the question again)",
         resetsEvery:
           'null | "hour" | "day" | "week" | "month" | "year" (optional; the period the number restarts on. Changing it does NOT void markets: it changes which readings the floor attributes to a period, not the settled value)',
+        opensAt:
+          "number | null (optional; where this metric's untraded books open in place of the reading, inside 0..marketRangeMax, null to go back to the reading. Never moves a book that already has a price; a marketRangeMax edit that would leave it outside the range is refused until both are sent together)",
         resolvesNaUntilMeasured:
           'boolean (optional; markets on a never-measured metric void as N/A at their instant instead of settling on the default value. Changing it does NOT void open markets by itself)',
         timePreference:

@@ -7168,6 +7168,20 @@ beside a September book five trades had carried to $820,000, told a
 stranger the floor expected a forty-fold fall nobody believed and nobody
 bet. Only a metric with no traded open book opens at the reading, as
 above. A conditional pair keeps anchoring to its own baseline.</p>
+<p><strong>An owner may name where a metric's books open (<code>opensAt</code>), and it
+replaces the reading, nothing else.</strong> Some numbers have no running reading:
+a game's score exists only once the game has finished, so between games the
+&quot;current value&quot; is the LAST game's result, and a book opened there says the
+next game is already lost (or won, and pays whoever sells it down). <code>opensAt</code>
+is a value inside the metric's range (0 to <code>marketRangeMax</code>, both ends
+allowed), null by default, set on <code>POST/PUT /api/metrics</code> with <code>manage</code> and
+cleared with null; a leaf metric only, and a range edit that would leave it
+outside the range is refused until it is changed in the same call. The order is: a traded open book of
+the same metric first (a price somebody paid beats anybody's statement),
+then <code>opensAt</code>, then the reading. It is clamped and sized exactly like the
+reading, it never moves a book that is already anchored or traded, and it
+never touches a conditional branch, which follows its baseline. The chess
+floor sets it to the player's average score over its finished games.</p>
 <p><strong>Every path that opens a book on an untraded baseline market opens it the
 same way.</strong> The daily spawn, the refresh that funds a market which opened
 unfunded because the balance was short, a hand-made market from
@@ -11409,6 +11423,11 @@ you expect to rename.</p>
 <td>When true, markets void as N/A while the metric has no reading rather than settling on 0.</td>
 </tr>
 <tr>
+<td><code>opensAt</code></td>
+<td><code>null</code></td>
+<td>Where this metric's untraded books open, in place of the current reading. For a number that has no running reading, like a game's score. Inside the range; leaf metrics only.</td>
+</tr>
+<tr>
 <td><code>order</code></td>
 <td>999</td>
 <td>Display order. Not settable here; use <code>POST /api/metrics/reorder</code> with an array of ids.</td>
@@ -12382,8 +12401,9 @@ name: a metric is a number over time and the market's target date carries the
 date. Putting &quot;@1st October&quot; in a name buys exactly one market and orphans every
 recurring one behind it.</p>
 <h2 id="docs-guides-metric-design-md--h6">What a metric actually has</h2>
-<p>Nine fields, and no others: <code>name</code>, <code>description</code>, <code>value</code>, <code>formula</code>, <code>order</code>,
-<code>timePreference</code>, <code>marketRangeMax</code>, <code>resetsEvery</code>, <code>resolvesNaUntilMeasured</code>.
+<p>Ten fields, and no others: <code>name</code>, <code>description</code>, <code>value</code>, <code>formula</code>, <code>order</code>,
+<code>timePreference</code>, <code>marketRangeMax</code>, <code>resetsEvery</code>, <code>resolvesNaUntilMeasured</code>,
+<code>opensAt</code>.
 There is no <code>target</code>, no <code>granularity</code> and no <code>unit</code>. What each one does is in
 <a href="/guides/creating">open a floor</a>; how values reach <code>value</code> is in
 <a href="/guides/sources">keeping the number true</a>.</p>

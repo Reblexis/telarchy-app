@@ -1947,6 +1947,21 @@ stranger the floor expected a forty-fold fall nobody believed and nobody
 bet. Only a metric with no traded open book opens at the reading, as
 above. A conditional pair keeps anchoring to its own baseline.
 
+**An owner may name where a metric's books open (`opensAt`), and it
+replaces the reading, nothing else.** Some numbers have no running reading:
+a game's score exists only once the game has finished, so between games the
+"current value" is the LAST game's result, and a book opened there says the
+next game is already lost (or won, and pays whoever sells it down). `opensAt`
+is a value inside the metric's range (0 to `marketRangeMax`, both ends
+allowed), null by default, set on `POST/PUT /api/metrics` with `manage` and
+cleared with null; a leaf metric only, and a range edit that would leave it
+outside the range is refused until it is changed in the same call. The order is: a traded open book of
+the same metric first (a price somebody paid beats anybody's statement),
+then `opensAt`, then the reading. It is clamped and sized exactly like the
+reading, it never moves a book that is already anchored or traded, and it
+never touches a conditional branch, which follows its baseline. The chess
+floor sets it to the player's average score over its finished games.
+
 **Every path that opens a book on an untraded baseline market opens it the
 same way.** The daily spawn, the refresh that funds a market which opened
 unfunded because the balance was short, a hand-made market from

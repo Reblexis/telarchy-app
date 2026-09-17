@@ -201,6 +201,7 @@ metricsRouter.post(
       marketRangeMax,
       resetsEvery,
       resolvesNaUntilMeasured,
+      opensAt,
     } = req.body;
     if (!name) {
       res.status(400).json({ error: 'name is required' });
@@ -235,6 +236,12 @@ metricsRouter.post(
       return;
     }
 
+    const opens = parseOpensAt(opensAt, marketRangeMax ?? 1000, isLeaf);
+    if (opens instanceof Error) {
+      res.status(400).json({ error: opens.message });
+      return;
+    }
+
     const isDefinition = formula && formula.trim() !== '0';
     const id = randomUUID();
 
@@ -250,6 +257,7 @@ metricsRouter.post(
       marketRangeMax: marketRangeMax ?? 1000,
       resetsEvery: resets ?? null,
       resolvesNaUntilMeasured: naUntilMeasured ?? false,
+      opensAt: opens ?? null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -474,7 +482,14 @@ metricsRouter.put(
     }
     if (hasCredits) update.liquidityCredits = fields.liquidityCredits;
     if (newTitle !== undefined) update.marketTitle = newTitle;
-    if (Object.keys(update).length === 0 && rawTP === undefined && newResets === undefined && newNa === undefined) {
+    const namesOpens = Object.prototype.hasOwnProperty.call(fields, 'opensAt');
+    if (
+      Object.keys(update).length === 0 &&
+      rawTP === undefined &&
+      newResets === undefined &&
+      newNa === undefined &&
+      !namesOpens
+    ) {
       res.status(400).json({ error: 'No fields to update' });
       return;
     }
@@ -496,6 +511,16 @@ metricsRouter.put(
     const effectiveIsLeaf = !effectiveFormula || effectiveFormula.trim() === '0';
     if (update.marketRangeMax !== undefined && !effectiveIsLeaf) {
       res.status(400).json({ error: 'marketRangeMax can only be set on leaf metrics (no formula)' });
+      return;
+    }
+    // Checked against the range this call leaves behind, so a range edit
+    // cannot strand a named opening value outside it.
+    const effectiveRangeMax = (update.marketRangeMax as number | undefined) ?? oldRow.marketRangeMax ?? 1000;
+    const hasOpens = namesOpens;
+    const effectiveOpens = hasOpens ? fields.opensAt : oldRow.opensAt;
+    const newOpens = parseOpensAt(effectiveOpens ?? null, effectiveRangeMax, effectiveIsLeaf);
+    if (newOpens instanceof Error) {
+      res.status(400).json({ error: newOpens.message });
       return;
     }
 
@@ -543,6 +568,7 @@ metricsRouter.put(
       dbUpdate.marketTitle = update.marketTitle as string | null;
     if (newResets !== undefined) dbUpdate.resetsEvery = newResets;
     if (newNa !== undefined) dbUpdate.resolvesNaUntilMeasured = newNa;
+    if (hasOpens) dbUpdate.opensAt = newOpens ?? null;
     dbUpdate.updatedAt = new Date();
 
     const isLeafMetric = !effectiveFormula || effectiveFormula.trim() === '0';
@@ -879,6 +905,20 @@ export function parseResetsEvery(raw: unknown): ResetPeriod | null | undefined |
 export function parseNaUntilMeasured(raw: unknown): boolean | undefined | Error {
   if (raw === undefined) return undefined;
   if (typeof raw !== 'boolean') return new Error('resolvesNaUntilMeasured must be a boolean');
+  return raw;
+}
+/**
+ * Parse `opensAt`, the owner's named opening value (docs/ui-conventions.md,
+ * "Where markets open"). `undefined` = absent, `null` = the reading. Inside
+ * the range with both ends allowed, and a leaf metric only: a computed
+ * metric's books are not opened on a statement.
+ */
+export function parseOpensAt(raw: unknown, rangeMax: number, isLeaf: boolean): number | null | undefined | Error {
+  if (raw === undefined) return undefined;
+  if (raw === null) return null;
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return new Error('opensAt must be a number, or null');
+  if (!isLeaf) return new Error('opensAt can only be set on leaf metrics (no formula)');
+  if (raw < 0 || raw > rangeMax) return new Error(`opensAt must be inside the metric's range, 0 to ${rangeMax}`);
   return raw;
 }
 // `min` before `m`: "+5min" is minutes, "+5m" is months (lib/date-utils).

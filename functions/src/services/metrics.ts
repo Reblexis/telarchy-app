@@ -216,6 +216,7 @@ export async function getAllMetrics(workspaceId: string): Promise<Metric[]> {
       resolvesNaUntilMeasured: row.resolvesNaUntilMeasured ?? false,
       settlementLagMinutes: row.settlementLagMinutes ?? 0,
       liquidityCredits: row.liquidityCredits ?? null,
+      opensAt: row.opensAt ?? null,
     })),
     map,
     untradedKeys,
