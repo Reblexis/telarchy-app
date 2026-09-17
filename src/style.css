@@ -2520,11 +2520,70 @@ a.prof-row-link:hover .prof-row-title { text-decoration: underline; text-underli
 }
 .jobform-line--n { width: 5ch; font-family: 'JetBrains Mono', monospace; }
 .jobform-line--unit { width: auto; }
-.jobform-line--cr { width: 9ch; }
-/* The liquidity row's one sentence: prose, so left-aligned under the chips. */
+/* Liquidity on the posting form (docs/ui-conventions.md, "Posting one"):
+   a second numeral beside the price, a quiet link to the per-date grid, and
+   the bill as mono facts rather than a sentence. */
+.jobform .jobform-head { flex-wrap: wrap; row-gap: 0.6rem; }
+.jobform-perdate {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.jobform-gridwrap { overflow-x: auto; }
+.jobform-grid { display: grid; gap: 0.3rem 0.5rem; align-items: end; }
+.jobform-grid-h {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  color: var(--text-tertiary);
+}
+.jobform-grid-r {
+  align-self: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+.jobform-cell { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.jobform-cell input {
+  width: 100%;
+  padding: 0 0 0.15rem;
+  border: none;
+  border-bottom: 2px solid var(--border-strong);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.86rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.jobform-cell input:focus { outline: none; border-bottom-color: var(--accent); }
+.jobform-cell input::placeholder { color: var(--text-tertiary); font-weight: 400; }
+.jobform-cell-note { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: var(--text-tertiary); }
+.jobform-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+.jobform-fact { display: inline-flex; align-items: center; gap: 0.35rem; }
+.jobform-fact.is-bad { color: var(--lower); }
+/* The read-only deadline line on an edit: prose, so left-aligned. */
 .jobform-seed-note {
   display: block;
-  margin-top: 0.45rem;
   text-align: left;
   font-size: 0.78rem;
   line-height: 1.45;

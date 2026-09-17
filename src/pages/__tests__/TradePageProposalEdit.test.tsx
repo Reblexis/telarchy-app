@@ -193,16 +193,19 @@ describe('editing a proposal is a pencil, not a button', () => {
     expect(title.value).toBe('rewrite the store page');
   });
 
-  test('Save sends the words, then the liquidity as a whole amount for this proposal', async () => {
+  test('Save sends the words, then the liquidity per book for this proposal', async () => {
     const { container } = renderFloor();
     await openProposal(container);
     await waitFor(() => expect(head(container).querySelector('.pubws-icon-edit')).toBeTruthy());
     fireEvent.click(head(container).querySelector('.pubws-icon-edit') as HTMLElement);
     await waitFor(() => expect(document.querySelector('.jobform')).toBeTruthy());
     const form = document.querySelector('.jobform') as HTMLElement;
-    fireEvent.click([...form.querySelectorAll('button')].find(b => b.textContent === '100') as HTMLElement);
+    const each = form.querySelector('input[aria-label="Add liquidity, each book"]') as HTMLInputElement;
+    fireEvent.change(each, { target: { value: '100' } });
     fireEvent.click(form.querySelector('.ticket-go') as HTMLElement);
-    await waitFor(() => expect(api.fundProposal).toHaveBeenCalledWith('job-1', 100));
+    await waitFor(() =>
+      expect(api.fundProposal).toHaveBeenCalledWith('job-1', [{ metricId: 'rev', targetDate: '2026-10', amount: 100 }]),
+    );
     expect(api.editProposal).toHaveBeenCalledWith('job-1', {
       title: '$80: rewrite the store page',
       description: 'A better store page.',

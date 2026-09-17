@@ -50,8 +50,9 @@ paid no subsidy has left you nothing to read.
 
 You can fund it yourself. `POST /api/predictions/markets/liquidity/bulk
 { amount, proposalId }` puts `amount` credits into **each** branch under that
-proposal, so the bill is `amount` times the number of markets; `{ budget, proposalId }`
-names the whole bill instead and splits it evenly, rounded down. Funding every
+proposal, so the bill is `amount` times the number of markets; `{ proposalId, liquidity:
+[{ metricId, targetDate, amount }] }` funds chosen books instead, `amount` into
+each open side of that metric and date. Both spend liquidity credits first. Funding every
 market on the floor, or someone else's proposal, needs `manage`; a proposer may
 fund their own pending proposal with `trade` alone. `POST /api/predictions/markets/:id/liquidity { amount }` funds one
 market and needs only `trade`, so a trader who wants a readable price can deepen

@@ -1112,30 +1112,37 @@ counting:
   default). Opened, it holds two label fields and an "add option" control
   up to six; a label empties an option, and fewer than two filled labels
   post a two-branch proposal. Ids are the labels lowercased and hyphenated,
-  deduplicated with a number. Under "Decided within" sits "Your liquidity",
-  in the same chips: `none` (preselected, because posting is free), 100,
-  500, 2,000 and custom. The number is the WHOLE amount in credits
-  (`liquidityBudget`), which the server splits evenly across the markets the
-  proposal spawns, so the form never shows a per-market figure or a market
-  count. One sentence under the chips says where it goes and that the owner
-  buys it back on approval, with what the viewer holds. A number above what
-  they hold (liquidity wallet plus balance) disables the confirm and names
-  what they hold; an unknown balance leaves the check to the server. With a
-  seed the confirm's sub-line says only "Puts N cr of yours in its markets.",
-  one short line, in place of the "Free to post" sentence. The sentence under
-  the chips is prose in the body face, left-aligned, never the mono caption.
+  deduplicated with a number. **Liquidity is the form's
+  other money, so it sits beside the price** in the same big numeral: "Your
+  liquidity, each book", empty because posting is free. A number there goes
+  into each side of every book the proposal will be priced on. Under the
+  head a quiet link, "set per date", opens a grid (dates down, metrics
+  across) already filled with that number, one field per book; once the
+  books differ the big numeral shows "mixed" rather than a wrong number.
+  Each field carries what the floor already adds to that book ("+3,000
+  floor") and nothing where it adds nothing. Only books the proposal will be
+  priced on are offered: a metric proposals are not priced on, or a date
+  whose period ends before the window picked under "Decided within", has no
+  field and is never sent. The bill is said as mono facts, never a sentence:
+  the drop with the whole amount (every side of every book), then the two
+  purses in the order they are spent, "liquidity 300 → 0" and "trading 4,010
+  → 3,510". A bill above both purses disables the confirm, whose sub-line
+  then says what the viewer holds; unknown purses leave the check to the
+  server. With a number the confirm's sub-line says only "Puts N cr of yours
+  in its markets.", one short line, in place of the "Free to post" sentence.
+  It sends `liquidity: [{ metricId, targetDate, amount }]`, books at zero
+  left out.
 - **Editing one** is the same form (the pencil on the proposal's page, for
   its proposer or a manager, while it is pending), opened with the price,
   the title and the pitch filled in and "Save" on the confirm. What cannot
   change is not offered: there is no Options row, and "Decided within" is one
   read-only line with the deadline, because nothing moves a deadline. The
-  liquidity row reads "Add liquidity" with the same chips, `none`
-  preselected, and its sentence says what the proposal's markets hold now;
-  a number is a whole amount ADDED to them (`budget` on the bulk route),
-  never a new total, because liquidity does not come out. Saving sends the
-  words first and the liquidity second; if the second is refused the form
-  stays open, says so, and the words are already saved. There is no inline
-  editor on the page any more.
+  numeral reads "Add liquidity, each book"; its numbers are amounts ADDED,
+  never new totals, because liquidity does not come out, and each field of
+  the grid says what that book holds now. Saving sends the words first and
+  the liquidity second (the bulk route's `liquidity` list); if the second is
+  refused the form stays open, says so, and the words are already saved.
+  There is no inline editor on the page any more.
 
 ### A proposal ships every pair of the grid, and the board reads the pair on screen
 

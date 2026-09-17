@@ -58,12 +58,18 @@ is a cost the owner is really paying.
 Here is the part worth planning for: with no subsidy those markets open with no
 liquidity, which means no price, which means nothing to read. `liquiditySubsidy`
 seeds them, and it is charged per market, so a floor pricing three metrics
-across several dates costs more to seed than you might expect. `liquidityBudget`
-says the same thing as one number: the whole amount you are willing to spend,
-split evenly across every market the proposal spawns and never exceeded. Name
-one or the other, not both. The form on the floor asks for the budget ("Your
-liquidity"). Where the owner chose to open proposals with credits of their
-own, yours are added on top of theirs. Owners often
+across several dates costs more to seed than you might expect. To choose
+per book instead, pass `liquidity: [{ metricId, targetDate, amount }]`:
+`amount` credits go into EACH branch book of that metric and date, and nothing
+goes anywhere else, so you can fund only the date your argument is about. Name
+`liquidity` or `liquiditySubsidy`, not both. A book the proposal will not be
+priced on (no open market there, or a date that settles before your deadline)
+is a 400 that names it, and nothing is created. Either way you pay from your
+liquidity credits first and your trading credits second, and whatever comes out
+of your trading credits counts against your profit until it comes back
+(docs/seasons.md). The form on the floor asks for one number, "each book",
+beside your price, and "set per date" opens the books one by one. Where the
+owner chose to open proposals with credits of their own, yours are added on top of theirs. Owners often
 fund promising proposals themselves. A proposal nobody can price is a proposal
 nobody can approve.
 
@@ -76,13 +82,13 @@ nobody has to wonder whether the goalposts moved. Changing the ask re-anchors
 the markets only while nobody has traded them.
 
 You can also deepen your own proposal while it is pending: `POST
-/api/predictions/markets/liquidity/bulk { budget, proposalId }` splits `budget`
-credits evenly across its open markets, out of your balance, rounded down so it
-never costs more than you named (`amount` is the per-market form). It is
-recorded on the proposal like a seed paid at posting: re-seeded when dates roll,
-bought back on approval. Liquidity goes in and does not come out before then.
+/api/predictions/markets/liquidity/bulk { proposalId, liquidity: [{ metricId,
+targetDate, amount }] }` adds `amount` to each open side of that book, the same
+list posting takes (`{ proposalId, amount }` is the one-number form). It is paid
+the same way, liquidity credits first, and recorded on the proposal per book
+like a seed paid at posting: re-seeded when dates roll, bought back on approval. Liquidity goes in and does not come out before then.
 The pencil on your proposal's page opens the posting form again with all of
-this in it: the words, the price, and "Add liquidity".
+this in it: the words, the price, and "Add liquidity, each book".
 
 `POST /api/proposals/:id/withdraw` pulls it. Both branches void and everyone is
 refunded.

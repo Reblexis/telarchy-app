@@ -5,7 +5,7 @@ import { horizonLabel } from '../lib/floor-horizons';
 import { isPricedOption, optionLead, pairPool } from '../lib/proposal-options';
 import { countdownTo, instantOf, tickIntervalFor } from '../lib/viewer-time';
 import { BotMark } from './BotMark';
-import { ProposalForm } from './ProposalForm';
+import { type LiquidityCell, type ProposalBook, ProposalForm } from './ProposalForm';
 
 /**
  * The jobs board: the proposal side of the trading floor, rendered for
@@ -65,15 +65,17 @@ interface Props {
     options?: Array<{ id: string; label: string }>,
     /** The proposer's own liquidity, the whole amount in credits; present
      *  only when they picked one. */
-    liquidityBudget?: number,
+    liquidity?: LiquidityCell[],
   ) => Promise<void>;
   /** The floor's own decision window in minutes, the preselected preset on
    *  the form (docs/guides/proposals.md, "The deadline, and the close"). */
   decisionMinutes?: number;
-  /** What the viewer can put into a pool (liquidity wallet plus balance), so
-   *  the form refuses a seed they cannot pay. Null when unknown: the server
-   *  decides then. */
-  spendable?: number | null;
+  /** The viewer's two purses, so the form refuses a bill they cannot pay and
+   *  shows liquidity credits spent first. Null when unknown. */
+  liquidityCredits?: number | null;
+  tradingCredits?: number | null;
+  /** The books this floor prices, for the form's per-date liquidity. */
+  books?: ProposalBook[];
   /** Whether this viewer is offered the propose line at all; false on a floor
    *  closed to outside proposals for anyone without manage (see
    *  `proposingOffered`). Absent means true. */
@@ -211,7 +213,7 @@ export const ClockGlyph = () => (
  * own default is preselected and named as such; custom takes a number and a
  * unit and nothing else.
  */
-export { metricsPhrase, SEED_PRESETS, WINDOW_PRESETS, windowLabel } from './ProposalForm';
+export { metricsPhrase, WINDOW_PRESETS, windowLabel } from './ProposalForm';
 /** The row's countdown lives in lib/viewer-time; re-exported for the page. */
 export { countdownTo };
 
@@ -352,7 +354,9 @@ export function JobsBoard({
   horizonMetricId,
   viewerId = null,
   decisionMinutes = 1440,
-  spendable = null,
+  liquidityCredits = null,
+  tradingCredits = null,
+  books = [],
 }: Props) {
   const navigate = useNavigate();
   // The number the charter funds on, falling back to the largest priced delta
@@ -868,7 +872,9 @@ export function JobsBoard({
           metricNames={metricNames}
           proposalReward={proposalReward}
           decisionMinutes={decisionMinutes}
-          spendable={spendable}
+          liquidityCredits={liquidityCredits}
+          tradingCredits={tradingCredits}
+          books={books}
           onPropose={onPropose}
         />
       )}

@@ -3,8 +3,8 @@
  * "Editing one"): same fields, filled in, and what cannot change is not
  * offered.
  *
- * THE RULES: nothing moves a deadline, so the form offers no window; and
- * liquidity only goes IN, so the number is an amount added, never a total.
+ * THE RULE: nothing moves a deadline, so the form offers no window. What
+ * editing does to liquidity is in ProposalFormLiquidity.test.tsx.
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -20,7 +20,6 @@ const edit = {
   title: 'rewrite the store page',
   description: 'A better store page.',
   decideBy: new Date(Date.now() + 36 * 3600_000).toISOString(),
-  pool: 6000,
 };
 const base = {
   onClose: () => {},
@@ -28,12 +27,23 @@ const base = {
   metricNames: ['Revenue'],
   proposalReward: 500,
   decisionMinutes: 1440,
-  spendable: 4000,
+  liquidityCredits: 0,
+  tradingCredits: 4000,
+  books: [
+    {
+      metricId: 'rev',
+      metricLabel: 'Revenue',
+      targetDate: '2030-09',
+      dateLabel: '30 Sep',
+      opensWith: 0,
+      holds: 6000,
+      sides: 2,
+    },
+  ],
 };
 const renderEdit = (props: Record<string, unknown> = {}) =>
   render(<ProposalForm {...base} edit={edit} onSave={async () => {}} {...(props as object)} />);
 const go = () => document.querySelector('.ticket-go') as HTMLButtonElement;
-const chip = (name: string) => screen.getByRole('button', { name });
 
 afterEach(() => vi.clearAllMocks());
 
@@ -87,37 +97,6 @@ describe('nothing moves a deadline, so the form offers no window', () => {
   });
 });
 
-describe('liquidity only goes in: the number is an amount added, never a total', () => {
-  test('the row reads "Add liquidity", none is preselected, and it says what the markets hold now', () => {
-    renderEdit();
-    const row = screen.getByLabelText('Add liquidity');
-    expect(chip('none').getAttribute('aria-pressed')).toBe('true');
-    expect(row.parentElement?.textContent).toMatch(/6,000\s*cr/);
-  });
-
-  test('picking 500 sends 500 as the amount to add and the confirm says so', async () => {
-    const onSave = vi.fn(async () => {});
-    renderEdit({ onSave });
-    fireEvent.click(chip('500'));
-    expect(go().textContent).toMatch(/Adds 500\s*cr/);
-    fireEvent.click(go());
-    await waitFor(() => expect(onSave).toHaveBeenCalled());
-    expect(onSave.mock.calls[0][1]).toBe(500);
-  });
-
-  test('more than they hold disables Save and names what they hold', () => {
-    renderEdit({ spendable: 300 });
-    fireEvent.click(chip('500'));
-    expect(go().disabled).toBe(true);
-    expect(screen.getByText(/You hold 300 cr/)).toBeTruthy();
-  });
-
-  test('a proposal with no liquidity yet says so instead of a zero', () => {
-    renderEdit({ edit: { ...edit, pool: 0 } });
-    expect(screen.getByLabelText('Add liquidity').parentElement?.textContent).toMatch(/hold nothing yet/i);
-  });
-});
-
 describe('an edit never asks for payout details again', () => {
   test('a paid proposal saves on an account with no payout handle: it was snapshotted at posting', async () => {
     const { api } = await import('../../lib/api');
@@ -133,7 +112,7 @@ describe('a refused save stays open and says why', () => {
   test('the error is shown and the form does not close', async () => {
     const onClose = vi.fn();
     renderEdit({ onClose, onSave: vi.fn(async () => Promise.reject(new Error('Insufficient balance: need 500'))) });
-    fireEvent.click(chip('500'));
+    fireEvent.change(screen.getByLabelText(/each book/i), { target: { value: '500' } });
     fireEvent.click(go());
     await waitFor(() => expect(screen.getByText(/Insufficient balance/)).toBeTruthy());
     expect(onClose).not.toHaveBeenCalled();
