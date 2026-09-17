@@ -100,6 +100,7 @@ Needs the `manage` capability. Every field and its default:
 | `timePreference` | `{ enabled: true, halfLife: 1 }` | Which future dates get markets. Pass `null` for no curve. See [time preference](/guides/time-preference). |
 | `resetsEvery` | `null` | `hour`, `day`, `week`, `month` or `year` when the number restarts each period. Null when it accumulates or is a level. |
 | `resolvesNaUntilMeasured` | `false` | When true, markets void as N/A while the metric has no reading rather than settling on 0. |
+| `opensAt` | `null` | Where this metric's untraded books open, in place of the current reading. For a number that has no running reading, like a game's score. Inside the range; leaf metrics only. |
 | `order` | 999 | Display order. Not settable here; use `POST /api/metrics/reorder` with an array of ids. |
 
 There is no `target`, no `granularity` and no `unit` field. Granularity is

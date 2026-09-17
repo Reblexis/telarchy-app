@@ -960,6 +960,13 @@
       "when": 1789656845442,
       "tag": "0136_bot_id_is_nickname",
       "breakpoints": true
+    },
+    {
+      "idx": 137,
+      "version": "7",
+      "when": 1789678519100,
+      "tag": "0137_metric_opens_at",
+      "breakpoints": true
     }
   ]
 }

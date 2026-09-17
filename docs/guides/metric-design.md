@@ -118,8 +118,9 @@ recurring one behind it.
 
 ## What a metric actually has
 
-Nine fields, and no others: `name`, `description`, `value`, `formula`, `order`,
-`timePreference`, `marketRangeMax`, `resetsEvery`, `resolvesNaUntilMeasured`.
+Ten fields, and no others: `name`, `description`, `value`, `formula`, `order`,
+`timePreference`, `marketRangeMax`, `resetsEvery`, `resolvesNaUntilMeasured`,
+`opensAt`.
 There is no `target`, no `granularity` and no `unit`. What each one does is in
 [open a floor](/guides/creating); how values reach `value` is in
 [keeping the number true](/guides/sources).

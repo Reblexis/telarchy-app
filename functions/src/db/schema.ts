@@ -580,6 +580,14 @@ export const metrics = pgTable(
      */
     resolvesNaUntilMeasured: boolean('resolves_na_until_measured').notNull().default(false),
     /**
+     * Where this metric's books open when the owner says so
+     * (docs/ui-conventions.md, "Where markets open"): it replaces the reading
+     * as the opening price of an untraded baseline book, and nothing else. For
+     * a number with no running reading, e.g. a game's score, whose "current
+     * value" between games is the last game's result. NULL is the reading.
+     */
+    opensAt: doublePrecision('opens_at'),
+    /**
      * Credits a new market on this metric opens with (docs/owner-on-the-floor.md).
      * NULL falls back to the workspace's `newMarketLiquidityCredits`, which is
      * what every metric did before the owner could say otherwise. Credits, not

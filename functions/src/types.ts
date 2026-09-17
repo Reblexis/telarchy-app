@@ -44,6 +44,8 @@ export interface Metric {
   marketRangeMax?: number;
   /** Markets void (N/A) while the metric has no logged reading; see schema. */
   resolvesNaUntilMeasured?: boolean;
+  /** Where the owner says this metric's books open; null is the reading. */
+  opensAt?: number | null;
   /** How long after a period the number is final, in minutes (docs/guides/sources.md). */
   settlementLagMinutes?: number;
   /** Credits a new book on this metric opens with; null means the workspace default. */

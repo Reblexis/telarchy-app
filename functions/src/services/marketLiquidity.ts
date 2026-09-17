@@ -279,12 +279,15 @@ export async function anchorUntradedMarketTx(
     );
     if (anchorP === null) {
       const [metric] = await tx
-        .select({ value: metrics.value })
+        .select({ value: metrics.value, opensAt: metrics.opensAt })
         .from(metrics)
         .where(and(eq(metrics.id, market.metricId), eq(metrics.workspaceId, params.workspaceId)));
+      // The owner's named opening value replaces the reading, and only the
+      // reading: a traded sibling was tried first, a branch never gets here
+      // (docs/ui-conventions.md, "Where markets open").
       anchorP = openingAnchorP(
         market.targetDate,
-        metric?.value,
+        metric?.opensAt ?? metric?.value,
         market.rangeMax,
         params.now ?? new Date(),
         market.rangeMin,
