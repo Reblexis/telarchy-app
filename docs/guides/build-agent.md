@@ -131,7 +131,7 @@ Choose a provider with a compatible chat-completions endpoint:
 export LLM_BASE_URL=https://your-provider.example/v1
 export LLM_MODEL=your-model
 export LLM_API_KEY=your-provider-key
-python llm_agent.py --max-model-calls 5 --max-tokens 2000 --model-timeout 60
+.venv/bin/python llm_agent.py --max-model-calls 5 --max-tokens 2000 --model-timeout 60
 ```
 
 Replace these provider placeholders with your settings. A local provider that
@@ -149,7 +149,7 @@ The deterministic execution loop still validates the forecast, requests a
 quote, and applies credit limits. Both starters use the same flags:
 
 ```bash
-python llm_agent.py --budget-per-trade 1 --cycle-budget 5
+.venv/bin/python llm_agent.py --budget-per-trade 1 --cycle-budget 5
 ```
 
 A dry run spends no trading credits, but it can incur inference charges.
@@ -204,11 +204,26 @@ membership. API scopes and workspace permissions both apply. Store keys outside
 source control and never put them in model prompts.
 
 ```bash
-.venv/bin/python agent.py --login   # paste the key once; it is checked, then saved
-.venv/bin/python agent.py           # preview again, now with real fills
-# Inspect the forecasts and quotes, then deliberately enable execution:
+.venv/bin/python agent.py --login
+```
+
+Run that on its own and paste the key when it asks; it is checked, then saved.
+Then preview again, now with estimated prices for each trade:
+
+```bash
+.venv/bin/python agent.py
+```
+
+Inspect the forecasts and quotes, then deliberately enable execution:
+
+```bash
 .venv/bin/python agent.py --live
-.venv/bin/python agent.py --live --every 30   # one cycle every 30 minutes
+```
+
+To keep it trading, one cycle every 30 minutes until Ctrl+C:
+
+```bash
+.venv/bin/python agent.py --live --every 30
 ```
 
 `--login` reads the key with a hidden prompt, verifies it, and saves it to
@@ -231,7 +246,7 @@ call with a newly generated key represents another trade.
 
 ## Evaluate before increasing spend
 
-Run `python -m unittest discover -v` in the reference repository. These tests
+Run `.venv/bin/python -m unittest discover -v` in the reference repository. These tests
 use local HTTP stubs; they verify execution behavior, not forecast quality.
 Add tests for your strategy before changing its implementation: ordinary
 inputs, missing history, no edge, invalid outputs, and the abstention rule.

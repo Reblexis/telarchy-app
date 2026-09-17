@@ -8,13 +8,16 @@ import surface from '../reference-agent-surface.json';
 /** `python <file>.py --flag ...` and `-r <file>` uses in a block of shell text. */
 function uses(text: string) {
   const out: { file: string; flag?: string }[] = [];
-  for (const line of text.split('\n')) {
+  for (const raw of text.replace(/\\\n/g, ' ').split('\n')) {
+    // Drop a trailing comment, but not a # inside quotes.
+    const line = raw.replace(/("[^"]*"|'[^']*')|#.*$/g, (m, quoted) => quoted ?? '');
     const req = line.match(/-r (\S+)/);
     if (req) out.push({ file: req[1] });
-    const run = line.match(/\s(\w+\.py)\b(.*)$/);
+    const run = line.match(/\s(?:\.[\\/])?(\w+\.py)\b(.*)$/);
     if (!run) continue;
     out.push({ file: run[1] });
-    for (const flag of run[2].replace(/#.*$/, '').match(/--[a-z][a-z0-9-]*/g) ?? []) out.push({ file: run[1], flag });
+    const unquoted = run[2].replace(/"[^"]*"|'[^']*'/g, '');
+    for (const flag of unquoted.match(/--[a-z][a-z0-9-]*/g) ?? []) out.push({ file: run[1], flag });
   }
   return out;
 }
@@ -46,6 +49,19 @@ test('every file and flag the build guide names exists in the reference agent', 
 test('a command the agent does not offer is caught', () => {
   expect(() => expectOffered('.venv/bin/python agent.py --no-such-flag', 'x')).toThrow(/--no-such-flag/);
   expect(() => expectOffered('pip install -r missing.txt', 'x')).toThrow(/missing.txt/);
+});
+
+test('the extractor sees continuation lines, ./paths and a # inside a quoted workspace', () => {
+  expect(() => expectOffered('python agent.py \\\n  --no-such-flag', 'x')).toThrow(/--no-such-flag/);
+  expect(() => expectOffered('python ./missing.py', 'x')).toThrow(/missing.py/);
+  expect(() => expectOffered(".venv/bin/python agent.py --workspace 'a #b' --no-such-flag", 'x')).toThrow(
+    /--no-such-flag/,
+  );
+  expect(() => expectOffered('.venv/bin/python agent.py --live # --not-a-flag, a comment', 'x')).not.toThrow();
+});
+
+test('a commented-out argparse line offers nothing', () => {
+  expect(flagsOf('# ap.add_argument("--gone")\nap.add_argument("--live")')).toEqual(['--live']);
 });
 
 test('flags are read from argparse, and llm_agent.py inherits agent.py flags', () => {

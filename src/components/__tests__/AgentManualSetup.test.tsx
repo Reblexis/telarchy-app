@@ -46,12 +46,14 @@ test('research mode never offers live commands; trading requires opening a separ
     </MemoryRouter>,
   );
   expect(screen.getByText(/public Telarchy workspace/)).toBeVisible();
+  expect(screen.getByText(/you can stop here/)).toBeVisible();
   expect(screen.queryByText(/--live/)).toBeNull();
   view.rerender(
     <MemoryRouter>
       <AgentManualSetup workspace="" access="trade" identity="me" connectionForm={<p>Connection form</p>} />
     </MemoryRouter>,
   );
+  expect(screen.queryByText(/you can stop here/)).toBeNull();
   expect(screen.getAllByText(/--live/)[0]).not.toBeVisible();
   fireEvent.click(screen.getByText('After the preview: trade for real'));
   expect(screen.getAllByText(/--live/)[0]).toBeVisible();

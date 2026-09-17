@@ -37,6 +37,7 @@
     "typecheck": "tsc -b && npm --prefix functions run build",
     "build:beta": "BASE_PATH=/beta/ VITE_API_URL=/beta vite build --outDir dist-beta",
     "lint": "biome check .",
+    "check:reference-agent": "node scripts/check-reference-agent-commands.mjs",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "format:check": "biome format .",

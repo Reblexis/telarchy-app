@@ -96,6 +96,9 @@ export function AgentManualSetup({
         <p className="manual-note">
           You’ll see candidate forecasts, or a message that there are no trades to suggest. Both are valid previews.
         </p>
+        {access === 'read' && (
+          <p className="manual-note">For public research you can stop here. The next steps are for trading.</p>
+        )}
       </section>
       {!connected && (
         <section className="manual-step">
@@ -120,7 +123,7 @@ export function AgentManualSetup({
         </p>
         <Commands label="Copy connect command" text={commands.login} />
         {connected && connectionForm}
-        <p>Preview again. With a key it shows the real price of each trade. Still nothing is spent.</p>
+        <p>Preview again. With a key it shows the estimated price of each trade. Still nothing is spent.</p>
         <Commands label="Copy preview command" text={commands.connected} />
         {access !== 'read' && (
           <details className="manual-live">

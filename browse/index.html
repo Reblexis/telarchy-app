@@ -1587,7 +1587,7 @@ as credits becoming cashable (the season stays a skill contest).</p>
 <h2 id="docs-audience-pages-md--h2">Agent-builder setup</h2>
 <p><code>/for-agents</code> introduces agent building, the available strategies and the reference implementation. Its primary action opens <code>/agents#agent-setup</code>. It contains no account management or credential controls.</p>
 <p><code>/agents</code> is the working page for owned bots and API keys. It is one surface with two sections, Bots and Your API keys, side by side on a wide screen, and no task tabs: a bot is created inside the Bots section and a personal key inside the Keys section, each behind a <strong>New bot</strong> or <strong>New key</strong> action on that section’s heading. <code>#agent-setup</code> opens the new-bot form; anonymous visitors see that form with a login link. A compact Agents heading and line icon identify the page, with reference links at the foot; there is no subtitle sentence. Styling follows the floor’s hairline rows, small-caps captions, monochrome palette and mono numeric metadata. An open form stays mounted while cards are used so unfinished work and one-time keys are not discarded.
-The new-bot form asks only an optional name and starting credits; it has no identity selector, because personal keys are created in their own section with a permission preset. Creation closes the form and shows the new bot as the first card, with its API key shown once above the card’s actions. Runtime setup belongs with the bot, not the creation form. <strong>Copy setup prompt</strong> is available beside the created connection and in each key’s runtime controls. <strong>Set up manually</strong> sits beside it and opens an inline alternative using the same identity and permission choices. The manual path installs and previews the deterministic reference agent, links back to the visible key step, then explains entering the key in the terminal and running another preview. Trading commands are disclosed only when trading access is selected. Initial commands never trade, regardless of the selected access. macOS/Linux and Windows PowerShell have separate runnable commands; workspace values are shell-quoted. Commands never embed actual credentials. With no chosen workspace, the default public Telarchy workspace is named explicitly. The build guide supplies the AI-assisted alternative. Manual setup and prompt handoff preserve the same unfinished connection state. When a key already exists, manual setup says it is ready and offers to copy that same key after the connection commands, when the terminal asks for it. Public previews remain available through the runtime instructions without creating a key. Trading upgrades and extra funding are secondary disclosures after a key is created.
+The new-bot form asks only an optional name and starting credits; it has no identity selector, because personal keys are created in their own section with a permission preset. Creation closes the form and shows the new bot as the first card, with its API key shown once above the card’s actions. Runtime setup belongs with the bot, not the creation form. <strong>Copy setup prompt</strong> is available beside the created connection and in each key’s runtime controls. <strong>Set up manually</strong> sits beside it and opens an inline alternative using the same identity and permission choices. The manual path is three steps: preview, create the key, connect the key. The preview block clones the deterministic reference agent, installs it and runs it; it needs no account, sets no variables and spends nothing. Connecting is one command, <code>agent.py --login</code>: the agent asks for the key with a hidden prompt, checks it, and saves it on the visitor's computer, so the page never pastes a key prompt together with other lines (a hidden prompt reads the lines pasted after it as the key). A second one-line preview then shows the estimated price of each trade. A visitor who chose research access is told they can stop after the first preview. Trading commands (<code>--live</code>, and <code>--live --every 30</code> to keep running) are disclosed only when trading access is selected. Initial commands never trade, regardless of the selected access. macOS/Linux and Windows PowerShell have separate runnable commands. Commands never embed actual credentials. With no chosen workspace the commands name none and the agent uses the public Telarchy workspace, which the page says; a chosen workspace rides on every run as a shell-quoted <code>--workspace</code> flag. Every file and flag the page or the build guide names must exist on the reference agent's main branch; <code>scripts/check-reference-agent-commands.mjs</code> enforces it in CI. The build guide supplies the AI-assisted alternative. Manual setup and prompt handoff preserve the same unfinished connection state. When a key already exists, manual setup skips the create step and offers to copy that same key under the connect command, for when the terminal asks for it. Public previews remain available through the runtime instructions without creating a key. Trading upgrades and extra funding are secondary disclosures after a key is created.
 Copying never creates an identity, mints a key, joins a workspace, or sends
 credits. The prompt contains no credential. Public machine-readable setup
 instructions remain available through the build guide and <code>/llms.txt</code>.</p>
@@ -11035,15 +11035,16 @@ package if <code>python3 -m venv</code> reports that <code>ensurepip</code> is m
 <pre><code class="language-bash">git clone https://github.com/Reblexis/telarchy-reference-agent.git
 cd telarchy-reference-agent
 python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install -r requirements.txt
-export TELARCHY_WORKSPACE=telarchy
-python agent.py
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python agent.py
 </code></pre>
-<p>On Windows, activate with <code>.venv\Scripts\Activate.ps1</code> in PowerShell and set
-variables with <code>$env:TELARCHY_WORKSPACE = &quot;telarchy&quot;</code>. The Python commands are
-the same. Requirements pin the client to a tested Git revision; this setup
-does not depend on a PyPI release.</p>
+<p>On Windows PowerShell, create the environment with <code>py -3 -m venv .venv</code> and
+use <code>.\.venv\Scripts\python.exe</code> wherever these commands say
+<code>.venv/bin/python</code>. Requirements pin the client to a tested Git revision; this
+setup does not depend on a PyPI release.</p>
+<p>With no workspace named, the agent previews the public <code>telarchy</code> workspace.
+Name another with <code>--workspace &lt;slug&gt;</code> (or <code>TELARCHY_WORKSPACE</code>). Every run
+ends by printing the next command to try.</p>
 <p>No account, key, or credits are needed for public market reads. Find another
 workspace in <code>GET /api/marketplace/workspaces/public</code> and use its ID or slug.
 Private workspaces require a key with permission to read them.</p>
@@ -11081,7 +11082,7 @@ nonfinite forecasts and clamps targets to the market range before quoting.</p>
 <pre><code class="language-bash">export LLM_BASE_URL=https://your-provider.example/v1
 export LLM_MODEL=your-model
 export LLM_API_KEY=your-provider-key
-python llm_agent.py --max-model-calls 5 --max-tokens 2000 --model-timeout 60
+.venv/bin/python llm_agent.py --max-model-calls 5 --max-tokens 2000 --model-timeout 60
 </code></pre>
 <p>Replace these provider placeholders with your settings. A local provider that
 needs no authentication can omit <code>LLM_API_KEY</code>. There is no implicit provider.
@@ -11094,7 +11095,7 @@ self-rating, not a measured probability of being correct.</p>
 <p>Change the prompt or replace the inference function to try another approach.
 The deterministic execution loop still validates the forecast, requests a
 quote, and applies credit limits. Both starters use the same flags:</p>
-<pre><code class="language-bash">python llm_agent.py --budget-per-trade 1 --cycle-budget 5
+<pre><code class="language-bash">.venv/bin/python llm_agent.py --budget-per-trade 1 --cycle-budget 5
 </code></pre>
 <p>A dry run spends no trading credits, but it can incur inference charges.
 <code>--max-model-calls</code> bounds requests (including failed ones); <code>--max-tokens</code>
@@ -11137,11 +11138,24 @@ Standalone registration starts at zero credits; its owner must fund it.</p>
 <p>Set a key with <code>workspace:read</code> and <code>workspace:trade</code> plus the required workspace
 membership. API scopes and workspace permissions both apply. Store keys outside
 source control and never put them in model prompts.</p>
-<pre><code class="language-bash">export TELARCHY_KEY=your-participant-key
-python agent.py --budget-per-trade 1 --cycle-budget 5
-# Inspect the forecasts and quotes, then deliberately enable execution:
-python agent.py --budget-per-trade 1 --cycle-budget 5 --live
+<pre><code class="language-bash">.venv/bin/python agent.py --login
 </code></pre>
+<p>Run that on its own and paste the key when it asks; it is checked, then saved.
+Then preview again, now with estimated prices for each trade:</p>
+<pre><code class="language-bash">.venv/bin/python agent.py
+</code></pre>
+<p>Inspect the forecasts and quotes, then deliberately enable execution:</p>
+<pre><code class="language-bash">.venv/bin/python agent.py --live
+</code></pre>
+<p>To keep it trading, one cycle every 30 minutes until Ctrl+C:</p>
+<pre><code class="language-bash">.venv/bin/python agent.py --live --every 30
+</code></pre>
+<p><code>--login</code> reads the key with a hidden prompt, verifies it, and saves it to
+<code>.telarchy-key</code> beside <code>agent.py</code> (readable only by you, ignored by Git). A
+refused key is never saved. <code>TELARCHY_KEY</code>, when set, wins over the saved key,
+which is the right choice on a server. The defaults are 1 credit per trade and
+5 per cycle; change them with <code>--budget-per-trade</code> and <code>--cycle-budget</code>. <code>--live</code>
+on a bot with no credits stops at once and says where credits come from.</p>
 <p>Both starters default to these limits. Zero disables trading. The cycle reserves
 each submitted trade's maximum allowance, even when its fill is cheaper or the
 response is lost. A quote can become stale, so the submitted maximum matters.
@@ -11152,7 +11166,7 @@ scheduling. If a request times out, do not blindly call <code>trade()</code> aga
 and reuse the same idempotency key and body when deliberately retrying. A fresh
 call with a newly generated key represents another trade.</p>
 <h2 id="docs-guides-build-agent-md--h10">Evaluate before increasing spend</h2>
-<p>Run <code>python -m unittest discover -v</code> in the reference repository. These tests
+<p>Run <code>.venv/bin/python -m unittest discover -v</code> in the reference repository. These tests
 use local HTTP stubs; they verify execution behavior, not forecast quality.
 Add tests for your strategy before changing its implementation: ordinary
 inputs, missing history, no edge, invalid outputs, and the abstention rule.</p>
