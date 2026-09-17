@@ -198,7 +198,7 @@ test('personal keys retain runtime instructions with their actual trading access
   );
   fireEvent.click(await screen.findByRole('button', { name: 'Run Production' }));
   fireEvent.click(screen.getByRole('button', { name: 'Set up manually' }));
-  expect(screen.getByText('After the preview: allow live trading')).toBeVisible();
+  expect(screen.getByText('After the preview: trade for real')).toBeVisible();
   const prompt = (screen.getByLabelText('Setup prompt') as HTMLTextAreaElement).value;
   expect(prompt).toContain('"human-id"');
   expect(prompt).toContain('my own account');

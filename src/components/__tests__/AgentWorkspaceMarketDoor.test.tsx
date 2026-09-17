@@ -136,7 +136,7 @@ describe('a bot created from a market lives in that market', () => {
     expect(prompt.value).not.toContain('actual-secret-key');
     fireEvent.click(screen.getByRole('button', { name: 'Set up manually' }));
     expect(screen.getByRole('region', { name: 'Manual setup' }).textContent).toContain(
-      "export TELARCHY_WORKSPACE='lookpilot'",
+      "agent.py --workspace 'lookpilot'",
     );
   });
 });

@@ -3,27 +3,30 @@ import { Link } from 'react-router-dom';
 import type { BuilderOptions } from '../lib/agent-builder';
 
 type Terminal = 'unix' | 'windows';
-/** Quote workspace context as shell data, never interpolate it as a command. */
+/**
+ * The commands a newcomer pastes, in the order they paste them. The agent
+ * defaults to the public floor and asks for the key itself (`--login`), so no
+ * block sets a variable or holds a secret, and every block after the first is
+ * one line. Workspace context is quoted as shell data, never interpolated.
+ * `scripts/check-reference-agent-commands.mjs` holds these against the
+ * reference agent's main branch.
+ */
 export function manualCommands(os: Terminal, workspace: string) {
-  const selected = workspace || 'telarchy';
-  const quote = os === 'windows' ? `'${selected.replace(/'/g, "''")}'` : `'${selected.replace(/'/g, "'\\''")}'`;
+  const quote = os === 'windows' ? `'${workspace.replace(/'/g, "''")}'` : `'${workspace.replace(/'/g, "'\\''")}'`;
   const python = os === 'windows' ? '.\\.venv\\Scripts\\python.exe' : '.venv/bin/python';
-  const setWorkspace = os === 'windows' ? `$env:TELARCHY_WORKSPACE = ${quote}` : `export TELARCHY_WORKSPACE=${quote}`;
-  const enterKey =
-    os === 'windows'
-      ? `$env:TELARCHY_KEY = [System.Net.NetworkCredential]::new('', (Read-Host 'Telarchy API key' -AsSecureString)).Password`
-      : `export TELARCHY_KEY="$(${python} -c 'import getpass; print(getpass.getpass("Telarchy API key: "))')"`;
+  const run = `${python} agent.py${workspace ? ` --workspace ${quote}` : ''}`;
   return {
     preview: [
       'git clone https://github.com/Reblexis/telarchy-reference-agent.git',
       'cd telarchy-reference-agent',
       `${os === 'windows' ? 'py -3' : 'python3'} -m venv .venv`,
       `${python} -m pip install -r requirements.txt`,
-      setWorkspace,
-      `${python} agent.py`,
+      run,
     ].join('\n'),
-    connected: [enterKey, setWorkspace, `${python} agent.py`].join('\n'),
-    live: `${python} agent.py --budget-per-trade 1 --cycle-budget 5 --live`,
+    login: `${python} agent.py --login`,
+    connected: run,
+    live: `${run} --live`,
+    keepRunning: `${run} --live --every 30`,
   };
 }
 
@@ -81,8 +84,8 @@ export function AgentManualSetup({
           <span>1</span> Run a preview
         </h3>
         <p>
-          Install Git and Python 3.10 or newer, then paste these commands into your terminal. This runs the
-          deterministic starter without placing trades.
+          Install Git and Python 3.10 or newer, then paste these commands into your terminal. It shows what the starter
+          bot would trade. No account needed, nothing is spent.
         </p>
         {!workspace && (
           <p className="manual-note">
@@ -97,39 +100,40 @@ export function AgentManualSetup({
       {!connected && (
         <section className="manual-step">
           <h3>
-            <span>2</span>{' '}
-            {connected ? 'Your key is ready' : `Connect ${identity === 'bot' ? 'your bot' : 'your account'}`}
+            <span>2</span> {identity === 'bot' ? 'Create your bot' : 'Create your key'}
           </h3>
           <p>
-            {connected
-              ? 'Copy your key for the terminal prompt in the next step.'
-              : access === 'read'
-                ? 'Optional for public research. Create a key when you need authenticated access.'
-                : 'Create a trading key. A separate bot needs credits before it can trade.'}
+            {access === 'read'
+              ? 'Optional for public research. Create a key when you need authenticated access.'
+              : 'Create a trading key. A separate bot needs credits before it can trade.'}
           </p>
           {connectionForm}
         </section>
       )}
       <section className="manual-step">
         <h3>
-          <span>{connected ? 2 : 3}</span> {connected ? 'Run with your key' : 'Try it with your key'}
+          <span>{connected ? 2 : 3}</span> Connect your key
         </h3>
         <p>
-          Copy and run these commands first. When the terminal asks for your key, copy it below and paste it. This
-          previews; it does not trade.
+          Run this, then paste your key when it asks. The key is checked and saved on your computer, so you do this only
+          once.
         </p>
-        <Commands label="Copy connection commands" text={commands.connected} />
+        <Commands label="Copy connect command" text={commands.login} />
         {connected && connectionForm}
+        <p>Preview again. With a key it shows the real price of each trade. Still nothing is spent.</p>
+        <Commands label="Copy preview command" text={commands.connected} />
         {access !== 'read' && (
           <details className="manual-live">
-            <summary>After the preview: allow live trading</summary>
-            <p>Review the forecast first. This run spends up to 1 credit per trade and 5 credits per cycle.</p>
+            <summary>After the preview: trade for real</summary>
+            <p>This spends up to 1 credit per trade and 5 credits per run.</p>
             <Commands label="Copy trading command" text={commands.live} />
+            <p>To keep it trading, one run every 30 minutes until you press Ctrl+C:</p>
+            <Commands label="Copy repeating command" text={commands.keepRunning} />
           </details>
         )}
       </section>
       <p className="manual-note">
-        Each command runs once. For an AI-assisted starter, your own strategy, or continuous operation, follow the{' '}
+        Every run ends by telling you the next step. For an AI-assisted starter or your own strategy, follow the{' '}
         <Link to="/guides/build-agent">build guide</Link>.
       </p>
     </section>
