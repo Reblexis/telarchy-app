@@ -224,29 +224,42 @@ describe('the stats strip', () => {
     expect(profit.querySelector('.is-up')).not.toBeNull();
   });
 
-  test('an owner reads how many bots the profit folds in and their own number (docs/seasons.md)', async () => {
+  test('AN OWNER LISTS THEIR BOTS: each with its own profit, a link to its profile, and one total', async () => {
     getPublicProfile.mockResolvedValue({
       ...base,
-      stats: {
-        ...base.stats,
-        totalEarnings: -70,
-        settledEarnings: -70,
-        openEarnings: 0,
-        ownEarnings: -1000,
-        botsCounted: 2,
-      },
+      stats: { ...base.stats, totalEarnings: 40 },
+      bots: [
+        { id: 'b1', nickname: 'tars', parentId: base.id, totalEarnings: 500, totalTrades: 12 },
+        { id: 'b2', nickname: 'case', parentId: 'b1', totalEarnings: -120, totalTrades: 3 },
+      ],
+      withBotsEarnings: 420,
     });
     renderPage();
-    const profit = await screen.findByTestId('prof-stat-profit');
-    expect(profit.textContent).toContain('incl. 2 bots');
-    expect(profit.textContent).toContain('own -1,000');
+    const section = await screen.findByRole('region', { name: 'Bots' });
+    const rows = [...section.querySelectorAll('a.prof-row')];
+    expect(rows.map(r => r.getAttribute('href'))).toEqual(['/participants/tars', '/participants/case']);
+    expect(rows[0].textContent).toContain('+500');
+    expect(rows[0].textContent).toContain('12 trades');
+    expect(rows[1].textContent).toContain('-120');
+    // A bot's bot says whose it is.
+    expect(rows[1].textContent).toContain('bot of tars');
+    expect(section.textContent).toContain('With 2 bots');
+    expect(section.textContent).toContain('+420');
+    // The strip's Profit stays the account's own.
+    expect((await screen.findByTestId('prof-stat-profit')).textContent).toContain('+40');
   });
 
-  test('a participant with no bots gets no household line', async () => {
-    getPublicProfile.mockResolvedValue({ ...base, stats: { ...base.stats, ownEarnings: 6336.66, botsCounted: 0 } });
+  test('a participant with no bots gets no Bots section', async () => {
+    getPublicProfile.mockResolvedValue({ ...base, bots: [], withBotsEarnings: null });
     renderPage();
-    const profit = await screen.findByTestId('prof-stat-profit');
-    expect(profit.textContent).not.toContain('incl.');
+    await screen.findByTestId('prof-stat-profit');
+    expect(screen.queryByRole('region', { name: 'Bots' })).toBeNull();
+  });
+
+  test('an older payload without the list draws no Bots section and does not break', async () => {
+    renderPage();
+    await screen.findByTestId('prof-stat-profit');
+    expect(screen.queryByRole('region', { name: 'Bots' })).toBeNull();
   });
 
   test('balance is the live tradeable balance, with what sits in positions', async () => {

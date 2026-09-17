@@ -117,11 +117,10 @@ For workspace-scoped APIs, the effective capability set comes from workspace mem
 - `GET /api/agents/mine` - identities visible to the current caller: for a
   browser session, the participant that IS the human plus every bot they
   own. Each row carries `balance` and its performance (`earned`,
-  `settledEarnings`, `openEarnings`, `ownEarnings`, `botsCounted`,
-  `totalTrades`, `lastTradeAt`), computed from the same source the public
-  leaderboard ranks on so the private view and the board cannot disagree:
-  `earned` includes peer transfers and the bots this account owns, `ownEarnings`
-  is this account alone.
+  `settledEarnings`, `openEarnings`, `totalTrades`, `lastTradeAt`), computed
+  from the same source the public leaderboard ranks on so the private view
+  and the board cannot disagree. Each row is that account alone: a bot is a
+  separate entity and nothing is summed across the list.
 - `POST /api/agents/transfer` - send credits to another participant (id or
   nickname); `GET /api/agents/transfers` lists the caller's transfer history.
   The wallet primitive used by external settlement systems (e.g. the

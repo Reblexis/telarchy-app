@@ -347,65 +347,6 @@ describe('the floor picker', () => {
   });
 });
 
-describe('a row can be a household (docs/seasons.md, "Your score includes the accounts you own")', () => {
-  test('an all-time owner row says how many bots it folds in, with its own number in the tooltip', async () => {
-    mockBoard([
-      trader({ id: 'o1', nickname: 'owner', totalEarnings: -70, ownEarnings: -1000, botsCounted: 2 }),
-      trader({ id: 'b1', nickname: 'bot', rank: 2, totalEarnings: 930, ownEarnings: 930, botsCounted: 0 }),
-    ]);
-    const { container } = renderPage();
-    await screen.findByText('owner');
-    const rowOf = (name: string) =>
-      [...container.querySelectorAll('tr')].find(
-        r => r.querySelector('.lbt-nametext')?.textContent === name,
-      ) as HTMLElement;
-    expect(rowOf('owner').textContent).toContain('incl. 2 bots');
-    expect(rowOf('owner').querySelector('[title*="own -1,000"]')).not.toBeNull();
-    expect(rowOf('bot').textContent).not.toContain('incl.');
-  });
-
-  test('a season row paid through its owner shows "via <owner>" where the prize would be', async () => {
-    vi.mocked(api.getSeasons).mockResolvedValue({ seasons: [{ ...draftSeason, status: 'running' }] } as never);
-    vi.mocked(api.getSeasonStandings).mockResolvedValue({
-      season: { ...draftSeason, status: 'running' },
-      participants: [
-        {
-          rank: 1,
-          id: 'b1',
-          nickname: 'bot',
-          score: 930,
-          ownScore: 930,
-          botsCounted: 0,
-          paidVia: 'o1',
-          projectedPrizeUsd: 0,
-        },
-        {
-          rank: 2,
-          id: 'o1',
-          nickname: 'owner',
-          score: 100,
-          ownScore: -830,
-          botsCounted: 1,
-          paidVia: null,
-          projectedPrizeUsd: 500,
-        },
-      ],
-      scope: null,
-    } as never);
-    mockBoard([trader({})]);
-    const { container } = renderPage();
-    await screen.findByText('Season 0 standings');
-    const rowOf = (name: string) =>
-      [...container.querySelectorAll('tr')].find(
-        r => r.querySelector('.lbt-nametext')?.textContent === name,
-      ) as HTMLElement;
-    expect(rowOf('bot').textContent).toContain('via owner');
-    expect(rowOf('bot').textContent).not.toContain('$');
-    expect(rowOf('owner').textContent).toContain('incl. 1 bot');
-    expect(rowOf('owner').textContent).toContain('$500');
-  });
-});
-
 describe('what the phone and the board keep', () => {
   beforeEach(() => {
     vi.mocked(api.getPublicWorkspaces).mockResolvedValue([
@@ -416,7 +357,7 @@ describe('what the phone and the board keep', () => {
     mockBoard([trader({})]);
   });
 
-  test('a row without trades of its own (an owner whose bots traded) stays on the board, ranks contiguous', async () => {
+  test('the board shows every row the API ranks, so the ranks stay contiguous', async () => {
     mockBoard([
       trader({
         id: 'o1',
@@ -424,8 +365,6 @@ describe('what the phone and the board keep', () => {
         rank: 1,
         totalEarnings: 300,
         totalTrades: 0,
-        ownEarnings: 0,
-        botsCounted: 1,
       }),
       trader({ id: 'k1', nickname: 'kai', rank: 2, totalEarnings: 42 }),
     ]);

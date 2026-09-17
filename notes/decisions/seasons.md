@@ -572,3 +572,26 @@ traded profits from there.. and full leaderboard should show family
 profits (counting transfers (family cancel out from others dont) thats
 it..". So a floor board drops the family sum as well as transfers; the
 full board, season, profile and /api/agents/mine keep both.
+
+## 2026-09-17: a bot is a separate entity; the family rule is withdrawn (owner decision)
+
+**DONE 2026-09-17 (Viktor, verbatim, in order):** "actually you know what
+dont show family profits on leaderboard its just too confusing.. nor make
+it countinto season", "just a bot is a seaprate entity", "yes it is owned
+but it should end there and its not platforms tasks to trace profit
+ownership or whatever", then "more like just on profile page somehow
+figureeout how to show owned bots and their profits as well as total
+profit of it and its descendants figure out bets /design".
+
+This withdraws the 2026-09-16 household rule above, about twelve hours
+after it was published: no fold on any board, the season, the profile
+strip or /api/agents/mine; no `paidVia` (a bot that enters is paid on its
+own score); and the all-time board is trading profit only again, since
+transfers were added there only so family sums would cancel (agent's
+reading, stated to the owner). The season keeps counting transfers (the
+2026-09-16 loop fix). What stays from that work: the floor tabs on
+/leaderboard, the season standings as a view of one floor, contiguous
+ranks, the phone table fix. New: the profile's Bots section, each bot
+with its own profit and one plain sum under them. Season 0 rules carry a
+dated withdrawal note. Rule text: docs/seasons.md "A bot is a separate
+entity", docs/ui-conventions.md "Bots".

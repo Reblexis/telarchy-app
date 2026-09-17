@@ -3,7 +3,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { Router } from 'express';
 import { db } from '../db/client';
 import { agents, authUser, prizeSeasons, seasonEntries, workspaces } from '../db/schema';
-import { loadOwnerOf, loadSeasonSettled } from '../lib/board';
+import { loadSeasonSettled } from '../lib/board';
 import { AppError } from '../lib/errors';
 import { payoutHandlesById, platformOperatedIds, publicWorkspaceOperatorIds } from '../lib/participants';
 import { isPlatformAuthorized } from '../lib/platform-admin';
@@ -672,10 +672,6 @@ seasonsRouter.post(
     // off so the query path is exercised the same way for every season.
     const operators = await publicWorkspaceOperatorIds(entrantIds);
     const handles = await payoutHandlesById(entrantIds);
-    // The pool pays once per person (docs/seasons.md, "Your score includes
-    // the accounts you own"): the same rule the standings projected.
-    const { paidViaOf } = await import('./leaderboard');
-    const paidVia = paidViaOf(entrantIds, await loadOwnerOf());
     const { ranked, rolloverUsd } = settleSeason(
       entries.map(e => ({
         agentId: e.agentId,
@@ -687,7 +683,6 @@ seasonsRouter.post(
         platformOperated: house.has(e.agentId),
         workspaceOperator: operators.has(e.agentId),
         payoutHandle: handles.get(e.agentId) ?? null,
-        paidVia: paidVia.get(e.agentId) ?? null,
       })),
       (season.ladder ?? []) as LadderRung[],
       season.poolUsd,

@@ -272,10 +272,8 @@ disagrees with another page:
 
 - **Profit**: the trading profit marked to market that the leaderboard
   ranks on, the same number, with "N settled · N open" beneath it. Green
-  when positive, red when negative. It counts transfers and the accounts
-  this participant owns the way the board does (docs/seasons.md, "The
-  score"); an owner reads "incl. N bots · own N" as a third line, so the
-  gap between their own trading and the household is on the record.
+  when positive, red when negative. It is this account's own; a bot they
+  own is a separate entity and is listed below, never added in.
 - **Balance**: the participant's tradeable credits right now, platform-wide
   (the live point of the balance history), with "N cr in positions"
   beneath: what their open positions are worth at the current call, summed.
@@ -303,6 +301,19 @@ and its live point is the strip's. A series with fewer than two points
 draws nothing; in its place one quiet line says "Recorded once a day; the
 first point lands tomorrow."
 
+
+**Bots** lists every bot the participant owns, and those bots' bots, when
+there are any (the section is absent otherwise): one row per bot, best
+profit first, the name with the bot mark linking to that bot's own
+profile, "N trades" beneath (and "bot of <name>" when it belongs to
+another bot on the list), and its own trading profit in the right column,
+coloured. A bot is a separate entity everywhere else on the platform: the
+boards, the season and the strip above never add one account to another.
+So this section closes with the one sum the platform draws, for the
+owner's eye: "With N bots" and the participant's profit plus the listed
+bots', label left and number right under a hairline. It ranks nothing and
+pays nothing, and it is trading profit, so credits moved between the
+owner and a bot are no part of it.
 
 **Positions** are rows, one per market and direction the participant holds,
 heaviest first. The title is the metric and its date ("Active traders ·
@@ -2535,13 +2546,8 @@ reload; `/leaderboard` ranks the same way in its own tables.
   money back on that market, settled, so the board shows the result the
   holder would have had without the fault; the season standings count it
   the same way (`docs/seasons.md`, "A fault refund counts"). An apology or
-  any other grant stays out. A floor's own footer, and a floor tab on `/leaderboard`,
-  show each account's own trading profit on that floor and nothing else:
-  no transfer counts, and no family sum (`docs/seasons.md`, "The ALL-TIME
-  board's ranking key"). Only the every-floor board counts transfers and
-  folds an owner's bots into the owner's row; there an owner whose bots
-  traded holds a row without a trade of their own. A name with no trades
-  and nothing earned is noise and stays off. **No account
+  any other grant stays out. A credit transfer is not a trade and never counts here, and a
+  bot is a separate entity: no row includes another account's profit. **No account
   is excluded.**
   Anyone who has ever traded in a public workspace is on the board. **A
   cancelled market is valued at its refund, not skipped**: a void pays
@@ -3213,33 +3219,23 @@ rather than wrapping when the floors outgrow a phone, and the current tab
 is scrolled into view, so the choice is never off-screen.
 
 **The all-time board shows everyone the API ranks**, with the API's
-ranks: since an owner's row folds in their bots, an owner who never
-traded themselves can hold a rank, and dropping such rows on the client
-left gaps in the numbering. On a phone the season table keeps the prize
-column and drops "Would pay" (a projection of a projection) with the
-share-of-pool column, so five numeric columns never push it past the
-screen.
+ranks; the page drops no row, so the numbering has no gaps. On a phone the
+season table keeps the prize column and drops "Would pay" (a projection of
+a projection) with the share-of-pool column, so five numeric columns never
+push it past the screen.
 
 **The picker scopes the season board too, as a view.** A season is a
 platform-wide contest scored over every public floor, and the prize is
 decided on that whole field. A chosen floor makes the season section show
-each entrant's own settled trading profit ON THAT FLOOR inside the window
-(the traders board passes `?workspaceId=<slug>` beside `seasonId`), with
-the mark from that floor's markets: no transfers and no family sum, the
-floor-board rule. The prize columns keep reading the whole field, so a
+each entrant's settled trading profit ON THAT FLOOR inside the window (the
+traders board passes `?workspaceId=<slug>` beside `seasonId`), with the
+mark from that floor's markets, and transfers left out, since a transfer
+belongs to no floor. The prize columns keep reading the whole field, so a
 reader sees what the entrant took from this floor next to what they would
 actually be paid, and the section's note says both ("Scored on <floor>.
 Prizes are decided on every floor."). Entrants and their order come from
 the scoped score; the prize columns are looked up by entrant. A settled
 season ignores the scope: its finals are stored and never recomputed.
-
-**A row can be a household.** An owner's row on either board carries the
-sum of their own number and their bots' (docs/seasons.md, "Your score
-includes the accounts you own"), and says so under the name: "incl. N
-bots" in the small type, with the owner's own number in the cell's
-tooltip. A bot's row keeps its own number; when its owner is also an
-entrant its prize cell reads "via <owner>" and no dollar figure, because
-the pool pays once per person.
 
 **The choice lives in the URL**, as `?workspace=<slug>`, and the page holds
 no filter the URL does not show (the data room's rule). So the back button

@@ -385,19 +385,6 @@ export function ParticipantProfilePage() {
                 >
                   {fmtCr(profile.stats.settledEarnings)} settled · {fmtCr(profile.stats.openEarnings)} open
                 </span>
-                {/* A household (docs/seasons.md, "Your score includes the
-                    accounts you own"): the number above folds in the bots
-                    this participant owns; their own trading is named so the
-                    gap is on the record. */}
-                {profile.stats.botsCounted ? (
-                  <span
-                    className="prof-stat-sub"
-                    title="This participant's own number plus every account they own, transfers between them cancelling"
-                  >
-                    incl. {profile.stats.botsCounted} {profile.stats.botsCounted === 1 ? 'bot' : 'bots'} · own{' '}
-                    {fmtCr(profile.stats.ownEarnings ?? 0)}
-                  </span>
-                ) : null}
               </button>
               <button
                 type="button"
@@ -437,6 +424,59 @@ export function ParticipantProfilePage() {
                   : (profile.profitHistory ?? []).map(p => ({ at: p.at, value: p.profit }))
               }
             />
+
+            {/* An owner's bots (docs/ui-conventions.md, "Bots"): each is a
+                separate entity with its own profit and its own profile; the
+                last line is a plain sum for the owner's eye, and the only
+                place the platform adds them up. */}
+            {(profile.bots ?? []).length > 0 && (
+              <section className="prof-section" aria-label="Bots">
+                <h2 className="prof-h2">Bots</h2>
+                <ul className="prof-list">
+                  {(profile.bots ?? []).map(b => {
+                    const parent = (profile.bots ?? []).find(x => x.id === b.parentId);
+                    return (
+                      <li key={b.id}>
+                        <Link
+                          className="prof-row prof-row-link"
+                          to={`/participants/${encodeURIComponent(b.nickname ?? b.id)}`}
+                        >
+                          <span className="prof-row-main">
+                            <span className="prof-row-title">
+                              {b.nickname ?? 'anonymous'}
+                              <BotMark bot />
+                            </span>
+                            <span className="prof-row-sub">
+                              {b.totalTrades === 0
+                                ? 'no trades yet'
+                                : `${b.totalTrades.toLocaleString('en-US')} ${b.totalTrades === 1 ? 'trade' : 'trades'}`}
+                              {parent ? ` · bot of ${parent.nickname ?? 'anonymous'}` : ''}
+                            </span>
+                          </span>
+                          <span className="prof-row-right">
+                            <span
+                              className={`prof-row-val prof-row-profit ${b.totalEarnings >= 0 ? 'is-up' : 'is-down'}`}
+                            >
+                              {fmtCr(b.totalEarnings)} cr
+                            </span>
+                          </span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {profile.withBotsEarnings !== null && profile.withBotsEarnings !== undefined && (
+                  <p className="prof-bots-total">
+                    <span>
+                      With {(profile.bots ?? []).length} {(profile.bots ?? []).length === 1 ? 'bot' : 'bots'}
+                    </span>
+                    <span className={`prof-row-val ${profile.withBotsEarnings >= 0 ? 'is-up' : 'is-down'}`}>
+                      {fmtCr(profile.withBotsEarnings)} cr
+                    </span>
+                  </p>
+                )}
+              </section>
+            )}
 
             <Section title="Positions" empty={profile.openPositions.length === 0}>
               {profile.openPositions.map(p => (

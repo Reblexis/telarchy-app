@@ -1,18 +1,16 @@
 /**
- * THE RULES, against a real database:
+ * THE RULE: a bot is a separate entity (owner decision 2026-09-17: "dont
+ * show family profits on leaderboard its just too confusing.. nor make it
+ * count into season", "just a bot is a seaprate entity"). An owner's number
+ * never includes their bots': not on the board, the season standings, the
+ * profile or /api/agents/mine; a bot that entered the season is paid on its
+ * own score whoever else entered. The all-time profit is trading only and
+ * never counts a transfer; the season score counts them (docs/seasons.md,
+ * "Credits transferred between participants count").
  *
- *   1. Credits transferred between participants count in the ALL-TIME
- *      profit too (docs/seasons.md, "The ALL-TIME board's ranking key"):
- *      received is profit, sent is loss, in the settled part; a deposit
- *      written with the transfer ledger reason is not a transfer.
- *   2. Your score includes the accounts you own (docs/seasons.md): an
- *      owner's row on the board, the season standings, the profile and
- *      /api/agents/mine is its own number plus its bots' and their bots',
- *      the bots keeping their own rows; the pool pays once per person.
- *   3. The season standings can be scoped to one floor as a view
- *      (docs/ui-conventions.md, "The picker scopes the season board too"):
- *      that floor's trading alone, transfers left out, prizes still from the
- *      whole field.
+ * And the season standings can be scoped to one floor as a view
+ * (docs/ui-conventions.md, "The picker scopes the season board too"): that
+ * floor's trading alone, transfers left out, prizes from the whole field.
  */
 
 jest.mock('../db/client', () => require('./harness/test-db'));
@@ -32,7 +30,6 @@ import request from 'supertest';
 import {
   agents,
   authUser,
-  creditLedger,
   creditTransfers,
   markets,
   metrics,
@@ -115,6 +112,7 @@ beforeEach(async () => {
 });
 
 let seq = 0;
+let marketSeq = 0;
 async function transfer(from: string, to: string, credits: number, at: Date = MID) {
   seq += 1;
   await db
@@ -132,7 +130,8 @@ async function loserPaysWinner(ws: string, loser: string, winner: string, amount
     workspaceId: ws,
     metricId: ws === WS ? 'metric-a' : 'metric-b',
     metricName: 'M',
-    targetDate: `res-${tag}`,
+    // A real date: the profile parses it. One day per market keeps them distinct.
+    targetDate: `2026-06-${String(10 + (marketSeq++ % 18)).padStart(2, '0')}`,
     rangeMin: 0,
     rangeMax: 100,
     shares: [amount, amount],
@@ -224,195 +223,156 @@ async function seedSeason(entrants: string[]) {
     );
 }
 
-describe('credits transferred between participants count in all-time profit', () => {
-  test('received is profit, sent is loss, in the settled part, with no window', async () => {
-    await transfer(OTHER, OWNER, 100, new Date('2025-01-01T00:00:00Z'));
+describe('the all-time profit is trading only, never a transfer', () => {
+  test('a bankroll sent to a bot is not profit for the bot and not a loss for the owner', async () => {
+    await transfer(OWNER, BOT, 15000);
+    await loserPaysWinner(WS, OTHER, BOT, 500, 'bot-wins');
     const board = await loadBoard([WS]);
-    expect(board.profitById.get(OWNER)).toBe(100);
-    expect(board.profitById.get(OTHER)).toBe(-100);
-    expect(board.breakdownById.get(OWNER)).toEqual({ settled: 100, open: 0, total: 100 });
-    expect(board.agentIds).toEqual(expect.arrayContaining([OWNER, OTHER]));
+    expect(board.profitById.get(BOT)).toBe(500);
+    expect(board.profitById.get(OWNER) ?? 0).toBe(0);
+    expect(board.agentIds).not.toContain(OWNER);
   });
 
-  test('a deposit is written with the transfer ledger reason but is not a transfer and never counts', async () => {
-    await db.insert(creditLedger).values({
-      id: 'ledger-deposit-h',
-      workspaceId: 'platform',
-      agentId: OTHER,
-      deltaUnits: toUnits(500),
-      balanceAfterUnits: toUnits(1500),
-      reason: 'transfer_in',
-      refType: 'transfer',
-      refId: '0xdeadbeef',
-      createdAt: MID,
-    });
-    const board = await loadBoard([WS]);
-    expect(board.profitById.get(OTHER) ?? 0).toBe(0);
-  });
-
-  test('a transfer adds to trading profit on the same account', async () => {
-    await loserPaysWinner(WS, OTHER, OWNER, 30, 'add');
-    await transfer(OWNER, OTHER, 10.1);
-    const board = await loadBoard([WS]);
-    expect(board.profitById.get(OWNER)).toBe(19.9);
-    expect(board.profitById.get(OTHER)).toBe(-19.9);
+  test('GET /api/leaderboard, full and scoped to a floor, read the same trading number', async () => {
+    await transfer(OWNER, BOT, 15000);
+    await loserPaysWinner(WS, OTHER, BOT, 500, 'bot-wins');
+    for (const url of ['/api/leaderboard', '/api/leaderboard?workspaceId=floor-a']) {
+      const res = await request(app).get(url);
+      const byId = new Map((res.body.participants as Array<Record<string, unknown>>).map(p => [p.id, p]));
+      expect(byId.get(BOT)).toMatchObject({ totalEarnings: 500 });
+      expect(byId.get(OWNER)).toBeUndefined();
+    }
   });
 });
 
-describe("a floor's own board counts trading there, never transfers (owner, 2026-09-17)", () => {
-  // "as part of workspace floor dont show the transfers dont count them in
-  //  i dont understand why would the bot suddenly have twice as much"
-  test('GET /api/leaderboard?workspaceId: the bankroll a bot received is not profit on the floor', async () => {
-    await transfer(OWNER, BOT, 15000);
-    await loserPaysWinner(WS, OTHER, BOT, 500, 'bot-wins');
-    const res = await request(app).get('/api/leaderboard?workspaceId=floor-a');
-    expect(res.status).toBe(200);
-    const byId = new Map((res.body.participants as Array<Record<string, unknown>>).map(p => [p.id, p]));
-    expect(byId.get(BOT)).toMatchObject({ totalEarnings: 500, ownEarnings: 500, botsCounted: 0 });
-    // No family sum on a floor: the owner never traded there, so is not on it.
-    expect(byId.get(OWNER)).toBeUndefined();
-  });
-
-  test('a floor board is each account alone: an owner who traded there reads their own trading, not the bots', async () => {
-    await loserPaysWinner(WS, OTHER, BOT, 500, 'bot-wins');
-    await loserPaysWinner(WS, OTHER, OWNER, 40, 'owner-wins');
-    const res = await request(app).get('/api/leaderboard?workspaceId=floor-a');
-    const byId = new Map((res.body.participants as Array<Record<string, unknown>>).map(p => [p.id, p]));
-    expect(byId.get(OWNER)).toMatchObject({ totalEarnings: 40, ownEarnings: 40, botsCounted: 0 });
-    expect(byId.get(BOT)).toMatchObject({ totalEarnings: 500 });
-  });
-
-  test('the every-floor board still counts them, so the household nets out there', async () => {
-    await transfer(OWNER, BOT, 15000);
-    await loserPaysWinner(WS, OTHER, BOT, 500, 'bot-wins');
-    const res = await request(app).get('/api/leaderboard');
-    const byId = new Map((res.body.participants as Array<Record<string, unknown>>).map(p => [p.id, p]));
-    expect(byId.get(BOT)).toMatchObject({ totalEarnings: 15500 });
-    expect(byId.get(OWNER)).toMatchObject({ totalEarnings: 500, ownEarnings: -15000 });
-  });
-
-  test('a participant who only received a transfer is not on a floor board at all', async () => {
-    await transfer(OWNER, OTHER, 100);
-    const res = await request(app).get('/api/leaderboard?workspaceId=floor-a');
-    expect(res.body.participants).toEqual([]);
-  });
-
-  test('loadBoard: transfers are opt-out, and the profile keeps counting them', async () => {
-    await transfer(OTHER, OWNER, 100);
-    expect((await loadBoard([WS], { floorOnly: true })).profitById.get(OWNER) ?? 0).toBe(0);
-    expect((await loadBoard([WS])).profitById.get(OWNER)).toBe(100);
-  });
-});
-
-describe('your score includes the accounts you own', () => {
-  test("the board: an owner's row is its own plus its bots' and their bots'; the bots keep their own", async () => {
+describe('a bot is a separate entity', () => {
+  test("the board: an owner's row is the owner's own trading, never the bots'", async () => {
     await seedHousehold();
+    await loserPaysWinner(WS, OTHER, OWNER, 40, 'owner-wins');
     const board = await loadBoard([WS, WS2]);
-    // Own: owner -1000 (the bankroll), bot +900, sub-bot +30, other +70.
-    expect(board.ownProfitById.get(OWNER)).toBe(-1000);
-    expect(board.ownProfitById.get(BOT)).toBe(900);
-    expect(board.ownProfitById.get(SUBBOT)).toBe(30);
-    // Household: owner -1000 + 900 + 30 = -70; bot 900 + 30; sub-bot 30.
-    expect(board.profitById.get(OWNER)).toBe(-70);
-    expect(board.profitById.get(BOT)).toBe(930);
+    expect(board.profitById.get(OWNER)).toBe(40);
+    expect(board.profitById.get(BOT)).toBe(-100);
     expect(board.profitById.get(SUBBOT)).toBe(30);
-    expect(board.profitById.get(OTHER)).toBe(70);
-    expect(board.breakdownById.get(OWNER)).toEqual({ settled: -70, open: 0, total: -70 });
-    expect(board.householdById.get(OWNER)).toEqual(expect.arrayContaining([BOT, SUBBOT]));
-    expect(board.householdById.get(BOT)).toEqual([SUBBOT]);
-    expect(board.householdById.has(OTHER)).toBe(false);
   });
 
-  test('the bankroll sent to a bot cancels inside the household', async () => {
-    await transfer(OWNER, BOT, 15000);
-    await loserPaysWinner(WS, BOT, OTHER, 975, 'bankroll');
-    const board = await loadBoard([WS]);
-    expect(board.profitById.get(OWNER)).toBe(-975);
-    expect(board.profitById.get(BOT)).toBe(14025);
+  test('the rows carry no family fields', async () => {
+    await seedHousehold();
+    const res = await request(app).get('/api/leaderboard');
+    for (const p of res.body.participants as Array<Record<string, unknown>>) {
+      expect(p).not.toHaveProperty('ownEarnings');
+      expect(p).not.toHaveProperty('botsCounted');
+    }
   });
 
-  test('the season score and the marked column fold the household the same way', async () => {
+  test('the season score is per account: transfers count, the bots do not fold in', async () => {
     await seedHousehold();
     const settled = await loadSeasonSettled([WS, WS2], START, END);
-    expect(settled.get(OWNER)).toBe(-70);
-    expect(settled.get(BOT)).toBe(930);
+    expect(settled.get(OWNER)).toBe(-1000);
+    expect(settled.get(BOT)).toBe(900);
+    expect(settled.get(SUBBOT)).toBe(30);
     const marked = await loadSeasonMarked([WS, WS2], START, END);
-    expect(marked.get(OWNER)).toBe(-70);
+    expect(marked.get(OWNER)).toBe(-1000);
   });
 
-  test('GET /api/leaderboard: the owner is on the board with the household number, its own beside it', async () => {
+  test('standings: a bot that entered is paid on its own score, its owner having entered too', async () => {
     await seedHousehold();
-    const res = await request(app).get('/api/leaderboard');
-    expect(res.status).toBe(200);
-    const byId = new Map((res.body.participants as Array<Record<string, unknown>>).map(p => [p.id, p]));
-    expect(byId.get(OWNER)).toMatchObject({ totalEarnings: -70, ownEarnings: -1000, botsCounted: 2 });
-    expect(byId.get(BOT)).toMatchObject({ totalEarnings: 930, ownEarnings: 900, botsCounted: 1 });
-    expect(byId.get(OTHER)).toMatchObject({ totalEarnings: 70, ownEarnings: 70, botsCounted: 0 });
-  });
-
-  test('GET /api/agents/:id/public: the profile reads the same household number', async () => {
-    await seedHousehold();
-    caller = undefined;
-    const res = await request(app).get(`/api/agents/${OWNER}/public`);
-    expect(res.status).toBe(200);
-    expect(res.body.stats).toMatchObject({
-      totalEarnings: -70,
-      settledEarnings: -70,
-      ownEarnings: -1000,
-      botsCounted: 2,
-    });
-  });
-
-  test('GET /api/agents/mine: an owner sees the household number on their own row and on each bot', async () => {
-    await seedHousehold();
-    caller = { uid: U };
-    const res = await request(app).get('/api/agents/mine');
-    expect(res.status).toBe(200);
-    const byId = new Map((res.body as Array<Record<string, unknown>>).map(p => [p.id, p]));
-    expect(byId.get(OWNER)).toMatchObject({ earned: -70, ownEarnings: -1000, botsCounted: 2 });
-    expect(byId.get(BOT)).toMatchObject({ earned: 930, ownEarnings: 900, botsCounted: 1 });
-  });
-});
-
-describe('the pool pays once per person', () => {
-  test('standings: the bot is paid through its owner when both entered; a bot that never entered still counts', async () => {
-    await seedHousehold();
-    // OTHER wins 500 from nobody in the household so the pool has a positive field.
     await seedSeason([OWNER, BOT, OTHER]);
     const res = await request(app).get(`/api/leaderboard?seasonId=${SEASON}`);
-    expect(res.status).toBe(200);
-    const rows = res.body.participants as Array<Record<string, unknown>>;
-    const byId = new Map(rows.map(p => [p.id, p]));
-    expect(byId.get(OWNER)).toMatchObject({ score: -70, ownScore: -1000, botsCounted: 2, paidVia: null });
-    expect(byId.get(BOT)).toMatchObject({ score: 930, ownScore: 900, botsCounted: 1, paidVia: OWNER });
-    expect(byId.get(BOT)?.projectedPrizeUsd).toBe(0);
-    expect(byId.get(SUBBOT)).toBeUndefined();
-    // The field's positive scores: other 70. The bot's 930 sits inside the
-    // owner's row, which is negative, so it takes nothing and dilutes nothing.
-    expect(byId.get(OTHER)?.projectedPrizeUsd).toBe(1000);
-  });
-
-  test('standings: a bot whose owner has not entered is paid on its own score', async () => {
-    await seedHousehold();
-    await seedSeason([BOT, OTHER]);
-    const res = await request(app).get(`/api/leaderboard?seasonId=${SEASON}`);
     const byId = new Map((res.body.participants as Array<Record<string, unknown>>).map(p => [p.id, p]));
-    expect(byId.get(BOT)).toMatchObject({ score: 930, paidVia: null });
-    expect(byId.get(BOT)?.projectedPrizeUsd).toBe(930);
-    expect(byId.get(OTHER)?.projectedPrizeUsd).toBe(70);
+    expect(byId.get(OWNER)).toMatchObject({ score: -1000, projectedPrizeUsd: 0 });
+    expect(byId.get(BOT)).toMatchObject({ score: 900 });
+    // Positive field: bot 900, other 70.
+    expect(byId.get(BOT)?.projectedPrizeUsd).toBe(927.84);
+    expect(byId.get(OTHER)?.projectedPrizeUsd).toBe(72.16);
+    for (const p of res.body.participants as Array<Record<string, unknown>>) {
+      expect(p).not.toHaveProperty('paidVia');
+      expect(p).not.toHaveProperty('ownScore');
+      expect(p).not.toHaveProperty('botsCounted');
+    }
   });
 
-  test('settlement writes the household score and pays the bot nothing of its own', async () => {
+  test('settlement pays the bot its own prize', async () => {
     await seedHousehold();
     await seedSeason([OWNER, BOT, OTHER]);
     const res = await request(app).post(`/api/seasons/${SEASON}/settle`);
     expect(res.status).toBe(200);
     const rows = await db.select().from(seasonEntries).where(eq(seasonEntries.seasonId, SEASON));
     const byId = new Map(rows.map(r => [r.agentId, r]));
-    expect(byId.get(OWNER)?.finalScore).toBe(-70);
-    expect(byId.get(BOT)?.finalScore).toBe(930);
-    expect(byId.get(BOT)?.prizeUsd).toBe(0);
-    expect(byId.get(OTHER)?.prizeUsd).toBe(1000);
+    expect(byId.get(OWNER)?.finalScore).toBe(-1000);
+    expect(byId.get(BOT)?.prizeUsd).toBe(927.84);
+    expect(byId.get(OTHER)?.prizeUsd).toBe(72.16);
+  });
+
+  test('GET /api/agents/:id/public: the profile is the account alone', async () => {
+    await seedHousehold();
+    await loserPaysWinner(WS, OTHER, OWNER, 40, 'owner-wins');
+    caller = undefined;
+    const res = await request(app).get(`/api/agents/${OWNER}/public`);
+    expect(res.body.error).toBeUndefined();
+    expect(res.body.stats).toMatchObject({ totalEarnings: 40, settledEarnings: 40 });
+    expect(res.body.stats).not.toHaveProperty('ownEarnings');
+    expect(res.body.stats).not.toHaveProperty('botsCounted');
+  });
+
+  test('GET /api/agents/mine: each row is that account alone', async () => {
+    await seedHousehold();
+    caller = { uid: U };
+    const res = await request(app).get('/api/agents/mine');
+    const byId = new Map((res.body as Array<Record<string, unknown>>).map(p => [p.id, p]));
+    expect(byId.get(OWNER)).toMatchObject({ earned: 0 });
+    expect(byId.get(BOT)).toMatchObject({ earned: -100 });
+    expect(byId.get(OWNER)).not.toHaveProperty('botsCounted');
+  });
+});
+
+describe("the profile lists an owner's bots, each with its own profit, and one total (owner, 2026-09-17)", () => {
+  // "just on profile page somehow figureeout how to show owned bots and
+  //  their profits as well as total profit of it and its descendants"
+  test('every descendant is listed with its own trading profit and who it belongs to', async () => {
+    await seedHousehold();
+    await loserPaysWinner(WS, OTHER, OWNER, 40, 'owner-wins');
+    caller = undefined;
+    const res = await request(app).get(`/api/agents/${OWNER}/public`);
+    expect(res.body.error).toBeUndefined();
+    expect(res.body.bots).toEqual([
+      { id: SUBBOT, nickname: 'subbot', parentId: BOT, totalEarnings: 30, totalTrades: 1 },
+      { id: BOT, nickname: 'bot', parentId: OWNER, totalEarnings: -100, totalTrades: 1 },
+    ]);
+    // The account's own number is untouched; the total is a plain sum beside it.
+    expect(res.body.stats.totalEarnings).toBe(40);
+    expect(res.body.withBotsEarnings).toBe(-30);
+  });
+
+  test('a transfer to a bot is no part of either number: the total is trading profit', async () => {
+    await transfer(OWNER, BOT, 15000);
+    await loserPaysWinner(WS, OTHER, BOT, 500, 'bot-wins');
+    const res = await request(app).get(`/api/agents/${OWNER}/public`);
+    expect(res.body.bots).toEqual([
+      { id: BOT, nickname: 'bot', parentId: OWNER, totalEarnings: 500, totalTrades: 1 },
+      { id: SUBBOT, nickname: 'subbot', parentId: BOT, totalEarnings: 0, totalTrades: 0 },
+    ]);
+    expect(res.body.withBotsEarnings).toBe(500);
+  });
+
+  test("a bot's own profile lists its own bots, not its siblings or its owner", async () => {
+    await seedHousehold();
+    const res = await request(app).get(`/api/agents/${BOT}/public`);
+    expect((res.body.bots as Array<{ id: string }>).map(b => b.id)).toEqual([SUBBOT]);
+    expect(res.body.withBotsEarnings).toBe(-70);
+  });
+
+  test('a participant who owns nothing has an empty list and no total', async () => {
+    await seedHousehold();
+    const res = await request(app).get(`/api/agents/${OTHER}/public`);
+    expect(res.body.bots).toEqual([]);
+    expect(res.body.withBotsEarnings).toBeNull();
+  });
+
+  test('a cycle in the ownership record ends the walk instead of looping', async () => {
+    await db.update(agents).set({ ownerAgentId: SUBBOT }).where(eq(agents.id, BOT));
+    const res = await request(app).get(`/api/agents/${BOT}/public`);
+    expect(res.status).toBe(200);
+    expect((res.body.bots as Array<{ id: string }>).map(b => b.id)).toEqual([SUBBOT]);
   });
 });
 
@@ -427,8 +387,8 @@ describe('the season standings scoped to one floor', () => {
     const byId = new Map((res.body.participants as Array<Record<string, unknown>>).map(p => [p.id, p]));
     // Floor A alone: the bot lost 100 to OTHER; the transfer and floor B are out.
     // Each account alone: the owner never traded on floor A.
-    expect(byId.get(OWNER)).toMatchObject({ score: 0, ownScore: 0, botsCounted: 0 });
-    expect(byId.get(BOT)).toMatchObject({ score: -100, ownScore: -100 });
+    expect(byId.get(OWNER)).toMatchObject({ score: 0 });
+    expect(byId.get(BOT)).toMatchObject({ score: -100 });
     expect(byId.get(OTHER)).toMatchObject({ score: 100 });
     expect(byId.get(OTHER)?.projectedPrizeUsd).toBe(wholeById.get(OTHER)?.projectedPrizeUsd);
     expect(res.body.scope).toMatchObject({ workspaceId: WS, name: 'Floor A' });
@@ -456,7 +416,7 @@ describe('the season standings scoped to one floor', () => {
     await request(app).post(`/api/seasons/${SEASON}/settle`);
     const res = await request(app).get(`/api/leaderboard?seasonId=${SEASON}&workspaceId=floor-a`);
     const byId = new Map((res.body.participants as Array<Record<string, unknown>>).map(p => [p.id, p]));
-    expect(byId.get(OWNER)?.score).toBe(-70);
+    expect(byId.get(OWNER)?.score).toBe(-1000);
     expect(res.body.scope).toBeNull();
   });
 });

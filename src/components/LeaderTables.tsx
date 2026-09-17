@@ -79,7 +79,6 @@ function TraderCell({
   manifoldUsername,
   sub,
   bot,
-  household,
 }: {
   id: string;
   nickname: string | null;
@@ -87,9 +86,6 @@ function TraderCell({
   manifoldUsername?: string | null;
   sub?: string | null;
   bot?: boolean;
-  /** "incl. N bots": the row is a household (docs/seasons.md, "Your score
-   *  includes the accounts you own"). */
-  household?: string | null;
 }) {
   const name = nickname || 'anonymous';
   return (
@@ -106,25 +102,9 @@ function TraderCell({
           )}
         </span>
         {sub && <span className="lbt-sub">{sub}</span>}
-        {household && <span className="lbt-sub lbt-house">{household}</span>}
       </span>
     </Link>
   );
-}
-
-/** A row can be a household (docs/ui-conventions.md, "A row can be a
- *  household"): under the name, how many owned accounts the number folds
- *  in; nothing for an account that owns none. */
-export function householdLine(botsCounted?: number): string | null {
-  if (!botsCounted) return null;
-  return `incl. ${botsCounted} ${botsCounted === 1 ? 'bot' : 'bots'}`;
-}
-
-/** The cell's tooltip: the owner's own number, so the gap between their
- *  own trading and the household is on the record. */
-export function householdTitle(botsCounted?: number, own?: number): string | undefined {
-  if (!botsCounted || own === undefined) return undefined;
-  return `This account and its ${botsCounted === 1 ? 'bot' : `${botsCounted} bots`} together; own ${fmtCr(own)} cr`;
 }
 
 /**
@@ -154,17 +134,12 @@ export function SeasonTable({
   // profit"), which is why the header says so and why a row with nothing open
   // reads the same number twice.
   const marked = mode === 'running' && rows.some(r => r.markedScore !== null && r.markedScore !== undefined);
-  // "via <owner>" names the entrant a bot is paid through; the owner is an
-  // entrant, so its name is on this board.
-  const nameOf = new Map<string, string>();
-  for (const r of [...rows, ...(pinned ? [pinned] : [])]) nameOf.set(r.id, r.nickname || 'anonymous');
   const row = (r: SeasonStanding, isPinned = false) => {
     const score = r.score ?? 0;
     const prize = (mode === 'settled' ? r.prizeUsd : (r.projectedPrizeUsd ?? r.prizeUsd)) ?? 0;
     const share = prize > 0 && season.poolUsd > 0 ? `${Math.round((prize / season.poolUsd) * 100)}%` : '—';
     const markedScore = r.markedScore ?? null;
     const markedPrize = r.markedProjectedPrizeUsd ?? 0;
-    const via = r.paidVia ? (nameOf.get(r.paidVia) ?? r.paidVia) : null;
     return (
       <tr
         key={`${isPinned ? 'pin-' : ''}${r.id}`}
@@ -179,12 +154,11 @@ export function SeasonTable({
             manifoldUsername={r.manifoldUsername}
             bot={r.bot}
             sub={!draft && prize > 0 ? `${share} of the pool` : null}
-            household={householdLine(r.botsCounted)}
           />
         </td>
         {!draft && (
           <>
-            <td className={numClass(score, true)} title={householdTitle(r.botsCounted, r.ownScore)}>
+            <td className={numClass(score, true)}>
               {r.score === null ? '' : <Both wide={`${fmtCr(score)} cr`} tight={fmtCrTight(score)} />}
             </td>
             {/* Share of pool is the one column a phone still drops: it is
@@ -192,17 +166,9 @@ export function SeasonTable({
             <td className={`lbt-num lbt-desk${prize > 0 ? '' : ' is-zero'}`}>{share}</td>
             <td
               className={`lbt-num${prize > 0 ? ' is-prize' : ' is-zero'}`}
-              title={
-                via
-                  ? `Paid through ${via}: this score is already inside that entry, and the pool pays once per person`
-                  : mode === 'settled'
-                    ? 'Prize'
-                    : 'What this standing would pay if the season settled right now'
-              }
+              title={mode === 'settled' ? 'Prize' : 'What this standing would pay if the season settled right now'}
             >
-              {via ? (
-                <span className="lbt-via">via {via}</span>
-              ) : prize > 0 ? (
+              {prize > 0 ? (
                 <Both wide={`$${prize.toLocaleString()}`} tight={`$${Math.round(prize).toLocaleString()}`} />
               ) : (
                 '—'
@@ -227,13 +193,7 @@ export function SeasonTable({
                   {/* Whole dollars at both widths: this column is a
                       projection of a projection, and cents would claim a
                       precision it does not have. */}
-                  {via ? (
-                    <span className="lbt-via">via {via}</span>
-                  ) : markedPrize > 0 ? (
-                    `$${Math.round(markedPrize).toLocaleString()}`
-                  ) : (
-                    '—'
-                  )}
+                  {markedPrize > 0 ? `$${Math.round(markedPrize).toLocaleString()}` : '—'}
                 </td>
               </>
             )}
@@ -330,7 +290,6 @@ export function AllTimeTable({
             image={e.image}
             manifoldUsername={e.manifoldUsername}
             bot={e.bot}
-            household={householdLine(e.botsCounted)}
           />
           {/* The split, restated under the name on a phone, where the two
               middle columns are hidden rather than squeezed. */}
@@ -347,9 +306,7 @@ export function AllTimeTable({
         <td className={`lbt-desk ${split ? numClass(e.openEarnings as number) : 'lbt-num is-zero'}`}>
           {split ? fmtCr(e.openEarnings as number) : '—'}
         </td>
-        <td className={numClass(e.totalEarnings)} title={householdTitle(e.botsCounted, e.ownEarnings)}>
-          {fmtCr(e.totalEarnings)} cr
-        </td>
+        <td className={numClass(e.totalEarnings)}>{fmtCr(e.totalEarnings)} cr</td>
         {season && (
           <td className="lbt-num lbt-desk lbt-season-cell">
             {e.seasonEntered ? (

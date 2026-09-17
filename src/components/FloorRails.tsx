@@ -172,11 +172,8 @@ export function FloorStandings({
   botTraders?: number;
 }) {
   const onProposal = proposalTraders !== undefined;
-  // A row for someone who has never traded AND has nothing to show is a
-  // name and a zero: noise. An owner whose bots traded has a number
-  // without a trade of their own (docs/seasons.md, "Your score includes
-  // the accounts you own"), and stays.
-  const traded = all.filter(e => e.totalTrades > 0 || e.totalEarnings !== 0);
+  // A row for someone who has never traded is a name and a zero: noise.
+  const traded = all.filter(e => e.totalTrades > 0);
   const entries = traded.slice(0, ROWS);
   // Pinned underneath when the visitor is outside the rows shown. A board
   // that shows the top and nothing else answers "who is winning" but not
