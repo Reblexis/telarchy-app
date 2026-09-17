@@ -2535,8 +2535,10 @@ reload; `/leaderboard` ranks the same way in its own tables.
   money back on that market, settled, so the board shows the result the
   holder would have had without the fault; the season standings count it
   the same way (`docs/seasons.md`, "A fault refund counts"). An apology or
-  any other grant stays out. Credits transferred between participants count (received as
-  profit, sent as loss, settled), and an owner's row folds in the accounts
+  any other grant stays out. Credits transferred between participants count on
+  the every-floor board only (received as profit, sent as loss, settled);
+  a floor's own footer, and a floor tab on `/leaderboard`, never count
+  one, because a transfer belongs to no floor. An owner's row folds in the accounts
   they own (`docs/seasons.md`, "Your score includes the accounts you
   own"), so the footer draws a row for anyone with a trade OR a number:
   an owner whose bots traded is on it without a trade of their own; a name

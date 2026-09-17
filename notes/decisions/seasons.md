@@ -553,3 +553,15 @@ settled inside the window, which includes the four of 2026-09-13 (Wobert
 82.09, bobalobascrob 315.43, bobalob-ascrob 3.70, vi0 1,007.24). The refund
 script now refuses an amount above the holder's net loss on the market
 (agent's addition, so the legal text's "never beyond it" is enforced).
+
+## 2026-09-17: a floor's board never counts a transfer (owner decision)
+
+**DONE 2026-09-17 (Viktor, verbatim):** "ok but as part of workspace floor
+dont show the transfers dont count them in i dont understand why would the
+bot suddenly have twice as much". After the 2026-09-17 publish the floor's
+Top traders footer (the all-time board scoped to that floor) showed
+bobalobascrob at +29,531 where it had shown +14,531: its 15,000 bankroll
+counted as profit. A board scoped to one floor now leaves transfers out;
+the every-floor board, the season score, the profile and /api/agents/mine
+keep counting them. Rule text: docs/seasons.md, "The ALL-TIME board's
+ranking key".
