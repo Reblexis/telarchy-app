@@ -45,6 +45,10 @@ jobs:
       # Dead code report; flips to failing once the sweep is complete (knip.json).
       - run: npx knip --no-progress --no-exit-code
       - run: npm run test:frontend
+      # The /agents page and the build guide name files and flags of the
+      # reference agent. The frontend tests hold them to a recorded surface;
+      # this holds the record to that repo's real main branch (docs/audience-pages.md).
+      - run: npm run check:reference-agent
       # The production bundle. `typecheck` runs tsc, which does not catch a
       # broken import path, a missing asset or a Vite plugin failure; those
       # used to surface only in the deploy job, after the gate had passed.

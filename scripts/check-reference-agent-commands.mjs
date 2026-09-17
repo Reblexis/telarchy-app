@@ -20,7 +20,8 @@ const FILES = ['agent.py', 'llm_agent.py', 'requirements.txt'];
 
 /** Every `--flag` a Python file registers with argparse. */
 export function flagsOf(source) {
-  return [...source.matchAll(/add_argument\(\s*["'](--[a-z][a-z0-9-]*)["']/g)].map(m => m[1]).sort();
+  // Anchored to the start of a line so a commented-out registration offers nothing.
+  return [...source.matchAll(/^[ \t]*[\w.]+\.add_argument\(\s*["'](--[a-z][a-z0-9-]*)["']/gm)].map(m => m[1]).sort();
 }
 
 /** llm_agent.py builds on agent.parser(), so it answers to agent.py's flags too. */

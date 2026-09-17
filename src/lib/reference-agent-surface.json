@@ -1,7 +1,17 @@
 {
-  "files": ["agent.py", "llm_agent.py"],
+  "files": ["agent.py", "llm_agent.py", "requirements.txt"],
   "flags": {
-    "agent.py": ["--live", "--workspace"],
-    "llm_agent.py": ["--live", "--workspace"]
+    "agent.py": ["--budget-per-trade", "--cycle-budget", "--every", "--live", "--login", "--workspace"],
+    "llm_agent.py": [
+      "--budget-per-trade",
+      "--cycle-budget",
+      "--every",
+      "--live",
+      "--login",
+      "--max-model-calls",
+      "--max-tokens",
+      "--model-timeout",
+      "--workspace"
+    ]
   }
 }

@@ -87,3 +87,29 @@ Same commands against `agent-builder-start`:
 Not tested: the Windows PowerShell commands (no Windows box here), and the
 signed-in connect form itself (needs Viktor's browser session; the key step
 was exercised with a self-registered key instead).
+
+## Outcome, same day
+
+Viktor: "apply fixes and fix futtyher.. make it as simple and intuitive as
+possible use codex to review as well".
+
+- Reference agent PR 2 merged with two more commits: no workspace to choose
+  (public `telarchy` floor), `agent.py --login` (hidden prompt, key checked,
+  saved beside the agent, replaced atomically), `--every MINUTES`, a sentence
+  and a pasteable command at every dead end (no key, refused key, no credits),
+  hints that keep the workspace and limits just previewed. 93 tests.
+- /agents manual setup is now preview, create key, `agent.py --login`; no block
+  sets a variable or carries a key prompt with other lines. Build guide matches.
+- Drift guard: `npm run check:reference-agent` in CI plus
+  `src/lib/__tests__/reference-agent-contract.test.ts`. Against the agent's old
+  main it failed with "names requirements.txt", the bug as it reached the site.
+- Codex reviewed both diffs (9 findings on the agent, 6 on the app); all
+  applied except making the key file private on Windows, which Python cannot
+  do portably; the README now says the file takes the folder's permissions.
+- Verified on a fresh clone of the agent's main against telarchy.com: preview,
+  login through a real terminal, keyed preview, live refusal on zero credits.
+  Not verified: a live trade that fills (the test bot has no credits; covered
+  by stub tests only), Windows PowerShell, and the page in a signed-in browser.
+- Still open from the list above: a one-line install (needs a published
+  package, a product decision), and a profile link after trading (the API does
+  not tell a key holder its own participant id).
