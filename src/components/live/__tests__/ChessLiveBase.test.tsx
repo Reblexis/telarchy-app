@@ -159,7 +159,6 @@ const { ChessLive } = await import('../ChessLive');
 const { api } = await import('../../../lib/api');
 
 const arrows = (c: HTMLElement) => [...c.querySelectorAll('.chess-arrow')] as SVGElement[];
-[...c.querySelectorAll('.chess-target')].map(d => d.getAttribute('data-square')).sort();
 
 function renderLive(props: Record<string, unknown> = {}) {
   return render(
