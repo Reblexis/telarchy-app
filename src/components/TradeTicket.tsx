@@ -152,6 +152,33 @@ function cleanStake(raw: string): string {
   return `${whole}.${rest.join('').slice(0, STAKE_DECIMALS)}`;
 }
 
+/**
+ * What the limit price field accepts: digits and one decimal point, six
+ * places at most. The field shows its whole part with thousands separators,
+ * so the raw text arrives carrying them; a comma the field did not put there
+ * itself is a decimal comma (docs/limit-orders.md, "typed with decimals").
+ */
+function cleanLimit(raw: string, shown: string): string {
+  let text = raw;
+  const commas = (t: string) => t.split(',').length - 1;
+  if (!text.includes('.') && commas(text) > commas(shown)) {
+    let i = 0;
+    while (i < shown.length && text[i] === shown[i]) i++;
+    const typed = text[i] === ',' ? i : text.lastIndexOf(',');
+    const grouping = /^,\d{3}(,\d{3})*$/.test(text.slice(typed)) && text[i] !== ',';
+    if (!grouping) text = `${text.slice(0, typed)}.${text.slice(typed + 1)}`;
+  }
+  const [whole, ...rest] = text.replace(/[^0-9.]/g, '').split('.');
+  if (rest.length === 0) return whole;
+  return `${whole}.${rest.join('').slice(0, STAKE_DECIMALS)}`;
+}
+/** The limit as typed, its whole part grouped: "40,000.50" keeps its zero, "1." keeps its point. */
+function showLimit(limit: string): string {
+  const [whole, ...rest] = limit.split('.');
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return rest.length === 0 ? grouped : `${grouped}.${rest.join('')}`;
+}
+
 function fmt(v: number): string {
   const decimals = Math.abs(v) >= 100 ? 0 : 1;
   return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -243,11 +270,8 @@ export function TradeTicket({
   const earnAvailable = useEarnAvailable(balance != null);
 
   const amountNum = Math.max(0, roundStake(parseFloat(amount) || 0));
-  const limitNum = limit.trim() === '' ? null : parseFloat(limit.replace(/,/g, ''));
-  const limitDisplay =
-    limitNum !== null && Number.isFinite(limitNum) && !limit.endsWith('.')
-      ? limitNum.toLocaleString('en-US', { maximumFractionDigits: 2 })
-      : limit;
+  const limitNum = limit.trim() === '' || limit === '.' ? null : parseFloat(limit);
+  const limitDisplay = showLimit(limit);
   const hasRange = consensus !== null && rangeMin !== undefined && rangeMax !== undefined;
   const canLimit = !!onPlaceLimit && hasRange;
   const isLimit = mode === 'limit' && canLimit;
@@ -860,7 +884,7 @@ export function TradeTicket({
                               inputMode="decimal"
                               value={limitDisplay}
                               style={{ width: `${Math.max(1, limitDisplay.length)}ch` }}
-                              onChange={e => setLimit(e.target.value.replace(/[^0-9.]/g, ''))}
+                              onChange={e => setLimit(cleanLimit(e.target.value, limitDisplay))}
                               aria-label={`Limit price in ${unit || 'metric units'}`}
                             />
                           </label>
@@ -1017,7 +1041,7 @@ export function TradeTicket({
                     inputMode="decimal"
                     value={limitDisplay}
                     style={{ width: `${Math.max(1, limitDisplay.length)}ch` }}
-                    onChange={e => setLimit(e.target.value.replace(/[^0-9.]/g, ''))}
+                    onChange={e => setLimit(cleanLimit(e.target.value, limitDisplay))}
                     aria-label={`Limit price in ${unit || 'metric units'}`}
                   />
                 </label>
