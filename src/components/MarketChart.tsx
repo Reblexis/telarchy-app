@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { priceBand } from '../lib/chart-domain';
 
 /**
  * The prediction, visualized: the market's call over the market's lifetime,
@@ -243,31 +244,17 @@ export function MarketChart({
     // data). The call also holds since the last trade: extend to the edge.
     const lead = range === null && pts[0].t > t0 ? [{ t: t0, v: pts[0].v }] : [];
     const extended = [...lead, ...pts, { t: t1, v: consensus }];
-    // Two kinds of value feed the y domain. The SERIES is what the market
-    // printed over time; in a thin market a single trade can saturate the AMM
-    // and print at the metric's ceiling for one tick, and taking a raw
-    // min/max over that stretches the axis until every real move is a flat
-    // line (observed live 2026-08-12: a $10k..$180k axis for a market that
-    // spent its life between $73k and $77k). So the series contributes a
-    // ROBUST band (5th..95th percentile); brief excursions still draw, they
-    // are simply clipped to the plot instead of rescaling everything.
+    // The band the axis shows: every price drawn, a freak print cut, the
+    // must-show facts (live call, ghost, orders, other branch) never cut.
     const seriesValues = extended.map(p => p.v);
     if (secondary) for (const p of secPts) seriesValues.push(p.v);
     for (const { op } of otherPts) for (const p of op) seriesValues.push(p.v);
-    // MUST-SHOW values are single facts the reader needs on the canvas: the
-    // live call, a composed bet's ghost, resting orders, the other branch.
-    // These always widen the domain, never get clipped.
     const mustShow: number[] = [consensus];
     if (preview) mustShow.push(preview.value);
     for (const o of orders) mustShow.push(o.limitValue);
     if (secondary) mustShow.push(secondary.consensus);
     for (const { o } of otherPts) mustShow.push(o.consensus);
-
-    const sorted = [...seriesValues].sort((a, b) => a - b);
-    const quantile = (p: number) =>
-      sorted[Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * p)))];
-    const vMin0 = Math.min(quantile(0.05), ...mustShow);
-    const vMax0 = Math.max(quantile(0.95), ...mustShow);
+    const [vMin0, vMax0] = priceBand(seriesValues, mustShow);
     const vPad = (vMax0 - vMin0 || vMax0 * 0.08 || 1) * 0.25;
     let vMin = Math.max(0, vMin0 - vPad);
     let vMax = vMax0 + vPad;

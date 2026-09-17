@@ -1376,7 +1376,14 @@ reading by then"), because it changes what a bet is.
   has traded once is otherwise a single point, which draws as a flat line
   and a cliff at the live dot and reads as if every trade happened at once.
   Its range chips are `1D 1W ALL`; a range longer than the market's life is
-  not offered.
+  not offered. **The vertical axis shows every price in the window**: the
+  highest and the lowest call drawn both sit inside the plot. The one
+  exception is a freak print: the axis reaches past the band the market
+  spent its life in (the 5th to 95th percentile of the prices drawn) by at
+  most that band's own height on each side, so one trade that saturated a
+  thin book at the metric's ceiling is cut at the plot's edge instead of
+  flattening every real move into a line. The live call, a bet being
+  composed, resting orders and the other branch are never cut.
 - **The number chart** (`NumberChart`) is the metric's own trajectory: its
   readings as an ink step line up to a "now" rule, and, on the future side,
   every open market of this metric as a marker at its settle instant
@@ -3315,9 +3322,11 @@ hover title), the live number as the largest thing in the
 cell (accent mono, 2.1rem), the owner's own one-line description (two
 lines, then clipped), THE MARKET ITSELF as a full-width step-line spark of
 the hero market's real trade history ending on the live-call dot (same
-held-call semantics as the poster chart, value range padded 35% so a quiet
-market still draws through the middle instead of along the floor of the
-box), and a footer of the activity behind it as the market page's facts
+held-call semantics as the poster chart and the same vertical rule, every
+price shown and only a freak print cut, from the one function both charts
+share, `priceBand` in `src/lib/chart-domain.ts`; value range padded 35% so
+a quiet market still draws through the middle instead of along the floor
+of the box), and a footer of the activity behind it as the market page's facts
 row (`MarketFacts`): icons and bare numbers, never a sentence. Four facts
 in this order, each a hover title that says what it counts: people =
 the distinct participants with a trade (not a redemption) on the floor in
