@@ -147,7 +147,13 @@ describe('A BOOK THE OWNER SETTLES NAMES NO CLOCK', () => {
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-settle-in')).toBeTruthy());
     expect(container.querySelector('.pubws-settle-in')?.getAttribute('title')).toBe('settles this attempt');
-    expect(container.innerHTML).not.toContain('9999');
+    // What a reader can see or hover, not the markup: an SVG coordinate such
+    // as x1="656.8841199999999" contains "9999" whenever the clock makes it so.
+    const readable = [
+      container.textContent ?? '',
+      ...[...container.querySelectorAll('[title]')].map(e => e.getAttribute('title') ?? ''),
+    ];
+    for (const text of readable) expect(text).not.toContain('9999');
   });
 });
 
