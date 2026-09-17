@@ -71,7 +71,7 @@ describe('posting is free unless the proposer says otherwise', () => {
 });
 
 describe('one number fills every book', () => {
-  test('100 each book sends all four books at 100 and the confirm names the whole bill, both sides', async () => {
+  test('100 each market sends all four markets at 100 and the confirm names the whole bill, both sides', async () => {
     const onPropose = vi.fn(async () => {});
     renderNew({ onPropose });
     title();
@@ -99,7 +99,7 @@ describe('one number fills every book', () => {
   });
 });
 
-describe('set per date: the proposer chooses per metric and date', () => {
+describe('per market: the proposer chooses per metric and date', () => {
   test('the grid opens already filled with the one number, a row per date and a column per metric', () => {
     renderNew();
     fireEvent.change(each(), { target: { value: '100' } });
@@ -154,7 +154,7 @@ describe('set per date: the proposer chooses per metric and date', () => {
     expect(go().textContent).toMatch(/Free to post/);
   });
 
-  test('each book shows what the floor already adds, and says nothing where it adds nothing', () => {
+  test('each market shows what the floor already adds, and says nothing where it adds nothing', () => {
     renderNew();
     fireEvent.click(screen.getByRole('button', { name: 'per market' }));
     expect(cell('Traders', '21 Sep').closest('.jobform-cell')?.textContent).toMatch(/\+3,000/);
