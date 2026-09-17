@@ -252,6 +252,14 @@ export function holdersOf(
 
 type ChartMode = 'value' | 'call' | 'live';
 
+/** The bot guide a feed kind publishes, linked under the floor's bot door. */
+const FEED_BOT_GUIDES: Record<string, { label: string; url: string }> = {
+  chess: {
+    label: 'How to trade chess with a bot: the game feed, a dry run, a reference bot',
+    url: 'https://github.com/Reblexis/telarchy-chess/blob/main/docs/trading.md',
+  },
+};
+
 export function TradePage() {
   const params = useParams();
   const idOrSlug = params.slug ?? params.workspaceId;
@@ -2972,6 +2980,19 @@ export function TradePage() {
               Add your own trading bot
             </Link>
             <p className="pubws-botdoor-note">A ready prompt for your coding assistant, or step by step.</p>
+            {/* A fed floor's own bot guide: where its game feed is and how to
+                trade it (docs/ui-conventions.md, "Under the ticket, the door
+                to a bot"). Off-site, so a plain anchor in a new tab. */}
+            {liveFeed && FEED_BOT_GUIDES[liveFeed.kind] && (
+              <a
+                className="pubws-botdoor-guide"
+                href={FEED_BOT_GUIDES[liveFeed.kind].url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {FEED_BOT_GUIDES[liveFeed.kind].label}
+              </a>
+            )}
           </div>
         </aside>
         {/* Everything under the trade, in one grid item so the DOM order
