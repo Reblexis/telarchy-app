@@ -1107,8 +1107,9 @@ counting:
   buys it back on approval, with what the viewer holds. A number above what
   they hold (liquidity wallet plus balance) disables the confirm and names
   what they hold; an unknown balance leaves the check to the server. With a
-  seed the confirm's sub-line says "Puts N cr of yours in its markets" in
-  place of "Free to post".
+  seed the confirm's sub-line says only "Puts N cr of yours in its markets.",
+  one short line, in place of the "Free to post" sentence. The sentence under
+  the chips is prose in the body face, left-aligned, never the mono caption.
 - **Editing one** is the same form (the pencil on the proposal's page, for
   its proposer or a manager, while it is pending), opened with the price,
   the title and the pitch filled in and "Save" on the confirm. What cannot
