@@ -51,6 +51,11 @@ export interface ReleaseState {
   /** Branch previews, newest revision first (docs/infra/deploy.md, "Branch
    *  previews"). The picker on the beta stripe lists these. */
   previews: PreviewRevision[];
+  /** A publish Cloud Run has accepted and not finished: the revision the
+   *  service has been TOLD to serve while another still serves. Moving traffic
+   *  takes three to five minutes (docs/infra/deploy.md, "A press is not yet a
+   *  publish"); null the rest of the time. */
+  publishing: string | null;
   /** The revision answering THIS request. */
   running: string | null;
   /** Every tag pointing at the running revision; `br-...` means this is a
@@ -214,9 +219,14 @@ async function computeReleaseState(): Promise<ReleaseState> {
     .sort((a, b) => revisionNumber(b.revision) - revisionNumber(a.revision));
   const runningTags = running ? traffic.filter(t => t.revisionName === running && t.tag).map(t => t.tag as string) : [];
 
+  // What the service was told (spec) against what it does (status).
+  const told = (svc.spec?.traffic ?? []).find(t => t.percent === 100 && !t.tag)?.revisionName ?? null;
+  const publishing = told && serving && told !== serving ? told : null;
+
   return {
     serving,
     candidate,
+    publishing,
     previews,
     running,
     runningTags,
@@ -226,7 +236,16 @@ async function computeReleaseState(): Promise<ReleaseState> {
 }
 
 function offline(running: string | null, error: string): ReleaseState {
-  return { serving: null, candidate: null, previews: [], running, runningTags: [], isServing: false, error };
+  return {
+    serving: null,
+    candidate: null,
+    publishing: null,
+    previews: [],
+    running,
+    runningTags: [],
+    isServing: false,
+    error,
+  };
 }
 
 /** The `br-` tag on the revision answering this request, or null: the stripe

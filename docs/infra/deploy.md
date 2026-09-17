@@ -332,6 +332,16 @@ lands another build while you are reading, that one waits its turn. The button
 is on the stripe at the top of every beta page (`BetaBanner`), backed by
 `POST /api/admin/publish`, platform-admin only.
 
+**A press is not yet a publish.** Cloud Run accepts the traffic change at once
+and then takes three to five minutes to move the traffic. For that time
+`GET /api/admin/release` answers `publishing: <revision>` (the revision the
+service has been told to serve, while another still serves) and `serving`
+keeps naming the old one. The stripe says "Publishing. telarchy.com switches to
+this build in a few minutes.", offers no second press, asks again every ten
+seconds, and says "Published. telarchy.com is serving this build." only once
+`isServing` is true. Do not run `gcloud run services update-traffic` because a
+press "did nothing": it is the same request and changes nothing.
+
 ### Reaching it
 
 **`telarchy.com/beta` IS the beta.** It is not a redirect. The revision serving

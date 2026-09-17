@@ -1145,14 +1145,14 @@ export const HELP: { endpoints: HelpEndpoint[]; [key: string]: unknown } = {
       path: '/api/admin/release',
       auth: 'admin',
       description:
-        'What is published and what is waiting (platform admin only). Returns { serving, candidate: { revision, url } | null, previews: [{ tag, revision, url }] (branch previews, newest first), running, runningTags, isServing, error }. A push to main lands a Cloud Run revision carrying NO traffic; telarchy.com keeps serving the previous one until someone publishes, so `candidate` is the build waiting and `url` is where to look at it (telarchy.com/beta redirects there). `running` is the revision answering this very request and `isServing` says whether that is the published site, which is how the beta knows to wear its stripe. Everything reads null off Cloud Run, with `error` set. See docs/infra/deploy.md.',
+        'What is published and what is waiting (platform admin only). Returns { serving, candidate: { revision, url } | null, publishing (a revision whose publish Cloud Run has accepted and not finished: traffic takes three to five minutes to move, `serving` names the old revision until then; null otherwise), previews: [{ tag, revision, url }] (branch previews, newest first), running, runningTags, isServing, error }. A push to main lands a Cloud Run revision carrying NO traffic; telarchy.com keeps serving the previous one until someone publishes, so `candidate` is the build waiting and `url` is where to look at it (telarchy.com/beta redirects there). `running` is the revision answering this very request and `isServing` says whether that is the published site, which is how the beta knows to wear its stripe. Everything reads null off Cloud Run, with `error` set. See docs/infra/deploy.md.',
     },
     {
       method: 'POST',
       path: '/api/admin/publish',
       auth: 'admin',
       description:
-        'Publish: give the revision answering this request 100% of the traffic (platform admin only). Body: {} or { revision }. Deliberately not "promote latest": the button lives on the beta, so what goes live is the build the owner just looked at, and anything CI landed meanwhile waits its turn. 409 if this revision is already serving, 502 if Cloud Run refuses (check the runtime service account still holds the telarchyReleasePublisher role on the service). The equivalent by hand is `gcloud run services update-traffic api --region us-central1 --to-latest`.',
+        'Publish: give the revision answering this request 100% of the traffic (platform admin only). A 200 means Cloud Run accepted the change, not that traffic has moved: poll GET /api/admin/release until `publishing` is null and `serving` is this revision. Body: {} or { revision }. Deliberately not "promote latest": the button lives on the beta, so what goes live is the build the owner just looked at, and anything CI landed meanwhile waits its turn. 409 if this revision is already serving, 502 if Cloud Run refuses (check the runtime service account still holds the telarchyReleasePublisher role on the service). The equivalent by hand is `gcloud run services update-traffic api --region us-central1 --to-latest`.',
     },
     {
       method: 'GET',

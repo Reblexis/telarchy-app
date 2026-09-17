@@ -1927,6 +1927,8 @@ export const api = {
     request('/api/admin/release') as Promise<{
       serving: string | null;
       candidate: { revision: string; url: string } | null;
+      /** A publish accepted and not finished: traffic moves over a few minutes. */
+      publishing?: string | null;
       /** Branch previews, newest first; the stripe's picker lists them. */
       previews: Array<{ tag: string; revision: string; url: string }>;
       running: string | null;

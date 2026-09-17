@@ -170,3 +170,64 @@ describe('branch previews', () => {
     expect(revisionNumber('something-else')).toBe(0);
   });
 });
+
+/**
+ * Reported 2026-09-17: "Publish said ok and traffic never moved", twice in one
+ * day, each time followed by a manual gcloud update-traffic. The audit log
+ * showed the button's request was accepted and correct; Cloud Run takes three
+ * to five minutes to shift traffic, and nothing said so. The release state now
+ * names a publish that is under way.
+ */
+describe('a publish Cloud Run has accepted but not finished', () => {
+  const rolling = {
+    apiVersion: 'serving.knative.dev/v1',
+    kind: 'Service',
+    metadata: { name: 'api' },
+    spec: {
+      traffic: [
+        { revisionName: 'api-00999-new', percent: 100 },
+        { revisionName: 'api-00999-new', tag: 'candidate' },
+      ],
+    },
+    status: {
+      traffic: [
+        { revisionName: 'api-00998-old', percent: 100 },
+        { revisionName: 'api-00999-new', tag: 'candidate', url: 'https://candidate---x.run.app' },
+      ],
+    },
+  };
+
+  test('publish said ok and traffic has not moved yet: the state says publishing, and who still serves', async () => {
+    mockCloudRun(rolling);
+    clearReleaseCache();
+    const state = await releaseState();
+    expect(state.publishing).toBe('api-00999-new');
+    expect(state.serving).toBe('api-00998-old');
+    expect(state.isServing).toBe(false);
+  });
+
+  test('once traffic has moved nothing is publishing', async () => {
+    mockCloudRun({ ...rolling, status: { traffic: rolling.spec.traffic } });
+    clearReleaseCache();
+    const state = await releaseState();
+    expect(state.publishing).toBeNull();
+    expect(state.isServing).toBe(true);
+  });
+
+  test('a candidate nobody has pressed Publish on is not publishing', async () => {
+    mockCloudRun({
+      ...rolling,
+      spec: { traffic: [{ revisionName: 'api-00998-old', percent: 100 }, rolling.spec.traffic[1]] },
+    });
+    clearReleaseCache();
+    expect((await releaseState()).publishing).toBeNull();
+  });
+
+  test('a service with no spec traffic (or none at 100) is not publishing', async () => {
+    for (const spec of [{}, { traffic: [] }, { traffic: [{ revisionName: 'api-00999-new', percent: 50 }] }]) {
+      mockCloudRun({ ...rolling, spec });
+      clearReleaseCache();
+      expect((await releaseState()).publishing).toBeNull();
+    }
+  });
+});
