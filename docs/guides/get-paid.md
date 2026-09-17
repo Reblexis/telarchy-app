@@ -67,8 +67,8 @@ priced on (no open market there, or a date that settles before your deadline)
 is a 400 that names it, and nothing is created. Either way you pay from your
 liquidity credits first and your trading credits second, and whatever comes out
 of your trading credits counts against your profit until it comes back
-(docs/seasons.md). The form on the floor asks for one number, "each book",
-beside your price, and "set per date" opens the books one by one. Where the
+(docs/seasons.md). The form on the floor asks for one number, "each market",
+beside your price, or, switched to "per market", a number for each one. Where the
 owner chose to open proposals with credits of their own, yours are added on top of theirs. Owners often
 fund promising proposals themselves. A proposal nobody can price is a proposal
 nobody can approve.
@@ -88,7 +88,7 @@ list posting takes (`{ proposalId, amount }` is the one-number form). It is paid
 the same way, liquidity credits first, and recorded on the proposal per book
 like a seed paid at posting: re-seeded when dates roll, bought back on approval. Liquidity goes in and does not come out before then.
 The pencil on your proposal's page opens the posting form again with all of
-this in it: the words, the price, and "Add liquidity, each book".
+this in it: the words, the price, and "Add liquidity".
 
 `POST /api/proposals/:id/withdraw` pulls it. Both branches void and everyone is
 refunded.

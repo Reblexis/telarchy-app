@@ -200,7 +200,7 @@ describe('editing a proposal is a pencil, not a button', () => {
     fireEvent.click(head(container).querySelector('.pubws-icon-edit') as HTMLElement);
     await waitFor(() => expect(document.querySelector('.jobform')).toBeTruthy());
     const form = document.querySelector('.jobform') as HTMLElement;
-    const each = form.querySelector('input[aria-label="Add liquidity, each book"]') as HTMLInputElement;
+    const each = form.querySelector('input[aria-label="Add liquidity, each market"]') as HTMLInputElement;
     fireEvent.change(each, { target: { value: '100' } });
     fireEvent.click(form.querySelector('.ticket-go') as HTMLElement);
     await waitFor(() =>

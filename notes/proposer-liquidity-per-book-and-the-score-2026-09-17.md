@@ -73,3 +73,12 @@ Open questions for the owner:
 2. Does it apply from now on, or to the running season's past stakes too?
    All-time boards would shift for everyone who ever funded a book from
    their balance, house accounts included.
+
+## The form shows one or the other (same day)
+
+**revised 2026-09-17 (Viktor)**, on the merged layout F: "it doesnt maek sense
+to have the each book fields and per date fields at the same time visible it
+should be one or the other", then, shown three ways to do that, "okay do H
+then but call it \"per market\" nto per date". So the form carries a two-way
+switch, "same for all" or "per market": the big numeral on one, the grid on
+the other, never both. The numeral's label follows the word: "each market".

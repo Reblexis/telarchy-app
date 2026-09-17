@@ -1113,12 +1113,16 @@ counting:
   up to six; a label empties an option, and fewer than two filled labels
   post a two-branch proposal. Ids are the labels lowercased and hyphenated,
   deduplicated with a number. **Liquidity is the form's
-  other money, so it sits beside the price** in the same big numeral: "Your
-  liquidity, each book", empty because posting is free. A number there goes
-  into each side of every book the proposal will be priced on. Under the
-  head a quiet link, "set per date", opens a grid (dates down, metrics
-  across) already filled with that number, one field per book; once the
-  books differ the big numeral shows "mixed" rather than a wrong number.
+  other money, and it is asked one way or the other, never both at once.**
+  Under the head sits a two-way switch, "same for all" (preselected) or "per
+  market". On "same for all" the form shows ONE number beside the price in
+  the same big numeral, "Your liquidity, each market", empty because posting
+  is free; it goes into each side of every market the proposal will be
+  priced on, and there is no grid. On "per market" the numeral leaves the
+  screen and a grid takes its place (dates down, metrics across), already
+  filled with that number, one field per market. Switching back keeps the
+  number while every market still agrees and starts from nothing once they
+  differ, never from a number nobody typed.
   Each field carries what the floor already adds to that book ("+3,000
   floor") and nothing where it adds nothing. Only books the proposal will be
   priced on are offered: a metric proposals are not priced on, or a date
@@ -1137,7 +1141,8 @@ counting:
   the title and the pitch filled in and "Save" on the confirm. What cannot
   change is not offered: there is no Options row, and "Decided within" is one
   read-only line with the deadline, because nothing moves a deadline. The
-  numeral reads "Add liquidity, each book"; its numbers are amounts ADDED,
+  numeral reads "Add liquidity, each market" behind the same switch; its
+  numbers are amounts ADDED,
   never new totals, because liquidity does not come out, and each field of
   the grid says what that book holds now. Saving sends the words first and
   the liquidity second (the bulk route's `liquidity` list); if the second is

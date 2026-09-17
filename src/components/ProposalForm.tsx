@@ -151,7 +151,9 @@ export function ProposalForm({
   const [customUnit, setCustomUnit] = useState<'m' | 'h' | 'd'>('m');
   // The proposer's liquidity per book, whole credits, keyed metric:date.
   const [amounts, setAmounts] = useState<Record<string, number>>({});
-  const [perDateOpen, setPerDateOpen] = useState(false);
+  // One or the other, never both (owner, 2026-09-17): one number for every
+  // market, or a number per market.
+  const [perMarket, setPerMarket] = useState(false);
   const [title, setTitle] = useState(edit?.title ?? '');
   const [desc, setDesc] = useState(edit?.description ?? '');
   const [formBusy, setFormBusy] = useState(false);
@@ -260,7 +262,8 @@ export function ProposalForm({
     }
   };
 
-  const liquidityLabel = edit ? 'Add liquidity, each book' : 'Your liquidity, each book';
+  const liquidityWord = edit ? 'Add liquidity' : 'Your liquidity';
+  const liquidityLabel = `${liquidityWord}, each market`;
 
   return (
     <FloorModal onClose={onClose} label={edit ? 'Edit proposal' : 'Offer to do the work'}>
@@ -283,8 +286,9 @@ export function ProposalForm({
           </div>
           {/* Liquidity is the form's other money, so it sits beside the price
               in the same numeral (docs/ui-conventions.md, "Posting one"): one
-              number for every book, empty because posting is free. */}
-          {offered.length > 0 && (
+              number for every market, empty because posting is free. It
+              leaves the screen when the proposer chooses per market. */}
+          {offered.length > 0 && !perMarket && (
             <div className="jobform-askblock">
               <p className="ticket-label">{liquidityLabel}</p>
               <label className="ticket-amt ticket-amt--price jobform-ask">
@@ -292,7 +296,7 @@ export function ProposalForm({
                   value={uniform ? String(uniform) : ''}
                   style={{ width: `${Math.max(4, String(uniform ?? '').length + 1)}ch` }}
                   onChange={e => setEach(whole(e.target.value))}
-                  placeholder={uniform === null ? 'mixed' : '0'}
+                  placeholder="0"
                   inputMode="numeric"
                   aria-label={liquidityLabel}
                 />
@@ -307,15 +311,29 @@ export function ProposalForm({
 
         {offered.length > 0 && (
           <div className="jobform-field">
-            <button
-              type="button"
-              className="jobform-perdate"
-              aria-expanded={perDateOpen}
-              onClick={() => setPerDateOpen(v => !v)}
-            >
-              {perDateOpen ? 'one number for all' : 'set per date'}
-            </button>
-            {perDateOpen && (
+            <div className="jobform-modes" role="group" aria-label={liquidityWord}>
+              <button
+                type="button"
+                aria-pressed={!perMarket}
+                onClick={() => {
+                  // Back to one number: kept while every market agrees, and
+                  // nothing otherwise, never a number nobody typed.
+                  if (uniform === null) setAmounts({});
+                  setPerMarket(false);
+                }}
+              >
+                same for all
+              </button>
+              <button type="button" aria-pressed={perMarket} onClick={() => setPerMarket(true)}>
+                per market
+              </button>
+            </div>
+            {perMarket && (
+              <span className="ticket-label">
+                {liquidityWord} <span className="jobform-count">cr into each side of a market</span>
+              </span>
+            )}
+            {perMarket && (
               <div className="jobform-gridwrap">
                 <div
                   className="jobform-grid"

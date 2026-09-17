@@ -1,7 +1,8 @@
 /**
- * The form's liquidity (docs/ui-conventions.md, "Posting one"): ONE number,
- * "each book", beside the price, and "set per date" for whoever wants to
- * choose per metric and date.
+ * The form's liquidity (docs/ui-conventions.md, "Posting one"): a switch,
+ * "same for all" or "per market". One shows ONE number beside the price, the
+ * other shows the grid per metric and date, and the two are never on screen
+ * together (owner, 2026-09-17).
  *
  * THE RULES: posting is free unless the proposer says otherwise; what the
  * confirm says they spend is what they spend (every side of every book);
@@ -47,7 +48,7 @@ const base = {
 const renderNew = (props: Record<string, unknown> = {}) =>
   render(<ProposalForm {...base} onPropose={async () => {}} {...(props as object)} />);
 const go = () => document.querySelector('.ticket-go') as HTMLButtonElement;
-const each = () => screen.getByLabelText(/each book/i) as HTMLInputElement;
+const each = () => screen.getByLabelText(/each market/i) as HTMLInputElement;
 const cell = (metric: string, date: string) => screen.getByLabelText(`${metric}, ${date}`) as HTMLInputElement;
 const title = () => fireEvent.change(screen.getByLabelText('Proposal title'), { target: { value: 'Ship it' } });
 const sorted = (cells: Array<{ metricId: string; targetDate: string }>) =>
@@ -102,7 +103,7 @@ describe('set per date: the proposer chooses per metric and date', () => {
   test('the grid opens already filled with the one number, a row per date and a column per metric', () => {
     renderNew();
     fireEvent.change(each(), { target: { value: '100' } });
-    fireEvent.click(screen.getByRole('button', { name: 'set per date' }));
+    fireEvent.click(screen.getByRole('button', { name: 'per market' }));
     expect(cell('Traders', '21 Sep').value).toBe('100');
     expect(cell('Revenue', '30 Sep').value).toBe('100');
   });
@@ -111,7 +112,7 @@ describe('set per date: the proposer chooses per metric and date', () => {
     const onPropose = vi.fn(async () => {});
     renderNew({ onPropose });
     title();
-    fireEvent.click(screen.getByRole('button', { name: 'set per date' }));
+    fireEvent.click(screen.getByRole('button', { name: 'per market' }));
     fireEvent.change(cell('Traders', '30 Sep'), { target: { value: '500' } });
     fireEvent.change(cell('Revenue', '21 Sep'), { target: { value: '0' } });
     expect(go().textContent).toMatch(/Puts 1,000\s*cr/);
@@ -120,18 +121,42 @@ describe('set per date: the proposer chooses per metric and date', () => {
     expect(onPropose.mock.calls[0][5]).toEqual([{ metricId: 'tr', targetDate: '2030-09', amount: 500 }]);
   });
 
-  test('once the books differ the one number shows nothing rather than a wrong number', () => {
+  test('ONE OR THE OTHER: per market hides the big number, same for all hides the grid', () => {
+    renderNew();
+    expect(screen.getByRole('button', { name: 'same for all' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByLabelText('Traders, 21 Sep')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'per market' }));
+    expect(screen.getByRole('button', { name: 'per market' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByLabelText(/each market/i)).toBeNull();
+    expect(cell('Traders', '21 Sep')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'same for all' }));
+    expect(each()).toBeTruthy();
+    expect(screen.queryByLabelText('Traders, 21 Sep')).toBeNull();
+  });
+
+  test('switching back keeps the number while every market agrees', () => {
     renderNew();
     fireEvent.change(each(), { target: { value: '100' } });
-    fireEvent.click(screen.getByRole('button', { name: 'set per date' }));
+    fireEvent.click(screen.getByRole('button', { name: 'per market' }));
+    fireEvent.click(screen.getByRole('button', { name: 'same for all' }));
+    expect(each().value).toBe('100');
+    expect(go().textContent).toMatch(/Puts 800\s*cr/);
+  });
+
+  test('switching back once the markets differ starts from nothing, never from a number nobody typed', () => {
+    renderNew();
+    title();
+    fireEvent.change(each(), { target: { value: '100' } });
+    fireEvent.click(screen.getByRole('button', { name: 'per market' }));
     fireEvent.change(cell('Traders', '30 Sep'), { target: { value: '500' } });
+    fireEvent.click(screen.getByRole('button', { name: 'same for all' }));
     expect(each().value).toBe('');
-    expect(each().placeholder).toBe('mixed');
+    expect(go().textContent).toMatch(/Free to post/);
   });
 
   test('each book shows what the floor already adds, and says nothing where it adds nothing', () => {
     renderNew();
-    fireEvent.click(screen.getByRole('button', { name: 'set per date' }));
+    fireEvent.click(screen.getByRole('button', { name: 'per market' }));
     expect(cell('Traders', '21 Sep').closest('.jobform-cell')?.textContent).toMatch(/\+3,000/);
     expect(cell('Revenue', '21 Sep').closest('.jobform-cell')?.textContent ?? '').not.toMatch(/\+/);
   });
@@ -144,7 +169,7 @@ describe('set per date: the proposer chooses per metric and date', () => {
     });
     title();
     fireEvent.change(each(), { target: { value: '100' } });
-    fireEvent.click(screen.getByRole('button', { name: 'set per date' }));
+    fireEvent.click(screen.getByRole('button', { name: 'per market' }));
     expect(screen.queryByLabelText('Traders, 21 Sep')).toBeNull();
     expect(go().textContent).toMatch(/Puts 600\s*cr/);
     fireEvent.click(go());
@@ -208,7 +233,7 @@ describe('the form never lets a proposer name more than both purses hold', () =>
 describe('a floor with nothing to price offers no liquidity', () => {
   test('no books, no number', () => {
     renderNew({ books: [] });
-    expect(screen.queryByLabelText(/each book/i)).toBeNull();
+    expect(screen.queryByLabelText(/each market/i)).toBeNull();
   });
 });
 
@@ -221,11 +246,11 @@ describe('editing: the numbers are amounts added, per book', () => {
   };
   const held = books.map((b, i) => ({ ...b, holds: i === 0 ? 6082 : 0, sides: 2 }));
 
-  test('the number reads "Add liquidity, each book", and a book shows what it holds now', () => {
+  test('the number reads "Add liquidity, each market", and a book shows what it holds now', () => {
     render(<ProposalForm {...base} books={held} edit={edit} onSave={async () => {}} />);
     expect(each()).toBeTruthy();
-    expect(screen.getByText(/Add liquidity, each book/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'set per date' }));
+    expect(screen.getByText(/Add liquidity, each market/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'per market' }));
     expect(
       within(cell('Traders', '21 Sep').closest('.jobform-cell') as HTMLElement).getByText(/holds 6,082/),
     ).toBeTruthy();
@@ -242,7 +267,7 @@ describe('editing: the numbers are amounts added, per book', () => {
   test('a per-book amount is sent as that book alone and the confirm says what it adds', async () => {
     const onSave = vi.fn(async () => {});
     render(<ProposalForm {...base} books={held} edit={edit} onSave={onSave} />);
-    fireEvent.click(screen.getByRole('button', { name: 'set per date' }));
+    fireEvent.click(screen.getByRole('button', { name: 'per market' }));
     fireEvent.change(cell('Revenue', '30 Sep'), { target: { value: '50' } });
     expect(go().textContent).toMatch(/Adds 100\s*cr/);
     fireEvent.click(go());
