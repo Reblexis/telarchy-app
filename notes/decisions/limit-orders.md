@@ -157,3 +157,10 @@ Viktor: "for limit orders it makes sense more to just cancel the limit orders.. 
 
 Pending orders precede the held shares and offer Cancel only. Successful
 orders and trades preserve the selected tab, order type and limit price.
+
+## 2026-09-17: Review orders below the ticket
+
+Viktor asked to revise the HTML comparison to show limit orders at all times
+below the trading dialog, with Cancel on each order. This approval covers the
+comparison layout; application placement is unchanged in this revision.
+See [the design](../design/limit-order-ticket-before-after.html).
