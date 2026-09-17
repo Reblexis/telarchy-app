@@ -2035,6 +2035,13 @@ button.notif-row-link {
   font-size: 0.85rem;
   color: var(--text-secondary);
 }
+/* The bots that never traded: one quiet line instead of a row each. */
+.prof-bots-idle {
+  margin: 0;
+  padding: 0.6rem 0;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
 .prof-empty {
   margin: 0;
   font-size: 0.85rem;

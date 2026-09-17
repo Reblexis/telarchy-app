@@ -234,6 +234,74 @@ function ProposalRow({ j }: { j: ProfileProposedJob }) {
   );
 }
 
+/** Green for a gain, red for a loss, and neither for a zero: a bot that
+ *  has made nothing has not made a gain. */
+function toneOf(v: number): string {
+  return v > 0.004 ? ' is-up' : v < -0.004 ? ' is-down' : '';
+}
+
+/**
+ * An owner's bots (docs/ui-conventions.md, "Bots"): each is a separate
+ * entity with its own profit and its own profile; the last line is a plain
+ * sum for the owner's eye, and the only place the platform adds accounts
+ * up. A bot that never traded has nothing to read, so those are one quiet
+ * line rather than a row each.
+ */
+function BotsSection({ bots, total }: { bots: NonNullable<PublicParticipantProfile['bots']>; total: number | null }) {
+  if (bots.length === 0) return null;
+  const active = bots.filter(b => b.totalTrades > 0 || Math.abs(b.totalEarnings) > 0.004);
+  const idle = bots.length - active.length;
+  const plural = (n: number) => (n === 1 ? 'bot' : 'bots');
+  return (
+    <section className="prof-section" aria-label="Bots">
+      <h2 className="prof-h2">Bots</h2>
+      {active.length > 0 && (
+        <ul className="prof-list">
+          {active.map(b => {
+            const parent = bots.find(x => x.id === b.parentId);
+            return (
+              <li key={b.id}>
+                <Link className="prof-row prof-row-link" to={`/participants/${encodeURIComponent(b.nickname ?? b.id)}`}>
+                  <span className="prof-row-main">
+                    <span className="prof-row-title">
+                      {b.nickname ?? 'anonymous'}
+                      <BotMark bot />
+                    </span>
+                    <span className="prof-row-sub">
+                      {b.totalTrades.toLocaleString('en-US')} {b.totalTrades === 1 ? 'trade' : 'trades'}
+                      {parent ? ` · bot of ${parent.nickname ?? 'anonymous'}` : ''}
+                    </span>
+                  </span>
+                  <span className="prof-row-right">
+                    <span className={`prof-row-val prof-row-profit${toneOf(b.totalEarnings)}`}>
+                      {fmtCr(b.totalEarnings)} cr
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {idle > 0 && (
+        <p className="prof-bots-idle">
+          {active.length > 0
+            ? `${idle} more ${idle === 1 ? 'has' : 'have'} not traded yet.`
+            : `${idle} ${plural(idle)}, not traded yet.`}
+        </p>
+      )}
+      {total !== null && (
+        <p className="prof-bots-total">
+          <span>
+            Total with {bots.length} {plural(bots.length)}
+          </span>
+          <span className={`prof-row-val prof-row-profit${toneOf(total)}`}>{fmtCr(total)} cr</span>
+        </p>
+      )}
+    </section>
+  );
+}
+
 function Section({ title, empty, children }: { title: string; empty: boolean; children: React.ReactNode }) {
   return (
     <section className="prof-section">
@@ -429,54 +497,7 @@ export function ParticipantProfilePage() {
                 separate entity with its own profit and its own profile; the
                 last line is a plain sum for the owner's eye, and the only
                 place the platform adds them up. */}
-            {(profile.bots ?? []).length > 0 && (
-              <section className="prof-section" aria-label="Bots">
-                <h2 className="prof-h2">Bots</h2>
-                <ul className="prof-list">
-                  {(profile.bots ?? []).map(b => {
-                    const parent = (profile.bots ?? []).find(x => x.id === b.parentId);
-                    return (
-                      <li key={b.id}>
-                        <Link
-                          className="prof-row prof-row-link"
-                          to={`/participants/${encodeURIComponent(b.nickname ?? b.id)}`}
-                        >
-                          <span className="prof-row-main">
-                            <span className="prof-row-title">
-                              {b.nickname ?? 'anonymous'}
-                              <BotMark bot />
-                            </span>
-                            <span className="prof-row-sub">
-                              {b.totalTrades === 0
-                                ? 'no trades yet'
-                                : `${b.totalTrades.toLocaleString('en-US')} ${b.totalTrades === 1 ? 'trade' : 'trades'}`}
-                              {parent ? ` · bot of ${parent.nickname ?? 'anonymous'}` : ''}
-                            </span>
-                          </span>
-                          <span className="prof-row-right">
-                            <span
-                              className={`prof-row-val prof-row-profit ${b.totalEarnings >= 0 ? 'is-up' : 'is-down'}`}
-                            >
-                              {fmtCr(b.totalEarnings)} cr
-                            </span>
-                          </span>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-                {profile.withBotsEarnings !== null && profile.withBotsEarnings !== undefined && (
-                  <p className="prof-bots-total">
-                    <span>
-                      With {(profile.bots ?? []).length} {(profile.bots ?? []).length === 1 ? 'bot' : 'bots'}
-                    </span>
-                    <span className={`prof-row-val ${profile.withBotsEarnings >= 0 ? 'is-up' : 'is-down'}`}>
-                      {fmtCr(profile.withBotsEarnings)} cr
-                    </span>
-                  </p>
-                )}
-              </section>
-            )}
+            <BotsSection bots={profile.bots ?? []} total={profile.withBotsEarnings ?? null} />
 
             <Section title="Positions" empty={profile.openPositions.length === 0}>
               {profile.openPositions.map(p => (

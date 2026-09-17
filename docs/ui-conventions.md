@@ -303,17 +303,20 @@ first point lands tomorrow."
 
 
 **Bots** lists every bot the participant owns, and those bots' bots, when
-there are any (the section is absent otherwise): one row per bot, best
-profit first, the name with the bot mark linking to that bot's own
-profile, "N trades" beneath (and "bot of <name>" when it belongs to
-another bot on the list), and its own trading profit in the right column,
-coloured. A bot is a separate entity everywhere else on the platform: the
-boards, the season and the strip above never add one account to another.
-So this section closes with the one sum the platform draws, for the
-owner's eye: "With N bots" and the participant's profit plus the listed
-bots', label left and number right under a hairline. It ranks nothing and
-pays nothing, and it is trading profit, so credits moved between the
-owner and a bot are no part of it.
+there are any (the section is absent otherwise): one row per bot that has
+traded, best profit first, the name with the bot mark linking to that
+bot's own profile, "N trades" beneath (and "bot of <name>" when it belongs
+to another bot on the list), and its own trading profit in the right
+column, green for a gain, red for a loss, plain for a zero. Bots that
+never traded have nothing to read, so they are one quiet line under the
+rows ("4 more have not traded yet.") instead of a row of zeros each. A
+bot is a separate entity everywhere else on the platform: the boards, the
+season and the strip above never add one account to another. So this
+section closes with the one sum the platform draws, for the owner's eye:
+"Total with N bots" and the participant's profit plus every owned bot's,
+label left and number right under a hairline, coloured like a row. It
+ranks nothing and pays nothing, and it is trading profit, so credits
+moved between the owner and a bot are no part of it.
 
 **Positions** are rows, one per market and direction the participant holds,
 heaviest first. The title is the metric and its date ("Active traders ·
