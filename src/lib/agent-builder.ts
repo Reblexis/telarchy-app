@@ -95,6 +95,21 @@ export interface Connection {
   access?: Access;
   complete?: boolean;
 }
+/**
+ * The handle a typed bot name becomes: the person may type anything, and the
+ * handle rule (3-30 of letters, digits, hyphens, underscores, starting with a
+ * letter or digit) is met here rather than shown to them. Undefined when too
+ * little is left to make one (docs/audience-pages.md).
+ */
+export function fitHandle(name: string): string | undefined {
+  const fitted = name
+    .replace(/[^A-Za-z0-9_-]+/g, '-')
+    .replace(/^[-_]+/, '')
+    .slice(0, 30)
+    .replace(/[-_]+$/, '');
+  return fitted.length >= 3 ? fitted : undefined;
+}
+
 export async function connectBuilder(
   o: BuilderOptions,
   access: Access,
@@ -134,16 +149,28 @@ export async function connectBuilder(
         c.ownerJoined = true;
       }
       c.attempted = true;
-      const created = await api.createAgent(
-        {
-          agentId: c.botId,
-          ...(name && name !== c.botId ? { nickname: name } : {}),
-          initialCredits: amount,
-          keyLabel: c.label,
-          keyScopes: ['workspace:read'],
-        },
-        o.workspace,
-      );
+      const handle = fitHandle(name);
+      const created = await api
+        .createAgent(
+          {
+            agentId: c.botId,
+            ...(handle && handle !== c.botId ? { nickname: handle } : {}),
+            initialCredits: amount,
+            keyLabel: c.label,
+            keyScopes: ['workspace:read'],
+          },
+          o.workspace,
+        )
+        .catch(e => {
+          // A 4xx is the server's refusal: nothing was created, so the person
+          // edits and creates again. Only a lost answer stays uncertain.
+          const status = (e as { status?: number })?.status;
+          if (typeof status === 'number' && status >= 400 && status < 500) {
+            c.attempted = false;
+            c.botId = undefined;
+          }
+          throw e;
+        });
       guard();
       c.agentId = created.agentId;
     }
