@@ -1603,16 +1603,18 @@ describe('a proposal address accepts the number', () => {
  * "A proposal has a number and an address"): the address bar is the link.
  */
 describe('selecting a proposal changes the address', () => {
-  test('a click writes /<slug>/p/<number>; a second click clears it; history is not grown', async () => {
+  test('a click writes /<slug>/p/<number> as one history entry; a second click steps back over it', async () => {
     renderFloor();
     const row = await screen.findByTitle('rewrite the store page');
     const depth = window.history.length;
     fireEvent.click(row);
     await waitFor(() => expect(window.location.pathname).toBe('/lookpilot/p/1'));
     expect(window.location.hash).toBe('');
-    expect(window.history.length).toBe(depth);
+    expect(window.history.length).toBe(depth + 1);
     fireEvent.click(row);
     await waitFor(() => expect(window.location.pathname).toBe('/lookpilot'));
+    /* Stepped back, not pushed again: the floor is in the history once. */
+    expect(window.history.length).toBe(depth + 1);
   });
 
   test('a link to /<slug>/p/<number> opens that proposal', async () => {
