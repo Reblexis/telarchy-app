@@ -1,6 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+
+const CSS = readFileSync(join(dirname(dirname(dirname(fileURLToPath(import.meta.url)))), 'style.css'), 'utf8');
 
 /**
  * Under the ticket, the door to a bot (docs/ui-conventions.md, "The rails,
@@ -163,15 +168,34 @@ describe('every floor carries the door to a bot, in the ticket rail', () => {
     expect(ticket!.compareDocumentPosition(door) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  test('one caption under it, and nothing else in the rail besides the ticket', async () => {
+  test("NOTHING STANDS UNDER THE DOOR: no caption, no second link, and it is the rail's only block besides the ticket", async () => {
+    await withWorkspace({ liveFeed: { kind: 'chess', url: 'https://chess.example.com' } });
     const { container } = renderFloor();
     const door = await screen.findByRole('link', {
       name: /Add your own trading bot/,
     });
     const block = door.closest('.pubws-botdoor');
     expect(block).toBeTruthy();
-    expect(block!.querySelectorAll('p').length).toBe(1);
+    expect(block!.querySelectorAll('p').length).toBe(0);
+    expect(block!.querySelectorAll('a').length).toBe(1);
+    expect(block!.textContent).not.toMatch(/ready prompt|step by step|How to trade/);
     expect(container.querySelectorAll('.pubws-rail--right .pubws-botdoor').length).toBe(1);
+  });
+
+  test('THE DOOR IS A HAIRLINE ROW, NEVER A FILLED PILL: the ticket keeps the one primary button in the rail', async () => {
+    renderFloor();
+    const door = await screen.findByRole('link', {
+      name: /Add your own trading bot/,
+    });
+    expect(door.classList.contains('pubws-cta')).toBe(false);
+    expect(door.classList.contains('pubws-botdoor-row')).toBe(true);
+    const rule = CSS.match(/\.pubws-botdoor-row\s*\{([^}]*)\}/);
+    expect(rule).toBeTruthy();
+    expect(rule![1]).toMatch(/border-top:\s*1px solid var\(--border-color\)/);
+    expect(rule![1]).toMatch(/border-bottom:\s*1px solid var\(--border-color\)/);
+    expect(rule![1]).toMatch(/color:\s*var\(--text-secondary\)/);
+    expect(rule![1]).not.toMatch(/background:\s*var\(--button-bg\)/);
+    expect(CSS).not.toMatch(/\.pubws-botdoor-(note|guide|go)\b/);
   });
 
   test('THE DOOR IS THERE WITH NO MARKET OPEN: a bot is added to the floor, not to one book', async () => {
@@ -195,32 +219,5 @@ describe('every floor carries the door to a bot, in the ticket rail', () => {
       name: /Add your own trading bot/,
     });
     await waitFor(() => expect(door).toHaveAttribute('href', '/agents?market=lookpilot#agent-setup'));
-  });
-});
-
-/* Persona run 2026-09-17, the bot author: "I found a starter bot, but I still
-   cannot tell it where to read the chess game." telarchy-chess docs/chess.md
-   says the floor links to its trading guide, which names the feed. */
-describe('a fed floor links to its own bot guide', () => {
-  const GUIDE = 'https://github.com/Reblexis/telarchy-chess/blob/main/docs/trading.md';
-  test('the chess floor carries "How to trade chess with a bot" under the door, opening the guide in a new tab', async () => {
-    await withWorkspace({ liveFeed: { kind: 'chess', url: 'https://chess.example.com' } });
-    renderFloor();
-    const link = await screen.findByRole('link', {
-      name: 'How to trade chess with a bot: the game feed, a dry run, a reference bot',
-    });
-    expect(link).toHaveAttribute('href', GUIDE);
-    expect(link).toHaveAttribute('target', '_blank');
-    expect(link.getAttribute('rel')).toMatch(/noopener/);
-    expect(link.closest('.pubws-botdoor')).toBeTruthy();
-  });
-  test('a floor with no feed, or a feed with no guide, carries no such link', async () => {
-    renderFloor();
-    await screen.findByRole('link', { name: /Add your own trading bot/ });
-    expect(screen.queryByRole('link', { name: /How to trade/ })).toBeNull();
-    await withWorkspace({ liveFeed: { kind: 'snake', url: 'https://snake.example.com' } });
-    renderFloor();
-    await waitFor(() => expect(screen.getAllByRole('link', { name: /Add your own trading bot/ }).length).toBe(2));
-    expect(screen.queryByRole('link', { name: /How to trade/ })).toBeNull();
   });
 });

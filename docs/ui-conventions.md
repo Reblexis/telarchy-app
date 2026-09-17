@@ -2530,26 +2530,19 @@ it, no "and", no running sentence. It sits in the left column under the
 definition.
 
 **Under the ticket, the door to a bot.** The one thing the rail carries
-besides the ticket is a full-width pill, "Add your own trading bot",
+besides the ticket is a hairline row, "Add your own trading bot",
 opening the Agents page with this market preset on its new-bot form,
-`/agents?market=<slug>#agent-setup` (owner ask 2026-09-16: bots are a
-thing anyone can add and the floor should say so where the trading
-happens, not in a footer; and the Agents page already exists, so the
-door reuses it rather than adding a page). It stands under the ticket
-in the rail, so it is on screen from the first paint on a wide screen and
-under the ticket on a phone, and it is there whether or not a market is
-open, since a bot is added to the floor, not to one book. Under it one
-mono caption line, "A ready prompt for your coding assistant, or step by
-step.", and nothing else: the page it opens carries the instructions.
-The one exception is a floor whose feed publishes its own bot guide: under
-the caption stands one link to it, opening in a new tab. Chess: "How to trade
-chess with a bot: the game feed, a dry run, a reference bot", to
-telarchy-chess `docs/trading.md`, because the Agents page cannot tell a bot
-author where the game is.
-It is a pill, not a hairline row, because it is a door to another page
-rather than a control on this one, and it is the only pill in the rail.
-What it opens is specified in `docs/audience-pages.md`, "The door from a
-market".
+`/agents?market=<slug>#agent-setup`: bots are a thing anyone can add, and
+the floor says so where the trading happens, not in a footer. It stands
+under the ticket in the rail, so it is on screen from the first paint on a
+wide screen and under the ticket on a phone, and it is there whether or not
+a market is open, since a bot is added to the floor, not to one book.
+It is a row between two hairlines, the bot mark, the words in the secondary
+text colour at medium weight, and a mono arrow at the right edge; it is
+never a filled pill, because the ticket's own button is the one primary
+action in the rail. Nothing stands under it, no caption and no second link:
+the page it opens carries the instructions, including a fed floor's own bot
+guide (`docs/audience-pages.md`, "The door from a market").
 
 **The standings are one footer, not rails, and not two boards.** Under
 the facts row stands a single block (`.pubws-standings`): "Top traders",

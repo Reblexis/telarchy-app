@@ -33,7 +33,13 @@ export function AgentWorkspace() {
     api
       .getMarketplaceWorkspace(market)
       .then(w => {
-        if (current) setFloor({ workspaceId: w.workspaceId, slug: w.slug || w.workspaceId, name: w.name });
+        if (current)
+          setFloor({
+            workspaceId: w.workspaceId,
+            slug: w.slug || w.workspaceId,
+            name: w.name,
+            feedKind: w.liveFeed?.kind,
+          });
       })
       .catch(() => {
         if (current) setFloorFailed(true);

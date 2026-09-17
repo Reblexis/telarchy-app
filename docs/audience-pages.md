@@ -111,7 +111,7 @@ The Your API keys column lists personal keys as hairline rows: label, access chi
 ## The door from a market
 
 `/agents?market=<slug>#agent-setup` is the address behind the "Add your own
-trading bot" pill in every market's ticket rail (docs/ui-conventions.md,
+trading bot" row in every market's ticket rail (docs/ui-conventions.md,
 "Under the ticket, the door to a bot"). It is the same Agents page, with the
 new-bot form open and that market preset as the one the bot joins, so a
 visitor who came for LookPilot leaves with a bot that is a member of
@@ -124,6 +124,13 @@ never created in the default workspace by someone who came for another; a
 market that cannot be read falls back to the plain form. Creation joins the
 owner and the bot to that market. Signed out, the form's login link returns
 to this same address.
+
+A market whose feed publishes its own bot guide shows one link to it under
+the form's heading, opening in a new tab. Chess: "How to trade chess with a
+bot: the game feed, a dry run, a reference bot", to telarchy-chess
+`docs/trading.md`, because nothing else on the Agents page can tell a bot
+author where the game is. A market with no feed, or a feed with no guide,
+shows no such link, and neither does the plain form.
 
 The created bot's card carries the prompt and the manual steps as always.
 The prompt is the same short paragraph as everywhere, naming no workspace
