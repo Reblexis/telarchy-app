@@ -6357,30 +6357,37 @@ closed by default (a two-branch proposal is the default and stays the
 default). Opened, it holds two label fields and an &quot;add option&quot; control
 up to six; a label empties an option, and fewer than two filled labels
 post a two-branch proposal. Ids are the labels lowercased and hyphenated,
-deduplicated with a number. Under &quot;Decided within&quot; sits &quot;Your liquidity&quot;,
-in the same chips: <code>none</code> (preselected, because posting is free), 100,
-500, 2,000 and custom. The number is the WHOLE amount in credits
-(<code>liquidityBudget</code>), which the server splits evenly across the markets the
-proposal spawns, so the form never shows a per-market figure or a market
-count. One sentence under the chips says where it goes and that the owner
-buys it back on approval, with what the viewer holds. A number above what
-they hold (liquidity wallet plus balance) disables the confirm and names
-what they hold; an unknown balance leaves the check to the server. With a
-seed the confirm's sub-line says only &quot;Puts N cr of yours in its markets.&quot;,
-one short line, in place of the &quot;Free to post&quot; sentence. The sentence under
-the chips is prose in the body face, left-aligned, never the mono caption.</li>
+deduplicated with a number. <strong>Liquidity is the form's
+other money, so it sits beside the price</strong> in the same big numeral: &quot;Your
+liquidity, each book&quot;, empty because posting is free. A number there goes
+into each side of every book the proposal will be priced on. Under the
+head a quiet link, &quot;set per date&quot;, opens a grid (dates down, metrics
+across) already filled with that number, one field per book; once the
+books differ the big numeral shows &quot;mixed&quot; rather than a wrong number.
+Each field carries what the floor already adds to that book (&quot;+3,000
+floor&quot;) and nothing where it adds nothing. Only books the proposal will be
+priced on are offered: a metric proposals are not priced on, or a date
+whose period ends before the window picked under &quot;Decided within&quot;, has no
+field and is never sent. The bill is said as mono facts, never a sentence:
+the drop with the whole amount (every side of every book), then the two
+purses in the order they are spent, &quot;liquidity 300 → 0&quot; and &quot;trading 4,010
+→ 3,510&quot;. A bill above both purses disables the confirm, whose sub-line
+then says what the viewer holds; unknown purses leave the check to the
+server. With a number the confirm's sub-line says only &quot;Puts N cr of yours
+in its markets.&quot;, one short line, in place of the &quot;Free to post&quot; sentence.
+It sends <code>liquidity: [{ metricId, targetDate, amount }]</code>, books at zero
+left out.</li>
 <li><strong>Editing one</strong> is the same form (the pencil on the proposal's page, for
 its proposer or a manager, while it is pending), opened with the price,
 the title and the pitch filled in and &quot;Save&quot; on the confirm. What cannot
 change is not offered: there is no Options row, and &quot;Decided within&quot; is one
 read-only line with the deadline, because nothing moves a deadline. The
-liquidity row reads &quot;Add liquidity&quot; with the same chips, <code>none</code>
-preselected, and its sentence says what the proposal's markets hold now;
-a number is a whole amount ADDED to them (<code>budget</code> on the bulk route),
-never a new total, because liquidity does not come out. Saving sends the
-words first and the liquidity second; if the second is refused the form
-stays open, says so, and the words are already saved. There is no inline
-editor on the page any more.</li>
+numeral reads &quot;Add liquidity, each book&quot;; its numbers are amounts ADDED,
+never new totals, because liquidity does not come out, and each field of
+the grid says what that book holds now. Saving sends the words first and
+the liquidity second (the bulk route's <code>liquidity</code> list); if the second is
+refused the form stays open, says so, and the words are already saved.
+There is no inline editor on the page any more.</li>
 </ul>
 <h3 id="docs-ui-conventions-md--h25">A proposal ships every pair of the grid, and the board reads the pair on screen</h3>
 <p>A proposal's <code>markets</code> carries EVERY pair the engine spawned for it, one
@@ -11846,12 +11853,18 @@ is a cost the owner is really paying.</p>
 <p>Here is the part worth planning for: with no subsidy those markets open with no
 liquidity, which means no price, which means nothing to read. <code>liquiditySubsidy</code>
 seeds them, and it is charged per market, so a floor pricing three metrics
-across several dates costs more to seed than you might expect. <code>liquidityBudget</code>
-says the same thing as one number: the whole amount you are willing to spend,
-split evenly across every market the proposal spawns and never exceeded. Name
-one or the other, not both. The form on the floor asks for the budget (&quot;Your
-liquidity&quot;). Where the owner chose to open proposals with credits of their
-own, yours are added on top of theirs. Owners often
+across several dates costs more to seed than you might expect. To choose
+per book instead, pass <code>liquidity: [{ metricId, targetDate, amount }]</code>:
+<code>amount</code> credits go into EACH branch book of that metric and date, and nothing
+goes anywhere else, so you can fund only the date your argument is about. Name
+<code>liquidity</code> or <code>liquiditySubsidy</code>, not both. A book the proposal will not be
+priced on (no open market there, or a date that settles before your deadline)
+is a 400 that names it, and nothing is created. Either way you pay from your
+liquidity credits first and your trading credits second, and whatever comes out
+of your trading credits counts against your profit until it comes back
+(docs/seasons.md). The form on the floor asks for one number, &quot;each book&quot;,
+beside your price, and &quot;set per date&quot; opens the books one by one. Where the
+owner chose to open proposals with credits of their own, yours are added on top of theirs. Owners often
 fund promising proposals themselves. A proposal nobody can price is a proposal
 nobody can approve.</p>
 <h2 id="docs-guides-get-paid-md--h4">Editing, and getting out</h2>
@@ -11860,13 +11873,12 @@ change in place and the markets keep their prices and positions; every change is
 appended to a public revision log at <code>GET /api/proposals/:id/revisions</code>, so
 nobody has to wonder whether the goalposts moved. Changing the ask re-anchors
 the markets only while nobody has traded them.</p>
-<p>You can also deepen your own proposal while it is pending: <code>POST /api/predictions/markets/liquidity/bulk { budget, proposalId }</code> splits <code>budget</code>
-credits evenly across its open markets, out of your balance, rounded down so it
-never costs more than you named (<code>amount</code> is the per-market form). It is
-recorded on the proposal like a seed paid at posting: re-seeded when dates roll,
-bought back on approval. Liquidity goes in and does not come out before then.
+<p>You can also deepen your own proposal while it is pending: <code>POST /api/predictions/markets/liquidity/bulk { proposalId, liquidity: [{ metricId, targetDate, amount }] }</code> adds <code>amount</code> to each open side of that book, the same
+list posting takes (<code>{ proposalId, amount }</code> is the one-number form). It is paid
+the same way, liquidity credits first, and recorded on the proposal per book
+like a seed paid at posting: re-seeded when dates roll, bought back on approval. Liquidity goes in and does not come out before then.
 The pencil on your proposal's page opens the posting form again with all of
-this in it: the words, the price, and &quot;Add liquidity&quot;.</p>
+this in it: the words, the price, and &quot;Add liquidity, each book&quot;.</p>
 <p><code>POST /api/proposals/:id/withdraw</code> pulls it. Both branches void and everyone is
 refunded.</p>
 <h2 id="docs-guides-get-paid-md--h5">The decision</h2>
@@ -12542,8 +12554,8 @@ usual reason a proposal sits there reading &quot;no price yet&quot; instead of a
 Posting is free, and a proposal is the proposer's to price: a proposer who
 paid no subsidy has left you nothing to read.</p>
 <p>You can fund it yourself. <code>POST /api/predictions/markets/liquidity/bulk { amount, proposalId }</code> puts <code>amount</code> credits into <strong>each</strong> branch under that
-proposal, so the bill is <code>amount</code> times the number of markets; <code>{ budget, proposalId }</code>
-names the whole bill instead and splits it evenly, rounded down. Funding every
+proposal, so the bill is <code>amount</code> times the number of markets; <code>{ proposalId, liquidity: [{ metricId, targetDate, amount }] }</code> funds chosen books instead, <code>amount</code> into
+each open side of that metric and date. Both spend liquidity credits first. Funding every
 market on the floor, or someone else's proposal, needs <code>manage</code>; a proposer may
 fund their own pending proposal with <code>trade</code> alone. <code>POST /api/predictions/markets/:id/liquidity { amount }</code> funds one
 market and needs only <code>trade</code>, so a trader who wants a readable price can deepen

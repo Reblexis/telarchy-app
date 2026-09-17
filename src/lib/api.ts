@@ -1019,6 +1019,12 @@ export interface PublicWorkspaceMarket {
    *  its question in place of the clock ("this attempt"); null or absent
    *  means the floor names the clock (docs/guides/time-preference.md). */
   dateTitle?: string | null;
+  /** What the owner adds to each side of a new proposal's book on this date;
+   *  null on a metric proposals are not priced on. */
+  proposalOpensWith?: number | null;
+  /** End of the priced period (ISO); a proposal is priced here only when it
+   *  falls after the proposal's deadline. */
+  periodEndsOn?: string;
   /** "until-settled" for a date that settles when the owner settles it; its
    *  resolvesOn is then 9999-12-31T00:00:00Z and names no real moment. */
   targetDate: string;
@@ -1874,13 +1880,13 @@ export const api = {
       body: JSON.stringify({ amount, ...(proposalId && { proposalId }) }),
     }),
 
-  /** Adds `budget` credits, the WHOLE amount, to a pending proposal's open
-   *  markets, split evenly; its proposer or a manager (docs/guides/get-paid.md,
-   *  "Editing, and getting out"). */
-  fundProposal: (proposalId: string, budget: number) =>
+  /** Adds liquidity to a pending proposal per book: `amount` into each open
+   *  side of that metric and date; its proposer or a manager
+   *  (docs/guides/get-paid.md, "Editing, and getting out"). */
+  fundProposal: (proposalId: string, liquidity: Array<{ metricId: string; targetDate: string; amount: number }>) =>
     request('/api/predictions/markets/liquidity/bulk', {
       method: 'POST',
-      body: JSON.stringify({ budget, proposalId }),
+      body: JSON.stringify({ liquidity, proposalId }),
     }),
 
   // Proposals
@@ -1900,9 +1906,9 @@ export const api = {
     title: string;
     description: string;
     liquiditySubsidy?: number;
-    /** The same seed as a whole amount, split evenly across the markets the
-     *  proposal spawns; never together with liquiditySubsidy. */
-    liquidityBudget?: number;
+    /** The proposer's liquidity per book: `amount` into EACH branch book of
+     *  that metric and date; never together with liquiditySubsidy. */
+    liquidity?: Array<{ metricId: string; targetDate: string; amount: number }>;
     askUsd?: number;
     payoutHandle?: string;
     /** The decision deadline, an ISO instant in the future; the floor's

@@ -1,15 +1,51 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { MAX_OPTION_LABEL, MAX_OPTIONS, optionsFromLabels } from '../lib/proposal-options';
 import { countdownTo } from '../lib/viewer-time';
 import { FloorModal } from './FloorModal';
 
-/**
- * What a proposer may put behind their own proposal (docs/ui-conventions.md,
- * "Posting one"): the WHOLE amount in credits, split by the server across
- * the markets the proposal spawns. Zero, the default, is "none".
- */
-export const SEED_PRESETS = [100, 500, 2000];
+/** One book a proposal can be priced on, as the form needs it
+ *  (docs/ui-conventions.md, "Posting one"). */
+export interface ProposalBook {
+  metricId: string;
+  metricLabel: string;
+  targetDate: string;
+  dateLabel: string;
+  /** What the floor adds to each side of this book on a new proposal; null
+   *  when proposals are not priced here at all. */
+  opensWith: number | null;
+  /** End of the priced period (ISO): a proposal is priced here only when
+   *  this falls after its deadline. */
+  periodEndsOn?: string | null;
+  /** Editing: what this proposal's sides of the book hold now, together. */
+  holds?: number;
+  /** Editing: how many open sides the proposal has on this book. */
+  sides?: number;
+}
+
+/** A proposer's liquidity for one book: `amount` into EACH side of it. */
+export interface LiquidityCell {
+  metricId: string;
+  targetDate: string;
+  amount: number;
+}
+
+const bookKey = (b: { metricId: string; targetDate: string }) => `${b.metricId}:${b.targetDate}`;
+
+/** The pool's mark on the board, reused for the bill. */
+const DropGlyph = () => (
+  <svg
+    width="12"
+    height="12"
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    aria-hidden="true"
+  >
+    <path d="M8 1.8c2.6 3 4.2 5.2 4.2 7.4A4.2 4.2 0 0 1 8 13.4a4.2 4.2 0 0 1-4.2-4.2C3.8 7 5.4 4.8 8 1.8Z" />
+  </svg>
+);
 
 export const WINDOW_PRESETS: Array<{ minutes: number; label: string }> = [
   { minutes: 60, label: '1h' },
@@ -54,7 +90,6 @@ export interface ProposalFormEdit {
   title: string;
   description: string;
   decideBy?: string | null;
-  pool?: number | null;
 }
 
 interface ProposalFormProps {
@@ -64,11 +99,14 @@ interface ProposalFormProps {
   proposalReward: number;
   /** The floor's own decision window in minutes, the preselected preset. */
   decisionMinutes: number;
-  /** What the viewer can put into a pool; null when unknown, and the server
-   *  decides then. */
-  spendable: number | null;
+  /** The viewer's two purses, liquidity credits spent first; null when
+   *  unknown, and the server decides then. */
+  liquidityCredits: number | null;
+  tradingCredits: number | null;
+  /** The books this floor prices, one per metric and date. */
+  books: ProposalBook[];
   /** `options` is present only when the Options row holds two or more filled
-   *  labels, `liquidityBudget` only when the proposer picked one; otherwise
+   *  labels, `liquidity` only when the proposer named an amount; otherwise
    *  the call has four arguments and posts a free two-branch proposal. */
   onPropose?: (
     title: string,
@@ -76,13 +114,13 @@ interface ProposalFormProps {
     askUsd: number,
     decideBy: string,
     options?: Array<{ id: string; label: string }>,
-    liquidityBudget?: number,
+    liquidity?: LiquidityCell[],
   ) => Promise<void>;
   /** Present with `onSave`, the form edits instead of posting. */
   edit?: ProposalFormEdit;
   /** Throws when either half is refused; the form then stays open and says
-   *  why. `addBudget` is the whole amount to ADD, absent when none. */
-  onSave?: (words: { title: string; description: string; askUsd: number }, addBudget?: number) => Promise<void>;
+   *  why. `add` is what to ADD per book, absent when none. */
+  onSave?: (words: { title: string; description: string; askUsd: number }, add?: LiquidityCell[]) => Promise<void>;
 }
 
 /**
@@ -98,7 +136,9 @@ export function ProposalForm({
   metricNames,
   proposalReward,
   decisionMinutes,
-  spendable,
+  liquidityCredits,
+  tradingCredits,
+  books,
   onPropose,
   edit,
   onSave,
@@ -109,10 +149,9 @@ export function ProposalForm({
   const [customOpen, setCustomOpen] = useState(false);
   const [customN, setCustomN] = useState('30');
   const [customUnit, setCustomUnit] = useState<'m' | 'h' | 'd'>('m');
-  // The proposer's own liquidity, whole credits; 0 is none.
-  const [seed, setSeed] = useState(0);
-  const [seedCustomOpen, setSeedCustomOpen] = useState(false);
-  const [seedCustom, setSeedCustom] = useState('');
+  // The proposer's liquidity per book, whole credits, keyed metric:date.
+  const [amounts, setAmounts] = useState<Record<string, number>>({});
+  const [perDateOpen, setPerDateOpen] = useState(false);
   const [title, setTitle] = useState(edit?.title ?? '');
   const [desc, setDesc] = useState(edit?.description ?? '');
   const [formBusy, setFormBusy] = useState(false);
@@ -153,10 +192,32 @@ export function ProposalForm({
   // An edit never asks again: the handle was snapshotted at posting, and the
   // server refuses a price it cannot pay.
   const needsPayout = !edit && askNum > 0 && accountPayout === null;
-  // A seed they cannot pay is refused here rather than by a 400 after the
-  // click; an unknown balance leaves it to the server.
-  const seedTooBig = seed > 0 && spendable !== null && seed > spendable;
-  const formValid = title.trim().length > 0 && !needsPayout && !seedTooBig;
+  // The books this proposal will be priced on: leaf metrics, whose period
+  // ends after the deadline picked above (the server refuses any other).
+  const deadlineMs = edit ? 0 : Date.now() + windowMinutes * 60_000;
+  const offered = books.filter(
+    b => b.opensWith !== null && (edit || !b.periodEndsOn || new Date(b.periodEndsOn).getTime() > deadlineMs),
+  );
+  const sidesNew = optionsOpen ? (optionsFromLabels(optionLabels)?.length ?? 2) : 2;
+  const cells: LiquidityCell[] = offered
+    .map(b => ({ metricId: b.metricId, targetDate: b.targetDate, amount: amounts[bookKey(b)] ?? 0 }))
+    .filter(c => c.amount > 0);
+  // The whole bill: every side of every funded book.
+  const bill = offered.reduce((sum, b) => sum + (amounts[bookKey(b)] ?? 0) * (edit ? (b.sides ?? 2) : sidesNew), 0);
+  const purses = liquidityCredits !== null && tradingCredits !== null ? liquidityCredits + tradingCredits : null;
+  // A bill they cannot pay is refused here rather than by a 400 after the
+  // click; unknown purses leave it to the server.
+  const billTooBig = bill > 0 && purses !== null && bill > purses;
+  const fromWallet = Math.min(liquidityCredits ?? 0, bill);
+  const uniform = (() => {
+    const values = offered.map(b => amounts[bookKey(b)] ?? 0);
+    return values.length > 0 && values.every(v => v === values[0]) ? values[0] : null;
+  })();
+  const setEach = (n: number) => setAmounts(Object.fromEntries(offered.map(b => [bookKey(b), n])));
+  const metricCols = Array.from(new Map(offered.map(b => [b.metricId, b.metricLabel])));
+  const dateRows = Array.from(new Map(offered.map(b => [b.targetDate, b.dateLabel])));
+  const whole = (raw: string) => parseInt(raw.replace(/[^0-9]/g, '').slice(0, 7), 10) || 0;
+  const formValid = title.trim().length > 0 && !needsPayout && !billTooBig;
 
   const submit = async () => {
     if (!title.trim()) {
@@ -175,14 +236,17 @@ export function ProposalForm({
       if (edit) {
         // The words first, the liquidity second (docs/ui-conventions.md,
         // "Editing one"): onSave throws if either is refused.
-        await onSave?.({ title: fullTitle, description: desc.trim(), askUsd: askNum }, seed > 0 ? seed : undefined);
+        await onSave?.(
+          { title: fullTitle, description: desc.trim(), askUsd: askNum },
+          cells.length > 0 ? cells : undefined,
+        );
         onClose();
         return;
       }
       const decideBy = new Date(Date.now() + windowMinutes * 60_000).toISOString();
       // Fewer than two filled labels is a two-branch proposal.
       const options = optionsOpen ? optionsFromLabels(optionLabels) : undefined;
-      if (seed > 0) await onPropose?.(fullTitle, desc.trim(), askNum, decideBy, options, seed);
+      if (cells.length > 0) await onPropose?.(fullTitle, desc.trim(), askNum, decideBy, options, cells);
       else if (options) await onPropose?.(fullTitle, desc.trim(), askNum, decideBy, options);
       else await onPropose?.(fullTitle, desc.trim(), askNum, decideBy);
       // The green moment: the one place the form earns its color. The form
@@ -196,18 +260,7 @@ export function ProposalForm({
     }
   };
 
-  const held = spendable !== null ? ` You hold ${Math.floor(spendable).toLocaleString()} cr.` : '';
-  const seedLabel = edit ? 'Add liquidity' : 'Your liquidity';
-  const holds = edit?.pool
-    ? `Its markets hold ${Math.round(edit.pool).toLocaleString()} cr now.`
-    : 'Its markets hold nothing yet.';
-  const seedNote = edit
-    ? seed > 0
-      ? `${holds} Yours is added on top, split across them; it does not come out before the decision.${seedTooBig ? '' : held}`
-      : `${holds} Add your own so there is a price to read.`
-    : seed > 0
-      ? `Split across this proposal's markets so traders have a price to move. The owner buys it back on approval.${seedTooBig ? '' : held}`
-      : 'Optional. Your credits in the books, so there is a price to read.';
+  const liquidityLabel = edit ? 'Add liquidity, each book' : 'Your liquidity, each book';
 
   return (
     <FloorModal onClose={onClose} label={edit ? 'Edit proposal' : 'Offer to do the work'}>
@@ -228,10 +281,113 @@ export function ProposalForm({
               />
             </label>
           </div>
+          {/* Liquidity is the form's other money, so it sits beside the price
+              in the same numeral (docs/ui-conventions.md, "Posting one"): one
+              number for every book, empty because posting is free. */}
+          {offered.length > 0 && (
+            <div className="jobform-askblock">
+              <p className="ticket-label">{liquidityLabel}</p>
+              <label className="ticket-amt ticket-amt--price jobform-ask">
+                <input
+                  value={uniform ? String(uniform) : ''}
+                  style={{ width: `${Math.max(4, String(uniform ?? '').length + 1)}ch` }}
+                  onChange={e => setEach(whole(e.target.value))}
+                  placeholder={uniform === null ? 'mixed' : '0'}
+                  inputMode="numeric"
+                  aria-label={liquidityLabel}
+                />
+                <span className="ticket-amt-unit">cr</span>
+              </label>
+            </div>
+          )}
           <button className="ticket-close" aria-label="Close" onClick={onClose}>
             ×
           </button>
         </div>
+
+        {offered.length > 0 && (
+          <div className="jobform-field">
+            <button
+              type="button"
+              className="jobform-perdate"
+              aria-expanded={perDateOpen}
+              onClick={() => setPerDateOpen(v => !v)}
+            >
+              {perDateOpen ? 'one number for all' : 'set per date'}
+            </button>
+            {perDateOpen && (
+              <div className="jobform-gridwrap">
+                <div
+                  className="jobform-grid"
+                  style={{
+                    gridTemplateColumns: `minmax(4.2rem, auto) repeat(${metricCols.length}, minmax(4.5rem, 1fr))`,
+                  }}
+                >
+                  <span />
+                  {metricCols.map(([id, label]) => (
+                    <span key={id} className="jobform-grid-h">
+                      {label}
+                    </span>
+                  ))}
+                  {dateRows.map(([targetDate, dateLabel]) => (
+                    <Fragment key={targetDate}>
+                      <span className="jobform-grid-r">{dateLabel}</span>
+                      {metricCols.map(([metricId, metricLabel]) => {
+                        const b = offered.find(x => x.metricId === metricId && x.targetDate === targetDate);
+                        if (!b) return <span key={metricId} />;
+                        const n = amounts[bookKey(b)] ?? 0;
+                        return (
+                          <div key={metricId} className="jobform-cell">
+                            <input
+                              value={n ? String(n) : ''}
+                              onChange={e => setAmounts(a => ({ ...a, [bookKey(b)]: whole(e.target.value) }))}
+                              placeholder="0"
+                              inputMode="numeric"
+                              aria-label={`${metricLabel}, ${dateLabel}`}
+                            />
+                            <span className="jobform-cell-note">
+                              {edit
+                                ? b.holds
+                                  ? `holds ${Math.round(b.holds).toLocaleString()}`
+                                  : '\u00a0'
+                                : b.opensWith
+                                  ? `+${b.opensWith.toLocaleString()} floor`
+                                  : '\u00a0'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </Fragment>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* The bill as icon facts, never a sentence: what goes in, and the
+                two purses in the order they are spent. */}
+            {bill > 0 && (
+              <div className="jobform-facts">
+                <span className="jobform-fact" title="Into its markets, every side of every book">
+                  <DropGlyph />
+                  {bill.toLocaleString()}
+                </span>
+                {liquidityCredits !== null && (
+                  <span className="jobform-fact" title="Liquidity credits, spent first">
+                    liquidity {Math.floor(liquidityCredits).toLocaleString()}
+                    {fromWallet > 0 ? ` → ${Math.floor(liquidityCredits - fromWallet).toLocaleString()}` : ''}
+                  </span>
+                )}
+                {tradingCredits !== null && (
+                  <span className={`jobform-fact${billTooBig ? ' is-bad' : ''}`} title="Trading credits, spent second">
+                    trading {Math.floor(tradingCredits).toLocaleString()}
+                    {bill > fromWallet && !billTooBig
+                      ? ` → ${Math.floor(tradingCredits - (bill - fromWallet)).toLocaleString()}`
+                      : ''}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         <label className="jobform-field">
           <span className="ticket-label">
@@ -382,72 +538,6 @@ export function ProposalForm({
           </div>
         )}
 
-        {/* The proposer's own liquidity (docs/ui-conventions.md, "Posting
-            one"): none by default, because posting is free; a number is
-            the whole amount, which the server splits across the markets. */}
-        <div className="jobform-field">
-          <span className="ticket-label">{seedLabel}</span>
-          <div className="jobform-windows" aria-label={seedLabel}>
-            <button
-              type="button"
-              className={`jobform-window${!seedCustomOpen && seed === 0 ? ' is-on' : ''}`}
-              aria-pressed={!seedCustomOpen && seed === 0}
-              onClick={() => {
-                setSeedCustomOpen(false);
-                setSeed(0);
-              }}
-            >
-              none
-            </button>
-            {SEED_PRESETS.map(n => (
-              <button
-                key={n}
-                type="button"
-                className={`jobform-window${!seedCustomOpen && seed === n ? ' is-on' : ''}`}
-                aria-pressed={!seedCustomOpen && seed === n}
-                onClick={() => {
-                  setSeedCustomOpen(false);
-                  setSeed(n);
-                }}
-              >
-                {n.toLocaleString()}
-              </button>
-            ))}
-            <button
-              type="button"
-              className={`jobform-window${seedCustomOpen ? ' is-on' : ''}`}
-              aria-pressed={seedCustomOpen}
-              aria-label="custom amount"
-              onClick={() => {
-                setSeedCustomOpen(true);
-                setSeed(parseInt(seedCustom, 10) || 0);
-              }}
-            >
-              custom
-            </button>
-            {seedCustomOpen && (
-              <>
-                <input
-                  className="jobform-line jobform-line--n jobform-line--cr"
-                  inputMode="numeric"
-                  value={seedCustom}
-                  onChange={e => {
-                    const raw = e.target.value.replace(/[^0-9]/g, '').slice(0, 9);
-                    setSeedCustom(raw);
-                    setSeed(parseInt(raw, 10) || 0);
-                  }}
-                  aria-label="Custom liquidity"
-                />
-                <span className="jobform-count">cr</span>
-              </>
-            )}
-          </div>
-          <span className="jobform-seed-note">{seedNote}</span>
-        </div>
-
-        {seedTooBig && spendable !== null && (
-          <p className="ticket-err">You hold {Math.floor(spendable).toLocaleString()} cr: pick a smaller amount.</p>
-        )}
         {needsPayout && (
           <p className="ticket-err">A paid proposal needs payment details first: add them in your account menu.</p>
         )}
@@ -475,14 +565,18 @@ export function ProposalForm({
           {!placed && (
             <span className="ticket-go-sub">
               {edit ? (
-                seed > 0 ? (
-                  <>Adds {seed.toLocaleString()}&nbsp;cr of yours to its markets.</>
+                billTooBig && purses !== null ? (
+                  <>You hold {Math.floor(purses).toLocaleString()}&nbsp;cr</>
+                ) : bill > 0 ? (
+                  <>Adds {bill.toLocaleString()}&nbsp;cr of yours to its markets.</>
                 ) : (
                   'Prices and positions stay. The edit is public.'
                 )
-              ) : seed > 0 ? (
+              ) : billTooBig && purses !== null ? (
+                <>You hold {Math.floor(purses).toLocaleString()}&nbsp;cr</>
+              ) : bill > 0 ? (
                 // One short line: a centred sub-line must never wrap into a block.
-                <>Puts {seed.toLocaleString()}&nbsp;cr of yours in its markets.</>
+                <>Puts {bill.toLocaleString()}&nbsp;cr of yours in its markets.</>
               ) : (
                 <>
                   {/* The bounty is the workspace's own proposalReward: a

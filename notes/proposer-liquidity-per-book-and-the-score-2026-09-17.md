@@ -1,6 +1,15 @@
 # Proposer liquidity: per book, purse order, and the score (2026-09-17)
 
-Proposal, nothing here is built. It follows PR 356 and the design pass on
+**decided 2026-09-17 (Viktor)**: "yea lets do f and regarding profit what you
+recommend trading credcits counting used as liquidity counting as negative
+profit". Built on branch `seed-per-book`: layout F, the conservative score
+rule (a stake is a cost until money comes back), counted off the ledger with
+no cut-off date, so stakes already paid in the running season count too.
+Found while building: the owner's buy-out on approval paid a proposer's
+WALLET-funded stake back as trading credits; it now returns each part to the
+purse that paid it.
+
+What follows is the proposal as written before the decision. It follows PR 356 and the design pass on
 the propose dialog.
 
 Owner, 2026-09-17, verbatim, on being shown four layouts for one whole

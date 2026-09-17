@@ -40,7 +40,7 @@ import { NotificationsBell } from '../components/NotificationsBell';
 import { granularityOf, NumberChart, type NumberSeries } from '../components/NumberChart';
 import { AddDateDialog, InjectLiquidityDialog, NewMetricDialog, ReportValueDialog } from '../components/OwnerDialogs';
 import { PositionSummary } from '../components/PositionSummary';
-import { ProposalForm } from '../components/ProposalForm';
+import { type LiquidityCell, type ProposalBook, ProposalForm } from '../components/ProposalForm';
 import { DEFAULT_OPTION_QUESTION, formatOptionQuestion, QuestionWording } from '../components/QuestionWording';
 import { SubjectAbout } from '../components/SubjectAbout';
 import { TopBarShortcuts } from '../components/TopBarShortcuts';
@@ -1002,11 +1002,42 @@ export function TradePage() {
   // Editing is the posting form again (docs/ui-conventions.md, "Editing
   // one"): the words first, the liquidity second, so a refused top-up leaves
   // the words saved and the form open on the error.
-  const saveJobEdit = async (words: { title: string; description: string; askUsd: number }, addBudget?: number) => {
+  // The books a proposal is priced on, as the posting form needs them
+  // (docs/ui-conventions.md, "Posting one"): the horizons' own labels, plus
+  // what the floor adds to a new proposal there and when the period ends.
+  const proposalBooks: ProposalBook[] = useMemo(() => {
+    const raw = new Map((ws?.markets ?? []).map(m => [m.marketId, m]));
+    return horizons.map(h => ({
+      metricId: h.metricId,
+      metricLabel: captionLabel(h.metricLabel, ws?.name),
+      targetDate: h.targetDate,
+      dateLabel: h.settleShort ?? h.label,
+      opensWith: raw.get(h.marketId)?.proposalOpensWith ?? null,
+      periodEndsOn: raw.get(h.marketId)?.periodEndsOn ?? null,
+    }));
+  }, [horizons, ws?.markets, ws?.name]);
+  // Editing: the books the selected proposal still has open sides on, with
+  // what those sides hold now.
+  const editBooks: ProposalBook[] = useMemo(() => {
+    if (!selectedJob) return [];
+    const pairs = new Map(selectedJob.markets.map(m => [`${m.metricId}:${m.targetDate}`, m]));
+    return proposalBooks.flatMap(b => {
+      const pair = pairs.get(`${b.metricId}:${b.targetDate}`);
+      if (!pair) return [];
+      const pools = pair.options?.length
+        ? pair.options.map(o => o.pool ?? null)
+        : [pair.approvedPool, pair.declinedPool];
+      const open = pools.filter((x): x is number => x !== null && x !== undefined);
+      if (open.length === 0) return [];
+      return [{ ...b, opensWith: b.opensWith ?? 0, holds: open.reduce((s, x) => s + x, 0), sides: open.length }];
+    });
+  }, [proposalBooks, selectedJob]);
+
+  const saveJobEdit = async (words: { title: string; description: string; askUsd: number }, add?: LiquidityCell[]) => {
     if (!selectedJob) return;
     await api.editProposal(selectedJob.id, words);
     try {
-      if (addBudget) await api.fundProposal(selectedJob.id, addBudget);
+      if (add) await api.fundProposal(selectedJob.id, add);
     } finally {
       reload();
     }
@@ -3201,8 +3232,10 @@ export function TradePage() {
                 proposalReward={ws.proposalReward}
                 metricNames={metricNames}
                 decisionMinutes={ws.decisionMinutes ?? 1440}
-                spendable={user && balance !== null ? balance + liquidityWallet : null}
-                onPropose={async (title, description, askUsd, decideBy, options, liquidityBudget) => {
+                liquidityCredits={user && balance !== null ? liquidityWallet : null}
+                tradingCredits={user ? balance : null}
+                books={proposalBooks}
+                onPropose={async (title, description, askUsd, decideBy, options, liquidity) => {
                   // Anonymous proposers go through the signup door; the board
                   // itself is public information (Open workspace ballot).
                   // Payment details come from the account (owner decision
@@ -3220,7 +3253,7 @@ export function TradePage() {
                     askUsd,
                     decideBy,
                     ...(options ? { options } : {}),
-                    ...(liquidityBudget ? { liquidityBudget } : {}),
+                    ...(liquidity ? { liquidity } : {}),
                   })) as {
                     id?: string;
                   };
@@ -3594,14 +3627,14 @@ export function TradePage() {
           metricNames={metricNames}
           proposalReward={ws.proposalReward ?? 0}
           decisionMinutes={ws.decisionMinutes ?? 1440}
-          // The bulk route debits the tradeable balance alone.
-          spendable={balance}
+          liquidityCredits={balance !== null ? liquidityWallet : null}
+          tradingCredits={balance}
+          books={editBooks}
           edit={{
             ask: selectedJob.askUsd ?? splitAsk(selectedJob.title).ask,
             title: splitAsk(selectedJob.title).rest,
             description: selectedJob.description ?? '',
             decideBy: selectedJob.decideBy ?? null,
-            pool: poolOf(selectedJob),
           }}
           onSave={saveJobEdit}
         />

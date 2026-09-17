@@ -197,6 +197,9 @@ describe('each book says what the floor adds to a new proposal', () => {
       .where(eq(metrics.id, 'len'));
     expect((await floorMarket('mkt-week'))?.proposalOpensWith).toBe(3000);
     expect((await floorMarket('mkt-open'))?.proposalOpensWith).toBe(0);
+    // And when its period ends, which is what decides whether a proposal with
+    // a given deadline is priced there at all.
+    expect(new Date(String((await floorMarket('mkt-week'))?.periodEndsOn)).getTime()).toBeGreaterThan(Date.now());
   });
 
   test('a formula metric prices no proposal, so its books say null', async () => {

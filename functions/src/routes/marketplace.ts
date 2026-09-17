@@ -615,6 +615,9 @@ async function buildFloorPayload(ws: PublicWs) {
         // this date ("Proposal opens with"), so the posting form can show it
         // beside the proposer's own number; null on a formula metric, which
         // proposals are not priced on (docs/ui-conventions.md, "Posting one").
+        // The end of the priced period: a proposal is priced here only when
+        // this falls after its deadline (docs/guides/proposals.md).
+        periodEndsOn: periodEndInstant(m.targetDate).toISOString(),
         proposalOpensWith: (() => {
           const metric = metricById.get(m.metricId);
           if (!metric || (metric.formula && metric.formula !== '0')) return null;
