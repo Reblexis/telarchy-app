@@ -164,7 +164,7 @@ describe('A FAULT REFUND COUNTS IN THE SEASON SCORE, ON THE MARKET IT NAMES', ()
 
   test('the standings scoped to one floor carry it: it is trading money on that floor, unlike a transfer', async () => {
     await refund();
-    expect((await loadSeasonSettled([WS], START, END, { transfers: false })).get(KAI)).toBeCloseTo(0, 6);
+    expect((await loadSeasonSettled([WS], START, END, { floorOnly: true })).get(KAI)).toBeCloseTo(0, 6);
   });
 
   test('a refund on a market that settled BEFORE the window does not count, as the market does not', async () => {
