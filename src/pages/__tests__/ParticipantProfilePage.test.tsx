@@ -243,10 +243,47 @@ describe('the stats strip', () => {
     expect(rows[1].textContent).toContain('-120');
     // A bot's bot says whose it is.
     expect(rows[1].textContent).toContain('bot of tars');
-    expect(section.textContent).toContain('With 2 bots');
-    expect(section.textContent).toContain('+420');
+    expect(section.textContent).toContain('Total with 2 bots');
+    const total = section.querySelector('.prof-bots-total .prof-row-profit') as HTMLElement;
+    expect(total.textContent).toContain('+420');
+    expect(total.className).toContain('is-up');
     // The strip's Profit stays the account's own.
     expect((await screen.findByTestId('prof-stat-profit')).textContent).toContain('+40');
+  });
+
+  test('bots that never traded are one quiet line, not a row each; a zero is not painted as a gain', async () => {
+    getPublicProfile.mockResolvedValue({
+      ...base,
+      bots: [
+        { id: 'b1', nickname: 'tars', parentId: base.id, totalEarnings: 0, totalTrades: 4 },
+        { id: 'b2', nickname: 'idle-one', parentId: base.id, totalEarnings: 0, totalTrades: 0 },
+        { id: 'b3', nickname: 'idle-two', parentId: base.id, totalEarnings: 0, totalTrades: 0 },
+      ],
+      withBotsEarnings: 6336.66,
+    });
+    renderPage();
+    const section = await screen.findByRole('region', { name: 'Bots' });
+    expect([...section.querySelectorAll('a.prof-row')].map(r => r.getAttribute('href'))).toEqual([
+      '/participants/tars',
+    ]);
+    expect(section.textContent).toContain('2 more have not traded yet');
+    expect(section.textContent).not.toContain('idle-one');
+    const zero = section.querySelector('a.prof-row .prof-row-profit') as HTMLElement;
+    expect(zero.className).not.toContain('is-up');
+    expect(zero.className).not.toContain('is-down');
+    expect(section.textContent).toContain('Total with 3 bots');
+  });
+
+  test('an owner whose bots have all never traded still sees the section, as the one line', async () => {
+    getPublicProfile.mockResolvedValue({
+      ...base,
+      bots: [{ id: 'b2', nickname: 'idle-one', parentId: base.id, totalEarnings: 0, totalTrades: 0 }],
+      withBotsEarnings: 6336.66,
+    });
+    renderPage();
+    const section = await screen.findByRole('region', { name: 'Bots' });
+    expect(section.querySelectorAll('a.prof-row')).toHaveLength(0);
+    expect(section.textContent).toContain('1 bot, not traded yet');
   });
 
   test('a participant with no bots gets no Bots section', async () => {
