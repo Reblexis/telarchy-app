@@ -112,7 +112,7 @@ describe('a refused save stays open and says why', () => {
   test('the error is shown and the form does not close', async () => {
     const onClose = vi.fn();
     renderEdit({ onClose, onSave: vi.fn(async () => Promise.reject(new Error('Insufficient balance: need 500'))) });
-    fireEvent.change(screen.getByLabelText(/each book/i), { target: { value: '500' } });
+    fireEvent.change(screen.getByLabelText(/each market/i), { target: { value: '500' } });
     fireEvent.click(go());
     await waitFor(() => expect(screen.getByText(/Insufficient balance/)).toBeTruthy());
     expect(onClose).not.toHaveBeenCalled();

@@ -6358,12 +6358,16 @@ default). Opened, it holds two label fields and an &quot;add option&quot; contro
 up to six; a label empties an option, and fewer than two filled labels
 post a two-branch proposal. Ids are the labels lowercased and hyphenated,
 deduplicated with a number. <strong>Liquidity is the form's
-other money, so it sits beside the price</strong> in the same big numeral: &quot;Your
-liquidity, each book&quot;, empty because posting is free. A number there goes
-into each side of every book the proposal will be priced on. Under the
-head a quiet link, &quot;set per date&quot;, opens a grid (dates down, metrics
-across) already filled with that number, one field per book; once the
-books differ the big numeral shows &quot;mixed&quot; rather than a wrong number.
+other money, and it is asked one way or the other, never both at once.</strong>
+Under the head sits a two-way switch, &quot;same for all&quot; (preselected) or &quot;per
+market&quot;. On &quot;same for all&quot; the form shows ONE number beside the price in
+the same big numeral, &quot;Your liquidity, each market&quot;, empty because posting
+is free; it goes into each side of every market the proposal will be
+priced on, and there is no grid. On &quot;per market&quot; the numeral leaves the
+screen and a grid takes its place (dates down, metrics across), already
+filled with that number, one field per market. Switching back keeps the
+number while every market still agrees and starts from nothing once they
+differ, never from a number nobody typed.
 Each field carries what the floor already adds to that book (&quot;+3,000
 floor&quot;) and nothing where it adds nothing. Only books the proposal will be
 priced on are offered: a metric proposals are not priced on, or a date
@@ -6382,7 +6386,8 @@ its proposer or a manager, while it is pending), opened with the price,
 the title and the pitch filled in and &quot;Save&quot; on the confirm. What cannot
 change is not offered: there is no Options row, and &quot;Decided within&quot; is one
 read-only line with the deadline, because nothing moves a deadline. The
-numeral reads &quot;Add liquidity, each book&quot;; its numbers are amounts ADDED,
+numeral reads &quot;Add liquidity, each market&quot; behind the same switch; its
+numbers are amounts ADDED,
 never new totals, because liquidity does not come out, and each field of
 the grid says what that book holds now. Saving sends the words first and
 the liquidity second (the bulk route's <code>liquidity</code> list); if the second is
@@ -11862,8 +11867,8 @@ priced on (no open market there, or a date that settles before your deadline)
 is a 400 that names it, and nothing is created. Either way you pay from your
 liquidity credits first and your trading credits second, and whatever comes out
 of your trading credits counts against your profit until it comes back
-(docs/seasons.md). The form on the floor asks for one number, &quot;each book&quot;,
-beside your price, and &quot;set per date&quot; opens the books one by one. Where the
+(docs/seasons.md). The form on the floor asks for one number, &quot;each market&quot;,
+beside your price, or, switched to &quot;per market&quot;, a number for each one. Where the
 owner chose to open proposals with credits of their own, yours are added on top of theirs. Owners often
 fund promising proposals themselves. A proposal nobody can price is a proposal
 nobody can approve.</p>
@@ -11878,7 +11883,7 @@ list posting takes (<code>{ proposalId, amount }</code> is the one-number form).
 the same way, liquidity credits first, and recorded on the proposal per book
 like a seed paid at posting: re-seeded when dates roll, bought back on approval. Liquidity goes in and does not come out before then.
 The pencil on your proposal's page opens the posting form again with all of
-this in it: the words, the price, and &quot;Add liquidity, each book&quot;.</p>
+this in it: the words, the price, and &quot;Add liquidity&quot;.</p>
 <p><code>POST /api/proposals/:id/withdraw</code> pulls it. Both branches void and everyone is
 refunded.</p>
 <h2 id="docs-guides-get-paid-md--h5">The decision</h2>
