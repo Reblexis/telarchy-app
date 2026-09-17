@@ -157,6 +157,19 @@ describe('A BOOK THE OWNER SETTLES NAMES NO CLOCK', () => {
   });
 });
 
+describe("THE VALUE CHART OF AN OWNER-SETTLED DATE DRAWS THE MARKET'S CALL RIGHT OF NOW", () => {
+  test('the call the stat row names is the level the chart draws, in a strip with no date', async () => {
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.nchart-call-label')).toBeTruthy());
+    const price = container.querySelector('.pubws-stat--call .pubws-price')?.textContent;
+    expect(container.querySelector('.nchart-call-label')?.textContent).toBe(`${price} market's call`);
+    expect(container.querySelector('.nchart-strip-cap')?.textContent).toBe('until it settles');
+    expect(container.querySelector('.nchart-legend')?.textContent).toContain("market's call");
+    // Still no dot at a far instant: the dated marker vocabulary stays off.
+    expect(container.querySelector('.nchart-marker')).toBeNull();
+  });
+});
+
 describe('A TITLED DATE READS AS ITS TITLE', () => {
   test('the question ends with the title, no lead word', async () => {
     const { container } = renderFloor();

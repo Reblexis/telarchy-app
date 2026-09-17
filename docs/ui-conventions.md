@@ -1281,7 +1281,31 @@ words each (`.nchart-legend`): the ink line "actual", the amber dot
 "market's call for 30 Sep", and the grey dots "other open dates" only
 when there are any; with a proposal open the proposal's legend replaces
 it. The legend names only the marks the plot draws: a date with no clock
-draws no call dot and no pair, so its legend is "actual" alone. The market chart and the number chart used to stack at equal size
+draws no call dot and no pair, so its legend is "actual", and "market's
+call" beside a dashed amber stroke (`.nchart-legend-dash`) only when the
+call line below is drawn.
+
+**A date with no clock draws its call as a level on a future side that has
+no dates** (decision record: `notes/decisions/ui-conventions.md`,
+2026-09-17). Its time window still ends exactly at now; right of the now
+rule the plot keeps a fixed strip of pixels, not of time (`CLOCKLESS_STRIP`,
+150 wide, 110 compact), tinted like every future side (`.nchart-future`) and
+captioned "until it settles" under the axis in place of a date. The
+selected book's call is a dashed amber line (`.nchart-call-line`) that
+starts at the now rule with a dot and runs across the strip, fading out
+before the frame and ending in no dot, because no instant is known; its
+label, "49.9 market's call" (`.nchart-call-label`), sits inside the strip,
+so it can never collide with the reading's "25 now" label left of the
+rule. A dotted riser just right of the now rule (`.nchart-call-gap`) joins the reading
+in force to the call when they are more than 14px apart: that distance is
+the trade. Never a line across the past: drawn over old readings it reads
+as what the market said back then. The y axis always includes the call. A
+bet being composed draws a second dotted line in the side's own colour in
+the same strip (`.mchart-ghost`), labelled with the ghost's arrow and
+value. No strip is drawn when the book has no call yet, when a proposal's
+options are on screen, or when the selected book carries a pair.
+
+The market chart and the number chart used to stack at equal size
 with a stat each and no words joining them; a Manifold trader read the
 $6k on the bottom one as a lifetime total and bet against a company he
 thought had just started.

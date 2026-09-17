@@ -135,3 +135,171 @@ describe('the legend names only the marks the plot draws', () => {
     expect(legend?.textContent).toMatch(/if paid.*if not.*the market now/);
   });
 });
+
+/**
+ * A DATE WITH NO CLOCK DRAWS ITS CALL AS A LEVEL ON A FUTURE SIDE THAT HAS NO
+ * DATES (docs/ui-conventions.md, "The price and the chart", 2026-09-17).
+ */
+describe('A DATE WITH NO CLOCK DRAWS ITS CALL ON A DATELESS FUTURE SIDE', () => {
+  const book = (consensus: number | null, more: Record<string, unknown> = {}) => [
+    { marketId: 'attempt', resolvesOn: FAR, consensus, selected: true, ...more },
+  ];
+  const chart = (extra: Record<string, unknown> = {}) =>
+    render(
+      <NumberChart
+        points={hours}
+        markers={book(49.9)}
+        selectedResolvesOn={FAR}
+        granularity="other"
+        unit=""
+        now={NOW}
+        marksLegend
+        readingLabel
+        {...extra}
+      />,
+    );
+  const num = (el: Element | null, attr: string) => Number(el?.getAttribute(attr));
+
+  test('the call is a line that starts at the now rule and runs right of it', () => {
+    const { container } = chart();
+    const line = container.querySelector('.nchart-call-line');
+    const rule = container.querySelector('.nchart-now');
+    expect(line).not.toBeNull();
+    expect(num(line, 'x1')).toBe(num(rule, 'x1'));
+    expect(num(line, 'x2')).toBeGreaterThan(num(rule, 'x1') + 90);
+    expect(num(line, 'y1')).toBe(num(line, 'y2'));
+  });
+
+  test('NEVER A LINE ACROSS THE PAST: nothing of the call is left of now', () => {
+    const { container } = chart();
+    const nowX = num(container.querySelector('.nchart-now'), 'x1');
+    for (const el of container.querySelectorAll('.nchart-call-line, .nchart-call-dot, .nchart-call-label')) {
+      const xs = ['x', 'x1', 'x2', 'cx'].map(a => el.getAttribute(a)).filter(v => v !== null);
+      for (const v of xs) expect(Number(v)).toBeGreaterThanOrEqual(nowX);
+    }
+  });
+
+  test('the strip is tinted like a future side and captioned, with no date on it', () => {
+    const { container } = chart();
+    const band = container.querySelector('.nchart-future');
+    expect(band).not.toBeNull();
+    expect(num(band, 'x')).toBe(num(container.querySelector('.nchart-now'), 'x1'));
+    expect(container.querySelector('.nchart-strip-cap')?.textContent).toBe('until it settles');
+    expect(container.textContent).not.toContain('9999');
+  });
+
+  test('the time window still ends exactly at now: the strip is pixels, not time', () => {
+    const { container } = chart();
+    const last = [...container.querySelectorAll('.nchart-dot')].pop() as Element;
+    // The newest reading is a minute old, so its dot sits just left of the rule.
+    const nowX = num(container.querySelector('.nchart-now'), 'x1');
+    expect(nowX - num(last, 'cx')).toBeLessThan(3);
+    expect(nowX - num(last, 'cx')).toBeGreaterThanOrEqual(0);
+  });
+
+  test('the call is named inside the strip and the reading left of the rule, so they cannot collide', () => {
+    const { container } = chart({ markers: book(19.4) });
+    const nowX = num(container.querySelector('.nchart-now'), 'x1');
+    const call = container.querySelector('.nchart-call-label') as Element;
+    const reading = container.querySelector('.nchart-reading-label') as Element;
+    expect(call.textContent).toBe("19.4 market's call");
+    expect(num(call, 'x')).toBeGreaterThan(nowX);
+    expect(call.getAttribute('text-anchor')).not.toBe('end');
+    expect(num(reading, 'x')).toBeLessThan(nowX);
+    expect(reading.getAttribute('text-anchor')).toBe('end');
+  });
+
+  test('the label carries the unit', () => {
+    const { container } = chart({ unit: '$' });
+    expect(container.querySelector('.nchart-call-label')?.textContent).toBe("$49.9 market's call");
+  });
+
+  test('THE Y AXIS ALWAYS INCLUDES THE CALL: a call far above every reading stays inside the plot', () => {
+    const { container } = chart({ markers: book(400) });
+    const line = container.querySelector('.nchart-call-line');
+    expect(num(line, 'y1')).toBeGreaterThan(0);
+    expect(num(line, 'y1')).toBeLessThan(num(container.querySelector('.nchart-now'), 'y2'));
+  });
+
+  test('the riser joins the reading to the call when they are apart, and is absent when they touch', () => {
+    const apart = chart();
+    expect(apart.container.querySelector('.nchart-call-gap')).not.toBeNull();
+    apart.unmount();
+    const touching = chart({ markers: book(19) });
+    expect(touching.container.querySelector('.nchart-call-gap')).toBeNull();
+  });
+
+  test('the legend names the call line once it is drawn', () => {
+    const { container } = chart();
+    const legend = container.querySelector('.nchart-legend') as HTMLElement;
+    expect(legend.textContent).toContain("market's call");
+    expect(legend.querySelector('.nchart-legend-dash')).not.toBeNull();
+    expect(legend.textContent).not.toContain('9999');
+  });
+
+  test('a bet being composed draws its ghost line in the same strip, in the side colour', () => {
+    const { container } = chart({ preview: { value: 55, direction: 'higher' } });
+    const ghost = container.querySelector('.mchart-ghost--higher .nchart-call-ghost');
+    const nowX = num(container.querySelector('.nchart-now'), 'x1');
+    expect(ghost).not.toBeNull();
+    expect(num(ghost, 'x1')).toBe(nowX);
+    expect(num(ghost, 'y1')).toBeLessThan(num(container.querySelector('.nchart-call-line'), 'y1'));
+    expect(container.querySelector('.mchart-ghost-label')?.textContent).toBe('▲ 55');
+  });
+
+  test('a lower bet ghosts below the call', () => {
+    const { container } = chart({ preview: { value: 30, direction: 'lower' } });
+    const ghost = container.querySelector('.mchart-ghost--lower .nchart-call-ghost');
+    expect(num(ghost, 'y1')).toBeGreaterThan(num(container.querySelector('.nchart-call-line'), 'y1'));
+  });
+
+  test('no call yet: no strip, no line, the legend is the ink line alone', () => {
+    const { container } = chart({ markers: book(null) });
+    expect(container.querySelector('.nchart-call-line')).toBeNull();
+    expect(container.querySelector('.nchart-future')).toBeNull();
+    expect(container.querySelector('.nchart-legend')?.textContent).toBe('actual');
+  });
+
+  test('a book carrying a pair draws no strip', () => {
+    const { container } = chart({ markers: book(49.9, { pair: { approved: 52, declined: 48 } }) });
+    expect(container.querySelector('.nchart-call-line')).toBeNull();
+  });
+
+  test('a zero call is still a call', () => {
+    const { container } = chart({ markers: book(0) });
+    expect(container.querySelector('.nchart-call-label')?.textContent).toBe("0 market's call");
+  });
+
+  test('no readings yet: the call is still drawn', () => {
+    const { container } = chart({ points: [] });
+    expect(container.querySelector('.nchart-call-line')).not.toBeNull();
+    expect(container.querySelector('.nchart-call-gap')).toBeNull();
+  });
+
+  test('the now rule and the call vanished whenever the floor clock ticked (2026-09-17): a later now keeps both', () => {
+    const props = {
+      points: hours,
+      markers: book(49.9),
+      selectedResolvesOn: FAR,
+      granularity: 'other' as const,
+      unit: '',
+      marksLegend: true,
+    };
+    const { container, rerender } = render(<NumberChart {...props} now={NOW} />);
+    // The page hands the chart a new `now` every second; the tweened window
+    // is still where the previous one ended.
+    rerender(<NumberChart {...props} now={new Date(NOW.getTime() + 1000)} />);
+    expect(container.querySelector('.nchart-now')).not.toBeNull();
+    expect(container.querySelector('.nchart-call-line')).not.toBeNull();
+    expect(container.querySelector('.nchart-future')).not.toBeNull();
+  });
+
+  test('a dated book draws none of this', () => {
+    const { container } = chart({
+      selectedResolvesOn: '2026-10-01T00:00:00Z',
+      markers: [{ marketId: 'oct', resolvesOn: '2026-10-01T00:00:00Z', consensus: 49.9, selected: true }],
+    });
+    expect(container.querySelector('.nchart-call-line')).toBeNull();
+    expect(container.querySelector('.nchart-strip-cap')).toBeNull();
+  });
+});

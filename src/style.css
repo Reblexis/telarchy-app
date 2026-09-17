@@ -4896,6 +4896,19 @@ textarea.jobform-line--desc {
 /* The number view. Ink for what happened, amber for the market on screen,
    grey for the other open markets. */
 .nchart-future { fill: var(--bg-secondary); }
+/* A date with no clock: the call as a level on a dateless future side
+   (docs/ui-conventions.md, "The price and the chart", 2026-09-17). */
+.nchart-call-stop { stop-color: var(--accent); }
+.nchart-ghost-stop--higher { stop-color: var(--higher); }
+.nchart-ghost-stop--lower { stop-color: var(--lower); }
+.nchart-call-line { stroke-width: 2; stroke-dasharray: 5 4; }
+.nchart-call-ghost { stroke-width: 2; stroke-dasharray: 2 4; }
+.nchart-call-dot { fill: var(--accent); stroke: var(--bg-primary); stroke-width: 2; }
+.nchart-call-gap { stroke: var(--text-tertiary); stroke-width: 1; stroke-dasharray: 1 3; }
+.nchart-call-label { fill: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; paint-order: stroke; stroke: var(--bg-secondary); stroke-width: 3.5px; }
+.nchart-call { animation: mchart-appear 0.4s ease-out 1.1s both; }
+@media (prefers-reduced-motion: reduce) { .nchart-call { animation: none; } }
+.nchart-legend-dash { display: inline-block; width: 14px; height: 0; border-top: 2px dashed var(--accent); margin-right: 6px; vertical-align: middle; }
 .nchart-now { stroke: var(--text-tertiary); stroke-width: 1; }
 /* The readings line draws itself the way the market line does (same
    keyframes, same timing), and everything that hangs off it appears after. */
