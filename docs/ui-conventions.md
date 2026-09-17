@@ -1297,8 +1297,14 @@ reading by then"), because it changes what a bet is.
   readings as an ink step line up to a "now" rule, and, on the future side,
   every open market of this metric as a marker at its settle instant
   carrying that market's current call. A book on an `until-settled` date
-  has no instant, so it draws no marker, the window ends at now rather
-  than at its far edge, and the legend's call names no day. Readings are joined by straight
+  has no instant, so the chart has no future side at all: no marker, no
+  shaded band past the now rule, the window ends exactly at now, and the
+  legend's call names no day. **Its readings fill the plot**: the window
+  begins at the first reading the chosen range holds rather than at the
+  range's far edge, because with no settle instant to give the future a
+  width an empty past only squeezes the line into a sliver (a range still
+  cuts readings older than itself; with no reading the range stands, and
+  the window is never narrower than ten minutes). Readings are joined by straight
   segments with a dot at each reading and a dashed hold from the last one
   to now (the value in force); a step line read as a staircase. **The
   vertical axis never magnifies a wobble into a cliff**: it spans at least a
