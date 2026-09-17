@@ -8053,7 +8053,12 @@ two pieces jump with one marked. Files are lettered along the bottom and
 ranks numbered up the left edge, from the side the board is seen from.
 Above the board one line says who plays whom (<code>.chess-game</code>):
 &quot;TelarchyBot plays Black against OppBot (2171)&quot;, the rating left out when
-Lichess has none, absent while no game is known and during a replay. <strong>Arrows for the three highest
+Lichess has none, absent while no game is known and during a replay.
+Under it, on the floor (not on the home card, not in a replay), one muted
+line says who picks the moves (<code>.chess-rule</code>): &quot;Traders price every legal
+move. The highest price is played.&quot;, with the feed's own <code>rule</code> sentence as
+its tooltip, because a visitor who has to scroll to &quot;How this settles&quot; to
+learn that the market decides has already guessed wrong. <strong>Arrows for the three highest
 prices</strong> of an open move (<code>.chess-arrow</code>), shaded as the snake's
 chevrons are (the leader at 0.9, the lowest of the three at 0.3, all at
 0.55 on a tie or fewer than two priced), each a link to

@@ -41,6 +41,8 @@ export interface ChessDecision {
   kind: string;
 }
 export interface ChessState {
+  /** The floor's rule in one sentence (telarchy-chess docs/chess.md, "The feed"). */
+  rule?: string | null;
   phase: 'our-move' | 'their-move' | 'settling' | 'seeking' | string;
   game: {
     number: number;
@@ -839,6 +841,13 @@ export function ChessLive({
         <div className="chess-board-col">
           {replayChip && <p className="chess-replay-chip">{replayChip}</p>}
           {gameCaption && !replay && <p className="chess-game">{gameCaption}</p>}
+          {gameCaption && !replay && !card && (
+            /* Who picks the moves, where the visitor is looking; the feed's own
+               full rule is the tooltip. */
+            <p className="chess-rule" title={typeof state?.rule === 'string' ? state.rule : undefined}>
+              Traders price every legal move. The highest price is played.
+            </p>
+          )}
           <div className="chess-board-box">
             <Board
               fen={drawn.fen}
