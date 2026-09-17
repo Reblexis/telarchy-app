@@ -72,6 +72,10 @@ interface Props {
    *  the amber dot "market's call for <day>", the grey dots "other open
    *  dates" only when there are any. A proposal's legend replaces it. */
   marksLegend?: boolean;
+  /** Print the reading in force at the end of the ink line, "22.0 now"
+   *  (docs/ui-conventions.md, "The stat row"): the stat row above shows the
+   *  market's call alone, so this is where the current value is a number. */
+  readingLabel?: boolean;
   /** Press a marker to select that date's market. The selected one is not
    *  pressable, because it is where the reader already is; with no handler
    *  the chart stays a picture (docs/ui-conventions.md, "The price and the
@@ -260,6 +264,7 @@ export function NumberChart({
   legend = null,
   marksLegend = false,
   impactFrom = 'approved',
+  readingLabel,
   onPickDate,
   now: nowProp,
   height,
@@ -505,6 +510,16 @@ export function NumberChart({
         {d && <path key={`line-${selectedResolvesOn}`} className="nchart-line" d={d} pathLength={1} />}
         {last && nowT > new Date(last.at).getTime() && holdX > lastX && (
           <line className="nchart-hold" x1={lastX} x2={holdX} y1={y(last.value)} y2={y(last.value)} />
+        )}
+        {readingLabel && last && (
+          <text
+            className="nchart-reading-label"
+            x={Math.max(lastX, holdX) - 9}
+            y={Math.max(PAD_T + 8, y(last.value) - 8)}
+            textAnchor="end"
+          >
+            {fmt(last.value, unit)} now
+          </text>
         )}
         {visible.map(p => (
           <circle key={p.at} className="nchart-dot" cx={x(new Date(p.at).getTime())} cy={y(p.value)} r={3} />

@@ -2147,3 +2147,16 @@ focus on". So the door from a market presets only the market the bot
 joins and the terminal commands' `TELARCHY_WORKSPACE`; the prompt is the
 same paragraph as everywhere. Spec: docs/audience-pages.md, "The door from
 a market".
+
+## 2026-09-17: the stat row shows the market's call only (Viktor)
+
+Viktor, of the snake floor's row (NOW 22.0 beside MARKET'S CALL 49.9): "im
+thinking this should be simpliefied to just show the market's call instead..
+as current value etc.. can be nicely seen in the value graph etc.. and now
+it's confusing what's what". Three variants were mocked
+(`notes/call-only-stat-row-2026-09-17.md`); he picked A. The NOW cell is
+gone; the value chart labels the end of its line "22.0 now", and the chart
+footer opens with "now 22.0 · read 25m ago" in every chart mode, because the
+CALL and LIVE modes draw no readings line and the current value would
+otherwise be printed nowhere. The snake's attempt number rides that footer
+line. The proposal view keeps its "last read" world cell.

@@ -1199,11 +1199,15 @@ describe('the stat row and the one chart (docs/ui-conventions.md, "The price and
     // market's call, amber, on the right. A Manifold trader read the old
     // unnamed stack as a lifetime total of a brand-new company (2026-09-03).
     await waitFor(() => expect(container.querySelector('.pubws-stats')).toBeTruthy());
-    const now = container.querySelector('.pubws-stats .pubws-stat--now') as HTMLElement;
+    // THE STAT ROW SHOWS THE MARKET'S CALL ONLY (2026-09-17): the reading
+    // is the chart footer's line, never a second number at the price size.
+    expect(container.querySelector('.pubws-stat--now')).toBeNull();
+    expect(container.querySelectorAll('.pubws-stats .pubws-stat-block').length).toBe(1);
+    expect(container.querySelectorAll('.pubws-stats .pubws-price').length).toBe(1);
+    const now = container.querySelector('.pubws-chartfoot .pubws-reading') as HTMLElement;
     const call = container.querySelector('.pubws-stats .pubws-stat--call') as HTMLElement;
-    expect(now.querySelector('.pubws-price')?.textContent).toBe('$45,339');
-    // The caption line carries the age ("NOW · READ 25M AGO", 2026-09-04).
-    expect(now.querySelector('.pubws-stat-what')?.textContent).toMatch(/^now · read (.+ ago|just now)$/);
+    expect(now.querySelector('.pubws-reading-val')?.textContent).toBe('$45,339');
+    expect(now.textContent).toMatch(/^now \$45,339 · read (.+ ago|just now)$/);
     expect(now.querySelector('.pubws-updated')?.textContent).toMatch(/^read .+ ago$|^read just now$/);
     expect(call.querySelector('.pubws-price')?.textContent).toBe('$78,571');
     expect(call.querySelector('.pubws-stat-what')?.textContent).toMatch(
@@ -1311,8 +1315,10 @@ describe('the stat row and the one chart (docs/ui-conventions.md, "The price and
     // state (hiding it read as the graph collapsing, owner report
     // 2026-08-28), and the reading's block says so with no age on it.
     await screen.findByText(/settles in/);
-    expect(container.querySelector('.pubws-stat--now .pubws-price')?.textContent).toBe('no reading yet');
-    expect(container.querySelector('.pubws-stat--now .pubws-updated')).toBeNull();
+    expect(container.querySelector('.pubws-stat--now')).toBeNull();
+    expect(container.querySelector('.pubws-reading')?.textContent).toBe('no reading yet');
+    expect(container.querySelector('.pubws-reading .pubws-reading-val')).toBeNull();
+    expect(container.querySelector('.pubws-reading .pubws-updated')).toBeNull();
     expect(container.querySelector('.pubws-numchart .nchart-empty')?.textContent).toBe('no reading yet');
     // The call is still named and dated.
     expect(container.querySelector('.pubws-stat--call .pubws-price')?.textContent).toBe('$78,571');

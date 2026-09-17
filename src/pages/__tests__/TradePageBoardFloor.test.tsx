@@ -194,18 +194,17 @@ describe('the caption is two strips, metrics then dates', () => {
   });
 });
 
-describe('the stat row is two cells on hairlines', () => {
+describe('the stat row is the call alone, the reading rides the chart footer', () => {
   test('the stat row prints the caption line above the value and the call stays amber', async () => {
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-stats')).toBeTruthy());
-    const now = container.querySelector('.pubws-stats .pubws-stat--now') as HTMLElement;
+    const now = container.querySelector('.pubws-chartfoot .pubws-reading') as HTMLElement;
     const call = container.querySelector('.pubws-stats .pubws-stat--call') as HTMLElement;
-    // The caption line FIRST, then the value under it, in both cells.
-    const nowWhat = now.querySelector('.pubws-stat-what') as HTMLElement;
-    const nowPrice = now.querySelector('.pubws-price') as HTMLElement;
-    expect(nowWhat.compareDocumentPosition(nowPrice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(nowWhat.textContent).toBe('now · read 35m ago');
-    expect(nowPrice.textContent).toBe('$7,674');
+    expect(container.querySelector('.pubws-stat--now')).toBeNull();
+    // The reading line opens the footer, ahead of the counts.
+    expect(container.querySelector('.pubws-chartfoot')?.firstElementChild).toBe(now);
+    expect(now.textContent).toBe('now $7,674 · read 35m ago');
+    expect(now.querySelector('.pubws-reading-val')?.textContent).toBe('$7,674');
     // The age keeps its exact instant on hover.
     const updated = now.querySelector('.pubws-updated') as HTMLElement;
     expect(updated.textContent).toBe('read 35m ago');
@@ -219,20 +218,20 @@ describe('the stat row is two cells on hairlines', () => {
     expect(callPrice.textContent).toBe('$6,850');
     // The call is the amber cell: the class the stylesheet colours.
     expect(call.className).toContain('pubws-stat--call');
-    // No right-aligned cell any more: both start on the same rhythm.
-    expect(container.querySelectorAll('.pubws-stats .pubws-stat-block').length).toBe(2);
+    // ONE block: the only price-size number above the chart is the call.
+    expect(container.querySelectorAll('.pubws-stats .pubws-stat-block').length).toBe(1);
   });
 
-  test('no reading yet: the caption line says "now" alone and the value says so', async () => {
+  test('no reading yet: the reading line says so, with no value and no age', async () => {
     const ws = h.grid();
     ws.horizonHistories[1].points = [];
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelector('.pubws-stats')).toBeTruthy());
-    const now = container.querySelector('.pubws-stat--now') as HTMLElement;
-    expect(now.querySelector('.pubws-stat-what')?.textContent).toBe('now');
+    const now = container.querySelector('.pubws-reading') as HTMLElement;
+    expect(now.textContent).toBe('no reading yet');
     expect(now.querySelector('.pubws-updated')).toBeNull();
-    expect(now.querySelector('.pubws-price')?.textContent).toBe('no reading yet');
+    expect(now.querySelector('.pubws-reading-val')).toBeNull();
   });
 });
 

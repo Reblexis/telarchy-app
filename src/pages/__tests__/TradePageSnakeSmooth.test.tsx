@@ -202,7 +202,7 @@ function renderFloor(path = '/snake') {
   );
 }
 
-const nowCell = () => document.querySelector('.pubws-stat--now') as HTMLElement;
+const nowCell = () => document.querySelector('.pubws-reading') as HTMLElement;
 /** The page open on a proposal: its head is drawn and the feed is wired. */
 async function openProposal(number: number) {
   renderFloor(`/snake/p/${number}`);

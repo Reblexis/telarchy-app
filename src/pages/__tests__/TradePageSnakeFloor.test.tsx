@@ -142,7 +142,7 @@ function renderFloor() {
 }
 const words = (el: Element | null) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
 const ask = (container: HTMLElement) => words(container.querySelector('.pubws-instrument-ask'));
-const nowCaption = (container: HTMLElement) => words(container.querySelector('.pubws-stat--now .pubws-stat-what'));
+const nowCaption = (container: HTMLElement) => words(container.querySelector('.pubws-reading'));
 
 beforeEach(() => {
   globalThis.IntersectionObserver = class {
@@ -181,28 +181,28 @@ describe('A SNAKE FLOOR ASKS IN MOVES, NOT AT A CLOCK TIME', () => {
   });
 });
 
-describe('THE NOW CAPTION NAMES THE ATTEMPT', () => {
+describe('THE READING LINE NAMES THE ATTEMPT', () => {
   test('once the live feed is read the caption is "now · attempt 41" (deaths + 1), age kept', async () => {
     const { container } = renderFloor();
     await waitFor(() => expect(screen.getByTestId('live-view')).toBeTruthy());
     await waitFor(() => expect(h.onState.fn).toBeTruthy());
     act(() => h.onState.fn?.(h.live()));
-    await waitFor(() => expect(nowCaption(container)).toMatch(/^now · attempt 41 · read /));
+    await waitFor(() => expect(nowCaption(container)).toMatch(/^now \S+ · attempt 41 · read /));
   });
 
   test('before the feed is read the caption is as on every floor', async () => {
     const { container } = renderFloor();
-    await waitFor(() => expect(container.querySelector('.pubws-stat--now .pubws-stat-what')).toBeTruthy());
-    expect(nowCaption(container)).toMatch(/^now · read /);
+    await waitFor(() => expect(container.querySelector('.pubws-reading')).toBeTruthy());
+    expect(nowCaption(container)).toMatch(/^now \S+ · read /);
     expect(nowCaption(container)).not.toContain('attempt');
   });
 
   test('a floor with no feed never names an attempt', async () => {
     vi.mocked(api.getMarketplaceWorkspace).mockImplementation(async () => h.workspace(null, 'LookPilot') as never);
     const { container } = renderFloor();
-    await waitFor(() => expect(container.querySelector('.pubws-stat--now .pubws-stat-what')).toBeTruthy());
+    await waitFor(() => expect(container.querySelector('.pubws-reading')).toBeTruthy());
     expect(screen.queryByTestId('live-view')).toBeNull();
-    expect(nowCaption(container)).toMatch(/^now · read /);
+    expect(nowCaption(container)).toMatch(/^now \S+ · read /);
     expect(nowCaption(container)).not.toContain('attempt');
   });
 });
