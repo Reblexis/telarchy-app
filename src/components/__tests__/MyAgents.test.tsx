@@ -79,7 +79,7 @@ describe('what it says about each agent', () => {
     );
     await screen.findByText('bot-good');
     expect(screen.getByTitle('Credits earned, the number the leaderboard ranks on')).toHaveTextContent('+12.5');
-    expect(screen.getByTitle('Trades')).toHaveTextContent('last 2026-08-30');
+    expect(screen.getByText('last trade 2026-08-30')).toBeVisible();
   });
 
   test('a losing bot is not dressed up', async () => {
@@ -223,7 +223,7 @@ test.each([
   expect(await screen.findByRole('link', { name: shown })).toHaveAttribute('href', `/beta/participants/${path}`);
 });
 
-test('A CARD PER BOT: prompt, credits and keys are one press away, nothing is named Set up or Manage', async () => {
+test('AN ONLY BOT STARTS OPEN: prompt, credits and keys are one press away, nothing is named Set up or Manage', async () => {
   getMyAgents.mockResolvedValue([me, agent()]);
   Object.assign(navigator, { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
   render(
@@ -232,6 +232,7 @@ test('A CARD PER BOT: prompt, credits and keys are one press away, nothing is na
     </MemoryRouter>,
   );
   await screen.findByText('bot-one');
+  expect(screen.getByRole('button', { name: 'Actions for bot-one' })).toHaveAttribute('aria-expanded', 'true');
   expect(screen.getByRole('button', { name: 'Copy setup prompt' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Set up manually' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Send credits' })).toBeVisible();
@@ -248,21 +249,22 @@ test('A CARD PER BOT: prompt, credits and keys are one press away, nothing is na
   expect(createAgent).not.toHaveBeenCalled();
 });
 
-test("the Keys toggle opens that bot's keys inside its card, with New key", async () => {
+test("the Keys toggle opens that bot's keys inside its row, with New key", async () => {
   getMyAgents.mockResolvedValue([me, agent(), agent({ id: 'bot-two' })]);
   render(
     <MemoryRouter>
       <MyAgents />
     </MemoryRouter>,
   );
-  fireEvent.click(await screen.findByRole('button', { name: 'Keys for bot-two' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Actions for bot-two' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Keys for bot-two' }));
   expect(screen.getByRole('button', { name: 'Keys for bot-two' })).toHaveAttribute('aria-expanded', 'true');
-  expect(screen.getByRole('button', { name: 'Keys for bot-one' })).toHaveAttribute('aria-expanded', 'false');
+  expect(screen.queryByRole('button', { name: 'Keys for bot-one' })).toBeNull();
   expect(await screen.findByText('Research assistant')).toBeVisible();
   expect(screen.getAllByRole('button', { name: 'New key' })).toHaveLength(2);
 });
 
-test('CARD FACTS: credits, earned and trades are labelled cells, not sentences', async () => {
+test('ROW FACTS: credits, earned and trades are labelled cells, not sentences', async () => {
   getMyAgents.mockResolvedValue([
     me,
     agent({ earned: 12.5, totalTrades: 3, lastTradeAt: '2026-09-01T10:00:00Z', balance: 40 }),
@@ -276,7 +278,8 @@ test('CARD FACTS: credits, earned and trades are labelled cells, not sentences',
   expect(screen.getByTitle('Credits left')).toHaveTextContent('40');
   expect(screen.getByTitle('Credits earned, the number the leaderboard ranks on')).toHaveTextContent('+12.5');
   expect(screen.getByTitle('Trades')).toHaveTextContent('3');
-  expect(screen.getByTitle('Trades')).toHaveTextContent('last 2026-09-01');
+  expect(screen.getByTitle('Trades')).not.toHaveTextContent('last');
+  expect(screen.getByText('last trade 2026-09-01')).toBeVisible();
   expect(screen.queryByText(/cr left/)).toBeNull();
   expect(screen.queryByText(/earned$/)).toBeNull();
 });
@@ -342,7 +345,7 @@ test('the new key remains available when the connections list fails to refresh',
   expect(screen.getByText('saved-secret')).toBeVisible();
 });
 
-test('A BOT CREATED HERE IS THE FIRST CARD WITH ITS KEY ABOVE THE ACTIONS, so nobody hunts for the key', async () => {
+test('A BOT CREATED HERE IS THE FIRST ROW, OPEN, WITH ITS KEY ABOVE THE ACTIONS, so nobody hunts for the key', async () => {
   getMyAgents.mockResolvedValue([me, agent({ id: 'new-bot' }), agent()]);
   render(
     <MemoryRouter>
@@ -362,6 +365,123 @@ test('A BOT CREATED HERE IS THE FIRST CARD WITH ITS KEY ABOVE THE ACTIONS, so no
   const key = await screen.findByText('saved-secret');
   const names = screen.getAllByRole('link').map(l => l.textContent);
   expect(names.indexOf('new-bot')).toBeLessThan(names.indexOf('bot-one'));
-  const run = screen.getAllByRole('button', { name: 'Copy setup prompt' })[0];
+  expect(screen.getByRole('button', { name: 'Actions for new-bot' })).toHaveAttribute('aria-expanded', 'true');
+  expect(screen.getByRole('button', { name: 'Actions for bot-one' })).toHaveAttribute('aria-expanded', 'false');
+  const run = screen.getByRole('button', { name: 'Copy setup prompt' });
   expect(key.compareDocumentPosition(run) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+/* docs/audience-pages.md, "Agent page hierarchy": bots are hairline rows, one
+   open at a time (owner pick 2026-09-18, direction B of the design canvas). */
+describe('bots are rows that open, not cards', () => {
+  const three = () =>
+    getMyAgents.mockResolvedValue([
+      me,
+      agent({ balance: 40 }),
+      agent({ id: 'bot-two', earned: -3, totalTrades: 2, lastTradeAt: '2026-09-02T10:00:00Z' }),
+      agent({ id: 'bot-three', earned: 7, totalTrades: 9 }),
+    ]);
+  const mount = () =>
+    render(
+      <MemoryRouter>
+        <MyAgents onCreate={() => {}} />
+      </MemoryRouter>,
+    );
+  const toggle = (id: string) => screen.getByRole('button', { name: `Actions for ${id}` });
+
+  test('WITH SEVERAL BOTS EVERY ROW STARTS CLOSED, and the numbers are still all on screen', async () => {
+    three();
+    mount();
+    await screen.findByText('bot-three');
+    for (const id of ['bot-one', 'bot-two', 'bot-three']) expect(toggle(id)).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('button', { name: 'Copy setup prompt' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Send credits' })).toBeNull();
+    expect(screen.queryByText(/last trade/)).toBeNull();
+    expect(screen.getAllByTitle('Credits left').map(e => e.textContent)).toEqual([
+      expect.stringContaining('40'),
+      expect.stringContaining('25'),
+      expect.stringContaining('25'),
+    ]);
+    expect(screen.getAllByTitle('Credits earned, the number the leaderboard ranks on')[1]).toHaveTextContent('-3');
+    expect(screen.getAllByTitle('Trades')[2]).toHaveTextContent('9');
+    expect(screen.getByText('no trades yet')).toBeVisible();
+  });
+
+  test('ONE ROW OPEN AT A TIME: opening a second closes the first, pressing the open one closes it', async () => {
+    three();
+    mount();
+    await screen.findByText('bot-three');
+    fireEvent.click(toggle('bot-two'));
+    expect(toggle('bot-two')).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getAllByRole('button', { name: 'Copy setup prompt' })).toHaveLength(1);
+    expect(screen.getByText('last trade 2026-09-02')).toBeVisible();
+    fireEvent.click(toggle('bot-three'));
+    expect(toggle('bot-two')).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle('bot-three')).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getAllByRole('button', { name: 'Copy setup prompt' })).toHaveLength(1);
+    expect(screen.queryByText('last trade 2026-09-02')).toBeNull();
+    fireEvent.click(toggle('bot-three'));
+    expect(toggle('bot-three')).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('button', { name: 'Copy setup prompt' })).toBeNull();
+  });
+
+  test('a press anywhere on the row opens it, but the name is a link to the profile and opens nothing', async () => {
+    three();
+    mount();
+    fireEvent.click(await screen.findByRole('link', { name: 'bot-two' }));
+    expect(toggle('bot-two')).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(screen.getAllByTitle('Credits left')[1]);
+    expect(toggle('bot-two')).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  test('closing a row puts away what was open inside it: the send form does not come back on reopening', async () => {
+    three();
+    mount();
+    await screen.findByText('bot-three');
+    fireEvent.click(toggle('bot-one'));
+    fireEvent.click(screen.getByRole('button', { name: 'Send credits' }));
+    expect(screen.getByLabelText('Credits to send to bot-one')).toBeVisible();
+    fireEvent.click(toggle('bot-one'));
+    expect(screen.queryByLabelText('Credits to send to bot-one')).toBeNull();
+    fireEvent.click(toggle('bot-one'));
+    expect(screen.queryByLabelText('Credits to send to bot-one')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Send credits' })).toBeVisible();
+  });
+
+  test('ONE CAPTION ROW FOR THE WHOLE TABLE: Bot, Credits, Earned, Trades, however many bots', async () => {
+    three();
+    const { container } = mount();
+    await screen.findByText('bot-three');
+    const heads = container.querySelectorAll('.agent-rows-head');
+    expect(heads).toHaveLength(1);
+    expect([...heads[0].children].map(c => c.textContent)).toEqual(['Bot', 'Credits', 'Earned', 'Trades', '']);
+    expect(container.querySelectorAll('.agent-row')).toHaveLength(3);
+    expect(container.querySelector('.agent-card, .agent-cards')).toBeNull();
+  });
+
+  test('NO BOT ROW CARRIES A FILLED BUTTON: the prompt button is outlined and the rest are text', async () => {
+    getMyAgents.mockResolvedValue([me, agent()]);
+    const { container } = mount();
+    await screen.findByText('bot-one');
+    expect(container.querySelector('.agent-bots .agent-primary, .agent-bots .pubws-cta')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Copy setup prompt' })).toHaveClass('agent-row-copy');
+    for (const name of ['Set up manually', 'Send credits', 'Keys for bot-one'])
+      expect(screen.getByRole('button', { name })).toHaveClass('agent-row-text');
+  });
+
+  test('a bot that never traded shows no last-trade line in its open row', async () => {
+    getMyAgents.mockResolvedValue([me, agent()]);
+    mount();
+    await screen.findByText('bot-one');
+    expect(screen.getByRole('button', { name: 'Copy setup prompt' })).toBeVisible();
+    expect(screen.queryByText(/last trade/)).toBeNull();
+    expect(screen.getAllByText('no trades yet')).toHaveLength(1);
+  });
+
+  test('an unreadable last-trade date prints nothing rather than Invalid Date', async () => {
+    getMyAgents.mockResolvedValue([me, agent({ totalTrades: 4, earned: 1, lastTradeAt: 'not-a-date' })]);
+    mount();
+    await screen.findByText('bot-one');
+    expect(screen.queryByText(/last trade|Invalid/)).toBeNull();
+  });
 });

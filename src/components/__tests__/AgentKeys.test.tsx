@@ -308,3 +308,14 @@ test('the runtime key chooser defaults to the newest full-access key and names i
   expect(await screen.findByLabelText('Use key')).toHaveValue('newer-full');
   expect(screen.getByText('Full bot access')).toBeVisible();
 });
+
+test('A KEY IS ONE BLOCK: the label alone on its line, the access chip and last use together on the next', async () => {
+  mount();
+  const label = await screen.findByText('Production');
+  const chip = screen.getByText('Full access');
+  const used = screen.getByText(/Not used yet|Last used/);
+  expect(chip.parentElement).toBe(used.parentElement);
+  expect(chip.parentElement).toHaveClass('agent-key-meta');
+  expect(label.parentElement).not.toBe(chip.parentElement);
+  expect(label.parentElement!.textContent).toBe('Production');
+});

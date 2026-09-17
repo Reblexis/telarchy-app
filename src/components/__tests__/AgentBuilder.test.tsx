@@ -269,3 +269,15 @@ test('THE FORM IS BOT-ONLY: no identity or permission choice, just a name and cr
   expect(screen.getByLabelText('Bot name')).toBeVisible();
   expect(screen.getByLabelText('Starting credits')).toHaveValue(100);
 });
+
+test('ONE HELPER LINE: the balance, and a second sentence only when it says something the fields do not', async () => {
+  auth.user = { id: 'user-one' };
+  mount();
+  await screen.findByText('Your balance: 20 cr');
+  fireEvent.change(screen.getByLabelText('Starting credits'), { target: { value: '10' } });
+  expect(screen.queryByText(/Transfers .* from your balance/)).toBeNull();
+  fireEvent.change(screen.getByLabelText('Starting credits'), { target: { value: '0' } });
+  expect(screen.getByText('Starts with 0 credits. You can fund it later.')).toBeVisible();
+  fireEvent.change(screen.getByLabelText('Starting credits'), { target: { value: '21' } });
+  expect(screen.getByText(/Not enough credits/)).toBeVisible();
+});

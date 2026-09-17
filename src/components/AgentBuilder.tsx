@@ -296,12 +296,10 @@ export function AgentBuilder({
                   Not enough credits. <Link to="/earn">Earn credits</Link> or start with zero.
                 </p>
               )}
-              {options.identity === 'bot' && (
-                <p className="builder-transfer-summary">
-                  {amount > 0
-                    ? `Transfers ${options.credits} cr from your balance.`
-                    : 'Starts with 0 credits. You can fund it later.'}
-                </p>
+              {/* One helper line, the balance under the field; a second sentence
+                  only when it says something the fields do not. */}
+              {options.identity === 'bot' && !(amount > 0) && (
+                <p className="builder-transfer-summary">Starts with 0 credits. You can fund it later.</p>
               )}
               {!user ? (
                 <Link className="doors-pill" to={`/login?next=${encodeURIComponent(withBase(loginNext))}`}>
