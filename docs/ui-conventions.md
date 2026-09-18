@@ -358,26 +358,34 @@ from its owner is a transfer and appears here. The list holds the newest
 header of someone else's profile carries one pill, "Send credits", to the
 right of the name; a participant's own profile has none. Signed out, the
 pill is a link to the login door that comes back to this profile. Signed in,
-it opens the send ticket (`SendCreditsTicket`), a dialog in the trade
-ticket's shape:
+it opens the send ticket (`SendCreditsTicket`), which is the floor's dialog
+and nothing of its own: a `FloorModal` holding a `.jobform`, built only from
+the parts the floor's dialogs already share, with no styles of its own (a
+scan test fails if a `.sendt` rule appears). Top to bottom:
 
-- "Send to" and the handle, which the ticket never lets the sender edit.
-- The amount, large and mono, in whole or fractional credits, with quick
-  amounts under it: 100, 500, 1,000 and All (the sender's whole tradeable
-  balance). The liquidity wallet is never counted or offered, because
-  bought credits cannot be transferred (docs/liquidity-purchases.md).
-- A note of at most 200 characters, labelled as shown on both profiles,
-  because the memo is public in both Transfers sections.
-- Two facts: "Your balance after", and, only while a prize season is
-  running and the sender has entered it, "Your <season name> score" with the
-  amount as a loss (docs/seasons.md, "Credits transferred between
-  participants count").
-- One line: "Sent credits cannot be taken back."
+- The head the "Add liquidity" dialog has (`CreditsHero`): the label "Send
+  to <handle>", which the sender cannot edit, the amount as the hero numeric
+  with its `cr` unit, in whole or fractional credits, and the close at the
+  edge.
+- Quick amounts as the ticket's small pills (`.ticket-sell`): 100, 500,
+  1,000 and All (the sender's whole tradeable balance). The liquidity wallet
+  is never counted or offered, because bought credits cannot be transferred
+  (docs/liquidity-purchases.md).
+- A note of at most 200 characters, a quiet underline (`.jobform-line`)
+  under the left label "Note, shown on both profiles", because the memo is
+  public in both Transfers sections.
+- Fact rows (`.ticket-facts`): "Your balance after", and, only while a prize
+  season is running and the sender has entered it, "Your <season name>
+  score" with the amount as a loss (docs/seasons.md, "Credits transferred
+  between participants count").
+- The confirm is the neutral `.ticket-go`, and the cost rides it as its
+  second line (`.ticket-go-sub`): "Sent credits cannot be taken back."
+  Errors are `.ticket-err`.
 
 The button is disabled until the amount is above zero and within the
 balance; an amount above the balance says "You have N cr. Send that or
 less." Sending takes two presses: the first turns "Send 500 cr" into
-"Confirm: 500 cr to <handle>" in the accent, the second sends, and changing
+"Confirm: 500 cr to <handle>", the second sends, and changing
 the amount disarms it. On success the dialog closes, the page says "Sent 500
 cr to <handle>." and reloads the profile, so the new row is in Transfers and
 the Balance cell has moved. A refusal the server explains (not enough

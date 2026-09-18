@@ -36,13 +36,15 @@ function parseCredits(raw: string): number | null {
 
 /** The proposal dialog's hero amount, in credits: same head, same block, the
  *  unit after the number the way the floor writes credits. */
-function CreditsHero({
+export function CreditsHero({
   label,
   value,
   onChange,
   disabled,
   ariaLabel,
   onClose,
+  decimals = false,
+  autoFocus = false,
 }: {
   label: string;
   value: string;
@@ -50,6 +52,10 @@ function CreditsHero({
   disabled: boolean;
   ariaLabel: string;
   onClose: () => void;
+  /** Fractional credits may be typed (the send ticket; a pool takes whole ones). */
+  decimals?: boolean;
+  /** The dialog exists to take this one number, so it starts in it. */
+  autoFocus?: boolean;
 }) {
   return (
     <div className="ticket-head jobform-head">
@@ -59,9 +65,10 @@ function CreditsHero({
           <input
             value={value}
             style={{ width: `${Math.max(4, value.length)}ch` }}
-            onChange={e => onChange(e.target.value.replace(/[^0-9,]/g, ''))}
+            onChange={e => onChange(e.target.value.replace(decimals ? /[^0-9,.]/g : /[^0-9,]/g, ''))}
             placeholder="0"
-            inputMode="numeric"
+            inputMode={decimals ? 'decimal' : 'numeric'}
+            autoFocus={autoFocus}
             aria-label={ariaLabel}
             disabled={disabled}
             required
@@ -69,7 +76,7 @@ function CreditsHero({
           <span className="ticket-amt-unit">cr</span>
         </label>
       </div>
-      <button className="ticket-close" aria-label="Close" onClick={onClose}>
+      <button type="button" className="ticket-close" aria-label="Close" onClick={onClose}>
         ×
       </button>
     </div>

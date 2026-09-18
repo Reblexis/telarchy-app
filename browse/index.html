@@ -5666,26 +5666,34 @@ from its owner is a transfer and appears here. The list holds the newest
 header of someone else's profile carries one pill, &quot;Send credits&quot;, to the
 right of the name; a participant's own profile has none. Signed out, the
 pill is a link to the login door that comes back to this profile. Signed in,
-it opens the send ticket (<code>SendCreditsTicket</code>), a dialog in the trade
-ticket's shape:</p>
+it opens the send ticket (<code>SendCreditsTicket</code>), which is the floor's dialog
+and nothing of its own: a <code>FloorModal</code> holding a <code>.jobform</code>, built only from
+the parts the floor's dialogs already share, with no styles of its own (a
+scan test fails if a <code>.sendt</code> rule appears). Top to bottom:</p>
 <ul>
-<li>&quot;Send to&quot; and the handle, which the ticket never lets the sender edit.</li>
-<li>The amount, large and mono, in whole or fractional credits, with quick
-amounts under it: 100, 500, 1,000 and All (the sender's whole tradeable
-balance). The liquidity wallet is never counted or offered, because
-bought credits cannot be transferred (docs/liquidity-purchases.md).</li>
-<li>A note of at most 200 characters, labelled as shown on both profiles,
-because the memo is public in both Transfers sections.</li>
-<li>Two facts: &quot;Your balance after&quot;, and, only while a prize season is
-running and the sender has entered it, &quot;Your <season name> score&quot; with the
-amount as a loss (docs/seasons.md, &quot;Credits transferred between
-participants count&quot;).</li>
-<li>One line: &quot;Sent credits cannot be taken back.&quot;</li>
+<li>The head the &quot;Add liquidity&quot; dialog has (<code>CreditsHero</code>): the label &quot;Send
+to <handle>&quot;, which the sender cannot edit, the amount as the hero numeric
+with its <code>cr</code> unit, in whole or fractional credits, and the close at the
+edge.</li>
+<li>Quick amounts as the ticket's small pills (<code>.ticket-sell</code>): 100, 500,
+1,000 and All (the sender's whole tradeable balance). The liquidity wallet
+is never counted or offered, because bought credits cannot be transferred
+(docs/liquidity-purchases.md).</li>
+<li>A note of at most 200 characters, a quiet underline (<code>.jobform-line</code>)
+under the left label &quot;Note, shown on both profiles&quot;, because the memo is
+public in both Transfers sections.</li>
+<li>Fact rows (<code>.ticket-facts</code>): &quot;Your balance after&quot;, and, only while a prize
+season is running and the sender has entered it, &quot;Your <season name>
+score&quot; with the amount as a loss (docs/seasons.md, &quot;Credits transferred
+between participants count&quot;).</li>
+<li>The confirm is the neutral <code>.ticket-go</code>, and the cost rides it as its
+second line (<code>.ticket-go-sub</code>): &quot;Sent credits cannot be taken back.&quot;
+Errors are <code>.ticket-err</code>.</li>
 </ul>
 <p>The button is disabled until the amount is above zero and within the
 balance; an amount above the balance says &quot;You have N cr. Send that or
 less.&quot; Sending takes two presses: the first turns &quot;Send 500 cr&quot; into
-&quot;Confirm: 500 cr to <handle>&quot; in the accent, the second sends, and changing
+&quot;Confirm: 500 cr to <handle>&quot;, the second sends, and changing
 the amount disarms it. On success the dialog closes, the page says &quot;Sent 500
 cr to <handle>.&quot; and reloads the profile, so the new row is in Transfers and
 the Balance cell has moved. A refusal the server explains (not enough

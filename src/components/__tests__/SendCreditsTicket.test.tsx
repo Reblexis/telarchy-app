@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -42,6 +44,8 @@ const open = () =>
 const amount = () => screen.getByLabelText('Amount in credits') as HTMLInputElement;
 const type = (v: string) => fireEvent.change(amount(), { target: { value: v } });
 const button = () => screen.getByTestId('send-credits-submit') as HTMLButtonElement;
+/** The confirm's main label; its second line is the cost (`.ticket-go-sub`). */
+const label = () => button().childNodes[0].textContent;
 const ready = () => waitFor(() => expect(screen.getByTestId('send-balance-after').textContent).toBe('12,400 cr'));
 
 beforeEach(() => {
@@ -55,21 +59,58 @@ describe('the send ticket', () => {
   test('names the recipient and starts with nothing to send', async () => {
     open();
     await ready();
-    expect(screen.getByText('Send to')).toBeTruthy();
-    expect(screen.getByText('mira')).toBeTruthy();
     expect(button().disabled).toBe(true);
-    expect(button().textContent).toBe('Send');
-    expect(screen.getByText('Sent credits cannot be taken back.')).toBeTruthy();
+    expect(label()).toBe('Send');
+    expect(screen.getByText('Send to mira')).toBeTruthy();
+  });
+
+  test('THE COST RIDES THE CONFIRM BUTTON: it cannot be taken back', async () => {
+    open();
+    await ready();
+    expect(button().querySelector('.ticket-go-sub')?.textContent).toBe('Sent credits cannot be taken back.');
+  });
+
+  test('IT IS THE FLOOR DIALOG, WITH NO STYLES OF ITS OWN', async () => {
+    const { container } = open();
+    await ready();
+    type('500');
+    for (const cls of [
+      'jobform',
+      'ticket-head',
+      'ticket-label',
+      'ticket-amt',
+      'ticket-amt-unit',
+      'ticket-close',
+      'ticket-sell',
+      'jobform-field',
+      'jobform-line',
+      'ticket-facts',
+      'ticket-fact-k',
+      'ticket-fact-v',
+      'ticket-go',
+    ]) {
+      expect(container.querySelector(`.${cls}`), cls).not.toBeNull();
+    }
+    expect(container.querySelector('[class*="sendt"]')).toBeNull();
+    const css = readFileSync(join(process.cwd(), 'src/style.css'), 'utf8');
+    expect(css).not.toMatch(/\.sendt/);
+  });
+
+  test('the close at the edge closes the ticket', async () => {
+    open();
+    await ready();
+    fireEvent.click(screen.getByLabelText('Close'));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   test('NOTHING IS SENT ON THE FIRST PRESS: it asks once more, naming the amount and the person', async () => {
     open();
     await ready();
     type('500');
-    expect(button().textContent).toBe('Send 500 cr');
+    expect(label()).toBe('Send 500 cr');
     fireEvent.click(button());
     expect(transferCredits).not.toHaveBeenCalled();
-    expect(button().textContent).toBe('Confirm: 500 cr to mira');
+    expect(label()).toBe('Confirm: 500 cr to mira');
   });
 
   test('the second press sends to the recipient id with the note, then reports the amount', async () => {
@@ -98,7 +139,7 @@ describe('the send ticket', () => {
     await ready();
     const note = screen.getByLabelText('Note') as HTMLInputElement;
     expect(note.maxLength).toBe(200);
-    expect(note.placeholder).toBe('Note, shown on both profiles');
+    expect(screen.getByText('Note, shown on both profiles')).toBeTruthy();
   });
 
   test('CHANGING THE AMOUNT DISARMS THE CONFIRMATION', async () => {
@@ -107,10 +148,10 @@ describe('the send ticket', () => {
     type('500');
     fireEvent.click(button());
     type('5000');
-    expect(button().textContent).toBe('Send 5,000 cr');
+    expect(label()).toBe('Send 5,000 cr');
     fireEvent.click(button());
     expect(transferCredits).not.toHaveBeenCalled();
-    expect(button().textContent).toBe('Confirm: 5,000 cr to mira');
+    expect(label()).toBe('Confirm: 5,000 cr to mira');
   });
 
   test('AN AMOUNT ABOVE THE BALANCE CANNOT BE SENT', async () => {
@@ -131,12 +172,21 @@ describe('the send ticket', () => {
     expect(screen.getByTestId('send-balance-after').textContent).toBe('0 cr');
   });
 
-  test.each(['', '0', '-5', 'abc', '0.0'])('an amount of "%s" sends nothing', async v => {
+  test.each(['', '0', 'abc', '0.0'])('an amount of "%s" sends nothing', async v => {
     open();
     await ready();
     type(v);
     expect(button().disabled).toBe(true);
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  test('A NEGATIVE AMOUNT CANNOT BE TYPED: the field keeps digits only', async () => {
+    open();
+    await ready();
+    type('-5');
+    expect(amount().value).toBe('5');
+    type('abc');
+    expect(amount().value).toBe('');
   });
 
   test('a fractional amount is sent as typed', async () => {
@@ -213,7 +263,7 @@ describe('the send ticket', () => {
     await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('Insufficient balance'));
     expect(onSent).not.toHaveBeenCalled();
     expect(button().disabled).toBe(false);
-    expect(button().textContent).toBe('Send 500 cr');
+    expect(label()).toBe('Send 500 cr');
   });
 
   test.each([
