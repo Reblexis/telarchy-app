@@ -2034,7 +2034,7 @@ button.notif-row-link {
    name keeps its place beside the picture. */
 @media (max-width: 480px) {
   .prof-head { flex-wrap: wrap; row-gap: 0.9rem; }
-  .prof-head .prof-id { flex: 1 1 0; }
+  .prof-head .prof-id { flex: 1 1 calc(100% - 72px - 1.1rem); }
   .prof-send { margin-top: 0; }
 }
 .prof-sent {
