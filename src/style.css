@@ -12640,23 +12640,27 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .agents-page .agent-row-body .builder-key { display: block; overflow-wrap: anywhere; }
 .agents-page .agent-bots > .agent-new-bot, .agents-page .agent-bots > .agent-builder { margin-top: .4rem; }
 @media (max-width: 520px) {
-  .agents-page .agent-rows { grid-template-columns: repeat(3, minmax(0, 1fr)) 1.4rem; column-gap: .6rem; }
-  .agents-page .agent-rows-head { display: none; }
-  .agents-page .agent-rows > .agent-row:first-of-type, .agents-page .agent-rows-head + .agent-row { border-top: 0; }
-  .agents-page .agent-row-line { row-gap: .45rem; }
+  .agents-page .agent-rows { grid-template-columns: repeat(3, auto) 1.4rem; justify-content: space-between; column-gap: .6rem; }
+  .agents-page .agent-rows > .agent-rows-head { display: none; }
+  .agents-page .agent-rows > .agent-rows-head + .agent-row { border-top: 0; }
+  .agents-page .agent-row-line { row-gap: .45rem; align-items: start; }
   .agents-page .agent-row-name { grid-column: 1 / 4; grid-row: 1; }
   .agents-page .agent-row-toggle { grid-column: 4; grid-row: 1; }
-  .agents-page .agent-row-cell { grid-row: 2; text-align: left; display: grid; gap: .1rem; white-space: normal; }
+  .agents-page .agent-row-cell { grid-row: 2; text-align: left; display: grid; gap: .1rem; align-content: start; }
   .agents-page .agent-row-cap { display: block; }
+  .agents-page .agent-row-note { line-height: 1.72; }
   .agents-page .agent-row-body { padding-left: 0; }
+  .agents-page .agent-new-bot .builder-choices label small { white-space: normal; }
 }
 
 /* The new-bot form is one bar: name, credits and the create button on a
  * line, Cancel beside the heading, the balance under the credits field. */
-.agents-page .agent-new-bot > .builder-cancel { top: .1rem; }
-.agents-page .agent-new-bot .builder-connect .builder-choices, .agents-page .agent-new-bot .builder-connect .builder-choices:first-of-type { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: .6rem; margin: .4rem 0 .7rem; align-items: start; }
+.agents-page .agent-new-bot > button.builder-cancel { top: 0; padding: 0 .1rem; font: 500 .78rem/1.25rem var(--font-sans); }
+.agents-page .agent-new-bot > button.builder-cancel:hover { background: transparent; }
+.agents-page .agent-new-bot .builder-connect .builder-choices, .agents-page .agent-new-bot .builder-connect .builder-choices:first-of-type { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .6rem; margin: .4rem 0 .7rem; align-items: start; }
 .agents-page .agent-new-bot .builder-choices label { font: 600 .6rem/1.5 var(--font-sans); letter-spacing: .09em; text-transform: uppercase; color: var(--text-tertiary); }
-.agents-page .agent-new-bot .builder-choices label small { font: .7rem/1.5 var(--font-mono); letter-spacing: 0; text-transform: none; color: var(--text-tertiary); }
+.agents-page .agent-new-bot .builder-choices label small { font: .68rem/1.5 var(--font-mono); letter-spacing: 0; text-transform: none; color: var(--text-tertiary); white-space: nowrap; }
+.agents-page .agent-new-bot .builder-choices label input { letter-spacing: 0; text-transform: none; }
 .agents-page .agent-new-bot .builder-choices label > span small { font: inherit; letter-spacing: inherit; text-transform: inherit; }
 .agents-page .agent-new-bot .builder-transfer-summary { margin: 0 0 .7rem; }
 .agents-page .agent-new-bot .builder-connect .doors-pill { border-radius: 999px; padding: .55rem 1.1rem; }
