@@ -38,7 +38,6 @@ export function AgentWorkspace() {
             workspaceId: w.workspaceId,
             slug: w.slug || w.workspaceId,
             name: w.name,
-            feedKind: w.liveFeed?.kind,
           });
       })
       .catch(() => {

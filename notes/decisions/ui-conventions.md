@@ -2194,3 +2194,10 @@ three directions: quieter cards, hairline rows, one column with tabs. He
 picked B ("do b"). This costs one press: a bot's actions were one press away
 on its card and are now behind opening its row, except for the bot just
 created and for an owner's only bot, whose row starts open.
+
+## 2026-09-18: no guide link on the new-bot form (Viktor)
+
+The chess guide link had moved from under the floor's bot door to the new-bot
+form that door opens (my call on 2026-09-17, he had not picked a home for
+it). Shown the form, Viktor: "the link shouldnt be there in the first place".
+Removed; the chess floor's about text already links the guide.
