@@ -7921,6 +7921,9 @@ textarea.jobform-line--desc {
 .earn-tally-l { font-size: 0.8rem; color: var(--text-secondary); }
 .earn-note { margin: -0.8rem 0 1.2rem; font-size: 0.85rem; color: var(--accent-text); }
 .earn-act { text-align: right; white-space: nowrap; width: 10.5rem; padding: 0.6rem 0.55rem; }
+/* Two things in one action cell (either provider, or who joined beside
+   the copy button): side by side, and under each other before they spill. */
+.earn-pair { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.4rem; }
 .earn-done { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--higher); }
 .earn-muted { font-size: 0.78rem; color: var(--text-tertiary); }
 .earn-btn {
@@ -7933,24 +7936,6 @@ textarea.jobform-line--desc {
    recognisable without the glyph having to stand alone. */
 .earn-btn--mf { display: inline-flex; align-items: center; gap: 0.35rem; }
 .lbt tr.is-earned td { background: rgba(18, 105, 61, 0.045); }
-
-/* /earn: the invite card (design pick 2026-09-07, direction B). Sits
-   between the tally and the table so the link, the one thing on the page
-   that must be read whole, gets the column's full width. */
-.earn-invite {
-  display: flex; flex-direction: column; gap: 0.6rem;
-  padding: 1rem 1.1rem 1.1rem; margin: 0 0 0.5rem;
-  border: 1px solid var(--border-color); border-radius: 12px; background: var(--bg-elevated);
-}
-.earn-invite-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
-.earn-invite-row { display: flex; align-items: stretch; gap: 0.5rem; }
-.earn-invite-link {
-  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; padding: 0 0.75rem;
-  border: 1px solid var(--border-strong); border-radius: 9px; background: var(--bg-primary);
-  font-family: 'JetBrains Mono', monospace; font-size: 0.84rem; color: var(--text-primary);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.earn-invite .earn-why { margin-top: 0; }
 
 /* /earn: the price list, in the boards' own table language, and since
    2026-08-30 the whole page. The line under each label is the rule that

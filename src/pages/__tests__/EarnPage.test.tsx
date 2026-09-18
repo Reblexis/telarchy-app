@@ -198,3 +198,87 @@ describe('matched liquidity on the price list', () => {
     expect(screen.queryByRole('columnheader', { name: /liquidity/i })).toBeNull();
   });
 });
+
+// Owner ruling 2026-09-18: eleven days of the invite card above the table
+// brought one referred signup, so the link is a row like any other.
+describe('bringing a friend is a normal row, never a card above the table', () => {
+  const share = {
+    key: 'referral',
+    label: 'Bring a friend',
+    credits: 10,
+    kind: 'share' as const,
+    note: 'Your share of what they earn here in their first week. Ten friends at most.',
+  };
+  const mineWith = (referral: unknown) => {
+    authUser = { id: 'u1' };
+    vi.mocked(api.getEarnTable).mockResolvedValue({ rules: [...rules, share] } as never);
+    vi.mocked(api.getMyEarn).mockResolvedValue({
+      earned: 0,
+      available: 0,
+      streak: null,
+      referral,
+      rules: [rules[3], { ...share, claimed: false }, { ...rules[1], claimed: false }],
+    } as never);
+  };
+  const link = 'https://telarchy.com/?ref=viktor36';
+
+  test('nothing about the invite stands outside the table', async () => {
+    mineWith({ link, referees: 0, credits: 0 });
+    const { container } = renderPage();
+    expect(await screen.findByText('Bring a friend')).toBeInTheDocument();
+    expect(container.querySelector('.earn-invite')).toBeNull();
+    expect(screen.getAllByText('Bring a friend')).toHaveLength(1);
+    expect(screen.getByText('Bring a friend').closest('tr')).not.toBeNull();
+    expect(screen.queryByText(/link above/i)).toBeNull();
+    // The link itself is not spelled out on the page; the button carries it.
+    expect(screen.queryByText(/ref=viktor36/)).toBeNull();
+  });
+
+  test('the row sits below the recurring earns, not first', async () => {
+    mineWith({ link, referees: 0, credits: 0 });
+    renderPage();
+    await screen.findByText('Bring a friend');
+    const labels = Array.from(document.querySelectorAll('tbody .earn-label')).map(e => e.textContent);
+    expect(labels[0]).toBe('Trade and be right');
+    expect(labels.indexOf('Bring a friend')).toBeGreaterThan(0);
+  });
+
+  test('the row shows the percentage and its button copies the whole link', async () => {
+    mineWith({ link, referees: 0, credits: 0 });
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    renderPage();
+    const row = (await screen.findByText('Bring a friend')).closest('tr') as HTMLElement;
+    expect(row.textContent).toContain('10%');
+    const btn = row.querySelector('button') as HTMLButtonElement;
+    expect(btn.textContent).toBe('Copy link');
+    btn.click();
+    expect(writeText).toHaveBeenCalledWith(link);
+    await waitFor(() => expect(btn.textContent).toBe('Copied'));
+  });
+
+  test('with no nickname there is no button, the row says what is missing', async () => {
+    mineWith({ link: null, referees: 0, credits: 0 });
+    renderPage();
+    const row = (await screen.findByText('Bring a friend')).closest('tr') as HTMLElement;
+    expect(row.querySelector('button')).toBeNull();
+    expect(row.textContent).toMatch(/set a nickname/i);
+  });
+
+  test('friends who joined are reported in the row beside the button', async () => {
+    mineWith({ link, referees: 2, credits: 1234 });
+    renderPage();
+    const row = (await screen.findByText('Bring a friend')).closest('tr') as HTMLElement;
+    expect(row.textContent).toContain('2 joined, +1,234');
+    expect(row.querySelector('button')?.textContent).toBe('Copy link');
+    expect(screen.getAllByText(/2 joined/)).toHaveLength(1);
+  });
+
+  test('a signed-out reader sees the row with no button', async () => {
+    vi.mocked(api.getEarnTable).mockResolvedValue({ rules: [...rules, share] } as never);
+    renderPage();
+    const row = (await screen.findByText('Bring a friend')).closest('tr') as HTMLElement;
+    expect(row.textContent).toContain('10%');
+    expect(row.querySelector('button')).toBeNull();
+  });
+});
