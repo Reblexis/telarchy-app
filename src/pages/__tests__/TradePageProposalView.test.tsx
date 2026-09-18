@@ -566,3 +566,63 @@ test('an old chess move does not say decides now after its deadline', async () =
   await openProposal(container);
   expect(words(container.querySelector('.pubws-chip--deadline'))).toBe('Decision overdue');
 });
+
+describe('a decided proposal says what was decided, what the market expected, and what happens next', () => {
+  const decided = (status: 'approved' | 'declined' | 'lapsed') => {
+    const g = h.grid();
+    Object.assign(g.proposals[0], {
+      status: status === 'lapsed' ? 'declined' : status,
+      closedAt: '2026-09-18T14:36:00Z',
+      lapsedAt: status === 'lapsed' ? '2026-09-18T14:36:00Z' : null,
+    });
+    vi.mocked(api.getMarketplaceWorkspace).mockImplementation(async () => g as never);
+    return g;
+  };
+  const openDecided = async () => {
+    const view = render(
+      <MemoryRouter initialEntries={['/lookpilot/p/7']}>
+        <Routes>
+          <Route path="/:slug/p/:number" element={<TradePage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(view.container.querySelector('.pubws-proposal-head')).toBeTruthy());
+    return view;
+  };
+  const rowsOf = (c: HTMLElement) => [...c.querySelectorAll('.pubws-decided-row')].map(r => words(r));
+
+  test('an approval records the if-approved value, and says the declined world was refunded', async () => {
+    decided('approved');
+    const { container } = await openDecided();
+    const rec = container.querySelector('.pubws-decided') as HTMLElement;
+    expect(rec).toBeTruthy();
+    expect(rowsOf(container)[0]).toMatch(/^market expected, at the decision ?\$7,400$/i);
+    expect(rowsOf(container).some(r => /^settles ?\d/i.test(r))).toBe(true);
+    expect(words(rec)).toContain('The declined world was voided. Every bet on it was refunded at cost.');
+    // It sits where the ticket was: under the closed line.
+    const line = container.querySelector('.pubws-closed-line') as HTMLElement;
+    expect(follows(line, rec)).toBe(true);
+  });
+
+  test('a decline records the if-declined value, and says the approved world was refunded', async () => {
+    decided('declined');
+    const { container } = await openDecided();
+    expect(rowsOf(container)[0]).toMatch(/\$7,100$/);
+    expect(words(container.querySelector('.pubws-decided'))).toContain(
+      'The approved world was voided. Every bet on it was refunded at cost.',
+    );
+  });
+
+  test('a lapse counts as a decline', async () => {
+    decided('lapsed');
+    const { container } = await openDecided();
+    expect(rowsOf(container)[0]).toMatch(/\$7,100$/);
+  });
+
+  test('a pending proposal has no record: nothing is decided', async () => {
+    const { container } = renderFloor();
+    await openProposal(container);
+    expect(container.querySelector('.pubws-decided')).toBeNull();
+    expect(container.textContent).not.toMatch(/was voided/);
+  });
+});

@@ -2221,3 +2221,11 @@ the trade" (Viktor, 2026-09-10). The strips, the question under the worlds,
 the verbs and "How this decides" are unchanged. The decided-page tab of the
 canvas (receipt, reading since the decision) is not built yet. On branch
 `proposal-read-top-down`, a trial: not merged until he has looked at it.
+
+**2026-09-18, later (Viktor: "ok lets do it")**: the decided record from the
+canvas's fourth tab is built on the same branch (what the market expected at
+the decision, the last reading, the settle day, one sentence on the voided
+world). The ticket's per-outcome payout rows are NOT built: the payoff line
+already prices the bet at five points and is ruled to be "one rule with two
+rows of type, and nothing else"; the refund line was the missing fact. PR 205
+(`proposal-view-c`) closed as superseded by this branch.

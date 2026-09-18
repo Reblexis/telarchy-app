@@ -1580,6 +1580,18 @@ export function TradePage() {
       />
     </span>
   );
+  /* The value of the world that happened, as the market had it at the
+     decision: a lapse counts as a decline, and a proposal with options that
+     was not approved has no world that happened. */
+  const decidedExpected: number | null = !selectedJobRuling
+    ? null
+    : jobOptioned
+      ? chosenOption
+        ? (optionQuote(chosenOption)?.consensus ?? null)
+        : null
+      : selectedJobRuling === 'approved'
+        ? (pair?.approvedConsensus ?? null)
+        : (pair?.declinedConsensus ?? null);
   const leaderValue = optionLeadNow?.leader ? (optionQuote(optionLeadNow.leader.id)?.consensus ?? null) : null;
   const verdictMetric = hero
     ? `${sentenceCase(captionLabel(metricLabel, ws?.name))} ${dateQuestionOf(hero).lead}${dateQuestionOf(hero).word}`
@@ -3044,6 +3056,46 @@ export function TradePage() {
                 ? `Trading closed. Decided: ${selectedJobRuling}.`
                 : 'Trading closed at the deadline. The ruling lands in a moment; this page updates on its own.'}
             </p>
+          )}
+          {/* What was decided, what the market expected, what happens next
+            (docs/ui-conventions.md, "A decided proposal says what was
+            decided..."), where the ticket was. */}
+          {!!selectedJob && selectedJobRuling && (
+            <div className="pubws-decided" aria-label="The decision">
+              {decidedExpected !== null && (
+                <div className="pubws-decided-row">
+                  <span className="pubws-decided-k">market expected, at the decision</span>
+                  <span className="pubws-decided-v">
+                    {unit}
+                    {formatValue(decidedExpected)}
+                  </span>
+                </div>
+              )}
+              {nowReading !== null && (
+                <div className="pubws-decided-row">
+                  <span className="pubws-decided-k">
+                    {readingWhen ? `last read \u00b7 ${readingWhen}` : 'last read'}
+                  </span>
+                  <span className="pubws-decided-v">
+                    {unit}
+                    {formatValue(nowReading)}
+                  </span>
+                </div>
+              )}
+              {hero?.resolvesOn && (
+                <div className="pubws-decided-row">
+                  <span className="pubws-decided-k">settles</span>
+                  <span className="pubws-decided-v">{dayOf(hero.resolvesOn)}</span>
+                </div>
+              )}
+              <p className="pubws-decided-note">
+                {jobOptioned
+                  ? selectedJobRuling === 'approved'
+                    ? 'The other options were voided. Every bet on them was refunded at cost.'
+                    : 'Every option was voided. Every bet was refunded at cost.'
+                  : `The ${selectedJobRuling === 'approved' ? 'declined' : 'approved'} world was voided. Every bet on it was refunded at cost.`}
+              </p>
+            </div>
           )}
           {active && !selectedJobClosed && !selectedJobPastDeadline && (
             <div className="pubws-ticket-inline" key={betModal ?? 'open'}>

@@ -990,6 +990,20 @@ asks: what is proposed, what the market says about it, what I can do
   mechanism a trader needs before pressing, so it is the one exception to
   "the mechanism is never explained above the trade"; everything else stays
   in "How this decides".
+- **A decided proposal says what was decided, what the market expected, and
+  what happens next**, where the ticket was. Under the closed line
+  ("Trading closed. Decided: approved."), a short record on hairlines, which
+  never changes once written except for the reading: "market expected, at the
+  decision" with the value of the world that happened (if approved on an
+  approval, if declined on a decline or a lapse, the chosen option with
+  options), "last read" with the newest reading and when, and "settles" with
+  the settle day (the row is left out when the market has no settle day).
+  Under it one sentence on the world that did not happen: "The declined world
+  was voided. Every bet on it was refunded at cost." (or "approved world", or
+  "The other options were voided. ..."). A proposal with options that was
+  declined or lapsed has no world that happened: no expected row, and the
+  sentence reads "Every option was voided. Every bet was refunded at cost."
+  The holder's own numbers stay on the position card below it.
 - **"How this decides" is where the mechanism lives**, and the only place
   (Viktor, 2026-09-10: "shouldnt this just be in the market rules or
   something? seems like too much of a detail"). Three sentences, generic to
