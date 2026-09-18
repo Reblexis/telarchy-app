@@ -7,7 +7,7 @@ export function formatCreditCount(value: number): string {
     : Math.round(value).toLocaleString('en-US');
 }
 
-/** Current funds and the next earning opportunity are distinct lines of one link. */
+/** Current funds and a button face for the next earning opportunity, one link; the fill means credits waiting. */
 export function CreditsBalanceLink({ balance, accountId }: { balance: number; accountId?: string }) {
   const available = useEarnAvailable(true, accountId);
   const hint = available === null ? 'Get credits' : `Earn +${formatCreditCount(available)}`;
@@ -15,20 +15,7 @@ export function CreditsBalanceLink({ balance, accountId }: { balance: number; ac
   return (
     <Link className="acctmenu-credits" to="/earn" aria-label={label} title={label}>
       <span className="acctmenu-balance">{formatCreditCount(balance)} cr</span>
-      <span className={`acctmenu-earn${available === null ? '' : ' has-reward'}`}>
-        {hint}
-        <svg
-          width="9"
-          height="9"
-          viewBox="0 0 12 12"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          aria-hidden="true"
-        >
-          <path d="M2 10 10 2M3 2h7v7" />
-        </svg>
-      </span>
+      <span className={`acctmenu-earn${available === null ? '' : ' has-reward'}`}>{hint}</span>
     </Link>
   );
 }
