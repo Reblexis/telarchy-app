@@ -12654,6 +12654,11 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 
 /* The new-bot form is one bar: name, credits and the create button on a
  * line, Cancel beside the heading, the balance under the credits field. */
+/* A fed market's bot guide takes its own line under the heading; the heading
+ * keeps clear of Cancel, which is laid over the row's right end. */
+.agents-page .agent-new-bot .builder-heading { flex-wrap: wrap; justify-content: flex-start; gap: .25rem 1rem; padding-right: 4rem; }
+.agents-page .agent-new-bot .builder-feed-guide { flex-basis: 100%; margin: 0; font: .7rem/1.5 var(--font-mono); color: var(--text-secondary); text-decoration: underline; text-decoration-color: var(--border-strong); text-underline-offset: 3px; }
+.agents-page .agent-new-bot .builder-feed-guide:hover { color: var(--accent); text-decoration-color: currentColor; }
 .agents-page .agent-new-bot > button.builder-cancel { top: 0; padding: 0 .1rem; font: 500 .78rem/1.25rem var(--font-sans); }
 .agents-page .agent-new-bot > button.builder-cancel:hover { background: transparent; }
 .agents-page .agent-new-bot .builder-connect .builder-choices, .agents-page .agent-new-bot .builder-connect .builder-choices:first-of-type { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .6rem; margin: .4rem 0 .7rem; align-items: start; }
