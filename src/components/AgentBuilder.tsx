@@ -12,7 +12,6 @@ import {
 } from '../lib/agent-builder';
 import { api, type MyAgent } from '../lib/api';
 import { withBase } from '../lib/base-path';
-import { FEED_BOT_GUIDES } from '../lib/feed-bot-guides';
 import type { CreatedConnection } from './AgentConnectionSetup';
 import { AgentManualSetup } from './AgentManualSetup';
 
@@ -26,8 +25,6 @@ export interface BuilderFloor {
   workspaceId: string;
   slug: string;
   name: string;
-  /** The market's feed kind, when it has one: picks its bot guide. */
-  feedKind?: string;
 }
 
 export function AgentBuilder({
@@ -427,7 +424,6 @@ export function AgentBuilder({
       }
     </section>
   );
-  const guide = floor?.feedKind ? FEED_BOT_GUIDES[floor.feedKind] : undefined;
   return (
     <section id="agent-setup" className="agent-builder" aria-label="Build your agent">
       <div className="builder-heading">
@@ -435,13 +431,6 @@ export function AgentBuilder({
             2026-09-16, "it shouldnt be lookpilot scoped"); only the prompt
             and the commands point at the market it came from. */}
         <h2>New bot</h2>
-        {/* A fed market's own bot guide: where its game feed is and how to
-            trade it. Off-site, so a plain anchor in a new tab. */}
-        {guide && (
-          <a className="builder-feed-guide" href={guide.url} target="_blank" rel="noopener noreferrer">
-            {guide.label}
-          </a>
-        )}
       </div>
       {connectionForm}
       {!creationOnly && (

@@ -144,68 +144,19 @@ describe('a bot created from a market lives in that market', () => {
   });
 });
 
-/* Persona run 2026-09-17, the bot author: "I found a starter bot, but I still
-   cannot tell it where to read the chess game." The guide link stood under the
-   floor's door until the door became a bare row (docs/audience-pages.md, "The
-   door from a market"); the form the door opens carries it now. */
-describe('a fed market links to its own bot guide on the form its door opens', () => {
-  const GUIDE = 'https://github.com/Reblexis/telarchy-chess/blob/main/docs/trading.md';
-  const NAME = 'How to trade chess with a bot: the game feed, a dry run, a reference bot';
-  test('the chess door shows "How to trade chess with a bot", opening the guide in a new tab', async () => {
-    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
-      workspaceId: 'ws-chess',
-      name: 'Chess',
-      slug: 'chess',
-      liveFeed: { kind: 'chess', url: 'https://chess.example.com' },
-    } as never);
-    mount('/agents?market=chess#agent-setup');
-    const link = await screen.findByRole('link', { name: NAME });
-    expect(link).toHaveAttribute('href', GUIDE);
-    expect(link).toHaveAttribute('target', '_blank');
-    expect(link.getAttribute('rel')).toMatch(/noopener/);
-    expect(link.closest('#agent-setup')).toBeTruthy();
-  });
-  test('a market with no feed, a feed with no guide, and the plain form carry no such link', async () => {
-    mount();
-    await screen.findByLabelText('Bot name');
-    expect(screen.queryByRole('link', { name: /How to trade/ })).toBeNull();
-    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
-      workspaceId: 'ws-snake',
-      name: 'Snake',
-      slug: 'snake',
-      liveFeed: { kind: 'snake', url: 'https://snake.example.com' },
-    } as never);
-    mount('/agents?market=snake#agent-setup');
-    await waitFor(() => expect(screen.getAllByLabelText('Bot name').length).toBe(2));
-    expect(screen.queryByRole('link', { name: /How to trade/ })).toBeNull();
-  });
-  test('the plain Agents page, with no market in the address, carries no guide link', async () => {
-    vi.mocked(api.getPublicWorkspaces).mockResolvedValue([] as never);
-    mount('/agents#agent-setup');
-    await screen.findByLabelText('Bot name');
-    expect(screen.queryByRole('link', { name: /How to trade/ })).toBeNull();
-  });
-});
-
-/* Owner report 2026-09-18: the guide link sat beside "New bot", squeezed the
-   heading onto two lines and ran under Cancel. */
-test('THE GUIDE LINK TAKES ITS OWN LINE UNDER THE HEADING, never beside it or under Cancel', async () => {
+/* Owner, 2026-09-18, shown the chess guide link on this form: "the link
+   shouldnt be there in the first place". The floor's about text links it. */
+test("THE FORM CARRIES NO GUIDE LINK, EVEN FROM A FED MARKET'S DOOR: it is the same form for every market", async () => {
   vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
     workspaceId: 'ws-chess',
     name: 'Chess',
     slug: 'chess',
     liveFeed: { kind: 'chess', url: 'https://chess.example.com' },
   } as never);
-  mount('/agents?market=chess#agent-setup');
-  const link = await screen.findByRole('link', { name: /How to trade chess with a bot/ });
-  const heading = screen.getByRole('heading', { name: 'New bot' });
-  expect(link.parentElement).toBe(heading.parentElement);
-  expect(heading.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  const { container } = mount('/agents?market=chess#agent-setup');
+  await screen.findByLabelText('Bot name');
+  expect(screen.queryByRole('link', { name: /How to trade/ })).toBeNull();
+  expect(container.querySelector('#agent-setup a[target="_blank"]')).toBeNull();
   const css = readFileSync(join(dirname(dirname(dirname(fileURLToPath(import.meta.url)))), 'style.css'), 'utf8');
-  const head = css.match(/\.agents-page \.agent-new-bot \.builder-heading\s*\{([^}]*)\}/);
-  expect(head).toBeTruthy();
-  expect(head![1]).toMatch(/flex-wrap:\s*wrap/);
-  const guide = css.match(/\.agents-page \.agent-new-bot \.builder-feed-guide\s*\{([^}]*)\}/);
-  expect(guide).toBeTruthy();
-  expect(guide![1]).toMatch(/flex-basis:\s*100%/);
+  expect(css).not.toMatch(/builder-feed-guide/);
 });

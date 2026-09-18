@@ -2556,8 +2556,9 @@ It is a row between two hairlines, the bot mark, the words in the secondary
 text colour at medium weight, and a mono arrow at the right edge; it is
 never a filled pill, because the ticket's own button is the one primary
 action in the rail. Nothing stands under it, no caption and no second link:
-the page it opens carries the instructions, including a fed floor's own bot
-guide (`docs/audience-pages.md`, "The door from a market").
+the page it opens carries the instructions (`docs/audience-pages.md`, "The door
+from a market"), and a fed floor's own bot guide is linked from its about
+text.
 
 **The standings are one footer, not rails, and not two boards.** Under
 the facts row stands a single block (`.pubws-standings`): "Top traders",
