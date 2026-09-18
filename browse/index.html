@@ -903,6 +903,45 @@ navigation and labels. Where this page and <code>./docs</code> disagree,
 <li><a href="#docs-reviews-2026-09-11-snake-design-critic-md--h36">Overall</a></li>
 </ul></details>
 </li>
+<li><details><summary><a class="file" href="#file--docs-reviews-2026-09-18-chess-proposal-design-critic-md">docs/reviews/2026-09-18-chess-proposal-design-critic.md</a></summary>
+<ul>
+<li><a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h1">Chess and move proposal design critique</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h2">Target and evidence scope</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h3">Coverage</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h4">Blockers</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h5">Visual design</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h6">Score</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h7">Evidence</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h8">Moves to 8</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h9">Moves to 9</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h10">Moves to 10</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h11">Friction</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h12">Score</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h13">Evidence</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h14">Moves to 8</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h15">Moves to 9</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h16">Moves to 10</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h17">Intuitiveness</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h18">Score</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h19">Evidence</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h20">Moves to 8</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h21">Moves to 9</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h22">Moves to 10</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h23">Bugs and weird behaviour</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h24">Score</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h25">Evidence</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h26">Moves to 8</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h27">Moves to 9</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h28">Moves to 10</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h29">Fun</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h30">Score</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h31">Evidence</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h32">Moves to 8</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h33">Moves to 9</a></li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h34">Moves to 10</a></li>
+<li>&nbsp;&nbsp;<a href="#docs-reviews-2026-09-18-chess-proposal-design-critic-md--h35">Overall</a></li>
+</ul></details>
+</li>
 </ul></li>
 </ul>
 </nav>
@@ -15488,6 +15527,177 @@ standings rather than making it silently.</p>
 <li>Keep replay controls stationary and add attempt, food and death jump points.</li>
 <li>Lead proposal rows with the direction and wrap essential timing metadata on phones.</li>
 </ol>
+
+<p class="backtop"><a href="#toc">&uarr; contents</a></p>
+</section>
+<section class="docfile" id="file--docs-reviews-2026-09-18-chess-proposal-design-critic-md">
+<p class="filelabel">docs/reviews/2026-09-18-chess-proposal-design-critic.md</p>
+<h1 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h1">Chess and move proposal design critique</h1>
+<h2 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h2">Target and evidence scope</h2>
+<p>Target: https://telarchy.com/chess and its linked proposal, participant, account, replay and bot surfaces. Reviewed on 2026-09-18, approximately 13:48 to 14:01 Europe/Ljubljana, through the rented vd-persona-1 desktop. Chromium ran on a 1024 by 768 display. Narrow checks used Chromium's iPhone XR viewport, 414 CSS pixels wide, at 100% preview scale. This is browser emulation, not a physical phone test.</p>
+<p>Production build identity was not exposed in the reviewed UI, so no commit or build number is claimed. The game advanced during inspection, from game 58 into game 59. Findings concern those observed production states. The reviewer was independent of the implementation, but had the brief's explanation of the mechanism. No application source or private API data was used to judge the product. Developer tools were opened solely to set the narrow viewport; incidental source text in those screenshots is not evidence for any finding. The publicly linked bot guide was read as user documentation.</p>
+<p>Screenshots: <code>/home/cihalvi/.cache/codex-design-critic/20260918-134750-codex/shots/</code>. Numbers below refer to numbered PNG files in that directory. There are 108 captures, including browser setup and intermediate navigation captures. Screenshots 01 and 02 precede successful browser launch and are not product failures. Initial mobile emulation captures 68 through 76 had a setup scaling problem; they are excluded from product scoring. Fresh navigation corrected it. Valid narrow evidence begins with 77, with legible 100% captures from 79 onward.</p>
+<p>Only invented signup data was used. Signup supplied 100 free credits. One credit bought Higher on Bg4 in proposal #854, game 58 move 13. Screenshot 58 records the successful trade. No real payment, public discussion post, or bot execution was performed. Creating the throwaway account and this permitted free-credit trade were the only intentional product mutations. The balance subsequently displayed 124 credits; this review did not establish the source of the additional credits and does not call it a defect.</p>
+<h2 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h3">Coverage</h2>
+<p>The initial checklist was: signed-out workspace and its full scroll; current and decided proposals; option selection and chart controls; backing a move through signup; bot routes from both pages; proposal, profile and browser-back navigation; narrow workspace and proposal; empty and finished states. The following records actual coverage, rather than treating that plan as completed work.</p>
+<ul>
+<li>[x] Signed-out workspace: headline, info disclosure, live board, ranked moves, score explanation, countdown, trade ticket, proposal list, settlement explanation, leaderboard area, season offer, bot links and footer. Screenshots 03 through 09 and 27 through 32 cover these areas. The page was traversed to its bottom, though not every footer destination was opened.</li>
+<li>[x] Current proposal #848: leading Bf5, all 22 options exposed, Nb1 selected, Value and Call charts, Live board, countdown and live transition to a decision. Screenshots 11 through 20. The expanded grid changed from leader-first presentation to an order that placed the leader near the end.</li>
+<li>[x] Decided proposals #848 and #849: chosen/voided labels, refunds, chart and closed-trading state. Screenshots 17 through 26. Also inspected #852, #853 and #854 while moving between current and decided states.</li>
+<li>[x] Current proposal #854: selected Bg4, entered a one-credit amount, submitted successfully, opened Limit and Sell modes, inspected the resulting position. Screenshots 54 through 62. No further sell or limit order was submitted.</li>
+<li>[x] Finished-game transition: game 58 stopped, the public record changed from 57 played/45 lost to 58 played/46 lost, and the page said it was waiting for the next game. Inspected #854 after that transition on narrow and desktop layouts. Screenshots 90 through 103.</li>
+<li>[x] New-game transition on an old proposal: #854 retained its game 58 decision while its board switched to game 59's opponent, maia5. Screenshots 106 through 108.</li>
+<li>[x] Account path: login, create-account link, three fields, successful throwaway registration, free balance and return to the bot setup destination. Screenshots 33 through 42. Signup was reached from the bot path, not the proposal's signed-out signup button.</li>
+<li>[x] Bot path from the workspace: both the chess-specific GitHub guide and generic Build your own route. Read the guide's prerequisites, feed, keys, funding, dry-run quote, live switch and Stockfish example. Screenshots 29 through 34. The guide requires curl/jq for examples, a participant key and funded credits for trades; the reference example uses Python and Stockfish. It clearly distinguishes dry runs from spending and includes beta-access caveats.</li>
+<li>[x] Bot path from a proposal: Add your own trading bot led to <code>/agents?market=chess#agent-setup</code>, with the chess guide, optional name, starting credits, and Create bot &amp; get key. Screenshots 104 and 105. No key or bot was created.</li>
+<li>[x] Navigation: proposal Back to the market, live-feed trade row into another proposal's Activity tab, participant vi0 profile, browser back, and links between proposal rows. Screenshots 19 through 27 and 48 through 54. Clicking the feed's proposal heading and its &quot;open&quot; text did not navigate in 49 through 51; its trade row did in 52.</li>
+<li>[x] Narrow layout: workspace headline, board, move rankings, statistics, replay picker, betting ticket, decided proposal, position, Positions, Activity and Discussion tabs. Screenshots 79 through 100. Narrow coverage used the signed-in throwaway account.</li>
+<li>[x] Finished-game replay: chose game 57 versus maia1, labeled lost; played it, changed speed to 10x, scrubbed to move 3, and returned to Live. Screenshots 84 through 90.</li>
+<li>[x] Empty states: Discussion (0) and no bots/no keys. Screenshots 100 and 105. Selected Nb1 showed zero volume and no traders, but that is an empty option, not proof of a wholly untraded proposal.</li>
+<li>[ ] Every option, chip, metric control, date range, trade row and outgoing link: sampled, not exhaustive. In particular, not all 22/30 move options or Value date ranges were clicked. The Call 1D control was attempted but remained on All, and it was not established whether the control was disabled for insufficient history. No separate date or metric picker was encountered.</li>
+<li>[ ] Entirely untraded proposal: not found in the inspected live/decided examples. Do not infer its appearance from an untraded option.</li>
+<li>[ ] Signed-out narrow signup-to-trade continuity, OAuth, email recovery, keyboard-only use, screen reader use and a real mobile device: not tested.</li>
+<li>[ ] Every footer, Lichess, leaderboard, season, Otto and own-AI destination: not opened. No public message, season entry or assistant action was submitted.</li>
+<li>[ ] Final account ledger/payout reconciliation, limit execution, selling and actual bot operation: not verified. The permitted one-credit buy was verified on the real surface.</li>
+</ul>
+<p>Coverage is PARTIAL. All scores are provisional over the untested ground. This is a single critic's heuristic assessment, not measured usability research.</p>
+<p>Flow timing is approximate wall-clock time from the screenshot sequence, including observation and capture overhead. It is not a benchmark of a typical human. First workspace inspection to the first proposal took roughly 70 to 90 seconds and seven content actions, mostly scrolling and disclosures. From the selected #854 proposal to &quot;Placed&quot; took about 25 seconds and four actions: two scroll groups, enter amount, submit (54 through 58). The visible deadline fell from 40 to 15 seconds in that interval. Signup from the login screen took roughly one minute, with Create account, three field entries, a scroll and submit (33 through 39). Opening the bot guide from its visible workspace link took one click and about two seconds, followed by reading time. The profile detour took two clicks from the expanded live feed, then a separate scroll-to-top action to identify the profile. Replay selection took two clicks, with one additional action each for play, speed, scrubbing and Live.</p>
+<h2 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h4">Blockers</h2>
+<p><strong>Historical proposal context becomes unreliable after a game ends.</strong> Before the end, #854 had its title, chosen move, option prices and impact (54 and 61). After the game ended, a fresh visit showed the board without that summary, an empty How this settles box, and the vague closed status &quot;Decided: approved&quot; (93 through 103). The personal position still said &quot;settles at the date&quot; without a date (97). When game 59 began, the same proposal's summary returned but the board and move rankings described the new opponent and game (106). This blocks understanding what happened to the old decision and the held position. The lifecycle association is observed; the internal cause and payout correctness are not established.</p>
+<p><strong>A historical move's board can describe a different game without a clear boundary.</strong> Screenshot 106 names game 58 move 13 and chosen Bg4 above a live board against maia5, while the old proposal description still names bernstein-2ply (107). A visitor evaluating why Bg4 was selected can inspect the wrong position. Preserve the original position and result alongside the saved decision; label any current-game widget as a separate destination.</p>
+<p>No payment or account-access blocker was encountered. No claim of accessibility compliance or financial loss is made.</p>
+<h2 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h5">Visual design</h2>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h6">Score</h3>
+<p>7/10, provisional.</p>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h7">Evidence</h3>
+<p>The dark background, cream type, orange accents and green leading prices form a coherent identity. The board is readable and its move arrows turn an abstract market into something a chess player can follow (06, 81). Thin dividers and aligned numeric columns generally support scanning. The narrow board and ticket fit their available width (79 through 83).</p>
+<p>The hierarchy favors the large impact number over the selected move and the meaning of a score (11 through 16). The expanded option grid contains a conspicuous blank filled region (12). Call-chart endpoint labels pile up below one another for nearly tied options (16 through 19). Small gray uppercase text is frequently the only explanation of a critical number. The bot guide visibly overlaps Cancel at desktop width (105), and narrow Activity content extends beyond the available reading area (99).</p>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h8">Moves to 8</h3>
+<ul>
+<li>Put selected move, expected score, units and deadline together above the board and trade controls.</li>
+<li>Remove the empty slab beside Show all/Show fewer and label only the selected and leading chart endpoints by default.</li>
+<li>Give the bot guide its own full-width line so it cannot collide with Cancel; wrap mobile activity metadata.</li>
+</ul>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h9">Moves to 9</h3>
+<ul>
+<li>Use a stronger readable text style for explanations, settlement states and timestamps instead of uniformly tiny gray captions.</li>
+<li>Make the selected option distinct from the leading option with a labeled outline or selection marker, retaining green for the leader.</li>
+<li>Keep the mobile board and move actions adjacent; collapse player career statistics behind a disclosure.</li>
+</ul>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h10">Moves to 10</h3>
+<ul>
+<li>Verify long move names, tied prices, many options, zero trades and final results at narrow widths and enlarged text, with no clipped controls or overlapping labels.</li>
+<li>Provide a compact comparison view that remains readable without relying on color alone.</li>
+</ul>
+<h2 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h11">Friction</h2>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h12">Score</h3>
+<p>5/10, provisional.</p>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h13">Evidence</h3>
+<p>Signup is relatively light: three fields, immediate access, and 100 free credits (34 through 39). Once the correct ticket is visible, entering one credit and buying is fast, with immediate confirmation (56 through 58). There is no payment detour.</p>
+<p>Reaching that ticket requires moving past substantial chart/board and activity content. A newcomer reads against a short countdown; several proposals closed while being inspected. The observed #854 flow used 25 of its remaining 40 seconds just to reach and submit the ticket. Mobile stacks career statistics and rankings between board and action (81 through 83). The workspace-wide game-score ticket appears before the move proposal list (08 and 09), making it easy to begin the wrong kind of bet. Profile navigation initially landed deep in activity and needed a separate top jump (23 and 24). Bot guidance is split between GitHub and account controls (30 and 32).</p>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h14">Moves to 8</h3>
+<ul>
+<li>Add a direct &quot;Back this move&quot; entry beside each move, opening a compact ticket with the move and deadline still visible.</li>
+<li>Keep a clear &quot;Open current move&quot; action on closed proposals, and preserve the selected destination through signup.</li>
+<li>Move nonessential statistics below the decision flow and place a plain free-credit explanation before signup.</li>
+</ul>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h15">Moves to 9</h3>
+<ul>
+<li>Let a new user learn the ticket in a non-spending preview before entering a timed live move.</li>
+<li>Preserve scroll on browser back, but start a newly opened profile at its identity header.</li>
+<li>Put the chess bot prerequisites, guide and key setup in one ordered flow without requiring the reader to reconcile multiple entry points.</li>
+</ul>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h16">Moves to 10</h3>
+<ul>
+<li>Verify that a fresh visitor can select, understand and back a move within one decision window on desktop and mobile without rushing.</li>
+<li>Offer a clearly labeled notification of the next available move when the current one closes, without silently changing the trade target.</li>
+</ul>
+<h2 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h17">Intuitiveness</h2>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h18">Score</h3>
+<p>4/10, provisional.</p>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h19">Evidence</h3>
+<p>The explanation &quot;0 loss, 50 draw, 100 win&quot; and &quot;highest price is played&quot; is genuinely helpful (06). The proposal question names the selected move (13), and chosen/voided/refunded states explain part of the outcome (25). The bot guide explains expected score with a concrete win/draw example.</p>
+<p>The signed-out headline &quot;What score will I reach this game?&quot; leaves &quot;I&quot; undefined until lower content explains TelarchyRookie (04). Terms such as Value, Call, last read, pool, volume, &quot;behind it&quot;, and &quot;impact by until settled&quot; require market knowledge. The prominent +0.32 remains about the leader when another option is selected (13), while the ticket changes below. The ticket's &quot;1 cr -&gt; 20.4&quot; does not label the latter as a resulting price (57). Signed out, it says &quot;250 cr, all you have&quot; despite no account being present (09); signup then actually supplies 100 (39). Finally, a proposal's Live feed can show a different move, and its board later shows another game (20 and 106). Those context changes are difficult to predict.</p>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h20">Moves to 8</h3>
+<ul>
+<li>Lead with &quot;TelarchyRookie is White. Traders choose its next move&quot; and label the score as expected result on the 0/50/100 scale.</li>
+<li>Label ticket values &quot;You spend&quot;, &quot;Price after your bet&quot;, &quot;If we lose/draw/win&quot; and state the refund rule for unchosen moves beside submission.</li>
+<li>Replace the anonymous &quot;all you have&quot; claim with an explicit signup allowance or a neutral preview limit.</li>
+<li>Separate &quot;Leading move&quot; from &quot;Your selected move&quot;, and label global activity as activity across the workspace.</li>
+</ul>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h21">Moves to 9</h3>
+<ul>
+<li>Add concise definitions for price, pool, volume and last result, accessible by click and keyboard focus.</li>
+<li>Keep the historical board, decision-time prices, played move and actual game result together on decided proposals.</li>
+<li>Rename Value and Call in the chess context to distinguish past game results from market forecasts.</li>
+</ul>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h22">Moves to 10</h3>
+<ul>
+<li>Have first-time chess players explain the trade's cost, possible payout, influence on the move and refund conditions before they submit; refine the exact labels where they guess.</li>
+<li>Show why the winner won with its decision-time price and tie rule, without implying that popularity proves chess strength.</li>
+</ul>
+<h2 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h23">Bugs and weird behaviour</h2>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h24">Score</h3>
+<p>4/10, provisional.</p>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h25">Evidence</h3>
+<p>The core one-credit buy worked, the position appeared, and the replay controls responded (58, 60, 87 through 90). No crash, captcha or payment error was encountered.</p>
+<p>The historical-state blockers are the largest defects: missing summary and empty settlement text between games, followed by an old proposal displaying the new game's board (93 through 106). Live updates also change document height under the pointer. At the decision transition, a date-range click landed after the controls moved (16 through 18); later an attempted Positions interaction coincided with a shifting proposal list (61 through 63). This is observed instability, not proof that every unexpected navigation had the same cause. The settled-position card's date placeholder and unchanged worth do not explain the completed game (97). The profile landing scroll, bot guide overlap and narrow activity overflow are smaller reproducible issues (23, 105, 99). Call endpoint text rounds 20.3 and 20.4 to &quot;20&quot;, obscuring the difference visible in the option tiles (16).</p>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h26">Moves to 8</h3>
+<ul>
+<li>Keep historical proposal details available regardless of whether a new game or current metric market exists.</li>
+<li>Render explicit final result, settled/pending status, payout and timestamp; never render an empty settlement card or an unspecified date.</li>
+<li>Reserve space or defer list expansion during live updates so controls do not move while being targeted.</li>
+<li>Fix the bot heading collision, mobile activity overflow and chart precision mismatch.</li>
+</ul>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h27">Moves to 9</h3>
+<ul>
+<li>Make loading, between-games, overdue and fully settled states explicit and stable, including after fresh navigation.</li>
+<li>Freeze historical charts and boards to their proposal context, with a separately labeled live-game shortcut.</li>
+<li>Ensure link styling matches behavior in the live feed, and make disabled chart ranges explain why they are unavailable.</li>
+</ul>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h28">Moves to 10</h3>
+<ul>
+<li>Exercise the complete live sequence with a user present: open move, last-second update, decision, next move, game end, settlement and new game, including a held position and narrow viewport.</li>
+<li>Verify the same historical URL retains an intelligible decision and payout record through every transition and after browser back or reload.</li>
+</ul>
+<h2 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h29">Fun</h2>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h30">Score</h3>
+<p>6/10, provisional.</p>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h31">Evidence</h3>
+<p>Watching legal moves compete on a real board is the strongest part of the product. Arrows, a live leader and the countdown make the experiment understandable in motion (06 and 81). Free starting credits make participation approachable. The immediate &quot;Placed&quot; message and visible personal position reward taking an action (58 and 61). Replay provides a reason to explore previous games (84 through 89).</p>
+<p>The excitement weakens when reading costs the remaining move window, or when a completed game does not clearly finish the story of the user's bet. Dense generic trading language and the separation between board and action interrupt the chess experience. The old proposal showing a new game prevents a satisfying review of whether the chosen move helped.</p>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h32">Moves to 8</h3>
+<ul>
+<li>After a decision, show &quot;Bg4 was played&quot; on the original board, then offer the next move.</li>
+<li>At game end, show the result and the user's exact gain or loss with a link to replay the move they backed.</li>
+<li>Make the first free-credit action easy to understand without making the countdown feel like a reading test.</li>
+</ul>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h33">Moves to 9</h3>
+<ul>
+<li>Add a compact personal history of backed moves and their outcomes, linked to the corresponding board positions.</li>
+<li>In replay, mark proposal decision points and show the decision-time leader beside the move played.</li>
+</ul>
+<h3 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h34">Moves to 10</h3>
+<ul>
+<li>Let users compare their chosen move with the market's choice and follow the consequence through the game, without inventing causal certainty or an unsupported engine verdict.</li>
+<li>Validate that the result screen creates a clear reason to return through learning and participation, rather than merely through prizes or urgency.</li>
+</ul>
+<h2 id="docs-reviews-2026-09-18-chess-proposal-design-critic-md--h35">Overall</h2>
+<p><strong>5.2/10</strong>, the arithmetic mean of 7, 5, 4, 4 and 6. Provisional because coverage is partial. This is a heuristic, not a measurement of real users. The live chess idea is compelling and the permitted trade worked, but historical context and settlement comprehension prevent a confident first-time experience.</p>
+<p>The ten highest-leverage changes, ranked:</p>
+<ol>
+<li>Preserve historical proposal identity, options and result between games and after new games begin.</li>
+<li>Pin each proposal to its original chess position; clearly separate any live board from that record.</li>
+<li>Show a complete settlement receipt with result, payout, profit/loss and timestamp for the user's position.</li>
+<li>Put selected move, deadline and a compact backing action together near the board.</li>
+<li>Explain price and payout in the ticket, including the unchosen-move refund rule and what the post-trade number means.</li>
+<li>Stabilize layout during countdown, decision and proposal-list updates so actions do not move under the pointer.</li>
+<li>Add an obvious next-current-move route to every closed proposal and preserve it through signup.</li>
+<li>Make the first screen explain who is playing, whose turn it is, and the 0/50/100 expected-score scale.</li>
+<li>Repair option-grid gaps, chart label collisions/rounding, the bot guide overlap and mobile activity overflow.</li>
+<li>Complete the participation story with a move-linked personal result and replay, making it worth returning to learn from the game.</li>
+</ol>
+<p>This report changes no product behavior. Documentation validation checks its required sections, screenshot references, arithmetic and punctuation; implementation tests are not applicable to a review-only document. Evidence files remain in the supplied local screenshots directory rather than being published with the report.</p>
 
 <p class="backtop"><a href="#toc">&uarr; contents</a></p>
 </section>
