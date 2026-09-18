@@ -3493,11 +3493,15 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
 /* The unclaimed figure beside the balance (owner ask 2026-08-30). Amber
    because it is money not yet taken, and absent entirely once there is
    nothing left, so the chip never carries decoration. */
-.acctmenu-credits { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: .15rem; min-height: 2.3rem; padding: .15rem .1rem; text-decoration: none; white-space: nowrap; color: var(--text-primary); }
+.acctmenu-credits { display: flex; align-items: center; gap: .55rem; min-height: 2.3rem; padding: .15rem .1rem; text-decoration: none; white-space: nowrap; color: var(--text-primary); }
 .acctmenu-balance { font: 600 .78rem var(--font-mono); line-height: 1.2; }
-.acctmenu-earn { display: flex; align-items: center; gap: .2rem; font: 500 .62rem var(--font-sans); color: var(--text-secondary); line-height: 1.2; }
-.acctmenu-earn.has-reward { color: var(--accent); }
-.acctmenu-credits:hover .acctmenu-earn { text-decoration: underline; }
+/* A button face inside the balance link. Filled only while credits are
+   waiting, so the one filled accent shape on the bar always means that
+   (docs/ui-conventions.md, the top bar). */
+.acctmenu-earn { display: inline-flex; align-items: center; padding: .5rem .8rem; border: 1px solid var(--border-strong); border-radius: 9px; font: 600 .78rem var(--font-sans); line-height: 1; color: var(--text-primary); }
+.acctmenu-earn.has-reward { background: var(--accent); border-color: var(--accent); color: var(--bg-primary); }
+.acctmenu-credits:hover .acctmenu-earn { border-color: var(--text-primary); }
+.acctmenu-credits:hover .acctmenu-earn.has-reward { background: var(--accent-hover); border-color: var(--accent-hover); }
 .acctmenu-credits:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 2px; }
 .pubws-agents { display: inline-flex; align-items: center; gap: .4rem; min-height: 2.3rem; color: var(--text-secondary); text-decoration: none; font: 500 .8rem var(--font-sans); }
 .pubws-agents:hover, .pubws-agents[aria-current] { color: var(--accent); }
@@ -3506,7 +3510,8 @@ button.pubws-chip:focus-visible { outline: 2px solid var(--accent); outline-offs
 .acctmenu-appearance { padding: .55rem .8rem; }
 .acctmenu-appearance .pubws-theme-label { max-width: none; opacity: 1; }
 @media (max-width: 640px) { .pubws-agents span { display: none; } .pubws-agents { min-width: 1.8rem; justify-content: center; } }
-@media (max-width: 380px) { .acctmenu-balance { font-size: .7rem; } .acctmenu-earn { font-size: .58rem; } }
+@media (max-width: 480px) { .acctmenu-credits { gap: .4rem; } .acctmenu-earn { font-size: .72rem; padding: .45rem .6rem; } }
+@media (max-width: 380px) { .acctmenu-balance { font-size: .7rem; } .acctmenu-earn { font-size: .68rem; padding: .4rem .5rem; } }
 
 .acctmenu-avatar {
   display: grid;

@@ -494,12 +494,15 @@ land on `/agents`; signed-out visitors also land on `/agents`.
 The current agent page marks it active. It replaces the top-bar theme toggle.
 
 Every page, including Agents and guides, retains the shared Discord, feedback and Agents shortcuts in the same order. Signed-in visitors also retain the notifications bell. Shared shortcuts come from one component so moving between the floor and document pages cannot omit them. All signed-in top bars use the same account menu and credits link. The balance
-is one compact two-line link to `/earn`: current credits above, **Earn +N**
-below when N is available, otherwise **Get credits**. The amount available is
-never added to the balance. A failed availability read shows no invented
-amount. Both lines remain visible on phones. The balance re-reads when the account
-menu opens and every thirty seconds while the tab is visible. There is no separate Earn credits
-button in the top bar. Liquidity stays a separate, explicitly labeled wallet.
+is one link to `/earn` on a single row: current credits, then a button face
+beside them. While N credits are available the face reads **Earn +N** and is
+filled with the accent, the only filled accent shape on the bar, so the fill
+always means credits waiting. With nothing available, or a failed read, it
+reads **Get credits** as a hairline outline with no fill. The amount available
+is never added to the balance. A failed availability read shows no invented
+amount. Balance and button both remain visible on phones. The balance re-reads when the account
+menu opens and every thirty seconds while the tab is visible. The button face is part of the
+balance link, never a second link in the top bar. Liquidity stays a separate, explicitly labeled wallet.
 
 Theme switching lives in the account menu. The site follows the OS until a
 visitor chooses a theme; the per-browser `telarchy-theme` choice and before-
