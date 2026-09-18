@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { BotMark } from '../components/BotMark';
 import { ManifoldLogo } from '../components/ManifoldLogo';
 import { MarketChart } from '../components/MarketChart';
 import { PageTopBar } from '../components/PageTopBar';
+import { SendCreditsTicket } from '../components/SendCreditsTicket';
+import { useAuth } from '../hooks/useAuth';
 import {
   api,
   type ProfileProposedJob,
@@ -14,6 +16,7 @@ import {
 } from '../lib/api';
 import { displayName } from '../lib/display-name';
 import { floorHref } from '../lib/floor-hash';
+import { authPath } from '../lib/nextPath';
 
 /**
  * A participant's public record (docs/ui-conventions.md, "The participant
@@ -350,10 +353,20 @@ export function ParticipantProfilePage() {
   // Which strip cell is pressed, and so which series the chart draws.
   const [series, setSeries] = useState<Series>('balance');
 
+  // Sending credits (docs/ui-conventions.md, "Sending credits"): the pill is
+  // for someone else's profile, so a signed-in viewer's own participant id
+  // has to be known before it is offered.
+  const { user, loading: authLoading } = useAuth();
+  const location = useLocation();
+  const [myId, setMyId] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState<string | null>(null);
+
   useEffect(() => {
     if (!id) return;
     setLoading(true);
     setError(null);
+    setSent(null);
     api
       .getPublicProfile(id)
       .then(p => {
@@ -365,6 +378,23 @@ export function ParticipantProfilePage() {
         setLoading(false);
       });
   }, [id]);
+
+  useEffect(() => {
+    if (!user) {
+      setMyId(null);
+      return;
+    }
+    let cancelled = false;
+    api
+      .getParticipant()
+      .then(p => {
+        if (!cancelled) setMyId((p as { id: string }).id);
+      })
+      .catch(e => console.error('participant fetch failed:', e));
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   // Show the handle; fall back to a readable id (a named bot) but never a
   // 32-char opaque key, which reads as noise.
@@ -430,7 +460,38 @@ export function ParticipantProfilePage() {
                 </p>
                 {profile.bio && <p className="prof-bio">{profile.bio}</p>}
               </div>
+              {!authLoading && !user && (
+                <Link to={authPath('login', location)} className="prof-send" data-testid="prof-send">
+                  Send credits
+                </Link>
+              )}
+              {user && myId !== null && myId !== profile.id && (
+                <button type="button" className="prof-send" data-testid="prof-send" onClick={() => setSending(true)}>
+                  Send credits
+                </button>
+              )}
             </header>
+            {sent && (
+              <p className="prof-sent" role="status">
+                {sent}
+              </p>
+            )}
+            {sending && (
+              <SendCreditsTicket
+                to={{ id: profile.id, handle }}
+                onClose={() => setSending(false)}
+                onSent={amount => {
+                  setSending(false);
+                  setSent(`Sent ${amount.toLocaleString('en-US', { maximumFractionDigits: 2 })} cr to ${handle}.`);
+                  // The record stays on screen while the new row and balance load.
+                  if (id)
+                    api
+                      .getPublicProfile(id)
+                      .then(setProfile)
+                      .catch(e => console.error('profile reload failed:', e));
+                }}
+              />
+            )}
 
             {/* The strip: the board's profit, the live balance, the trades.
                 Every number here is one another page already prints. */}

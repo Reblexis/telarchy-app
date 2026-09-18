@@ -10,7 +10,25 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
  */
 
 const getPublicProfile = vi.fn();
-vi.mock('../../lib/api', () => ({ api: { getPublicProfile: (id: string) => getPublicProfile(id) } }));
+const getParticipant = vi.fn();
+vi.mock('../../lib/api', () => ({
+  api: { getPublicProfile: (id: string) => getPublicProfile(id), getParticipant: () => getParticipant() },
+}));
+const auth = { user: null as { id: string } | null, loading: false };
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => auth }));
+// The ticket has its own suite; here it is a stand-in that can succeed.
+vi.mock('../../components/SendCreditsTicket', () => ({
+  SendCreditsTicket: (p: { to: { id: string; handle: string }; onSent: (n: number) => void; onClose: () => void }) => (
+    <div role="dialog" aria-label="Send credits" data-to={p.to.id} data-handle={p.to.handle}>
+      <button type="button" onClick={() => p.onSent(500)}>
+        stub-sent
+      </button>
+      <button type="button" onClick={p.onClose}>
+        stub-close
+      </button>
+    </div>
+  ),
+}));
 vi.mock('../../components/PageTopBar', () => ({ PageTopBar: () => null }));
 
 import { ParticipantProfilePage } from '../ParticipantProfilePage';
@@ -197,6 +215,10 @@ const renderPage = () =>
 beforeEach(() => {
   getPublicProfile.mockReset();
   getPublicProfile.mockResolvedValue(base);
+  getParticipant.mockReset();
+  getParticipant.mockResolvedValue({ id: 'someone-else', nickname: 'viktor36', balance: 12400 });
+  auth.user = null;
+  auth.loading = false;
 });
 
 describe('the header', () => {
@@ -500,5 +522,74 @@ describe('proposals', () => {
     expect(row.textContent).toContain('asks $50');
     expect(row.textContent).toContain('approved');
     expect(row.querySelector('a')).toHaveAttribute('href', `/telarchy#proposal=${PROP}`);
+  });
+});
+
+describe('sending credits', () => {
+  test('signed out, the pill is a link to the login door that comes back here', async () => {
+    renderPage();
+    const pill = await screen.findByTestId('prof-send');
+    expect(pill.textContent).toBe('Send credits');
+    expect(pill).toHaveAttribute('href', '/login?next=%2Fparticipants%2Fvire');
+    fireEvent.click(pill);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  test('nothing is offered while the session check is pending', async () => {
+    auth.loading = true;
+    renderPage();
+    await screen.findByText(/Trading since/);
+    expect(screen.queryByTestId('prof-send')).toBeNull();
+  });
+
+  test('signed in, the pill opens the ticket addressed to this participant by id', async () => {
+    auth.user = { id: 'u1' };
+    renderPage();
+    const pill = await screen.findByTestId('prof-send');
+    expect(pill.tagName).toBe('BUTTON');
+    fireEvent.click(pill);
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAttribute('data-to', base.id);
+    expect(dialog).toHaveAttribute('data-handle', 'vire');
+  });
+
+  test('YOUR OWN PROFILE OFFERS NO SEND', async () => {
+    auth.user = { id: 'u1' };
+    getParticipant.mockResolvedValue({ id: base.id, nickname: 'vire', balance: 99306 });
+    renderPage();
+    await screen.findByText(/Trading since/);
+    await waitFor(() => expect(getParticipant).toHaveBeenCalled());
+    expect(screen.queryByTestId('prof-send')).toBeNull();
+  });
+
+  test('signed in, the pill waits until the page knows the profile is not yours', async () => {
+    auth.user = { id: 'u1' };
+    getParticipant.mockReturnValue(new Promise(() => {}));
+    renderPage();
+    await screen.findByText(/Trading since/);
+    expect(screen.queryByTestId('prof-send')).toBeNull();
+  });
+
+  test('after a send the ticket closes, the page says so and reloads the record', async () => {
+    auth.user = { id: 'u1' };
+    renderPage();
+    fireEvent.click(await screen.findByTestId('prof-send'));
+    expect(getPublicProfile).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByText('stub-sent'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('status').textContent).toBe('Sent 500 cr to vire.');
+    await waitFor(() => expect(getPublicProfile).toHaveBeenCalledTimes(2));
+    // The record stays on screen while it reloads.
+    expect(screen.queryByText('Loading…')).toBeNull();
+  });
+
+  test('closing the ticket sends nothing and says nothing', async () => {
+    auth.user = { id: 'u1' };
+    renderPage();
+    fireEvent.click(await screen.findByTestId('prof-send'));
+    fireEvent.click(screen.getByText('stub-close'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(getPublicProfile).toHaveBeenCalledTimes(1);
   });
 });
