@@ -97,7 +97,6 @@ export function EarnPage() {
   };
 
   const referral = mine?.referral ?? null;
-  const sharePercent = (rules ?? []).find(r => r.kind === 'share')?.credits ?? 0;
   const copyLink = () => {
     if (!referral?.link) return;
     void navigator.clipboard?.writeText(referral.link).then(() => {
@@ -137,37 +136,6 @@ export function EarnPage() {
           </div>
         )}
         {note && <p className="earn-note">{note}</p>}
-
-        {/* The invite link gets a card of its own rather than a cell in the
-            row (design pick 2026-09-07, direction B): the action column is
-            168px and a link is the one thing on this page a reader has to
-            read whole. The row below only reports. */}
-        {referral && (
-          <div className="earn-invite">
-            <div className="earn-invite-head">
-              <span className="earn-label">Bring a friend</span>
-              {referral.referees > 0 && (
-                <span className="earn-done">
-                  {referral.referees} joined, +{n(referral.credits)} so far
-                </span>
-              )}
-            </div>
-            {referral.link ? (
-              <div className="earn-invite-row">
-                <span className="earn-invite-link">{referral.link.replace(/^https:\/\//, '')}</span>
-                <button type="button" className="earn-btn" onClick={copyLink}>
-                  {copied ? 'Copied' : 'Copy link'}
-                </button>
-              </div>
-            ) : (
-              <span className="earn-muted">Set a nickname in your account to get a link.</span>
-            )}
-            <span className="earn-why">
-              You get {n(sharePercent)}% of what they earn here in their first week, on top of theirs. Ten friends at
-              most.
-            </span>
-          </div>
-        )}
 
         {rules === null ? null : ordered.length === 0 ? (
           <p className="lbp-empty">The earn table is unavailable right now.</p>
@@ -232,14 +200,22 @@ export function EarnPage() {
                         ) : r.kind === 'daily' ? (
                           <span className="earn-done">✓ +{n(streak?.todayCredits ?? 0)} today</span>
                         ) : r.kind === 'share' ? (
-                          // The card above carries the link; the row reports.
-                          referral && referral.referees > 0 ? (
-                            <span className="earn-done">
-                              {referral.referees} joined, +{n(referral.credits)}
-                            </span>
-                          ) : (
-                            <span className="earn-muted">link above</span>
-                          )
+                          // A row like any other: the button carries the
+                          // link, and whoever joined is reported beside it.
+                          <span className="earn-pair">
+                            {referral && referral.referees > 0 && (
+                              <span className="earn-done">
+                                {referral.referees} joined, +{n(referral.credits)}
+                              </span>
+                            )}
+                            {referral?.link ? (
+                              <button type="button" className="earn-btn" onClick={copyLink}>
+                                {copied ? 'Copied' : 'Copy link'}
+                              </button>
+                            ) : (
+                              <span className="earn-muted">Set a nickname first</span>
+                            )}
+                          </span>
                         ) : claimed ? (
                           <span className="earn-done">✓ earned</span>
                         ) : r.key === LINK_KEY ? (

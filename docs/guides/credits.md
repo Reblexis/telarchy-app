@@ -28,8 +28,9 @@ amount from the fourth day on. Miss a day and it starts again.
 
 ## Bringing a friend
 
-Your invite link is `https://telarchy.com/?ref=<your nickname>`, shown on
-[/earn](/earn) once you are signed in. Someone who creates an account after
+Your invite link is `https://telarchy.com/?ref=<your nickname>`. On
+[/earn](/earn) it is one row of the table like any other, with a Copy link
+button once you are signed in; nothing above the table advertises it. Someone who creates an account after
 opening it is your referee.
 
 **You earn a share, never a bounty.** For seven days from the moment their
