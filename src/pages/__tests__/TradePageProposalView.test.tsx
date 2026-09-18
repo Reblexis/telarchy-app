@@ -7,11 +7,11 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
  * is a decision with a price", 2026-09-09; record notes/decisions/
  * ui-conventions.md).
  *
- * The title is the headline, the strips carry this proposal's impact on
- * every cell of the grid, the impact is the hero with the two worlds as the
- * control under it, the world rides the verb, and the words and the ruling
- * are below the trade. Nothing that is prose or a control stands between the
- * title and the number.
+ * It reads top down (direction A, 2026-09-18): the title, the facts, what
+ * the proposer would do, the strips with this proposal's impact on every
+ * cell, the market's answer as one sentence with the impact inside it, the
+ * worlds as bar rows that are the control, the verbs, then the rules and the
+ * ruling below the trade.
  */
 
 const h = vi.hoisted(() => {
@@ -302,43 +302,99 @@ describe('the strips say what it moves', () => {
   });
 });
 
-describe('the impact is the number and the two worlds are the control', () => {
-  test('the hero is the impact, over a caption naming the metric and the date', async () => {
+describe("the market's answer is a sentence and the worlds are bars", () => {
+  test('the sentence names both worlds, the metric and the date, and ends on the impact', async () => {
     const { container } = renderFloor();
     await openProposal(container);
-    const hero = container.querySelector('.pubws-impact-hero') as HTMLElement;
-    expect(words(hero)).toMatch(/\+\$300/);
-    // The caption names what the number compares, revised 2026-09-10.
-    expect(words(hero.parentElement)).toMatch(/approved versus declined/i);
+    const verdict = container.querySelector('.pubws-verdict') as HTMLElement;
+    expect(verdict).toBeTruthy();
+    expect(words(verdict)).toMatch(
+      /^Traders expect \$7,400 net revenue on .+ if this is approved, \$7,100 if it is declined\. That is \+\$300 for approving\.$/,
+    );
   });
 
-  test('now, if approved and if declined are three cells, and the two worlds switch the branch', async () => {
+  test('the impact is the only coloured number in the sentence, green when up', async () => {
+    const { container } = renderFloor();
+    await openProposal(container);
+    const hero = container.querySelector('.pubws-verdict .pubws-impact-hero') as HTMLElement;
+    expect(words(hero)).toBe('+$300');
+    expect(hero.className).toMatch(/is-up/);
+    expect(container.querySelectorAll('.pubws-verdict .is-up, .pubws-verdict .is-down')).toHaveLength(1);
+  });
+
+  test('no bare number stands alone over a caption any more', async () => {
+    const { container } = renderFloor();
+    await openProposal(container);
+    expect(container.querySelector('.pubws-impact-what')).toBeNull();
+    expect(container.textContent).not.toMatch(/approved versus declined/i);
+  });
+
+  test('a pair nobody has priced says so instead of inventing a sentence', async () => {
+    const g = h.grid();
+    for (const m of g.proposals[0].markets) {
+      Object.assign(m, { approvedConsensus: null, declinedConsensus: null, delta: null });
+    }
+    vi.mocked(api.getMarketplaceWorkspace).mockImplementation(async () => g as never);
+    const { container } = renderFloor();
+    await openProposal(container);
+    const verdict = container.querySelector('.pubws-verdict');
+    if (verdict) expect(words(verdict)).toBe('Not yet priced.');
+    expect(container.textContent).not.toMatch(/Traders expect/);
+  });
+
+  test('a negative impact is red and keeps its sign', async () => {
+    const g = h.grid();
+    const pair = g.proposals[0].markets.find(m => m.metricId === 'rev')!;
+    Object.assign(pair, { approvedConsensus: 7_000, declinedConsensus: 7_100, delta: -100 });
+    vi.mocked(api.getMarketplaceWorkspace).mockImplementation(async () => g as never);
+    const { container } = renderFloor();
+    await openProposal(container);
+    const hero = container.querySelector('.pubws-verdict .pubws-impact-hero') as HTMLElement;
+    expect(words(hero)).toMatch(/^[-\u2212]\$100$/);
+    expect(hero.className).toMatch(/is-down/);
+  });
+
+  test('last read, if approved and if declined are three rows, and the two worlds switch the branch', async () => {
     const { container } = renderFloor();
     await openProposal(container);
     const cells = [...container.querySelectorAll('.pubws-world-cell')];
     expect(cells).toHaveLength(3);
     expect(words(cells[0])).toMatch(/last read/i);
+    expect(cells[0].tagName).not.toBe('BUTTON');
     const approved = cells[1] as HTMLElement;
     const declined = cells[2] as HTMLElement;
     expect(approved.getAttribute('aria-pressed')).toBe('true');
     expect(declined.getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(declined);
     await waitFor(() => expect(declined.getAttribute('aria-pressed')).toBe('true'));
-    // The pills they replaced are gone.
     expect(container.querySelector('.pubws-branch')).toBeNull();
   });
 
-  test('the three worlds are one row of cells, not a stack', async () => {
-    // The stylesheet is what makes them a row; a regex sweep of dead rules
-    // deleted .pubws-worlds once and the cells stacked on the preview
-    // (2026-09-09), which the DOM tests could not see.
+  test('every world row draws a bar against the largest value on screen', async () => {
+    const { container } = renderFloor();
+    await openProposal(container);
+    const bars = [...container.querySelectorAll('.pubws-world-cell .pubws-world-bar > i')] as HTMLElement[];
+    expect(bars).toHaveLength(3);
+    const width = (el: HTMLElement) => Number.parseFloat(el.style.width);
+    // if approved (7,400) is the largest, so it is the full bar.
+    expect(width(bars[1])).toBeCloseTo(100, 0);
+    expect(width(bars[2])).toBeCloseTo((7_100 / 7_400) * 100, 0);
+    expect(width(bars[2])).toBeLessThan(width(bars[1]));
+  });
+
+  test('the worlds are a stack of rows, not a row of cells', async () => {
     const { readFileSync } = await import('node:fs');
     const { dirname, join } = await import('node:path');
     const { fileURLToPath } = await import('node:url');
     const css = readFileSync(join(dirname(dirname(dirname(fileURLToPath(import.meta.url)))), 'style.css'), 'utf8');
     const rule = css.match(/\.pubws-worlds \{([^}]*)\}/);
     expect(rule).toBeTruthy();
-    expect(rule![1]).toMatch(/grid-template-columns:\s*repeat\(3,/);
+    expect(rule![1]).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+    expect(rule![1]).not.toMatch(/repeat\(3,/);
+    // A sentence is a block of text: left-aligned (no centred text blocks).
+    const verdict = css.match(/\.pubws-verdict \{([^}]*)\}/);
+    expect(verdict).toBeTruthy();
+    expect(verdict![1]).not.toMatch(/text-align:\s*center/);
   });
 
   test('the world rides the verb', async () => {
@@ -351,18 +407,30 @@ describe('the impact is the number and the two worlds are the control', () => {
   });
 });
 
-describe('nothing that is prose or a ruling stands between the title and the number', () => {
-  test('the words sit below the trade, headed by the proposer', async () => {
+describe('the words come first, the rules stay below the trade', () => {
+  test('what the proposer would do sits under the facts and above every number', async () => {
     const { container } = renderFloor();
     await openProposal(container);
     const head = container.querySelector('.pubws-proposal-head') as HTMLElement;
-    const hero = container.querySelector('.pubws-impact-hero') as HTMLElement;
-    const bet = container.querySelector('.pubws-bet') as HTMLElement;
     const details = container.querySelector('.pubws-proposal-words') as HTMLElement;
+    const verdict = container.querySelector('.pubws-verdict') as HTMLElement;
+    const bet = container.querySelector('.pubws-bet') as HTMLElement;
     expect(details).toBeTruthy();
+    expect(words(details)).toMatch(/^What Ada would do/);
     expect(words(details)).toContain('A better store page');
-    expect(follows(head, hero)).toBe(true);
-    expect(follows(bet, details)).toBe(true);
+    expect(follows(head, details)).toBe(true);
+    expect(follows(details, verdict)).toBe(true);
+    expect(follows(details, bet)).toBe(true);
+    expect(container.querySelectorAll('.pubws-proposal-words')).toHaveLength(1);
+  });
+
+  test('how this decides stays below the trade', async () => {
+    const { container } = renderFloor();
+    await openProposal(container);
+    const bet = container.querySelector('.pubws-bet') as HTMLElement;
+    const decides = container.querySelector('.pubws-decides') as HTMLElement;
+    expect(follows(bet, decides)).toBe(true);
+    expect(container.querySelector('.pubws-proposal-words .pubws-decides')).toBeNull();
   });
 
   test('the ruling is below the words, and only a manager sees it', async () => {
@@ -415,15 +483,6 @@ describe('a newcomer can tell what a proposal is', () => {
     await openProposal(container);
     expect(words(container.querySelector('.pubws-proposal-head .pubws-prow-meta'))).toContain('no payment asked');
     expect(words(container.querySelector('.pubws-decides'))).toContain('Approving commits LookPilot to the work');
-  });
-
-  test('the caption names what the impact compares', async () => {
-    const { container } = renderFloor();
-    await openProposal(container);
-    const what = words(container.querySelector('.pubws-impact-what'));
-    expect(what).toMatch(/approved versus declined/i);
-    // The old wording, which read as growth from today (and said "move").
-    expect(what).not.toMatch(/moves? by/i);
   });
 
   test('the question sits under the worlds and above the chart, and follows the branch', async () => {
@@ -495,7 +554,7 @@ describe('the address and the sentence read right for a stranger', () => {
     expect(words(container.querySelector('.pubws-instrument-ask'))).toMatch(/LookPilot's active traders/);
     await openProposal(container);
     expect(words(container.querySelector('.pubws-proposal-q'))).toMatch(/LookPilot's active traders/);
-    expect(words(container.querySelector('.pubws-impact-what'))).toMatch(/^active traders/i);
+    expect(words(container.querySelector('.pubws-verdict'))).toMatch(/^Traders expect \S+ active traders /);
   });
 });
 

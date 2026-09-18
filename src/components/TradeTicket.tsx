@@ -104,7 +104,9 @@ interface Props {
   /** What this ticket trades, named inside the card: a quiet line of
    context over the bold subject (docs/ui-conventions.md, "The rails, and
    the standings under the verbs"). */
-  subject?: { context: string; title: string };
+  /* `refund`: on a pending proposal, what happens to the bet if the other
+     world wins, printed once above the confirm button. */
+  subject?: { context: string; title: string; refund?: string };
 }
 
 /** A round metric-space step for the "each X beyond" line: ~1/50 of the
@@ -1197,6 +1199,7 @@ export function TradeTicket({
             </p>
           )}
 
+          {subject?.refund && <p className="ticket-refund">{subject.refund}</p>}
           <button
             className={`ticket-go${placed ? ' is-placed' : ''} ticket-go--${dir}`}
             disabled={amountNum <= 0 || busy !== null || (isLimit && !limitReady && !onRequireSignup)}

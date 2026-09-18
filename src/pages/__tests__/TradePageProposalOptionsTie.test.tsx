@@ -248,14 +248,13 @@ function priceOptions(prices: [number | null, number | null, number | null]) {
   });
 }
 const heroOf = (c: HTMLElement) => c.querySelector('.pubws-impact-hero') as HTMLElement;
-const captionOf = (c: HTMLElement) => words(c.querySelector('.pubws-impact-what'));
+const captionOf = (c: HTMLElement) => words(c.querySelector('.pubws-verdict'));
 
 async function expectTiedAtTheTop(container: HTMLElement) {
-  expect(words(heroOf(container))).toBe('±0');
-  expect(heroOf(container).classList.contains('is-up')).toBe(false);
-  expect(heroOf(container).classList.contains('is-down')).toBe(false);
-  expect(captionOf(container)).toMatch(/reached length.*, tied at the top$/i);
-  expect(captionOf(container)).not.toMatch(/over the next best|the leader/);
+  // The sentence names nobody and prints no lead (direction A, 2026-09-18).
+  expect(captionOf(container)).toBe('Traders see no leader yet: the top options are tied.');
+  expect(heroOf(container)).toBeNull();
+  expect(container.querySelector('.pubws-verdict .is-up, .pubws-verdict .is-down')).toBeNull();
   expect(container.querySelector('.pubws-world-cell.is-leader')).toBeNull();
   expect(container.textContent).not.toMatch(/· leads/);
 }
@@ -288,7 +287,9 @@ describe('A TIE AT THE TOP HAS NO LEADER', () => {
     const { container } = renderFloor();
     await opened(container);
     expect(words(heroOf(container))).toMatch(/\+1\.7/);
-    expect(captionOf(container)).toMatch(/Turn left over the next best/);
+    expect(captionOf(container)).toMatch(
+      /^Traders expect the most reached length .*from Turn left: [\d.]+, \+1\.7 over the next best\.$/i,
+    );
     expect(cellsOf(container)[2].classList.contains('is-leader')).toBe(true);
     expect(words(cellsOf(container)[2])).toMatch(/Turn left · leads/);
   });

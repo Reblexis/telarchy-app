@@ -4728,7 +4728,7 @@ textarea.jobform-line--desc {
   text-align: left;
   overflow-wrap: anywhere;
 }
-.pubws-proposal-words .pubws-ownerbar {
+.pubws-proposal-rules .pubws-ownerbar {
   justify-content: flex-start;
 }
 
@@ -11790,27 +11790,28 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   padding: 0;
   color: var(--accent);
 }
-/* The impact is the number, and the two worlds are the control under it. */
-.pubws-impact {
-  margin-top: 1.4rem;
-  text-align: center;
+/* The market's answer is a sentence with the impact inside it, and the
+   worlds are bar rows under it (docs/ui-conventions.md, "A proposal is a
+   decision with a price", direction A, 2026-09-18). */
+.pubws-verdict {
+  align-self: flex-start;
+  width: 100%;
+  margin: 1.4rem 0 0;
+  max-width: 34ch;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: normal;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.15rem, 3vw, 1.4rem);
+  line-height: 1.35;
+  color: var(--text-primary);
+  text-wrap: balance;
 }
-.pubws-impact-what {
-  display: block;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.68rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
+.pubws-verdict strong {
+  font-weight: 600;
 }
 .pubws-impact-hero {
-  margin: 0.35rem 0 0;
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 600;
-  font-size: clamp(2.2rem, 7vw, 3rem);
-  line-height: 1;
-  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
   color: var(--text-tertiary);
 }
@@ -11820,11 +11821,11 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .pubws-impact-hero.is-down {
   color: var(--lower);
 }
-/* Now, if approved, if declined: three cells on hairlines in the stat row's
-   anatomy, and the two branch cells ARE the branch toggle. */
+/* Last read, if approved, if declined: one row each on hairlines, a caption,
+   a bar and the value, and the two branch rows ARE the branch toggle. */
 .pubws-worlds {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 1px;
   width: 100%;
   margin-top: 1.2rem;
@@ -11832,13 +11833,41 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   border-top: 1px solid var(--border-color);
   border-bottom: 1px solid var(--border-color);
 }
-.pubws-world-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.5rem;
+.pubws-world-bar {
+  position: relative;
+  display: block;
+  height: 8px;
   min-width: 0;
-  padding: 0.9rem 0.9rem 0.9rem 0;
+  background: var(--bg-tertiary);
+}
+.pubws-world-bar > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--text-tertiary);
+  transition: width var(--transition-fast);
+}
+.pubws-world-cell--now .pubws-world-bar > i {
+  background: var(--border-color);
+}
+.pubws-world-cell.is-active .pubws-world-bar > i,
+.pubws-world-cell.is-leader .pubws-world-bar > i,
+.pubws-world-cell.is-chosen .pubws-world-bar > i {
+  background: var(--higher);
+}
+.pubws-world-cell--declined.is-active .pubws-world-bar > i {
+  background: var(--lower);
+}
+.pubws-world-cell.is-struck .pubws-world-bar > i {
+  opacity: 0.4;
+}
+.pubws-world-cell {
+  display: grid;
+  grid-template-columns: minmax(6rem, 15rem) minmax(2rem, 1fr) minmax(4.5rem, auto);
+  align-items: center;
+  gap: 0.25rem 0.9rem;
+  min-width: 0;
+  width: 100%;
+  padding: 0.7rem 0.9rem;
   border: none;
   background: var(--bg-primary);
   font: inherit;
@@ -11848,10 +11877,6 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 }
 .pubws-world-cell--now {
   cursor: default;
-}
-.pubws-world-cell--approved,
-.pubws-world-cell--declined {
-  padding-left: 0.9rem;
 }
 .pubws-world-cell.is-active {
   background: var(--higher-soft);
@@ -11868,7 +11893,18 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   opacity: 0.5;
 }
 .pubws-world-cell .pubws-price {
-  font-size: clamp(1.2rem, 3.4vw, 1.5rem);
+  font-size: 1.05rem;
+  text-align: right;
+}
+.pubws-world-cell .pubws-world-note {
+  grid-column: 1 / -1;
+}
+/* A caption that names the world and its day wraps; it never truncates. */
+.pubws-world-cell .pubws-stat-what {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  text-align: left;
 }
 .pubws-world-cell--approved.is-active .pubws-price {
   color: var(--higher);
@@ -11882,12 +11918,6 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
    up to six on one row on the desktop floor. The leader wears the accent the
    approved cell wears; the selected one is underlined in the same green
    its chart line wears; a decided proposal strikes every option but the chosen one. */
-.pubws-worlds--options {
-  grid-template-columns: repeat(var(--world-count, 4), minmax(0, 1fr));
-}
-.pubws-world-cell--option {
-  padding-left: 0.9rem;
-}
 .pubws-world-cell--option.is-active {
   background: var(--bg-primary);
   box-shadow: inset 0 -2px 0 var(--higher);
@@ -12001,29 +12031,12 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   background: var(--higher);
 }
 
-/* On a phone the three worlds stack rather than squeezing three numbers into
-   390px. */
+/* On a phone the caption column narrows so the bar keeps some length. */
 @media (max-width: 560px) {
-  .pubws-worlds {
-    grid-template-columns: 1fr;
-  }
-  .pubws-world-cell--approved,
-  .pubws-world-cell--declined {
+  .pubws-world-cell {
+    grid-template-columns: minmax(4.5rem, 7rem) minmax(1.5rem, 1fr) minmax(4rem, auto);
     padding-left: 0;
-  }
-}
-
-/* On a phone the option row wraps to two cells per line, the last-read cell
-   first; the left column's cells sit on the gutter. */
-@media (max-width: 560px) {
-  .pubws-worlds--options {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .pubws-worlds--options > :nth-child(odd) {
-    padding-left: 0;
-  }
-  .pubws-worlds--options > :nth-child(even) {
-    padding-left: 0.9rem;
+    padding-right: 0.4rem;
   }
 }
 
@@ -13186,3 +13199,21 @@ a.pubws-live-row:hover { background: var(--bg-secondary); }
   text-decoration: none;
 }
 .wslog-back:hover { color: var(--text-primary); }
+
+/* The proposal's words, above the number (direction A, 2026-09-18): no tint,
+   no box, just the head and the prose on the page's own left edge. */
+.pubws-proposal-words {
+  width: 100%;
+  margin-top: 1rem;
+  text-align: left;
+}
+.pubws-proposal-words .pubws-details {
+  max-width: 65ch;
+}
+.ticket-refund {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+  text-align: left;
+}
