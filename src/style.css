@@ -5350,6 +5350,9 @@ textarea.jobform-line--desc {
   /* The footer's ten rows in two columns on a wide screen: 1 to 5 left,
      6 to 10 right. */
   .pubws-lb-cols { grid-template-columns: 1fr 1fr; column-gap: 2rem; }
+  /* On the chess floor the ticket is the only bet surface where it is beside
+     the chart (docs/ui-conventions.md, "The chess feed"). */
+  .pubws-bet--rail { display: none; }
 }
 
 @media (min-width: 1500px) {
@@ -12845,20 +12848,11 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 
 /* The chess feed (docs/ui-conventions.md, "The chess feed"): the board in the
    floor's ground tones seen from TelarchyBot's side, the three highest prices
-   as arrows in the accent, moves on the left, stats on the right, and a
-   centered board: a picked-up piece's squares carry their moves' prices. */
+   as arrows in the accent, and one centered column: the board with its lines
+   under it. A hovered or picked-up piece's squares carry their moves' prices. */
 .chess-live { display: flex; flex-direction: column; gap: 0.7rem; container: chess-live / inline-size; }
-.chess-main {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
-  grid-template-areas: "moves board stats";
-  align-items: start;
-  gap: 0.9rem 1.2rem;
-  min-width: 0;
-}
-.chess-moves-col { grid-area: moves; min-width: 0; width: 100%; max-width: 340px; justify-self: end; }
-.chess-stats-col { grid-area: stats; min-width: 0; width: 100%; max-width: 240px; }
-.chess-board-col { grid-area: board; width: 100%; max-width: 520px; justify-self: center; display: flex; flex-direction: column; gap: 0.7rem; min-width: 0; }
+.chess-main { display: flex; justify-content: center; min-width: 0; }
+.chess-board-col { width: 100%; max-width: 520px; justify-self: center; display: flex; flex-direction: column; gap: 0.7rem; min-width: 0; }
 .chess-board-box { width: 100%; max-width: 100%; }
 .chess-board { display: block; width: 100%; height: auto; aspect-ratio: 1; max-width: 100%; border: 1px solid var(--border-color); border-radius: 6px; user-select: none; }
 .chess-square { cursor: default; }
@@ -12884,18 +12878,13 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .chess-clock { color: var(--accent); }
 /* The player's record in the right column, one labeled value per row. */
 .chess-stats { margin: 0; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.02em; color: var(--text-secondary); font-variant-numeric: tabular-nums; text-align: left; }
-.chess-stat { display: flex; justify-content: space-between; gap: 0.75rem; padding: 0.45rem 0; border-bottom: 1px solid var(--border-color); }
-.chess-stat:first-child { border-top: 1px solid var(--border-color); }
-.chess-stat dt, .chess-stat dd { margin: 0; }
-.chess-stat dd { color: var(--text-primary); font-weight: 600; }
 .chess-next { overflow-wrap: anywhere; }
 /* Who plays whom, the replay marker, the note on a proposal that is not the open move, the record's and the list's headings. All one-liners in the stats' mono, left-aligned. */
-.chess-game, .chess-rule, .chess-now-note, .chess-stats-head, .chess-movelist-head, .chess-replay-chip { margin: 0 0 6px; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.02em; line-height: 1.35; color: var(--text-secondary); text-align: left; overflow-wrap: anywhere; }
+.chess-game, .chess-rule, .chess-now-note, .chess-scale, .chess-replay-chip { margin: 0 0 6px; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.02em; line-height: 1.35; color: var(--text-secondary); text-align: left; overflow-wrap: anywhere; }
 .chess-game { color: var(--text-primary); }
 .chess-rule { color: var(--text-tertiary); cursor: help; }
+.chess-scale { margin: 0; color: var(--text-tertiary); }
 .chess-now-note { margin: 6px 0 0; color: var(--text-tertiary); }
-.chess-stats-head { color: var(--text-primary); font-weight: 600; }
-.chess-movelist-head { color: var(--text-tertiary); }
 /* A replay is never mistaken for the live game, wherever the page is scrolled. */
 .chess-replay-chip { position: sticky; top: 8px; z-index: 2; display: inline-block; padding: 4px 8px; border-radius: 6px; background: var(--accent, #f59e0b); color: #17171c; font-weight: 600; }
 .chess-next.is-decided, .chess-next.is-default, .chess-next.is-replay { color: var(--text-secondary); }
@@ -12906,55 +12895,11 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
 .chess-target-price { font-family: var(--font-mono); font-weight: 700; fill: #17171c; font-variant-numeric: tabular-nums; }
 .chess-target-price.is-leader { fill: #fbf9f4; }
 /* The proposal on screen: its move in the approved green, its squares tinted
-   (docs/ui-conventions.md, "The chess feed", item 3). A hovered list row: its
-   move in the ink, its squares tinted (item 4). */
+   (docs/ui-conventions.md, "The chess feed", item 3). */
 .chess-arrow.is-selected { stroke: var(--higher); }
-.chess-arrow.is-hover { stroke: var(--text-primary); }
 .chess-square.is-light.is-proposal { fill: #cfe3d4; }
 .chess-square.is-dark.is-proposal { fill: #a9cdb4; }
-.chess-square.is-light.is-hover { fill: #e4dcc6; }
-.chess-square.is-dark.is-hover { fill: #c4b893; }
-/* The moves, one slim column beside the board (item 4): rows one line high,
-   as tall as the board and scrolling inside, under the board when narrow. */
-.chess-movelist {
-  width: 100%;
-  min-width: 0;
-  max-height: min(520px, 72vh);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  display: flex;
-  flex-direction: column;
-  align-self: flex-start;
-  border-top: 1px solid var(--border-color);
-  scrollbar-width: thin;
-}
-.chess-moverow {
-  display: grid;
-  grid-template-columns: 1.1rem minmax(0, 1fr) minmax(1rem, 2rem) 2.6rem;
-  align-items: center;
-  gap: 0.45rem;
-  min-height: 26px;
-  padding: 0 0.5rem;
-  border-bottom: 1px solid var(--border-color);
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  line-height: 1.2;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
-  text-decoration: none;
-  cursor: pointer;
-}
-.chess-moverow:hover, .chess-moverow:focus-visible { background: var(--bg-secondary); color: var(--text-primary); outline: none; }
-.chess-moverow.is-leader { color: var(--higher); }
-.chess-moverow.is-selected { background: color-mix(in srgb, var(--higher) 14%, transparent); }
-.chess-moverow-rank { color: var(--text-tertiary); font-size: 0.66rem; }
-.chess-moverow-san { display: flex; align-items: center; gap: 0.35rem; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
-.chess-moverow-glyph { font-family: 'DejaVu Sans', 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols 2', serif; font-weight: 400; color: var(--text-secondary); }
-.chess-moverow-bar { display: block; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--border-color) 55%, transparent); overflow: hidden; }
-.chess-moverow-bar > span { display: block; height: 4px; background: var(--text-tertiary); }
-.chess-moverow.is-leader .chess-moverow-bar > span { background: var(--higher); }
-.chess-moverow-price { text-align: right; font-weight: 600; }
-/* The card form (the home card): no moves column, the record one line under
+/* The card form (the home card): the record one line under
    the next move, and the board a square of the height the host gives it, so
    the card's two halves end on the same line (docs/ui-conventions.md, "The
    marketplace"). The host stretches the view over its own height; the
@@ -12981,26 +12926,6 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
     height: min(100cqw, 100cqh - var(--chess-card-lines));
   }
 }
-/* The floor's live slot is 720px, even on a wide screen. */
-@container chess-live (min-width: 660px) and (max-width: 759px) {
-  .chess-moverow { grid-template-columns: 1.1rem minmax(0, 1fr) 2.6rem; }
-  .chess-moverow-bar { display: none; }
-}
-@container chess-live (max-width: 659px) {
-  .chess-main {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas: "board board" "moves stats";
-  }
-  .chess-movelist { max-height: 45vh; }
-}
-@container chess-live (max-width: 559px) {
-  .chess-main {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "board" "stats" "moves";
-  }
-  .chess-moves-col, .chess-stats-col { max-width: none; }
-}
-
 /* ---- The live log (docs/ui-conventions.md, "The live log") ------------ */
 /* The floor's Live column in the left rail from 1500px, and below that the
    one-line strip directly under the bet verbs in the centre column (never in

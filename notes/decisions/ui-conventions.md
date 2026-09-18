@@ -2229,3 +2229,20 @@ world). The ticket's per-outcome payout rows are NOT built: the payoff line
 already prices the bet at five points and is ruled to be "one rule with two
 rows of type, and nothing else"; the refund line was the missing fact. PR 205
 (`proposal-view-c`) closed as superseded by this branch.
+
+## 2026-09-18: the chess live view is the board alone (Viktor)
+
+A design pass over telarchy.com/chess (canvas:
+claude.ai/artifact/HBYSRWk4XJt2WneUVs4xta) found the 720px live slot split
+three ways (moves 170px, board 341px, record 170px), the same moves shown
+three times and the same bet twice. Of three directions he first said "do a"
+(the live view across the whole floor); told the board was 341px and not the
+210px the canvas first claimed, he proposed instead: "what if we removed the
+moves list and jsut showed the scores on the board as they are shown now
+(upon hover)", then "do all teh proposed changes": no move list, the record
+as one line under the board, the scale line moved under the board, and no
+bet verbs beside the rail ticket on the chess floor. This reverses the
+three-column live view of 2026-09-13. Cost: moves ranked fourth and lower
+are priced only on a hover or a press, or in the proposal row's chips. The
+Otto pill stays in the corner (owner direction 2026-08-20); the canvas
+misread a full-page screenshot.

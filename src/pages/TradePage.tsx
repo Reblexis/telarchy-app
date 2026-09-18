@@ -2982,7 +2982,14 @@ export function TradePage() {
                      visitor commit to a direction to learn a price. The line
                      leaves when the ticket opens, because from there the
                      fact rows say the same thing about the actual bet. */
-                  <div className="pubws-bet" role="group" aria-label="Bet">
+                  <div
+                    /* On the chess floor the rail's ticket is the one bet
+                       surface from 1120px up (docs/ui-conventions.md, "The
+                       chess feed"). */
+                    className={`pubws-bet${liveFeed?.kind === 'chess' ? ' pubws-bet--rail' : ''}`}
+                    role="group"
+                    aria-label="Bet"
+                  >
                     {/* The world rides the verb (docs/ui-conventions.md,
                         2026-09-09): a trader who has scrolled past the world
                         cells cannot tell which of the two a button belongs

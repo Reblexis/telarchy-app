@@ -504,85 +504,42 @@ describe('the proposal on screen is marked on the board', () => {
   });
 });
 
-describe('the moves, one slim column beside the board', () => {
-  const rows = (c: HTMLElement) => [...c.querySelectorAll('.chess-moverow')] as HTMLElement[];
-
-  test('every legal move in one column, highest price first, unpriced last as open, no second grid', async () => {
+describe('the prices are on the board, and nowhere beside it', () => {
+  test('THE VIEW DRAWS NO LIST OF MOVES: no move rows, no moves column, no record column', async () => {
     const { container } = renderLive();
-    await waitFor(() => expect(rows(container)).toHaveLength(25));
-    expect(container.querySelectorAll('.chess-movelist')).toHaveLength(1);
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    expect(container.querySelector('.chess-movelist, .chess-moverow, .chess-moves-col')).toBeNull();
+    expect(container.querySelector('.chess-stats-col, .chess-stat, .chess-stats-head')).toBeNull();
     expect(container.querySelector('.chess-move-grid, .chess-move-cell')).toBeNull();
-    expect(rows(container)[0].textContent).toContain('O-O');
-    expect(rows(container)[0].textContent).toContain('56.4');
-    expect(rows(container)[0].classList.contains('is-leader')).toBe(true);
-    expect(rows(container)[1].textContent).toContain('cxd4');
-    expect(rows(container)[24].textContent).toContain('Rg1');
-    expect(rows(container)[24].textContent).toContain('open');
+    expect(container.querySelector('.chess-live')).not.toHaveClass('chess-live--card');
   });
 
-  test('hovering a row draws that move on the board, leaving clears it', async () => {
+  test('the scale the prices are on is one line under the next move, only while a move is open', async () => {
     const { container } = renderLive();
-    await waitFor(() => expect(rows(container)).toHaveLength(25));
-    const ng5 = rows(container).find(r => r.textContent?.includes('Ng5')) as HTMLElement;
-    fireEvent.mouseEnter(ng5);
-    const hover = container.querySelector('.chess-arrow.is-hover');
-    expect(hover?.getAttribute('data-option')).toBe('f3g5');
-    expect(sq(container, 'f3').classList.contains('is-hover')).toBe(true);
-    expect(sq(container, 'g5').classList.contains('is-hover')).toBe(true);
-    fireEvent.mouseLeave(ng5);
-    expect(container.querySelector('.chess-arrow.is-hover')).toBeNull();
+    await waitFor(() => expect(arrows(container).length).toBe(3));
+    const scale = container.querySelector('.chess-scale') as HTMLElement;
+    expect(scale.textContent).toBe("A move's price is the expected score if it is played: 0 loss, 50 draw, 100 win");
+    const next = container.querySelector('.chess-next') as HTMLElement;
+    expect(next.compareDocumentPosition(scale) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  test('focusing a row draws its move too', async () => {
+  test('no scale line while no move is open', async () => {
+    vi.mocked(api.getLiveState).mockImplementation(async () => h.state({ phase: 'their-move', open: null }) as never);
     const { container } = renderLive();
-    await waitFor(() => expect(rows(container)).toHaveLength(25));
-    fireEvent.focus(rows(container)[1]);
-    expect(container.querySelector('.chess-arrow.is-hover')?.getAttribute('data-option')).toBe('c3d4');
+    await waitFor(() => expect(nextLine(container)).toMatch(/^Waiting for /));
+    expect(container.querySelector('.chess-scale')).toBeNull();
   });
 
-  test("pressing a row opens that option's world", async () => {
-    const onPickProposal = vi.fn();
-    const { container } = renderLive({ onPickProposal });
-    await waitFor(() => expect(rows(container)).toHaveLength(25));
-    fireEvent.click(rows(container).find(r => r.textContent?.includes('Ng5')) as HTMLElement);
-    expect(onPickProposal).toHaveBeenCalledWith(412, 'f3g5');
-  });
-
-  test("the proposal on screen's row is marked", async () => {
-    const { container } = renderLive({ selectedProposal: { number: 412, option: 'f3g5' } });
-    await waitFor(() => expect(rows(container)).toHaveLength(25));
-    const marked = rows(container).filter(r => r.classList.contains('is-selected'));
-    expect(marked).toHaveLength(1);
-    expect(marked[0].textContent).toContain('Ng5');
-  });
-
-  test('the card form: no moves column, the board and the next-move line stay, the record is one line under it', async () => {
+  test('the card form: the board and the next-move line stay, the record is one line without the name, no scale line', async () => {
     const { container } = renderLive({ card: true });
     await waitFor(() => expect(container.querySelectorAll('.chess-square')).toHaveLength(64));
     await waitFor(() => expect(container.querySelector('.chess-stats')).not.toBeNull());
-    expect(container.querySelector('.chess-movelist')).toBeNull();
-    expect(container.querySelector('.chess-moves-col')).toBeNull();
-    expect(container.querySelector('.chess-stats-col')).toBeNull();
-    expect(container.querySelector('.chess-stat')).toBeNull();
+    expect(container.querySelector('.chess-movelist, .chess-moves-col, .chess-stats-col, .chess-stat')).toBeNull();
+    expect(container.querySelector('.chess-scale')).toBeNull();
     expect(container.querySelector('.chess-stats')).toHaveClass('chess-stats--line');
     expect(container.querySelector('.chess-stats')?.textContent).toBe('Rating 1500?');
     expect(container.querySelector('.chess-next')).not.toBeNull();
     expect(container.querySelector('.chess-live')).toHaveClass('chess-live--card');
-  });
-
-  test('by default the moves column and the record column are drawn and the view is not in card form', async () => {
-    const { container } = renderLive();
-    await waitFor(() => expect(rows(container)).toHaveLength(25));
-    expect(container.querySelector('.chess-moves-col')).not.toBeNull();
-    expect(container.querySelector('.chess-stats-col')).not.toBeNull();
-    expect(container.querySelector('.chess-live')).not.toHaveClass('chess-live--card');
-  });
-
-  test('no list while no move is open', async () => {
-    vi.mocked(api.getLiveState).mockImplementation(async () => h.state({ phase: 'their-move', open: null }) as never);
-    const { container } = renderLive();
-    await waitFor(() => expect(nextLine(container)).toMatch(/^Waiting for /));
-    expect(container.querySelector('.chess-movelist')).toBeNull();
   });
 
   test("a picked-up piece's squares carry their moves' prices, the leader's marked", async () => {
@@ -778,12 +735,11 @@ describe('the next move and the floor', () => {
     );
     const { container } = renderLive();
     await waitFor(() => expect(container.querySelector('.chess-stats')).toBeTruthy());
-    const text = (container.querySelector('.chess-stats')?.textContent ?? '').replace(/\s+/g, ' ').trim();
-    expect(text).toBe('Rating 1720 Played 12 Won 3 Lost 8 Drawn 1');
-    const stats = container.querySelector('[role="region"][aria-label="Player statistics"]');
-    expect(stats).toBeTruthy();
-    expect(stats?.querySelectorAll('dt')).toHaveLength(5);
-    expect(stats?.querySelectorAll('dd')).toHaveLength(5);
+    const line = container.querySelector('.chess-stats') as HTMLElement;
+    expect(line).toHaveClass('chess-stats--line');
+    expect(line.textContent).toBe('TelarchyBot on Lichess · Rating 1720 · Played 12 · Won 3 · Lost 8 · Drawn 1');
+    const next = container.querySelector('.chess-next') as HTMLElement;
+    expect(next.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   test('a provisional rating carries a question mark', async () => {
@@ -956,24 +912,22 @@ describe('"Won 3, Lost 126 sits next to the board with no label saying whose rec
   test('the record is headed by the player and the site', async () => {
     const { container } = renderLive();
     await waitFor(() =>
-      expect(container.querySelector('.chess-stats-head')?.textContent).toBe('TelarchyBot on Lichess'),
+      expect(container.querySelector('.chess-stats--line')?.textContent).toMatch(/^TelarchyBot on Lichess · Rating /),
     );
   });
 });
 
 describe('"nothing on the screen told me what that number is"', () => {
-  test('the move list is headed by the scale of its prices', async () => {
+  test('the scale of the prices is said under the board', async () => {
     const { container } = renderLive();
-    await waitFor(() => expect(container.querySelector('.chess-movelist-head')).toBeTruthy());
-    expect(container.querySelector('.chess-movelist-head')?.textContent).toBe(
-      'Expected score if played: 0 loss, 50 draw, 100 win',
-    );
+    await waitFor(() => expect(container.querySelector('.chess-scale')).toBeTruthy());
+    expect(container.querySelector('.chess-scale')?.textContent).toMatch(/expected score.*0 loss, 50 draw, 100 win/);
   });
-  test('no heading while no move is open', async () => {
+  test('no scale while no move is open', async () => {
     vi.mocked(api.getLiveState).mockImplementation(async () => h.state({ open: null, phase: 'their-move' }) as never);
     const { container } = renderLive();
     await waitFor(() => expect(nextLine(container)).toMatch(/^Waiting for OppBot/));
-    expect(container.querySelector('.chess-movelist-head')).toBeNull();
+    expect(container.querySelector('.chess-scale')).toBeNull();
   });
 });
 
