@@ -12650,7 +12650,6 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   .agents-page .agent-row-cap { display: block; }
   .agents-page .agent-row-note { line-height: 1.72; }
   .agents-page .agent-row-body { padding-left: 0; }
-  .agents-page .agent-new-bot .builder-choices label small { white-space: normal; }
 }
 
 /* The new-bot form is one bar: name, credits and the create button on a
@@ -12670,7 +12669,7 @@ a.adm-paygo { display: inline-flex; align-items: center; text-decoration: none; 
   .agents-page .agent-new-bot .builder-connect > .builder-choices { grid-column: 1; margin-bottom: 0; }
   .agents-page .agent-new-bot .builder-connect > .builder-choices + .doors-pill, .agents-page .agent-new-bot .builder-connect > .builder-choices ~ .doors-pill { grid-column: 2; grid-row: 1; align-self: start; margin-top: 1.72rem; white-space: nowrap; }
 }
-@media (max-width: 520px) { .agents-page .agent-new-bot .builder-connect .builder-choices, .agents-page .agent-new-bot .builder-connect .builder-choices:first-of-type { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .agents-page .agent-new-bot .builder-connect .builder-choices, .agents-page .agent-new-bot .builder-connect .builder-choices:first-of-type { grid-template-columns: 1fr 1fr; } .agents-page .agent-new-bot .builder-choices label small { white-space: normal; } }
 
 /* A personal key is one block: label, then chip and last use on one mono
  * line, the actions centred at its right. */
