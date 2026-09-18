@@ -179,12 +179,10 @@ afterEach(() => {
 });
 
 describe('a chess move link on the /beta build', () => {
-  test('an arrow and a move row link inside /beta', async () => {
+  test('an arrow links inside /beta', async () => {
     const { container } = renderLive({ onPickProposal: vi.fn() });
     await waitFor(() => expect(arrows(container).length).toBe(3));
     const arrow = arrows(container)[0].closest('a') as Element;
     expect(arrow.getAttribute('href')).toMatch(/^\/beta\/chess\/p\/412\?option=/);
-    const row = container.querySelector('a.chess-moverow') as Element;
-    expect(row.getAttribute('href')).toMatch(/^\/beta\/chess\/p\/412\?option=/);
   });
 });

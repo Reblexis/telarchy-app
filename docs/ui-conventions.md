@@ -3012,21 +3012,32 @@ empty-floor state ("No number here yet", "Add your first metric"), to the
 owner or to anyone else; that state belongs to a floor with no feed and no
 market.
 
-The live view has three columns: moves on the left, a centered board,
-and player statistics on the right. The two side columns have equal width,
-so neither missing moves nor missing stats shifts the board. A host that
-lists the moves itself and sets the height (the home page's featured card,
-whose deciding now block is the move list) asks for the **card form**
-(`card`, `.chess-live--card`): no moves column, the board a square that
-fills the height the host gives it, the next-move line under the board and
-the player's record as one muted mono line under that ("Rating 1720 ·
-Played 12 · Won 3 · Lost 8 · Drawn 1"). The board is
-at most 520px wide, with its next-move line below it and replay below the
-whole view. Stats are a labeled list of rating and game counts.
-Below 660px of available live-view width, the board is centered above the
-moves and stats; below 560px those sections stack below the board, stats
-then moves. The list scrolls within its own height and no column causes
-horizontal overflow. The available slot controls this, including home cards.
+The live view is one centered column: the board, and everything it says
+under it. There is no move list and no side column: the prices are read on
+the board itself (the three arrows, and every square a hovered or
+picked-up piece can reach), and a visitor who wants every legal move ranked
+reads the open proposal's row below the chart. The board is at most 520px
+wide and as wide as its slot below that, with the game line and the rule
+above it and, under it in this order, the next-move line, the scale the
+prices are on (`.chess-scale`, one muted mono line: "A move's price is the
+expected score if it is played: 0 loss, 50 draw, 100 win", shown only while a
+move is open and never in a replay) and the player's record as one muted
+mono line (`.chess-stats--line`: "TelarchyRookie on Lichess · Rating 1720 ·
+Played 12 · Won 3 · Lost 8 · Drawn 1"). Replay sits below the whole view. A
+host that sets the height (the home page's featured card, whose deciding now
+block is the move list) asks for the **card form** (`card`,
+`.chess-live--card`): the board a square that fills the height the host
+gives it, the next-move line under the board and the record line under
+that, without the scale line and without the player's name in the record
+("Rating 1720 · Played 12 · Won 3 · Lost 8 · Drawn 1"). No width of slot
+causes horizontal overflow.
+
+**On the chess floor the ticket is the only bet surface where it is beside
+the chart.** From 1120px up, where the right rail holds the ticket, the two
+bet verbs under the chart are not drawn on a floor whose feed is chess
+(`.pubws-bet--rail`): the board, the ticket and the verbs said the same bet
+three times on one screen. Below 1120px the ticket stacks under the verbs
+and they stay, as on every floor.
 
 1. **The board** (`.chess-board`, an svg of 64 squares in the floor's
    ground tones) seen from TelarchyBot's side: white at the bottom when
@@ -3084,13 +3095,12 @@ horizontal overflow. The available slot controls this, including home cards.
    while `phase` is `settling`, "Waiting for the next game" between games,
    "Loading" before the first read and "Feed unavailable" after a failed
    one.
-   **The player's record** (`.chess-stats`) is in the right column:
-   Rating, Played, Won, Lost and Drawn, each on its own labeled row, read
-   from the feed's `player`. The rating is Lichess's classical rating, with
-   "?" while provisional. Game counts are Lichess's own for the account.
-   The record is headed by whose it is (`.chess-stats-head`): "TelarchyBot on
-   Lichess", the feed's `player.username`. The record is absent while `player`
-   is null.
+   **The player's record** (`.chess-stats--line`) is the one line under
+   that: Rating, Played, Won, Lost and Drawn, read from the feed's `player`
+   and, on the floor, headed by whose it is ("TelarchyBot on Lichess", the
+   feed's `player.username`). The rating is Lichess's classical rating, with
+   "?" while provisional. Game counts are Lichess's own for the account. The
+   line is absent while `player` is null.
 3. **The proposal on screen is marked on the board** (Viktor 2026-09-13:
    "when im in a proposal page make sure that the move corresponding to the
    proposal is highlighted"). When the page has the open move's proposal
@@ -3110,23 +3120,10 @@ horizontal overflow. The available slot controls this, including home cards.
    click on the card lands on the right proposal with that move selected
    (Viktor 2026-09-16: "make sure that clicking (moving by clicking) in the
    visualization works.. by going to the correct proposal").
-4. **The moves, one slim column left of the board** (`.chess-movelist`),
-   headed by the scale its prices are on (`.chess-movelist-head`): "Expected
-   score if played: 0 loss, 50 draw, 100 win".
-   Only while a move is open: every legal move, highest price
-   first, an unpriced one last as "open", one row each (`.chess-moverow`):
-   the rank, the piece and the SAN, a thin bar the length of the price
-   within the list's range, and the price to one decimal, in the mono type
-   at the size of the chart's labels, one line high. The leader's row is in
-   the approved green, the proposal on screen's row is marked as its arrow
-   is. The column is as tall as the board and scrolls inside itself; it sits
-   to the left of the board in the three-column layout and below it in
-   narrow slots. **Hovering a row, or focusing it, draws that
-   move on the board** (`.chess-arrow.is-hover`, in the ink, its squares
-   tinted) until the pointer leaves; pressing a row opens that option's
-   world, as its arrow does. **The prices are on the board too**: while a
-   piece is picked up, each square it can reach carries that move's price
-   (the leader's in the approved green, an unpriced one "open").
+4. **The prices are on the board, and nowhere beside it.** While a piece
+   is hovered or picked up, each square it can reach carries that move's
+   price (the leader's in the approved green, an unpriced one "open"). The
+   view draws no list of moves.
 
 The replay row is the snake's (picker, scrubber, play, speed, LIVE): the
 picker lists the games newest first as "Game 3 · vs OppBot · lost", the
@@ -3138,7 +3135,7 @@ opponent's. **A replay is never mistaken for the live game**: while one is
 on, a marker above the board (`.chess-replay-chip`, in the accent, sticky to
 the top of the view as the page scrolls) reads "Replay: game 3 against
 OppBot, lost. Not live." and it goes when LIVE is pressed. In replay the board draws the ply's `fen`, its move tinted,
-and our chosen move as one solid arrow; there is no move list. Every read
+and our chosen move as one solid arrow. Every read
 reports the open move's option prices by proposal id for the floor's own
 cells, and a new open proposal (or none) reloads the floor, as the snake's
 step does.
@@ -3150,7 +3147,7 @@ every option's price from the floor's one-second prices poll (`GET
 option's `marketId` in the feed; the feed's own `price` stands only for a
 book the poll has not answered yet. A lead is recomputed from those prices
 (the option's price minus the best other option's), so a bet placed on
-the ticket moves its arrow and its row within a second, never on the
+the ticket moves its arrow within a second, never on the
 operator's slower read. The feed still decides what is open and where the
 pieces stand.
 

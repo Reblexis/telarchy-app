@@ -193,8 +193,6 @@ type Arrow = {
   number?: number;
   /** The proposal on screen's move (docs/ui-conventions.md, "The chess feed", item 3). */
   selected?: boolean;
-  /** The move under the pointer in the list (item 4). */
-  hover?: boolean;
 };
 
 function Board({
@@ -203,7 +201,6 @@ function Board({
   last,
   prior,
   proposalMove,
-  hoverMove,
   arrows,
   targets,
   selected,
@@ -219,8 +216,6 @@ function Board({
   prior?: string | null;
   /** The proposal on screen's move when it is the open move: its squares tinted. */
   proposalMove: string | null;
-  /** The move a list row is hovered or focused on: its squares tinted. */
-  hoverMove: string | null;
   arrows: Arrow[];
   targets: Array<{ square: string; text: string; leader: boolean }>;
   selected: string | null;
@@ -241,7 +236,6 @@ function Board({
   const priorSquares = prior ? [prior.slice(0, 2), prior.slice(2, 4)] : [];
   const squaresOf = (m: string | null) => (m ? [m.slice(0, 2), m.slice(2, 4)] : []);
   const proposalSquares = squaresOf(proposalMove);
-  const hoverSquares = squaresOf(hoverMove);
   return (
     <svg
       className="chess-board"
@@ -258,7 +252,6 @@ function Board({
           light ? 'is-light' : 'is-dark',
           lastSquares.includes(sq) ? 'is-last' : priorSquares.includes(sq) ? 'is-prior' : '',
           proposalSquares.includes(sq) ? 'is-proposal' : '',
-          hoverSquares.includes(sq) ? 'is-hover' : '',
           selected === sq ? 'is-selected' : '',
           hoverPiece === sq ? 'is-hover-piece' : '',
         ]
@@ -350,7 +343,7 @@ function Board({
         const d = arrowPath(a.from, a.to, color);
         const mark = (
           <path
-            className={`chess-arrow${a.selected ? ' is-selected' : ''}${a.hover ? ' is-hover' : ''}`}
+            className={`chess-arrow${a.selected ? ' is-selected' : ''}`}
             data-option={a.option}
             d={d}
             fill="none"
@@ -446,8 +439,6 @@ export function ChessLive({
     id: null,
     square: null,
   });
-  /* The move a list row is hovered or focused on (docs/ui-conventions.md, "The chess feed", item 4). */
-  const [hoverState, setHoverState] = useState<{ id: string | null; move: string | null }>({ id: null, move: null });
   /* The square under the pointer on the board (docs/ui-conventions.md, "The chess feed", item 1). */
   const [squareHoverState, setSquareHoverState] = useState<{ id: string | null; square: string | null }>({
     id: null,
@@ -579,11 +570,10 @@ export function ChessLive({
 
   /* A new position clears the piece a reader had picked up. */
   const openId = open?.proposal.id ?? null;
-  /* A piece picked up, or a row hovered, belongs to the move it was made on:
-     a new position clears both by construction, never by an effect that can
+  /* A piece picked up belongs to the move it was made on: a new position
+     clears it by construction, never by an effect that can
      land after a click. */
   const selected = selectionState.id !== null && selectionState.id === openId ? selectionState.square : null;
-  const hoverMove = hoverState.id !== null && hoverState.id === openId ? hoverState.move : null;
   const setSelected = (square: string | null) => setSelectionState({ id: openId, square });
   const hoveredSquare = squareHoverState.id !== null && squareHoverState.id === openId ? squareHoverState.square : null;
 
@@ -600,15 +590,12 @@ export function ChessLive({
     open.options.some(o => o.id === selectedProposal.option)
       ? selectedProposal.option
       : null;
-  const liveHover = open && hoverMove && open.options.some(o => o.id === hoverMove) ? hoverMove : null;
-  /** An option's world on this floor, opened in place (the arrows and the list share it). */
-  const optionHref = (id: string) => (open ? `/${slug}/p/${open.proposal.number}?option=${id}` : '');
   const liveArrows = (): Arrow[] => {
     if (!open) return [];
     const top = ranked(openOptions)
       .filter(priced)
       .slice(0, 3)
-      .filter(o => o.id !== proposalMove && o.id !== liveHover);
+      .filter(o => o.id !== proposalMove);
     const ops = leadOpacities(top.map(o => o.price));
     const at = (id: string) => ({
       option: id,
@@ -619,8 +606,7 @@ export function ChessLive({
       href: withBase(`/${slug}/p/${open.proposal.number}?option=${id}`),
     });
     const out: Arrow[] = top.map((o, i) => ({ ...at(o.id), opacity: ops[i] }));
-    if (proposalMove && proposalMove !== liveHover) out.push({ ...at(proposalMove), opacity: 1, selected: true });
-    if (liveHover) out.push({ ...at(liveHover), opacity: 1, hover: true, selected: liveHover === proposalMove });
+    if (proposalMove) out.push({ ...at(proposalMove), opacity: 1, selected: true });
     return out;
   };
 
@@ -668,6 +654,8 @@ export function ChessLive({
      option's address, as an arrow's link does (docs/ui-conventions.md, "The
      chess feed", item 3). */
   const navigate = useNavigate();
+  /** An option's world on this floor, opened in place. */
+  const optionHref = (id: string) => (open ? `/${slug}/p/${open.proposal.number}?option=${id}` : '');
   const pick = (option: string) => {
     if (!open) return;
     if (onPickProposal) onPickProposal(open.proposal.number, option);
@@ -786,61 +774,6 @@ export function ChessLive({
   return (
     <div className={`chess-live${card ? ' chess-live--card' : ''}`}>
       <div className="chess-main">
-        {!card && (
-          <div className="chess-moves-col">
-            {open && openOptions.length > 0 && (
-              /* The moves, one slim column beside the board (docs/ui-conventions.md, "The chess feed", item 4). */
-              <>
-                <p className="chess-movelist-head">Expected score if played: 0 loss, 50 draw, 100 win</p>
-                <div className="chess-movelist" role="list" aria-label="Moves, highest price first">
-                  {(() => {
-                    const list = ranked(openOptions);
-                    const pricedList = list.filter(priced);
-                    const lo = pricedList.length ? Math.min(...pricedList.map(o => o.price as number)) : 0;
-                    const hi = pricedList.length ? Math.max(...pricedList.map(o => o.price as number)) : 0;
-                    const board = piecesOf(game?.fen ?? null);
-                    return list.map((o, i) => {
-                      const piece = board.get(o.id.slice(0, 2));
-                      const width = priced(o) ? (hi > lo ? 6 + 94 * (((o.price as number) - lo) / (hi - lo)) : 100) : 0;
-                      const cls = `chess-moverow${boardLeader?.id === o.id ? ' is-leader' : ''}${proposalMove === o.id ? ' is-selected' : ''}`;
-                      return (
-                        <a
-                          key={o.id}
-                          role="listitem"
-                          className={cls}
-                          href={withBase(optionHref(o.id))}
-                          onClick={e => {
-                            if (!onPickProposal) return;
-                            e.preventDefault();
-                            pick(o.id);
-                          }}
-                          onMouseEnter={() => setHoverState({ id: openId, move: o.id })}
-                          onMouseLeave={() => setHoverState(h => (h.move === o.id ? { id: null, move: null } : h))}
-                          onFocus={() => setHoverState({ id: openId, move: o.id })}
-                          onBlur={() => setHoverState(h => (h.move === o.id ? { id: null, move: null } : h))}
-                        >
-                          <span className="chess-moverow-rank">{i + 1}</span>
-                          <span className="chess-moverow-san">
-                            {piece && (
-                              <span className="chess-moverow-glyph">{`${GLYPH[piece.toLowerCase()]}\uFE0E`}</span>
-                            )}
-                            {o.san}
-                          </span>
-                          <span className="chess-moverow-bar">
-                            <span style={{ width: `${width}%` }} />
-                          </span>
-                          <span className="chess-moverow-price">
-                            {priced(o) ? (o.price as number).toFixed(1) : 'open'}
-                          </span>
-                        </a>
-                      );
-                    });
-                  })()}
-                </div>
-              </>
-            )}
-          </div>
-        )}
         <div className="chess-board-col">
           {replayChip && <p className="chess-replay-chip">{replayChip}</p>}
           {gameCaption && !replay && <p className="chess-game">{gameCaption}</p>}
@@ -858,7 +791,6 @@ export function ChessLive({
               last={drawn.last}
               prior={drawn.prior}
               proposalMove={replay ? null : proposalMove}
-              hoverMove={replay ? null : liveHover}
               arrows={drawn.arrows}
               targets={targets}
               selected={selected}
@@ -873,29 +805,23 @@ export function ChessLive({
             {line.text}
             {line.clock !== undefined && <span className="chess-clock">{line.clock}</span>}
           </p>
-          {card && state?.player && (
-            /* The card form's record: one muted line under the next move (docs/ui-conventions.md, "The chess feed"). */
+          {open && openOptions.length > 0 && !replay && !card && (
+            /* The scale the prices are on (docs/ui-conventions.md, "The chess feed"). */
+            <p className="chess-scale">
+              A move's price is the expected score if it is played: 0 loss, 50 draw, 100 win
+            </p>
+          )}
+          {state?.player && (
+            /* The record: one muted line under the next move, headed by whose it
+               is on the floor (docs/ui-conventions.md, "The chess feed", item 2). */
             <p className="chess-stats chess-stats--line">
-              {record.map(([label, value]) => `${label} ${value}`).join(' · ')}
+              {[
+                ...(card ? [] : [`${playerName} on Lichess`]),
+                ...record.map(([label, value]) => `${label} ${value}`),
+              ].join(' · ')}
             </p>
           )}
         </div>
-        {!card && (
-          <div className="chess-stats-col">
-            {state?.player && (
-              <section role="region" aria-label="Player statistics">
-                <p className="chess-stats-head">{playerName} on Lichess</p>
-                <dl className="chess-stats">
-                  {record.map(([label, value]) => (
-                    <div className="chess-stat" key={label}>
-                      <dt>{label}</dt> <dd>{value}</dd>{' '}
-                    </div>
-                  ))}
-                </dl>
-              </section>
-            )}
-          </div>
-        )}
       </div>
       {showReplay && (
         <div className="snake-replay chess-replay" role="group" aria-label="Replay">

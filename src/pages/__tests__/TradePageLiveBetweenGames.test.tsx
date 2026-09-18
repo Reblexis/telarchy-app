@@ -168,3 +168,34 @@ describe('the chess floor has no board after a game settles', () => {
     expect(container.querySelector('[aria-label="No market yet"]')).not.toBeNull();
   });
 });
+
+describe('on the chess floor the ticket is the only bet surface where it is beside the chart', () => {
+  const verbs = (c: HTMLElement) => c.querySelector('[role="group"][aria-label="Bet"]') as HTMLElement | null;
+
+  test('THE CHESS FLOOR MARKS ITS BET VERBS AS RAIL-HIDDEN', async () => {
+    h.state.liveFeed = FEED;
+    const { container } = renderFloor();
+    await waitFor(() => expect(verbs(container)).not.toBeNull());
+    expect(verbs(container)).toHaveClass('pubws-bet--rail');
+  });
+
+  test('a snake floor and a floor with no feed keep their verbs at every width', async () => {
+    h.state.liveFeed = { kind: 'snake', url: 'https://snake.example.com' };
+    const snake = renderFloor();
+    await waitFor(() => expect(verbs(snake.container)).not.toBeNull());
+    expect(verbs(snake.container)).not.toHaveClass('pubws-bet--rail');
+    snake.unmount();
+    h.state.liveFeed = null;
+    const plain = renderFloor();
+    await waitFor(() => expect(verbs(plain.container)).not.toBeNull());
+    expect(verbs(plain.container)).not.toHaveClass('pubws-bet--rail');
+  });
+
+  test('the marked verbs are hidden only from 1120px up, where the rail holds the ticket', async () => {
+    const { readFileSync } = await import('node:fs');
+    const css = readFileSync('src/style.css', 'utf8');
+    const blocks = [...css.matchAll(/@media \(min-width: 1120px\) \{([\s\S]*?)\n\}/g)].map(m => m[1]);
+    expect(blocks.filter(b => /\.pubws-bet--rail \{ display: none; \}/.test(b))).toHaveLength(1);
+    expect(css.match(/\.pubws-bet--rail/g)).toHaveLength(1);
+  });
+});
