@@ -13217,3 +13217,39 @@ a.pubws-live-row:hover { background: var(--bg-secondary); }
   color: var(--text-tertiary);
   text-align: left;
 }
+
+/* A decided proposal's record, where the ticket was (direction A,
+   2026-09-18): rows on hairlines, then one sentence on the voided world. */
+.pubws-decided {
+  width: 100%;
+  margin-top: 0.8rem;
+  border-top: 1px solid var(--border-color);
+  text-align: left;
+}
+.pubws-decided-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.pubws-decided-k {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.pubws-decided-v {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.pubws-decided-note {
+  margin: 0.7rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  text-align: left;
+}
