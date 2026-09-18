@@ -1371,3 +1371,29 @@ describe('a placed bet leaves a line saying what was bought', () => {
     expect(screen.queryByRole('status')).toBeNull();
   });
 });
+
+describe('the refund line (docs/ui-conventions.md, direction A, 2026-09-18)', () => {
+  test('a subject that carries a refund line prints it once, above the confirm button', () => {
+    const { container } = render(
+      <TradeTicket
+        {...base}
+        subject={{
+          context: '#7 · if approved',
+          title: 'Rewrite the store page',
+          refund: 'If this is declined, your bet is refunded.',
+        }}
+      />,
+    );
+    const lines = container.querySelectorAll('.ticket-refund');
+    expect(lines).toHaveLength(1);
+    expect(lines[0].textContent).toBe('If this is declined, your bet is refunded.');
+    const go = container.querySelector('.ticket-go') as HTMLElement;
+    expect(lines[0].compareDocumentPosition(go) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  test('a plain market promises no refund', () => {
+    const { container } = render(<TradeTicket {...base} subject={{ context: 'LookPilot', title: 'Net revenue' }} />);
+    expect(container.querySelector('.ticket-refund')).toBeNull();
+    expect(container.textContent).not.toMatch(/refunded/);
+  });
+});

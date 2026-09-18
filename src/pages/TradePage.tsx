@@ -85,6 +85,7 @@ import { authPath } from '../lib/nextPath';
 import { periodGapOf } from '../lib/period-gap';
 import { overlayFloorPrices } from '../lib/price-overlay';
 import { isPricedOption, optionLead, worldOf } from '../lib/proposal-options';
+import { refundLine } from '../lib/proposal-refund';
 import { useFloorPrices } from '../lib/useFloorPrices';
 import {
   clockSecondsOf,
@@ -1197,7 +1198,11 @@ export function TradePage() {
             ? decidesWord(selectedJob.decideBy, now.getTime())
             : `decided ${dayOf(selectedJob.decideBy)}`,
         );
-      return { context: bits.join(' · '), title: selectedJob.title };
+      return {
+        context: bits.join(' · '),
+        title: selectedJob.title,
+        refund: refundLine({ pending: selectedJob.status === 'pending', optioned: jobOptioned, branch }) ?? undefined,
+      };
     }
     if (!hero) return undefined;
     const clock = /^(today|this week|this month)$/.test(hero.label) ? hero.label : '';
@@ -1558,6 +1563,33 @@ export function TradePage() {
         : pair.approvedConsensus - pair.declinedConsensus
       : null;
   const impactUnit = unit;
+  /* The worlds are bars against the largest value on screen
+     (docs/ui-conventions.md, "The worlds are bars"). */
+  const worldValues: Array<number | null | undefined> = selectedJob
+    ? jobOptioned
+      ? [nowReading, ...jobOptionList.map(o => optionQuote(o.id)?.consensus)]
+      : [nowReading, pair?.approvedConsensus, pair?.declinedConsensus]
+    : [];
+  const worldMax = Math.max(0, ...worldValues.filter((v): v is number => typeof v === 'number'));
+  const worldBar = (value: number | null) => (
+    <span className="pubws-world-bar" aria-hidden="true">
+      <i
+        style={{
+          width: `${value !== null && value > 0 && worldMax > 0 ? Math.min(100, (value / worldMax) * 100) : 0}%`,
+        }}
+      />
+    </span>
+  );
+  const leaderValue = optionLeadNow?.leader ? (optionQuote(optionLeadNow.leader.id)?.consensus ?? null) : null;
+  const verdictMetric = hero
+    ? `${sentenceCase(captionLabel(metricLabel, ws?.name))} ${dateQuestionOf(hero).lead}${dateQuestionOf(hero).word}`
+    : '';
+  const impactHero =
+    jobImpact === null ? null : (
+      <span className={`pubws-impact-hero${jobImpact === 0 ? '' : jobImpact > 0 ? ' is-up' : ' is-down'}`}>
+        {jobImpact === 0 ? `\u00b1${impactUnit}0` : formatDelta(jobImpact, impactUnit)}
+      </span>
+    );
   // The probability the position panel values a position at: the live one
   // when the socket has spoken for this market, else the payload's.
   const livePriceProb =
@@ -2282,6 +2314,62 @@ export function TradePage() {
                   </div>
                 </div>
               )}
+              {/* The words come first (docs/ui-conventions.md, "A proposal is a
+                decision with a price", direction A, 2026-09-18): a reader who
+                does not know what is proposed cannot read a price on it. */}
+              {selectedJob && (
+                <section
+                  className="pubws-proposal-words pubws-enter pubws-enter--1"
+                  aria-label="What the proposer would do"
+                >
+                  <h2 className="pubws-know-head">
+                    What {selectedJob.proposedByName ?? 'the proposer'} would do
+                    {/* Correcting a listing is a small, rare act, so it gets a
+                  small, rare control (owner ask 2026-09-09): a pencil where
+                  the metric definition's edit already sits, not a
+                  full-width button under the prose. */}
+                    {canEditJob && !editingJob && (
+                      <button
+                        type="button"
+                        className="pubws-icon-edit"
+                        aria-label="Edit proposal"
+                        title="Edit proposal"
+                        onClick={() => setEditingJob(true)}
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                        </svg>
+                      </button>
+                    )}
+                  </h2>
+                  {selectedJob.description && (
+                    <>
+                      <p className={`pubws-details pubws-enter pubws-enter--1${descExpanded ? '' : ' is-clamped'}`}>
+                        <Linkified text={selectedJob.description} />
+                      </p>
+                      {selectedJob.description.length > 220 && (
+                        <button className="pubws-details-more" onClick={() => setDescExpanded(v => !v)}>
+                          {descExpanded ? 'less' : 'more'}
+                        </button>
+                      )}
+                    </>
+                  )}
+                  {/* Edited, and when: a trader who priced this proposal before
+                the wording moved is entitled to know that it moved. */}
+                  {selectedJob.editedAt && <p className="pubws-proposal-meta">edited {dayOf(selectedJob.editedAt)}</p>}
+                </section>
+              )}
               {/* The address named a proposal that is not here (docs/ui-
                 conventions.md, "An address that names no proposal says so",
                 2026-09-10): one quiet line, and the plain floor under it. */}
@@ -2369,38 +2457,44 @@ export function TradePage() {
                                       because a pair can only be read against it. */}
                   {selectedJob ? (
                     <>
-                      <div className="pubws-impact">
-                        {/* What the number is a comparison OF: "+$614" alone
-                          was read as growth from today, or as profit after
-                          the ask was paid (review 2026-09-10). */}
-                        <span className="pubws-impact-what">
-                          {sentenceCase(captionLabel(metricLabel, ws.name))} {dateQuestionOf(hero).lead}
-                          {dateQuestionOf(hero).word},{' '}
-                          {jobOptioned
-                            ? /* A tie at the top is not a lead: nobody is named
-                                 (docs/ui-conventions.md, "A proposal with
-                                 options shows one world per option"). */
-                              `${
-                                optionLeadNow?.tied
-                                  ? 'tied at the top'
-                                  : `${optionLeadNow?.leader ? optionLeadNow.leader.label : 'the leader'} over the next best`
-                              }${selectedJobClosed ? ' \u00b7 at the decision' : ''}`
-                            : 'approved versus declined'}
-                        </span>
-                        <p
-                          className={`pubws-impact-hero${
-                            jobImpact === null || jobImpact === 0 ? '' : jobImpact > 0 ? ' is-up' : ' is-down'
-                          }`}
-                        >
-                          {jobImpact === null
-                            ? jobOptioned
-                              ? 'no lead yet'
-                              : 'not yet priced'
-                            : jobImpact === 0
-                              ? `\u00b1${impactUnit}0`
-                              : formatDelta(jobImpact, impactUnit)}
-                        </p>
-                      </div>
+                      {/* The market's answer is a sentence, and the impact is
+                        the number inside it: "+$614" alone was read as growth
+                        from today, or as profit after the ask was paid. */}
+                      <p className="pubws-verdict">
+                        {jobOptioned && optionLeadNow?.tied ? (
+                          /* A tie at the top is not a lead: nobody is named. */
+                          'Traders see no leader yet: the top options are tied.'
+                        ) : jobImpact === null ? (
+                          jobOptioned ? (
+                            <span className="pubws-impact-hero">no lead yet</span>
+                          ) : (
+                            'Not yet priced.'
+                          )
+                        ) : (
+                          <>
+                            {jobOptioned ? (
+                              <>
+                                Traders expect the most {verdictMetric} from{' '}
+                                <strong>{optionLeadNow?.leader ? optionLeadNow.leader.label : 'the leader'}</strong>
+                                {leaderValue !== null ? `: ${unit}${formatValue(leaderValue)}` : ''}, {impactHero} over
+                                the next best
+                              </>
+                            ) : (
+                              <>
+                                Traders expect{' '}
+                                <strong>
+                                  {unit}
+                                  {formatValue(pair?.approvedConsensus ?? 0)}
+                                </strong>{' '}
+                                {verdictMetric} if this is approved, {unit}
+                                {formatValue(pair?.declinedConsensus ?? 0)} if it is declined. That is {impactHero} for
+                                approving
+                              </>
+                            )}
+                            {selectedJobClosed ? ', at the decision.' : '.'}
+                          </>
+                        )}
+                      </p>
                       <div
                         className={`pubws-worlds${jobOptioned ? ' pubws-worlds--options' : ''}`}
                         style={
@@ -2420,6 +2514,7 @@ export function TradePage() {
                           <span className="pubws-stat-what">
                             {readingWhen ? `last read \u00b7 ${readingWhen}` : 'last read'}
                           </span>
+                          {worldBar(nowReading)}
                           <span className="pubws-price">
                             {nowReading !== null ? `${unit}${formatValue(nowReading)}` : 'no reading yet'}
                           </span>
@@ -2460,6 +2555,7 @@ export function TradePage() {
                                           ? ' \u00b7 voided'
                                           : ''}
                                   </span>
+                                  {worldBar(priced ? (q?.consensus ?? null) : null)}
                                   <span className="pubws-price">
                                     {priced && q?.consensus !== null && q?.consensus !== undefined
                                       ? `${unit}${formatValue(q.consensus)}`
@@ -2495,6 +2591,7 @@ export function TradePage() {
                                     ? ` \u00b7 ${forecastDayOf(hero.resolvesOn)}`
                                     : null}
                               </span>
+                              {worldBar(pair?.approvedConsensus ?? null)}
                               <span className="pubws-price">
                                 {pair?.approvedConsensus !== null && pair?.approvedConsensus !== undefined
                                   ? `${unit}${formatValue(pair.approvedConsensus)}`
@@ -2517,6 +2614,7 @@ export function TradePage() {
                                     ? ` \u00b7 ${forecastDayOf(hero.resolvesOn)}`
                                     : null}
                               </span>
+                              {worldBar(pair?.declinedConsensus ?? null)}
                               <span className="pubws-price">
                                 {pair?.declinedConsensus !== null && pair?.declinedConsensus !== undefined
                                   ? `${unit}${formatValue(pair.declinedConsensus)}`
@@ -3005,64 +3103,17 @@ export function TradePage() {
             own activity, then the standings.
          */}
         <div className="pubws-tail">
-          {/* The proposal's own words and the owner's ruling, UNDER the
-            trade (docs/ui-conventions.md, "A proposal is a decision with
-            a price", 2026-09-09): nothing that is prose or a control
-            stands between the title and the number, which is the rule the
-            metric definition got the same day. */}
+          {/* The rules and the owner's ruling, UNDER the trade
+            (docs/ui-conventions.md, "A proposal is a decision with a
+            price"): the proposal's own words moved above the number on
+            2026-09-18, the mechanism did not. */}
           {selectedJob && (
             <section
-              className="pubws-proposal-words pubws-know pubws-enter pubws-enter--3"
-              aria-label="What the proposer would do"
+              className="pubws-proposal-rules pubws-know pubws-enter pubws-enter--3"
+              aria-label="How this decides"
             >
-              <h2 className="pubws-know-head">
-                What {selectedJob.proposedByName ?? 'the proposer'} would do
-                {/* Correcting a listing is a small, rare act, so it gets a
-                  small, rare control (owner ask 2026-09-09): a pencil where
-                  the metric definition's edit already sits, not a
-                  full-width button under the prose. */}
-                {canEditJob && !editingJob && (
-                  <button
-                    type="button"
-                    className="pubws-icon-edit"
-                    aria-label="Edit proposal"
-                    title="Edit proposal"
-                    onClick={() => setEditingJob(true)}
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M12 20h9" />
-                      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                    </svg>
-                  </button>
-                )}
-              </h2>
               {selectedJob && (
                 <>
-                  {selectedJob.description && (
-                    <>
-                      <p className={`pubws-details pubws-enter pubws-enter--1${descExpanded ? '' : ' is-clamped'}`}>
-                        <Linkified text={selectedJob.description} />
-                      </p>
-                      {selectedJob.description.length > 220 && (
-                        <button className="pubws-details-more" onClick={() => setDescExpanded(v => !v)}>
-                          {descExpanded ? 'less' : 'more'}
-                        </button>
-                      )}
-                    </>
-                  )}
-                  {/* Edited, and when: a trader who priced this proposal before
-                the wording moved is entitled to know that it moved. */}
-                  {selectedJob.editedAt && <p className="pubws-proposal-meta">edited {dayOf(selectedJob.editedAt)}</p>}
                   {/* How this decides: the mechanism, and the only place it
                 is explained (Viktor, 2026-09-10, of a sentence above the
                 trade: "shouldnt this just be in the market rules or

@@ -863,19 +863,28 @@ PR 205 and never merged, then re-drawn on 2026-09-09 against the floor as it
 now stands). The grounds are in `notes/decisions/ui-conventions.md`.
 
 A proposal is not a variant of the metric view. It is a decision with a
-deadline, an ask, and a price, and it reads in that order:
+deadline, an ask, and a price, and it reads top down in the order a person
+asks: what is proposed, what the market says about it, what I can do
+(direction A of the 2026-09-18 proposal-page canvas; record in
+`notes/decisions/ui-conventions.md`):
 
 ```
   #28  A 500 dollar prize for the best open-source trading agent
   Viktor36 · $500 if approved · decides 15 Sept · 24,857 behind it
 
+  WHAT VIKTOR36 WOULD DO
+  Put up 500 dollars for the best open-source agent that trades this floor.
+
   ACTIVE TRADERS   REVENUE   OUTSIDE OWNERS   FORECASTERS
   THIS WEEK        THIS MONTH
   ±0               +1.4
 
-         ACTIVE TRADERS THIS MONTH, APPROVED VERSUS DECLINED
-                             +1.4
-  LAST READ 9.00 | IF APPROVED · 30 SEP 20.0 | IF DECLINED · 30 SEP 18.6
+  Traders expect 20.0 active traders on 30 Sep if this is approved,
+  18.6 if it is declined. That is +1.4 for approving.
+
+  LAST READ      ████████                 9.00
+  IF APPROVED    ██████████████████       20.0
+  IF DECLINED    ████████████████         18.6
         If approved, what will Telarchy's active traders be on 30 Sep?
                         [ chart, both worlds ]
         [ BET HIGHER · if approved ]  [ BET LOWER · if approved ]
@@ -923,23 +932,33 @@ deadline, an ask, and a price, and it reads in that order:
   place"). Nothing is staked on that cell, so there is no forecast to print
   and nothing to trade on arrival. Where liquidity IS present the impact
   stands on its own, tagged with nothing.
-- **The impact is the number.** The hero is the selected cell's impact,
-  if-done minus if-not-done, over a caption that names what it is a
-  comparison OF: "<metric> <date>, approved versus declined" (revised
-  2026-09-10; "if approved, <metric> <date> moves by" left "+$614" open to
-  being read as growth from today, or as profit after the ask is paid),
-  green up and red down. This is the reversal: on the metric view
-  the big number is the metric's own value, and on a proposal it is the
-  impact, because the impact is the only number the ruling turns on and the
-  only one the pair actually prices.
-- **The two worlds are the control.** Under the hero, three cells on
-  hairlines in the stat row's anatomy: now, if approved, if declined, each a
-  caption over a value. The branch captions carry the day being forecast and
-  not the settle note the metric view uses ("if approved · 30 Sep"): the same
-  note on two cells beside each other is said twice and truncates. The two branch cells ARE the branch toggle
-  (`aria-pressed`), replacing the pair of pills: the number you are switching
-  to is the thing you press. The baseline stays on screen as the first cell,
-  which is the whole reason a pair can be read at all.
+- **The words come first.** "What <proposer> would do" sits directly under
+  the facts row, above the strips and every number, clamped to a few lines
+  with a "more" when long, with the proposer's or manager's edit pencil on
+  its head. A reader who does not know what is proposed cannot read a price
+  on it (design critic 2026-09-18, intuitiveness 4/10: the page opened on a
+  bare "+0.01" with the proposal itself below the fold). This reverses
+  "nothing that is prose stands between the title and the number".
+- **The market's answer is a sentence, and the impact is the number inside
+  it.** "Traders expect <if approved> <metric> <date> if this is approved,
+  <if declined> if it is declined. That is <impact> for approving." The
+  impact keeps its sign and colour (green up, red down; a negative impact
+  still reads "for approving", the sign carries it) and is the only coloured
+  number in the sentence. With options: "Traders expect the most <metric> <date>
+  from <leader>: <value>, <impact> over the next best."; a tie at the top
+  names nobody: "Traders see no leader yet: the top options are tied."
+  An unpriced pair says "Not yet priced." and a closed proposal ends the
+  sentence with "at the decision". A bare number with a caption over it is
+  not used: "+$614" alone was read as growth from today, or as profit after
+  the ask was paid.
+- **The worlds are bars, and the bars are the control.** Under the sentence,
+  one row per world on hairlines, stacked: the last reading first as the
+  baseline, then if approved and if declined (or one row per option). Each
+  row is a caption, a bar whose length is the value against the largest
+  value on screen, and the value. The branch captions carry the day being
+  forecast ("if approved · 30 Sep"). The world rows ARE the branch toggle
+  (`aria-pressed`): the number you are switching to is the thing you press.
+  The baseline row is not a button. A value of zero or less draws no bar.
 - **The question sits UNDER the worlds, never above the number.** One
   sentence between the world cells and the chart, in the metric view's own
   serif: "If approved, what will <floor>'s <metric> be on <settle day>?",
@@ -960,12 +979,17 @@ deadline, an ask, and a price, and it reads in that order:
   never only in a toggle further up the page. A trader who has scrolled past
   the toggle cannot tell which world a verb belongs to, and the ticket in the
   rail names the same world in its header.
-- **The words, the rules and the ruling are below the trade**, in the order
-  the metric view already uses: question, numbers, chart, verbs, then "What
-  <proposer> would do" as the tinted block "How this settles" wears, then
-  **"How this decides"** in that same block's shape, then the owner's ruling
-  band, then the rest of the ballot. Nothing that is prose or a control
-  stands between the title and the number.
+- **The rules and the ruling are below the trade**: question, numbers,
+  chart, verbs, then **"How this decides"** as the tinted block "How this
+  settles" wears, then the owner's ruling band, then the rest of the ballot.
+- **The ticket says what happens to the bet if the other world wins.** Under
+  the ticket's payout band, on a pending proposal only, one quiet line: "If
+  this is declined, your bet is refunded." on the approved branch, "If this
+  is approved, your bet is refunded." on the declined one, "If another option
+  is chosen, your bet is refunded." with options. It is the one fact of the
+  mechanism a trader needs before pressing, so it is the one exception to
+  "the mechanism is never explained above the trade"; everything else stays
+  in "How this decides".
 - **"How this decides" is where the mechanism lives**, and the only place
   (Viktor, 2026-09-10: "shouldnt this just be in the market rules or
   something? seems like too much of a detail"). Three sentences, generic to

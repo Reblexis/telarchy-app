@@ -384,9 +384,9 @@ describe('THE HERO IS THE LEAD', () => {
     const hero = container.querySelector('.pubws-impact-hero') as HTMLElement;
     expect(words(hero)).toMatch(/\+1\.7/);
     expect(hero.classList.contains('is-up')).toBe(true);
-    const caption = words(container.querySelector('.pubws-impact-what'));
-    expect(caption).toMatch(/reached length/i);
-    expect(caption).toMatch(/Turn left over the next best/);
+    const caption = words(container.querySelector('.pubws-verdict'));
+    expect(caption).toMatch(/^Traders expect the most reached length/i);
+    expect(caption).toMatch(/from Turn left: [\d.]+, \+1\.7 over the next best\.$/);
     expect(caption).not.toMatch(/approved versus declined/i);
   });
 

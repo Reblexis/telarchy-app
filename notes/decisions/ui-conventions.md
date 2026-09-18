@@ -2201,3 +2201,23 @@ The chess guide link had moved from under the floor's bot door to the new-bot
 form that door opens (my call on 2026-09-17, he had not picked a home for
 it). Shown the form, Viktor: "the link shouldnt be there in the first place".
 Removed; the chess floor's about text already links the guide.
+
+## 2026-09-18: the proposal page reads top down (Viktor)
+
+A blind design critic scored the chess floor and its proposal page 5.2/10,
+intuitiveness 4 (`docs/reviews/2026-09-18-chess-proposal-design-critic.md`, on
+branch `chess-design-critic`). Viktor, of the proposal page: "it just doesnt
+seem very intuitive to me", then asked for a design pass on the proposal page
+in general, not chess. Canvas: https://claude.ai/artifact/GXFyDSWyqcmxCVZLP35h9y
+(A read it top down, B case and market, C verdict and rows, plus a decided
+page). He picked A: "ok lets try A do it and well see howw it looks".
+
+What A reverses in "A proposal is a decision with a price": the proposal's
+words move above the number (was: nothing that is prose stands between the
+title and the number); the bare impact hero becomes a sentence with the impact
+inside it; the three world cells become stacked bar rows; the ticket gains one
+refund line, the single exception to "the mechanism is never explained above
+the trade" (Viktor, 2026-09-10). The strips, the question under the worlds,
+the verbs and "How this decides" are unchanged. The decided-page tab of the
+canvas (receipt, reading since the decision) is not built yet. On branch
+`proposal-read-top-down`, a trial: not merged until he has looked at it.
