@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { FloorModal } from './FloorModal';
+import { CreditsHero } from './OwnerDialogs';
 
 /**
  * The send ticket (docs/ui-conventions.md, "The participant profile",
@@ -115,69 +116,69 @@ export function SendCreditsTicket({
 
   return (
     <FloorModal onClose={onClose} label="Send credits">
-      <form className="sendt" onSubmit={submit}>
-        <div className="sendt-to">
-          <span className="sendt-to-label">Send to</span>
-          <strong className="sendt-to-name">{to.handle}</strong>
-        </div>
-        <div className="sendt-amount">
-          <input
-            id="send-credits-amount"
-            className="sendt-amount-input"
-            inputMode="decimal"
-            autoComplete="off"
-            placeholder="0"
-            aria-label="Amount in credits"
-            value={raw}
-            onChange={e => setAmount(e.target.value)}
-            autoFocus
-          />
-          <span className="sendt-amount-unit">cr</span>
-        </div>
-        <div className="sendt-quick">
+      <form className="jobform" onSubmit={submit}>
+        <CreditsHero
+          label={`Send to ${to.handle}`}
+          value={raw}
+          onChange={setAmount}
+          disabled={busy}
+          ariaLabel="Amount in credits"
+          onClose={onClose}
+          decimals
+          autoFocus
+        />
+        <div className="ticket-pos-head">
           {QUICK.map(q => (
-            <button key={q} type="button" onClick={() => setAmount(String(q))}>
+            <button key={q} type="button" className="ticket-sell" onClick={() => setAmount(String(q))}>
               {fmt(q)}
             </button>
           ))}
-          <button type="button" disabled={balance === null} onClick={() => setAmount(String(balance ?? 0))}>
+          <button
+            type="button"
+            className="ticket-sell"
+            disabled={balance === null}
+            onClick={() => setAmount(String(balance ?? 0))}
+          >
             All
           </button>
         </div>
-        <input
-          id="send-credits-note"
-          className="sendt-note"
-          maxLength={200}
-          placeholder="Note, shown on both profiles"
-          aria-label="Note"
-          value={memo}
-          onChange={e => setMemo(e.target.value)}
-        />
-        <div className="sendt-facts">
-          <div className="sendt-fact">
-            <span>Your balance after</span>
-            <b data-testid="send-balance-after">{balance === null ? '…' : `${fmt(Math.max(balance - n, 0))} cr`}</b>
+
+        <label className="jobform-field">
+          <span className="ticket-label">Note, shown on both profiles</span>
+          <input
+            id="send-credits-note"
+            className="jobform-line"
+            maxLength={200}
+            aria-label="Note"
+            disabled={busy}
+            value={memo}
+            onChange={e => setMemo(e.target.value)}
+          />
+        </label>
+
+        <div className="ticket-facts">
+          <div className="ticket-fact">
+            <span className="ticket-fact-k">Your balance after</span>
+            <span className="ticket-fact-v" data-testid="send-balance-after">
+              {balance === null ? '…' : `${fmt(Math.max(balance - n, 0))} cr`}
+            </span>
           </div>
           {seasonName && (
-            <div className="sendt-fact">
-              <span>Your {seasonName} score</span>
-              <b className={n > 0 ? 'is-down' : undefined} data-testid="send-season-cost">
+            <div className="ticket-fact">
+              <span className="ticket-fact-k">Your {seasonName} score</span>
+              <span className={`ticket-fact-v${n > 0 ? ' is-down' : ''}`} data-testid="send-season-cost">
                 {n > 0 ? `-${fmt(n)}` : '0'}
-              </b>
+              </span>
             </div>
           )}
         </div>
+
         {alert && (
-          <p className="sendt-alert" role="alert">
+          <p className="ticket-err" role="alert">
             {alert}
           </p>
         )}
-        <button
-          type="submit"
-          className={`sendt-submit${armed ? ' is-armed' : ''}`}
-          data-testid="send-credits-submit"
-          disabled={!canSend}
-        >
+        <button type="submit" className="ticket-go" data-testid="send-credits-submit" disabled={!canSend}>
           {busy
             ? 'Sending…'
             : armed
@@ -185,8 +186,8 @@ export function SendCreditsTicket({
               : n > 0 && !over
                 ? `Send ${fmt(n)} cr`
                 : 'Send'}
+          <span className="ticket-go-sub">Sent credits cannot be taken back.</span>
         </button>
-        <p className="sendt-fine">Sent credits cannot be taken back.</p>
       </form>
     </FloorModal>
   );
