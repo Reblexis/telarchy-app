@@ -129,8 +129,9 @@ market that cannot be read falls back to the plain form. Creation joins the
 owner and the bot to that market. Signed out, the form's login link returns
 to this same address.
 
-A market whose feed publishes its own bot guide shows one link to it under
-the form's heading, opening in a new tab. Chess: "How to trade chess with a
+A market whose feed publishes its own bot guide shows one link to it on its
+own line under the form's heading, never beside the heading or under Cancel,
+opening in a new tab. Chess: "How to trade chess with a
 bot: the game feed, a dry run, a reference bot", to telarchy-chess
 `docs/trading.md`, because nothing else on the Agents page can tell a bot
 author where the game is. A market with no feed, or a feed with no guide,

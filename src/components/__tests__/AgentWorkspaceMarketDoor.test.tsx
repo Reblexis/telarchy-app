@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
@@ -182,4 +185,27 @@ describe('a fed market links to its own bot guide on the form its door opens', (
     await screen.findByLabelText('Bot name');
     expect(screen.queryByRole('link', { name: /How to trade/ })).toBeNull();
   });
+});
+
+/* Owner report 2026-09-18: the guide link sat beside "New bot", squeezed the
+   heading onto two lines and ran under Cancel. */
+test('THE GUIDE LINK TAKES ITS OWN LINE UNDER THE HEADING, never beside it or under Cancel', async () => {
+  vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
+    workspaceId: 'ws-chess',
+    name: 'Chess',
+    slug: 'chess',
+    liveFeed: { kind: 'chess', url: 'https://chess.example.com' },
+  } as never);
+  mount('/agents?market=chess#agent-setup');
+  const link = await screen.findByRole('link', { name: /How to trade chess with a bot/ });
+  const heading = screen.getByRole('heading', { name: 'New bot' });
+  expect(link.parentElement).toBe(heading.parentElement);
+  expect(heading.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  const css = readFileSync(join(dirname(dirname(dirname(fileURLToPath(import.meta.url)))), 'style.css'), 'utf8');
+  const head = css.match(/\.agents-page \.agent-new-bot \.builder-heading\s*\{([^}]*)\}/);
+  expect(head).toBeTruthy();
+  expect(head![1]).toMatch(/flex-wrap:\s*wrap/);
+  const guide = css.match(/\.agents-page \.agent-new-bot \.builder-feed-guide\s*\{([^}]*)\}/);
+  expect(guide).toBeTruthy();
+  expect(guide![1]).toMatch(/flex-basis:\s*100%/);
 });
