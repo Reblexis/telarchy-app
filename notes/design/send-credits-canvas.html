@@ -1,0 +1,341 @@
+<title>Send credits canvas</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --bg-primary:#fbf9f4;--bg-secondary:#f3efe6;--bg-tertiary:#e8e3d6;
+  --text-primary:#17171c;--text-secondary:#4a4a55;--text-tertiary:#6b6b7a;
+  --border-color:#e3ddcd;--border-strong:#cfc7b3;
+  --accent:#b45309;--accent-soft:#fef3c7;--accent-text:#78350f;
+  --higher:#12693d;--lower:#a5192c;
+  --font-display:"Fraunces",ui-serif,Georgia,serif;
+  --font-sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg-primary:#101013;--bg-secondary:#17171c;--bg-tertiary:#1f1f26;
+  --text-primary:#f2ecdc;--text-secondary:#b5b1a3;--text-tertiary:#97938c;
+  --border-color:#2a2a32;--border-strong:#3a3a43;
+  --accent:#f59e0b;--accent-soft:rgba(245,158,11,.14);--accent-text:#fcd34d;
+  --higher:#4ade80;--lower:#f87171;}}
+:root[data-theme="dark"]{
+  --bg-primary:#101013;--bg-secondary:#17171c;--bg-tertiary:#1f1f26;
+  --text-primary:#f2ecdc;--text-secondary:#b5b1a3;--text-tertiary:#97938c;
+  --border-color:#2a2a32;--border-strong:#3a3a43;
+  --accent:#f59e0b;--accent-soft:rgba(245,158,11,.14);--accent-text:#fcd34d;
+  --higher:#4ade80;--lower:#f87171;}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg-primary);color:var(--text-primary);font:14px/1.55 var(--font-sans)}
+.page{max-width:1080px;margin:0 auto;padding-inline:20px;padding-block:40px 72px;display:flex;flex-direction:column;gap:44px}
+.intro h1{font:700 2rem/1.15 var(--font-display);margin:0 0 .6rem;text-wrap:balance}
+.intro p{max-width:62ch;margin:0;color:var(--text-secondary)}
+.label{font-size:.68rem;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--text-tertiary)}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:0;border-top:1px solid var(--border-color);border-bottom:1px solid var(--border-color)}
+.rules div{padding:.9rem 1rem .9rem 0;display:flex;flex-direction:column;gap:.25rem}
+.rules b{font-weight:600}
+.rules span{color:var(--text-secondary);font-size:.85rem}
+
+.variant{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:36px;align-items:start;padding-top:28px;border-top:1px solid var(--border-strong)}
+@media(max-width:820px){.variant{grid-template-columns:1fr;gap:20px}}
+.variant h2{font:600 1.35rem/1.2 var(--font-display);margin:.35rem 0 .6rem}
+.variant .why{color:var(--text-secondary);margin:0 0 .9rem;max-width:44ch}
+.variant ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:.35rem;font-size:.85rem;color:var(--text-secondary)}
+.variant li{padding-left:1.1rem;position:relative}
+.variant li::before{content:"+";position:absolute;left:0;font-family:var(--font-mono);color:var(--higher)}
+.variant li.con::before{content:"-";color:var(--lower)}
+.pick{display:inline-block;margin-left:.5rem;padding:1px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent-text);font:600 .68rem var(--font-sans);letter-spacing:.04em;vertical-align:middle}
+
+/* the mock: a slice of the real page */
+.mock{border:1px solid var(--border-color);border-radius:12px;background:var(--bg-primary);overflow:hidden}
+.bar{display:flex;justify-content:space-between;align-items:center;padding:.9rem 1.2rem;position:relative}
+.wordmark{font:700 1.05rem var(--font-display)}
+.acct{font:500 .8rem var(--font-sans);color:var(--text-secondary);background:none;border:0;cursor:pointer;padding:.2rem .3rem;border-radius:6px}
+.acct b{font:600 .8rem var(--font-mono);color:var(--text-primary)}
+.col{max-width:640px;margin:0 auto;padding:0 1.2rem 1.4rem}
+.head{display:flex;align-items:center;gap:1.1rem;padding:.5rem 0 1.3rem}
+.avatar{width:64px;height:64px;flex:none;border-radius:50%;background:var(--bg-tertiary);border:1px solid var(--border-strong);display:grid;place-items:center;font:600 1.3rem var(--font-mono);color:var(--text-secondary)}
+.who{flex:1;min-width:0;display:flex;flex-direction:column;gap:.2rem}
+.name{font:600 1.35rem var(--font-mono);margin:0}
+.sub{font-size:.82rem;color:var(--text-tertiary)}
+.strip{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--border-color);border-bottom:1px solid var(--border-color)}
+.cell{padding:.8rem .2rem;display:flex;flex-direction:column;gap:.1rem}
+.cell em{font:normal 600 1.05rem var(--font-mono)}
+.cell small{font-size:.74rem;color:var(--text-tertiary)}
+.gain{color:var(--higher)}.loss{color:var(--lower)}
+.sect{margin-top:1.3rem}
+.row{display:flex;align-items:baseline;gap:.7rem;padding:.6rem .1rem;border-top:1px solid var(--border-color);font-size:.88rem}
+.row .main{flex:1;min-width:0;display:flex;flex-direction:column;gap:.1rem}
+.row .main small{color:var(--text-tertiary);font-size:.78rem}
+.row .num{font:600 .88rem var(--font-mono)}
+.row.new{animation:land .5s ease-out}
+@keyframes land{from{background:var(--accent-soft)}to{background:transparent}}
+@media(prefers-reduced-motion:reduce){.row.new{animation:none}}
+
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.textbtn{background:none;border:0;padding:0;cursor:pointer;font-size:.82rem;font-weight:500;color:var(--text-secondary);text-decoration:underline;text-decoration-color:var(--border-strong);text-underline-offset:4px}
+.textbtn:hover{color:var(--text-primary)}
+.pill{border:1px solid var(--border-strong);background:none;border-radius:999px;padding:.35rem .9rem;font-size:.82rem;font-weight:500;cursor:pointer;white-space:nowrap}
+.pill:hover{border-color:var(--text-primary)}
+.solid{border:1px solid var(--text-primary);background:var(--text-primary);color:var(--bg-primary);border-radius:999px;padding:.55rem 1rem;font-weight:600;font-size:.85rem;cursor:pointer}
+.solid:disabled{opacity:.35;cursor:not-allowed}
+.field{border:0;border-bottom:1px solid var(--border-strong);background:none;padding:.3rem 0;min-width:0;border-radius:0}
+.field:focus{outline:none;border-color:var(--text-primary)}
+.field.amt{font:600 .95rem var(--font-mono);width:6.5rem}
+.note{font-size:.78rem;color:var(--text-tertiary);margin:0}
+.note b{font-family:var(--font-mono);font-weight:600;color:var(--text-secondary)}
+.note .loss{font-weight:600}
+.err{color:var(--lower);font-size:.8rem;margin:0}
+.done{font-size:.85rem;margin:0;color:var(--text-secondary)}
+.done b{font-family:var(--font-mono);color:var(--text-primary)}
+
+/* A */
+.a-form{display:flex;flex-direction:column;gap:.55rem;padding:.9rem 0 1rem;border-top:1px solid var(--border-color)}
+.a-line{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap}
+.a-line .memo{flex:1;min-width:9rem}
+.a-line .cr{font:400 .82rem var(--font-mono);color:var(--text-tertiary)}
+
+/* B */
+.scrim{padding:1.4rem 1rem;background:var(--bg-secondary);border-top:1px solid var(--border-color);display:flex;justify-content:center}
+.ticket{width:300px;max-width:100%;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:16px}
+.ticket .to{display:flex;flex-direction:column;gap:2px}
+.ticket .to small{font-size:.72rem;color:var(--text-tertiary)}
+.ticket .to strong{font:600 1rem var(--font-mono)}
+.big{display:flex;align-items:baseline;gap:.4rem}
+.big input{border:0;background:none;font:600 2rem/1.2 var(--font-mono);width:100%;min-width:0;padding:0}
+.big input:focus{outline:none}
+.big span{font:400 1.1rem var(--font-mono);color:var(--text-tertiary)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{border:1px solid var(--border-strong);background:none;border-radius:999px;padding:2px 10px;font:500 .74rem var(--font-mono);cursor:pointer;color:var(--text-secondary)}
+.chips button:hover{border-color:var(--text-primary);color:var(--text-primary)}
+.fact{display:flex;justify-content:space-between;gap:12px;font:400 .76rem var(--font-mono);color:var(--text-secondary)}
+.fact b{font-weight:600;color:var(--text-primary)}
+.facts{display:flex;flex-direction:column;gap:6px;padding-top:12px;border-top:1px solid var(--border-color)}
+.ticket .solid{width:100%}
+.ticket .solid.confirm{background:var(--accent);border-color:var(--accent);color:#101013}
+
+/* C */
+.menu{position:absolute;right:1.2rem;top:2.6rem;z-index:2;min-width:190px;background:var(--bg-primary);border:1px solid var(--border-strong);border-radius:10px;padding:.35rem;display:flex;flex-direction:column;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.menu button{background:none;border:0;text-align:left;padding:.45rem .6rem;border-radius:6px;cursor:pointer;font-size:.84rem}
+.menu button:hover{background:var(--bg-secondary)}
+.menu .hot{font-weight:600}
+.door{max-width:26rem;margin:0 auto;padding:1rem 1.2rem 1.6rem;display:flex;flex-direction:column;gap:1rem}
+.door h3{font:600 1.5rem/1.2 var(--font-display);margin:0}
+.door label{display:flex;flex-direction:column;gap:.2rem}
+.door .field{width:100%;padding:.4rem 0}
+.sugg{display:flex;flex-direction:column;border:1px solid var(--border-color);border-radius:8px;overflow:hidden}
+.sugg button{display:flex;justify-content:space-between;gap:1rem;background:none;border:0;border-top:1px solid var(--border-color);padding:.45rem .6rem;cursor:pointer;font:500 .84rem var(--font-mono);text-align:left}
+.sugg button:first-child{border-top:0}
+.sugg button:hover{background:var(--bg-secondary)}
+.sugg small{font:400 .74rem var(--font-sans);color:var(--text-tertiary)}
+
+.states{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0 28px}
+.states>div{padding:.8rem 0;border-top:1px solid var(--border-color);display:flex;flex-direction:column;gap:.3rem}
+.states q{quotes:none;font-size:.88rem}
+.states small{color:var(--text-tertiary);font-size:.78rem}
+</style>
+
+<div class="page">
+  <header class="intro">
+    <div class="label">Telarchy / design pass / 2026-09-18</div>
+    <h1>Sending credits to someone else</h1>
+    <p>The API already moves credits between any two participants. The site only lets you fund your own bots. Three places the missing door could go, each one working below: type an amount and press through it. Sample participant, sample numbers.</p>
+  </header>
+
+  <section class="rules" aria-label="What every direction has to carry">
+    <div><b>It cannot be undone</b><span>No reversal exists, so the last press names the amount and the person.</span></div>
+    <div><b>It costs season score</b><span>docs/seasons.md: credits you send count as a loss for you and a gain for them. The form says so while a season runs.</span></div>
+    <div><b>It shows on both records</b><span>The Transfers section of both profiles gains a row, memo included, so the memo is public.</span></div>
+    <div><b>Never on your own profile</b><span>And a signed-out visitor pressing it goes to sign in, then comes back.</span></div>
+  </section>
+
+  <!-- A -->
+  <section class="variant" id="va">
+    <div>
+      <div class="label">Direction A</div>
+      <h2>A row under the name</h2>
+      <p class="why">The same hairline row /agents already uses for funding a bot, opened by a text action in the header.</p>
+      <ul>
+        <li>One pattern for every send on the site</li>
+        <li>Smallest build, nothing new to learn</li>
+        <li class="con">One press sends. Light for something irreversible that costs score</li>
+        <li class="con">Only reachable from the person's profile</li>
+      </ul>
+    </div>
+    <div class="mock">
+      <div class="bar"><span class="wordmark">Telarchy</span><span class="acct">viktor36 · <b data-bal>12,400</b> cr</span></div>
+      <div class="col">
+        <div class="head">
+          <div class="avatar">m</div>
+          <div class="who"><h3 class="name">mira</h3><span class="sub">Trading since Aug 21, 2026 · #7 on the leaderboard</span>
+            <span><button class="textbtn" data-open type="button" aria-expanded="false">Send credits</button></span></div>
+        </div>
+        <form class="a-form" data-form hidden>
+          <div class="a-line">
+            <input class="field amt" id="a-amt" data-amt inputmode="numeric" placeholder="0" aria-label="Amount in credits"><span class="cr">cr</span>
+            <input class="field memo" id="a-memo" data-memo maxlength="200" placeholder="Note, shown on both profiles" aria-label="Note">
+            <button class="solid" data-send type="submit" disabled>Send</button>
+          </div>
+          <p class="note" data-note></p>
+          <p class="err" data-err hidden></p>
+        </form>
+        <p class="done" data-done hidden></p>
+        <div class="strip"><div class="cell"><span class="label">Profit</span><em class="gain">+3,180</em><small>14 settled · 6 open</small></div><div class="cell"><span class="label">Balance</span><em data-theirs>8,920</em><small>2,140 cr in positions</small></div><div class="cell"><span class="label">Trades</span><em>212</em><small>41,600 cr traded · 2h ago</small></div></div>
+        <div class="sect"><div class="label">Transfers</div><div data-rows><div class="row"><div class="main"><span>Sent 2,000 to mira-bot</span><small>starting stake · Sep 12</small></div><span class="num">-2,000</span></div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- B -->
+  <section class="variant" id="vb">
+    <div>
+      <div class="label">Direction B <span class="pick">Recommended</span></div>
+      <h2>The ticket</h2>
+      <p class="why">A pill in the header opens the dialog a trader already knows from buying: big amount, the facts underneath, and a button that asks once more in its own words.</p>
+      <ul>
+        <li>The weight matches the act: two presses, amount and name on the second</li>
+        <li>Room for the facts: balance after, season cost</li>
+        <li>Quick amounts, and "All" without typing your balance</li>
+        <li class="con">A dialog where A needs none</li>
+        <li class="con">Still only reachable from the profile (C's menu item can open this same ticket later)</li>
+      </ul>
+    </div>
+    <div class="mock">
+      <div class="bar"><span class="wordmark">Telarchy</span><span class="acct">viktor36 · <b data-bal>12,400</b> cr</span></div>
+      <div class="col">
+        <div class="head">
+          <div class="avatar">m</div>
+          <div class="who"><h3 class="name">mira</h3><span class="sub">Trading since Aug 21, 2026 · #7 on the leaderboard</span></div>
+          <button class="pill" data-open type="button" aria-expanded="false">Send credits</button>
+        </div>
+      </div>
+      <div class="scrim" data-form hidden>
+        <form class="ticket">
+          <div class="to"><small>Send to</small><strong>mira</strong></div>
+          <div class="big"><input id="b-amt" data-amt inputmode="numeric" placeholder="0" aria-label="Amount in credits"><span>cr</span></div>
+          <div class="chips"><button type="button" data-chip="100">100</button><button type="button" data-chip="500">500</button><button type="button" data-chip="1000">1,000</button><button type="button" data-chip="all">All</button></div>
+          <input class="field" id="b-memo" data-memo maxlength="200" placeholder="Note, shown on both profiles" aria-label="Note">
+          <div class="facts">
+            <div class="fact"><span>Your balance after</span><b data-after>12,400 cr</b></div>
+            <div class="fact"><span>Your Season 0 score</span><b class="loss" data-season>0</b></div>
+          </div>
+          <p class="err" data-err hidden></p>
+          <button class="solid" data-send type="submit" disabled>Send</button>
+          <p class="note">Sent credits cannot be taken back.</p>
+        </form>
+      </div>
+      <div class="col">
+        <p class="done" data-done hidden></p>
+        <div class="strip"><div class="cell"><span class="label">Profit</span><em class="gain">+3,180</em><small>14 settled · 6 open</small></div><div class="cell"><span class="label">Balance</span><em data-theirs>8,920</em><small>2,140 cr in positions</small></div><div class="cell"><span class="label">Trades</span><em>212</em><small>41,600 cr traded · 2h ago</small></div></div>
+        <div class="sect"><div class="label">Transfers</div><div data-rows><div class="row"><div class="main"><span>Sent 2,000 to mira-bot</span><small>starting stake · Sep 12</small></div><span class="num">-2,000</span></div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- C -->
+  <section class="variant" id="vc">
+    <div>
+      <div class="label">Direction C</div>
+      <h2>From your own balance</h2>
+      <p class="why">Sending starts where your credits are: the account menu opens a small door page, /send, where you name the person. A profile's pill links to the same page with the name filled in.</p>
+      <ul>
+        <li>Works from anywhere, no need to find the profile first</li>
+        <li>One form for every send, bots included</li>
+        <li class="con">A new page and a participant search to build and keep</li>
+        <li class="con">Typing a name invites sending to the wrong one; the ticket on a profile cannot</li>
+      </ul>
+    </div>
+    <div class="mock">
+      <div class="bar"><span class="wordmark">Telarchy</span><button class="acct" data-menu type="button" aria-expanded="false">viktor36 · <b data-bal>12,400</b> cr ▾</button>
+        <div class="menu" data-menulist hidden><button type="button">Profile</button><button type="button" class="hot" data-open>Send credits</button><button type="button">Your bots</button><button type="button">Sign out</button></div>
+      </div>
+      <div class="col" data-hint><p class="note" style="padding:.6rem 0 1.2rem">Open the account menu, top right.</p></div>
+      <form class="door" data-form hidden>
+        <h3>Send credits</h3>
+        <label><span class="label">To</span><input class="field" id="c-to" data-to autocomplete="off" placeholder="A name, e.g. mira"></label>
+        <div class="sugg" data-sugg hidden></div>
+        <label><span class="label">Amount</span><span class="a-line"><input class="field amt" id="c-amt" data-amt inputmode="numeric" placeholder="0"><span class="cr">cr</span></span></label>
+        <label><span class="label">Note</span><input class="field" id="c-memo" data-memo maxlength="200" placeholder="Shown on both profiles"></label>
+        <p class="note" data-note></p>
+        <p class="err" data-err hidden></p>
+        <button class="solid" data-send type="submit" disabled>Send</button>
+      </form>
+      <div class="col"><p class="done" data-done hidden></p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="label" style="margin-bottom:.6rem">The words, the same in every direction</div>
+    <div class="states">
+      <div><small>More than you have</small><q>You have 12,400 cr. Send that or less.</q></div>
+      <div><small>Season running</small><q>Counts as a 500 cr loss in your Season 0 score, and a gain in theirs.</q></div>
+      <div><small>Sent</small><q>Sent 500 cr to mira.</q></div>
+      <div><small>The reply never arrived</small><q>The result is uncertain. Check your transfers before sending again.</q><small>Already the wording on /agents.</small></div>
+      <div><small>Signed out</small><q>Send credits</q><small>The same control; it leads to sign in and back.</small></div>
+      <div><small>Liquidity wallet</small><small>Bought credits are never offered. Only the tradeable balance is counted.</small></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const fmt = n => n.toLocaleString('en-US');
+function wire(root, o) {
+  const $ = s => root.querySelector(s);
+  let bal = 12400, theirs = 8920, armed = false, to = o.to || '';
+  const amt = $('[data-amt]'), send = $('[data-send]'), err = $('[data-err]'), form = $('[data-form]'), done = $('[data-done]');
+  const val = () => Math.floor(Number(amt.value.replace(/[^\d.]/g, '')) || 0);
+  function paint() {
+    const n = val(), over = n > bal;
+    armed = false; send.classList.remove('confirm');
+    err.hidden = !over; if (over) err.textContent = `You have ${fmt(bal)} cr. Send that or less.`;
+    send.disabled = !n || over || !to;
+    send.textContent = n && !over ? `Send ${fmt(n)} cr` + (o.nameOnButton && to ? ` to ${to}` : '') : 'Send';
+    const note = $('[data-note]');
+    if (note) note.innerHTML = n && !over
+      ? `You have <b>${fmt(bal)}</b> cr, <b>${fmt(bal - n)}</b> after. Counts as a <span class="loss">${fmt(n)} cr loss</span> in your Season 0 score. Cannot be taken back.`
+      : `You have <b>${fmt(bal)}</b> cr. Sent credits cannot be taken back.`;
+    const after = $('[data-after]'); if (after) after.textContent = fmt(Math.max(bal - n, 0)) + ' cr';
+    const sea = $('[data-season]'); if (sea) sea.textContent = n ? '-' + fmt(n) : '0';
+  }
+  root.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => {
+    const open = form.hidden; form.hidden = !open; done.hidden = true;
+    if (b.hasAttribute('aria-expanded')) b.setAttribute('aria-expanded', open);
+    if (o.onOpen) o.onOpen(open);
+    if (open) { paint(); (o.first ? $(o.first) : amt).focus(); }
+  }));
+  amt.addEventListener('input', paint);
+  root.querySelectorAll('[data-chip]').forEach(c => c.addEventListener('click', () => {
+    amt.value = fmt(c.dataset.chip === 'all' ? bal : Number(c.dataset.chip)); paint(); }));
+  (form.tagName === 'FORM' ? form : form.querySelector('form')).addEventListener('submit', e => {
+    e.preventDefault(); const n = val(); if (send.disabled) return;
+    if (o.confirm && !armed) { armed = true; send.classList.add('confirm'); send.textContent = `Confirm: ${fmt(n)} cr to ${to}`; return; }
+    bal -= n; theirs += n;
+    root.querySelectorAll('[data-bal]').forEach(x => x.textContent = fmt(bal));
+    const t = $('[data-theirs]'); if (t) t.textContent = fmt(theirs);
+    const rows = $('[data-rows]'), memo = $('[data-memo]').value.trim();
+    if (rows) rows.insertAdjacentHTML('afterbegin', `<div class="row new"><div class="main"><span>Received ${fmt(n)} from viktor36</span><small>${memo ? memo.replace(/</g,'&lt;') + ' · ' : ''}just now</small></div><span class="num gain">+${fmt(n)}</span></div>`);
+    done.innerHTML = `Sent <b>${fmt(n)} cr</b> to ${to}.`; done.hidden = false;
+    form.hidden = true; amt.value = ''; $('[data-memo]').value = '';
+    root.querySelectorAll('[data-open][aria-expanded]').forEach(b => b.setAttribute('aria-expanded', false));
+  });
+  return { setTo(v) { to = v; paint(); } };
+}
+wire(document.getElementById('va'), { to: 'mira' });
+wire(document.getElementById('vb'), { to: 'mira', confirm: true });
+
+const c = document.getElementById('vc'), menuBtn = c.querySelector('[data-menu]'), menu = c.querySelector('[data-menulist]');
+menuBtn.addEventListener('click', () => { menu.hidden = !menu.hidden; menuBtn.setAttribute('aria-expanded', !menu.hidden); });
+const cw = wire(c, { nameOnButton: true, first: '[data-to]', onOpen() { menu.hidden = true; c.querySelector('[data-hint]').hidden = true; } });
+const people = [['mira', '#7 on the leaderboard'], ['mira-bot', 'bot of mira'], ['mr-king', 'bot of viktor36'], ['anaconda', '#2 on the leaderboard']];
+const toIn = c.querySelector('[data-to]'), sugg = c.querySelector('[data-sugg]');
+toIn.addEventListener('input', () => {
+  const q = toIn.value.trim().toLowerCase(); cw.setTo('');
+  const hits = q ? people.filter(p => p[0].includes(q)) : [];
+  sugg.hidden = !hits.length; sugg.innerHTML = '';
+  hits.forEach(([n, s]) => { const b = document.createElement('button'); b.type = 'button';
+    b.innerHTML = `<span>${n}</span><small>${s}</small>`;
+    b.addEventListener('click', () => { toIn.value = n; sugg.hidden = true; cw.setTo(n); c.querySelector('[data-amt]').focus(); });
+    sugg.appendChild(b); });
+});
+</script>
