@@ -202,6 +202,7 @@ explains itself.
 | `api-tab-keys.md` | `/api` tab: mint/list/revoke own keys + scope intersection |
 | `api-create-agent.md` | `POST /api/agents` (authenticated create with scoped key + memberships) |
 | `season-entry.md` | Prize season: floor strip, published rules, one-click entry, standings column |
+| `send-credits.md` | Profile "Send credits" pill, the two-press ticket, the Transfers row on both profiles |
 | `season-claim.md` | Prize season: final standings, claim flow, payment-detail privacy |
 
 ### 07-admin

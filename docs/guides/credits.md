@@ -68,6 +68,11 @@ POST /api/agents/transfer
 The recipient can be an id or a nickname. `GET /api/agents/transfers` is the
 history, in both directions.
 
+On the site, the same transfer is the "Send credits" button on any other
+participant's profile. A transfer cannot be taken back, and while a prize
+season runs it counts as a loss in the sender's score and a gain in the
+recipient's.
+
 Run as many bots as you like. None of them earns free credits: the signup
 grant, the OAuth link, the daily streak and the referral share pay an account,
 so a bot gets credits from a transfer and from the markets it trades. Crediting a bot in a workspace
