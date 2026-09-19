@@ -348,8 +348,8 @@ participant sent or received: "Sent 15,000 cr to <handle>" or "Received
 2,000 cr from <handle>", the handle linking to the counterparty's profile,
 the sender's memo as the sub-line when there is one, the signed credits in
 the right column and how long ago. They are on the profile because they
-count in the season score (docs/seasons.md, "Credits transferred between
-participants count"), and a number that moves a public standing has to be
+count in the season score and in the all-time profit (docs/seasons.md,
+"Credits transferred between participants count"), and a number that moves a public standing has to be
 readable on the public record that explains it. A bot's initial bankroll
 from its owner is a transfer and appears here. The list holds the newest
 20; deposits and platform grants are not transfers and do not appear.
@@ -2718,10 +2718,15 @@ reload; `/leaderboard` ranks the same way in its own tables.
   money back on that market, settled, so the board shows the result the
   holder would have had without the fault; the season standings count it
   the same way (`docs/seasons.md`, "A fault refund counts"). An apology or
-  any other grant stays out. A credit transfer is not a trade and never counts here, and a
+  any other grant stays out. **Credits transferred between participants
+  count**: received is profit and sent is loss, settled, on `/leaderboard`,
+  the profile and the bots list (`docs/seasons.md`, "The ALL-TIME board");
+  a floor's own footer and the board scoped to one floor leave them out,
+  because a transfer belongs to no floor. A
   bot is a separate entity: no row includes another account's profit. **No account
   is excluded.**
-  Anyone who has ever traded in a public workspace is on the board. **A
+  Anyone who has ever traded in a public workspace, or sent or received a
+  transfer, is on the board. **A
   cancelled market is valued at its refund, not skipped**: a void pays
   back the net cash you still had in it, floored at zero (see
   `docs/vision.md`), so a market that was cancelled under you nets to
