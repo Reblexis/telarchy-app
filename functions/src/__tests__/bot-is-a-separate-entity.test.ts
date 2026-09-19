@@ -4,9 +4,9 @@
  * count into season", "just a bot is a seaprate entity"). An owner's number
  * never includes their bots': not on the board, the season standings, the
  * profile or /api/agents/mine; a bot that entered the season is paid on its
- * own score whoever else entered. The all-time profit is trading only and
- * never counts a transfer; the season score counts them (docs/seasons.md,
- * "Credits transferred between participants count").
+ * own score whoever else entered. Transfers count in each account's own
+ * number, all time and in the season (docs/seasons.md, "Credits transferred
+ * between participants count"; transfers-count-in-profit.test.ts).
  *
  * And the season standings can be scoped to one floor as a view
  * (docs/ui-conventions.md, "The picker scopes the season board too"): that
@@ -223,35 +223,14 @@ async function seedSeason(entrants: string[]) {
     );
 }
 
-describe('the all-time profit is trading only, never a transfer', () => {
-  test('a bankroll sent to a bot is not profit for the bot and not a loss for the owner', async () => {
-    await transfer(OWNER, BOT, 15000);
-    await loserPaysWinner(WS, OTHER, BOT, 500, 'bot-wins');
-    const board = await loadBoard([WS]);
-    expect(board.profitById.get(BOT)).toBe(500);
-    expect(board.profitById.get(OWNER) ?? 0).toBe(0);
-    expect(board.agentIds).not.toContain(OWNER);
-  });
-
-  test('GET /api/leaderboard, full and scoped to a floor, read the same trading number', async () => {
-    await transfer(OWNER, BOT, 15000);
-    await loserPaysWinner(WS, OTHER, BOT, 500, 'bot-wins');
-    for (const url of ['/api/leaderboard', '/api/leaderboard?workspaceId=floor-a']) {
-      const res = await request(app).get(url);
-      const byId = new Map((res.body.participants as Array<Record<string, unknown>>).map(p => [p.id, p]));
-      expect(byId.get(BOT)).toMatchObject({ totalEarnings: 500 });
-      expect(byId.get(OWNER)).toBeUndefined();
-    }
-  });
-});
-
 describe('a bot is a separate entity', () => {
   test("the board: an owner's row is the owner's own trading, never the bots'", async () => {
     await seedHousehold();
     await loserPaysWinner(WS, OTHER, OWNER, 40, 'owner-wins');
     const board = await loadBoard([WS, WS2]);
-    expect(board.profitById.get(OWNER)).toBe(40);
-    expect(board.profitById.get(BOT)).toBe(-100);
+    // The 1,000 bankroll is the owner's loss and the bot's profit, nobody else's.
+    expect(board.profitById.get(OWNER)).toBe(-960);
+    expect(board.profitById.get(BOT)).toBe(900);
     expect(board.profitById.get(SUBBOT)).toBe(30);
   });
 
@@ -309,7 +288,7 @@ describe('a bot is a separate entity', () => {
     caller = undefined;
     const res = await request(app).get(`/api/agents/${OWNER}/public`);
     expect(res.body.error).toBeUndefined();
-    expect(res.body.stats).toMatchObject({ totalEarnings: 40, settledEarnings: 40 });
+    expect(res.body.stats).toMatchObject({ totalEarnings: -960, settledEarnings: -960 });
     expect(res.body.stats).not.toHaveProperty('ownEarnings');
     expect(res.body.stats).not.toHaveProperty('botsCounted');
   });
@@ -319,8 +298,8 @@ describe('a bot is a separate entity', () => {
     caller = { uid: U };
     const res = await request(app).get('/api/agents/mine');
     const byId = new Map((res.body as Array<Record<string, unknown>>).map(p => [p.id, p]));
-    expect(byId.get(OWNER)).toMatchObject({ earned: 0 });
-    expect(byId.get(BOT)).toMatchObject({ earned: -100 });
+    expect(byId.get(OWNER)).toMatchObject({ earned: -1000 });
+    expect(byId.get(BOT)).toMatchObject({ earned: 900 });
     expect(byId.get(OWNER)).not.toHaveProperty('botsCounted');
   });
 });
@@ -328,27 +307,28 @@ describe('a bot is a separate entity', () => {
 describe("the profile lists an owner's bots, each with its own profit, and one total (owner, 2026-09-17)", () => {
   // "just on profile page somehow figureeout how to show owned bots and
   //  their profits as well as total profit of it and its descendants"
-  test('every descendant is listed with its own trading profit and who it belongs to', async () => {
+  test('every descendant is listed with its own profit and who it belongs to', async () => {
     await seedHousehold();
     await loserPaysWinner(WS, OTHER, OWNER, 40, 'owner-wins');
     caller = undefined;
     const res = await request(app).get(`/api/agents/${OWNER}/public`);
     expect(res.body.error).toBeUndefined();
     expect(res.body.bots).toEqual([
+      { id: BOT, nickname: 'bot', parentId: OWNER, totalEarnings: 900, totalTrades: 1 },
       { id: SUBBOT, nickname: 'subbot', parentId: BOT, totalEarnings: 30, totalTrades: 1 },
-      { id: BOT, nickname: 'bot', parentId: OWNER, totalEarnings: -100, totalTrades: 1 },
     ]);
-    // The account's own number is untouched; the total is a plain sum beside it.
-    expect(res.body.stats.totalEarnings).toBe(40);
+    // The account's own number is untouched; the total is a plain sum beside
+    // it, and the bankroll nets out of it: -960 + 900 + 30.
+    expect(res.body.stats.totalEarnings).toBe(-960);
     expect(res.body.withBotsEarnings).toBe(-30);
   });
 
-  test('a transfer to a bot is no part of either number: the total is trading profit', async () => {
+  test("a bankroll sent to a bot is the bot's profit and nets out of the total", async () => {
     await transfer(OWNER, BOT, 15000);
     await loserPaysWinner(WS, OTHER, BOT, 500, 'bot-wins');
     const res = await request(app).get(`/api/agents/${OWNER}/public`);
     expect(res.body.bots).toEqual([
-      { id: BOT, nickname: 'bot', parentId: OWNER, totalEarnings: 500, totalTrades: 1 },
+      { id: BOT, nickname: 'bot', parentId: OWNER, totalEarnings: 15500, totalTrades: 1 },
       { id: SUBBOT, nickname: 'subbot', parentId: BOT, totalEarnings: 0, totalTrades: 0 },
     ]);
     expect(res.body.withBotsEarnings).toBe(500);
@@ -358,7 +338,7 @@ describe("the profile lists an owner's bots, each with its own profit, and one t
     await seedHousehold();
     const res = await request(app).get(`/api/agents/${BOT}/public`);
     expect((res.body.bots as Array<{ id: string }>).map(b => b.id)).toEqual([SUBBOT]);
-    expect(res.body.withBotsEarnings).toBe(-70);
+    expect(res.body.withBotsEarnings).toBe(930);
   });
 
   test('a participant who owns nothing has an empty list and no total', async () => {

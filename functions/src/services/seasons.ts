@@ -72,7 +72,9 @@ export async function startSeason(seasonId: string): Promise<StartResult> {
 
   // Read the board directly, never the 30-second cache: this number is the
   // floor under every score in the season.
-  const board = await loadBoard(workspaceIds);
+  // Trading alone: the baseline belongs to the marked-growth rule, which
+  // never scored a transfer.
+  const board = await loadBoard(workspaceIds, { floorOnly: true });
 
   // Pre-registrations survive the start. Entry opens while a season is still a
   // draft, so by the time this runs there may already be rows here that ARE

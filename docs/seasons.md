@@ -196,10 +196,15 @@ mark informs an entrant without deciding anything.
 The ALL-TIME board's ranking key stays trading profit marked to market: it
 is the one number a trader can see moving, and a board that only moves on
 resolution days ranks nobody between them (the 2026-08-19 liquidation-mark
-lesson). It is trading profit and nothing else: a credit
-transfer is not a trade, so the all-time board never counts one, on every
-floor or on one (the season does, above, because there a transfer is the
-return leg of a loop that pays money). The SEASON's key is settled profit, because the season is the one
+lesson). Credits transferred between participants count there too, by the
+season's rule without the window: every credit another participant ever sent
+you is profit and every credit you sent is loss, settled money, read from the
+same peer-transfer receipt (`credit_transfers`; a deposit or a platform grant
+has no receipt and never counts). An account that has only ever sent or
+received a transfer is on the board with that number. The board scoped to one
+floor is that floor's trading alone, transfers left out, because a transfer
+belongs to no floor; the profile, the bots list and the daily profit snapshot
+read the every-floor number. The SEASON's key is settled profit, because the season is the one
 place the number buys real money, and a mark can be manufactured while a
 resolution cannot (the 2026-08-28 gaming review,
 notes/season-0-gaming-review-2026-08-28.md in the telarchy umbrella: the

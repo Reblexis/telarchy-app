@@ -79,7 +79,7 @@ export interface Board {
  * rather than silently widening to every workspace, which would leak the exact
  * opposite of what was asked for.
  */
-export async function loadBoard(workspaceIds: string[]): Promise<Board> {
+export async function loadBoard(workspaceIds: string[], opts: BoardOptions = {}): Promise<Board> {
   if (workspaceIds.length === 0) {
     return {
       profitById: new Map(),
@@ -254,6 +254,18 @@ export async function loadBoard(workspaceIds: string[]): Promise<Board> {
       total: Math.round((b.total + credits) * 100) / 100,
     });
   }
+  // CREDITS TRANSFERRED BETWEEN PARTICIPANTS COUNT (docs/seasons.md, "The
+  // ALL-TIME board"): the season's rule without the window. Settled money.
+  // Not on a board scoped to one floor: a transfer belongs to no floor.
+  const transferNet = opts.floorOnly ? new Map<string, number>() : await loadTransferNet();
+  for (const [agentId, credits] of transferNet) {
+    const b = breakdownById.get(agentId) ?? { settled: 0, open: 0, total: 0 };
+    breakdownById.set(agentId, {
+      settled: Math.round((b.settled + credits) * 100) / 100,
+      open: b.open,
+      total: Math.round((b.total + credits) * 100) / 100,
+    });
+  }
   const profitById = new Map(Array.from(breakdownById, ([id, b]) => [id, b.total]));
 
   // Calibration is about markets that produced an answer, so voided ones
@@ -279,6 +291,7 @@ export async function loadBoard(workspaceIds: string[]): Promise<Board> {
   for (const p of positionRows) agentIdsSeen.add(p.agentId);
   for (const r of faultRefunds) agentIdsSeen.add(r.agentId);
   for (const agentId of liquidityNet.keys()) agentIdsSeen.add(agentId);
+  for (const agentId of transferNet.keys()) agentIdsSeen.add(agentId);
 
   return {
     profitById,
@@ -452,6 +465,13 @@ async function loadLiquidityNet(
   return new Map(rows.map(r => [r.agentId, fromUnits(Number(r.units))]));
 }
 
+export interface BoardOptions {
+  /** True for the all-time board scoped to one floor: the trading there
+   *  alone, no transfers (docs/seasons.md, "The ALL-TIME board"). Default
+   *  false: the every-floor number the profile and the bots list read. */
+  floorOnly?: boolean;
+}
+
 export interface SeasonScoreOptions {
   /** True for the standings scoped to one floor as a view: the trading
    *  there alone, no transfers, because a transfer belongs to no floor
@@ -462,12 +482,16 @@ export interface SeasonScoreOptions {
 
 /**
  * Net credits each participant received minus sent in peer transfers, over
- * `(windowStart, windowEnd]` on the transfer instant. Read from the peer-transfer receipt, never from the ledger
+ * `(windowStart, windowEnd]` on the transfer instant, or over all time when
+ * no window is named (the all-time board). Read from the peer-transfer receipt, never from the ledger
  * reason: a USDC deposit is written as `transfer_in` with no receipt and no
  * counterparty, and must not score.
  */
-async function loadTransferNet(windowStart: Date, windowEnd: Date): Promise<Map<string, number>> {
-  const where = sql`where ${creditTransfers.createdAt} > ${windowStart} and ${creditTransfers.createdAt} <= ${windowEnd}`;
+async function loadTransferNet(windowStart?: Date, windowEnd?: Date): Promise<Map<string, number>> {
+  const where =
+    windowStart && windowEnd
+      ? sql`where ${creditTransfers.createdAt} > ${windowStart} and ${creditTransfers.createdAt} <= ${windowEnd}`
+      : sql``;
   const rows = await db
     .select({
       agentId: sql<string>`x.agent_id`,
