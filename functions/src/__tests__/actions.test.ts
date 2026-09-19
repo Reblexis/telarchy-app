@@ -1105,13 +1105,13 @@ describe('a row points at the thing itself', () => {
     const saved = process.env.DATA_ROOM_WORKSPACE_SLUG;
     try {
       delete process.env.DATA_ROOM_WORKSPACE_SLUG;
-      let { rows } = await rowsOf('?kinds=plan&floors=all');
+      let { rows } = await rowsOf('?kinds=plan&floors=all&before=2026-09-02T00:00:00Z');
       expect(hrefOf(rows, 'plan:pl1')).toBe('/data-room/planned');
       expect(hrefOf(rows, 'plan:pl1:edit')).toBe('/data-room/planned');
       expect(hrefOf(rows, 'plan:pl1:done')).toBe('/data-room/planned');
       expect(hrefOf(rows, 'plan:pl-snake')).toBe('/snake');
       process.env.DATA_ROOM_WORKSPACE_SLUG = 'snake';
-      ({ rows } = await rowsOf('?kinds=plan&floors=all'));
+      ({ rows } = await rowsOf('?kinds=plan&floors=all&before=2026-09-02T00:00:00Z'));
       expect(hrefOf(rows, 'plan:pl-snake')).toBe('/data-room/planned');
       expect(hrefOf(rows, 'plan:pl1')).toBe('/telarchy');
     } finally {
@@ -1314,10 +1314,10 @@ describe('filters', () => {
 
   it('participant matches the handle in any case, or the id; unknown is a 400', async () => {
     await seedEverything();
-    const byHandle = (await rowsOf('?participant=VIRE&limit=200')).rows;
+    const byHandle = (await rowsOf('?participant=VIRE&limit=200&before=2026-09-02T00:00:00Z')).rows;
     expect(byHandle.length).toBeGreaterThan(3);
     for (const r of byHandle) expect(r.actor?.id).toBe('a1');
-    const byId = (await rowsOf('?participant=a1&limit=200')).rows;
+    const byId = (await rowsOf('?participant=a1&limit=200&before=2026-09-02T00:00:00Z')).rows;
     expect(byId.map(r => r.id)).toEqual(byHandle.map(r => r.id));
     const bad = await request(app).get('/api/data-room/actions?participant=nobody');
     expect(bad.status).toBe(400);
