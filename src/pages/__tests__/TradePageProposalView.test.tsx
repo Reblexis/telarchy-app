@@ -14,6 +14,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
  * ruling below the trade.
  */
 
+// Ten days out, never a fixed date: inside a day of the deadline the facts row
+// says "decides in 14h" and a test pinned to a calendar day goes red.
+const DECIDE_BY = vi.hoisted(() => new Date(Date.now() + 10 * 86_400_000).toISOString());
+
 const h = vi.hoisted(() => {
   const market = (
     id: string,
@@ -79,7 +83,7 @@ const h = vi.hoisted(() => {
         description: 'A better store page.',
         askUsd: 80,
         status: 'pending' as const,
-        decideBy: '2026-09-20T00:00:00Z',
+        decideBy: DECIDE_BY,
         closedAt: null,
         lapsedAt: null,
         proposedByName: 'Ada',
@@ -182,6 +186,7 @@ vi.mock('../../lib/api', () => {
 
 const { TradePage } = await import('../TradePage');
 const { api } = await import('../../lib/api');
+const { dayOf } = await import('../../lib/viewer-time');
 
 function renderFloor() {
   return render(
@@ -237,7 +242,7 @@ describe('the title is the headline, and the facts are one line under it', () =>
     const text = words(facts);
     expect(text).toContain('Ada');
     expect(text).toContain('$80');
-    expect(text).toMatch(/20 Sep/);
+    expect(text).toContain(dayOf(DECIDE_BY));
     expect(facts.querySelectorAll('svg').length).toBeGreaterThanOrEqual(3);
   });
 });
